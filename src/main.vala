@@ -1,7 +1,4 @@
-using Soup;
-using libremsonic;
-
-
+/*
 void print_artist_array_element(Json.Array array, uint index, Json.Node element_node)
 {
     var element_object = element_node.dup_object();
@@ -15,16 +12,16 @@ void print_index_array_element(Json.Array array, uint index, Json.Node element_n
     element_object.get_array_member("artist").foreach_element(print_artist_array_element);
     return;
 }
-
+*/
 
 int main(string[] args)
 {
 
     var server = new libremsonic.Server(args[1], args[2], args[3]);
 
-    var index_array = server.get_index_array();
+    //stdout.printf("Server created\n");
 
-    index_array.foreach_element(print_index_array_element);
+    var client = new libremsonic.Client(server);
 
-    return 0;
+    return client.run();
 }

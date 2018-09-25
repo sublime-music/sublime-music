@@ -1,8 +1,6 @@
-using Soup;
-
 namespace libremsonic
 {
-    class Server : GLib.Object
+    public class Server : GLib.Object
     {
         Soup.Session session;
         string url;
@@ -17,14 +15,12 @@ namespace libremsonic
             this.password = password;
             session.ssl_strict = false;
             var ping_endpoint = "%s/rest/ping".printf(url);
-            stdout.printf("%s\n", ping_endpoint);
             var message = new Soup.Message("POST", ping_endpoint);
             var form    = Soup.Form.encode("u",  username,
                                            "p",  password,
                                            "c",  "libremsonic",
                                            "f",  "json",
                                            "v",  "1.14.0");
-            stdout.printf("Form: %s\n", form);
             message.request_headers.set_content_type(Soup.FORM_MIME_TYPE_URLENCODED, null);
             message.request_body.append_take(form.data);
             session.send_message(message);
@@ -73,7 +69,6 @@ namespace libremsonic
                                            "c",  "libremsonic",
                                            "f",  "json",
                                            "v",  "1.14.0");
-            stdout.printf("Form: %s\n", form);
             message.request_headers.set_content_type(Soup.FORM_MIME_TYPE_URLENCODED, null);
             message.request_body.append_take(form.data);
             session.send_message(message);
@@ -98,7 +93,6 @@ namespace libremsonic
                                            "c",  "libremsonic",
                                            "f",  "json",
                                            "v",  "1.14.0");
-            stdout.printf("Form: %s\n", form);
             message.request_headers.set_content_type(Soup.FORM_MIME_TYPE_URLENCODED, null);
             message.request_body.append_take(form.data);
             session.send_message(message);
