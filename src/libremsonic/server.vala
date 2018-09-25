@@ -78,7 +78,6 @@ namespace libremsonic
             message.request_body.append_take(form.data);
             session.send_message(message);
 
-            
             var parser = new Json.Parser();
 
             parser.load_from_data((string)message.response_body.flatten().data, -1);
@@ -87,6 +86,30 @@ namespace libremsonic
             var indexes = response.get_object_member("indexes");
             return indexes.get_array_member("index");
             
+        }
+
+        public Json.Array get_playlist_array()
+        {
+            string index_endpoint = "%s/rest/getPlaylists".printf(url);
+
+            var message = new Soup.Message("POST", index_endpoint);
+            var form    = Soup.Form.encode("u",  username,
+                                           "p",  password,
+                                           "c",  "libremsonic",
+                                           "f",  "json",
+                                           "v",  "1.14.0");
+            stdout.printf("Form: %s\n", form);
+            message.request_headers.set_content_type(Soup.FORM_MIME_TYPE_URLENCODED, null);
+            message.request_body.append_take(form.data);
+            session.send_message(message);
+
+            var parser = new Json.Parser();
+
+            parser.load_from_data((string)message.response_body.flatten().data, -1);
+            var root_object = parser.get_root ().get_object ();
+            var response = root_object.get_object_member("subsonic-response");
+            var playlists = response.get_object_member("playlists");
+            return playlists.get_array_member("playlist");
         }
     }
 }
