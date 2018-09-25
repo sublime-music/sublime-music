@@ -5,6 +5,6 @@ gobject_dep = dependency('gobject-2.0')
 libsoup_dep = dependency('libsoup-2.4')
 json_dep    = dependency('json-glib-1.0')
 
-executable('libremsonic', 'src/main.vala',
+executable('libremsonic', 'src/main.vala', 'src/libremsonic/server.vala',
                dependencies : [glib_dep, gobject_dep,
                                libsoup_dep, json_dep])
