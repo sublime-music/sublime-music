@@ -1,6 +1,6 @@
 libremsonic
 ===========
 
-A *sonic client for the Librem 5.
+A \*sonic client for the Librem 5.
 
-Built using Vala, LibSoup, and GTK+.
+Built using Python and GTK+.
