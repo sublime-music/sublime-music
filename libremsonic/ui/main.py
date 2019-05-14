@@ -2,20 +2,23 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk
 
+from .albums import AlbumsPanel
+
 
 class MainWindow(Gtk.Window):
+    """Defines the main window for LibremSonic."""
+
     def __init__(self):
         Gtk.Window.__init__(self, title="LibremSonic")
         self.set_default_size(400, 200)
 
-        albums = Gtk.Label('Albums')
         artists = Gtk.Label('Artists')
         playlists = Gtk.Label('Playlists')
         more = Gtk.Label('More')
 
         # Create the stack
         stack = self.create_stack(
-            Albums=albums,
+            Albums=AlbumsPanel(),
             Artists=artists,
             Playlists=playlists,
             More=more,
@@ -49,9 +52,29 @@ class MainWindow(Gtk.Window):
 
         # Menu button
         button = Gtk.MenuButton()
+        button.set_use_popover(True)
+        button.set_popover(self.create_menu())
+        button.connect('clicked', self.on_menu_click)
+
         icon = Gio.ThemedIcon(name="open-menu-symbolic")
         image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
         button.add(image)
+
         header.pack_end(button)
 
         return header
+
+    def create_menu(self):
+        self.menu = Gtk.PopoverMenu()
+
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        vbox.pack_start(Gtk.Label('Foo'), False, True, 10)
+        self.menu.add(vbox)
+
+        return self.menu
+
+    # ========== Event Listeners ==========
+    def on_menu_click(self, button):
+        self.menu.set_relative_to(button)
+        self.menu.show_all()
+        self.menu.popup()
