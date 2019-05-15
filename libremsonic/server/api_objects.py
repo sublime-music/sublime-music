@@ -1,4 +1,3 @@
-import inspect
 import typing
 from typing import Dict, List, Any, Type
 from datetime import datetime
@@ -10,10 +9,17 @@ def _from_json(cls, data):
     Approach for deserialization here:
     https://stackoverflow.com/a/40639688/2319844
     """
+    # If it's a forward reference, evaluate it to figure out the actual
+    # type.
+    if isinstance(cls, typing.ForwardRef):
+        cls = cls._evaluate(globals(), locals())
+
     annotations: Dict[str, Type] = getattr(cls, '__annotations__', {})
 
-    # Handle lists of objects.
-    if cls == str:
+    # Handle primitive of objects
+    if data is None:
+        instance = None
+    elif cls == str:
         instance = data
     elif cls == int:
         instance = int(data)
@@ -21,17 +27,19 @@ def _from_json(cls, data):
         instance = bool(data)
     elif cls == datetime:
         instance = parser.parse(data)
+
+    # Handle generics. List[*], Dict[*, *] in particular.
     elif type(cls) == typing._GenericAlias:
         # Having to use this because things changed in Python 3.7.
+        class_name = cls._name
 
-        # No idea what the heck this is, but let's go with it.
-        if cls._name == 'List':
+        if class_name == 'List':
             list_type = cls.__args__[0]
             instance: List[list_type] = list()
             for value in data:
                 instance.append(_from_json(list_type, value))
 
-        elif cls._name == 'Dict':
+        elif class_name == 'Dict':
             key_type, val_type = cls.__args__
             instance: Dict[key_type, val_type] = dict()
             for key, value in data.items():
@@ -46,12 +54,15 @@ def _from_json(cls, data):
     # all of the sub-elements, recursively calling from_json on them.
     else:
         instance: cls = cls()
-        for name, value in data.items():
-            field_type = annotations.get(name)
+        for field, field_type in annotations.items():
+            value = data.get(field)
+            setattr(instance, field, _from_json(field_type, value))
+        # for name, value in data.items():
+        #     field_type = annotations.get(name)
 
-            # Sometimes there are extraneous values, ignore them.
-            if field_type:
-                setattr(instance, name, _from_json(field_type, value))
+        #     # Sometimes there are extraneous values, ignore them.
+        #     if field_type:
+        #         setattr(instance, name, _from_json(field_type, value))
 
     return instance
 
@@ -65,7 +76,7 @@ class APIObject:
         return getattr(self, field, default)
 
     def __repr__(self):
-        annotations: Dict[str, Any] = self.__annotations__
+        annotations: Dict[str, Any] = self.get('__annotations__', {})
         typename = type(self).__name__
         fieldstr = ' '.join([
             f'{field}={getattr(self, field)!r}'
@@ -94,9 +105,129 @@ class MusicFolder(APIObject):
     name: str
 
 
+class File(APIObject):
+    id: int
+    parent: int
+    title: str
+    isDir: bool
+    album: str
+    artist: str
+    track: str
+    year: str
+    genre: str
+    coverArt: int
+    size: int
+    contentType: str
+    isVideo: bool
+    transcodedSuffix: str
+    transcodedContentType: str
+    suffix: str
+    duration: int
+    bitRate: int
+    path: str
+    playCount: int
+    created: datetime
+
+
+class Album(APIObject):
+    id: int
+    name: str
+    artist: str
+    artistId: int
+    coverArt: str
+    songCount: int
+    duration: int
+    created: datetime
+    year: str
+    genre: str
+
+    song: List[File]
+
+
+class Artist(APIObject):
+    id: int
+    name: str
+    coverArt: str
+    albumCount: int
+    album: List[Album]
+
+
+class Shortcut(APIObject):
+    id: int
+    name: str
+
+
+class Index(APIObject):
+    name: str
+    artist: List[Artist]
+
+
+class Indexes(APIObject):
+    lastModified: int
+    ignoredArticles: str
+    index: List[Index]
+    shortcut: List[Shortcut]
+    child: List[File]
+
+
+class Directory(APIObject):
+    id: int
+    parent: str
+    name: str
+    playCount: int
+    child: List[File]
+
+
+class Genre(APIObject):
+    songCount: int
+    albumCount: int
+    vvalue: str
+
+
+class MusicFolders(APIObject):
+    musicFolder: List[MusicFolder]
+
+
+class Genres(APIObject):
+    genre: List[Genre]
+
+
+class Artists(APIObject):
+    index: List[Index]
+
+
+class Videos(APIObject):
+    video: List[File]
+
+
+class VideoInfo(APIObject):
+    # TODO implement when I have videos
+    pass
+
+
+class ArtistInfo(APIObject):
+    biography: str
+    musicBrainzId: str
+    lastFmUrl: str
+    smallImageUrl: str
+    mediumImageUrl: str
+    largeImageUrl: str
+    similarArtist: List[Artist]
+
+
 class SubsonicResponse(APIObject):
     status: str
     version: str
     license: License
     error: SubsonicError
-    musicFolders: Dict[str, List[MusicFolder]]
+    musicFolders: MusicFolders
+    indexes: Indexes
+    directory: Directory
+    genres: Genres
+    artists: Artists
+    artist: Artist
+    album: Album
+    song: File
+    videos: Videos
+    videoInfo: VideoInfo
+    artistInfo: ArtistInfo
