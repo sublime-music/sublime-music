@@ -57,12 +57,6 @@ def _from_json(cls, data):
         for field, field_type in annotations.items():
             value = data.get(field)
             setattr(instance, field, _from_json(field_type, value))
-        # for name, value in data.items():
-        #     field_type = annotations.get(name)
-
-        #     # Sometimes there are extraneous values, ignore them.
-        #     if field_type:
-        #         setattr(instance, name, _from_json(field_type, value))
 
     return instance
 
