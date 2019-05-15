@@ -51,7 +51,9 @@ class Server:
 
     def get_music_folders(self):
         result = self._post(self._make_url('getMusicFolders'))
-        return result.musicFolders
+        # The Airsonic API implementation of this is dumb. It gives totally the
+        # wrong answer so we have to go in to the 'musicFolder' key here.
+        return result.musicFolders['musicFolder']
 
     def get_indexes(self):
         result = self._post(self._make_url('getIndexes'))
