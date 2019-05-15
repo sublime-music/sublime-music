@@ -43,6 +43,7 @@ setup(
     keywords='airsonic subsonic libresonic music',
     packages=find_packages(exclude=['tests']),
     install_requires=[
+        'python-dateutil',
         'requests',
         'pyyaml',
         'gobject',

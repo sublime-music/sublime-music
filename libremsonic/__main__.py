@@ -16,9 +16,9 @@ def main():
                     username=sys.argv[1],
                     password=sys.argv[2])
 
-    print(server.ping())
-    print(server.get_license())
-    # print(server.get_music_folders())
+    # print(server.ping())
+    # print(server.get_license())
+    print(server.get_music_folders())
     # print(server.get_indexes())
     # print()
     # print(server.get_music_directory(599))

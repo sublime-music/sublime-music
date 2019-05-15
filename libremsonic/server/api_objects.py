@@ -1,5 +1,7 @@
 import inspect
 from typing import Dict, List, Any
+from datetime import datetime
+from dateutil import parser
 
 
 class APIObject:
@@ -33,19 +35,27 @@ class APIObject:
             instance: cls = cls()
             for name, value in data.items():
                 field_type = annotations.get(name)
-                if inspect.isclass(field_type) and isinstance(
-                        value, (dict, tuple, list, set, frozenset)):
-                    setattr(instance, name, field_type.from_json(value))
+                print('ohea', field_type, value)
+                if inspect.isclass(field_type):
+                    if isinstance(value, (dict, tuple, list, set, frozenset)):
+                        setattr(instance, name, field_type.from_json(value))
+                    elif field_type == datetime:
+                        setattr(instance, name, parser.parse(value))
+                    else:
+                        setattr(instance, name, value)
                 else:
                     setattr(instance, name, value)
 
         return instance
 
+    def get(self, field, default=None):
+        return getattr(self, field, default)
+
     def __repr__(self):
         annotations: Dict[str, Any] = self.__annotations__
         typename = type(self).__name__
         fieldstr = ' '.join([
-            f'{field}={self.__getattribute__(field)!r}'
+            f'{field}={getattr(self, field)!r}'
             for field in annotations.keys() if hasattr(self, field)
         ])
         return f'<{typename} {fieldstr}>'
@@ -55,10 +65,19 @@ class SubsonicError(APIObject):
     code: int
     message: str
 
+    def as_exception(self):
+        return Exception(f'{self.code}: {self.message}')
+
 
 class License(APIObject):
     valid: bool
     email: str
+    licenseExpires: datetime
+
+
+class MusicFolder(APIObject):
+    id: int
+    name: str
 
 
 class SubsonicResponse(APIObject):
@@ -66,3 +85,4 @@ class SubsonicResponse(APIObject):
     version: str
     license: License
     error: SubsonicError
+    musicFolders: List[MusicFolder]
