@@ -215,6 +215,19 @@ class ArtistInfo(APIObject):
     similarArtist: List[Artist]
 
 
+class AlbumInfo(APIObject):
+    notes: str
+    musicBrainzId: str
+    lastFmUrl: str
+    smallImageUrl: str
+    mediumImageUrl: str
+    largeImageUrl: str
+
+
+class SimilarSongs(APIObject):
+    song: List[File]
+
+
 class SubsonicResponse(APIObject):
     status: str
     version: str
@@ -231,3 +244,7 @@ class SubsonicResponse(APIObject):
     videos: Videos
     videoInfo: VideoInfo
     artistInfo: ArtistInfo
+    artistInfo2: ArtistInfo
+    albumInfo: AlbumInfo
+    albumInfo2: AlbumInfo
+    similarSongs: SimilarSongs
