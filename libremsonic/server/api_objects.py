@@ -33,6 +33,8 @@ def _from_json(cls, data):
         # Having to use this because things changed in Python 3.7.
         class_name = cls._name
 
+        # TODO: this is not very elegant since it doesn't allow things which
+        # sublass from List or Dict.
         if class_name == 'List':
             list_type = cls.__args__[0]
             instance: List[list_type] = list()

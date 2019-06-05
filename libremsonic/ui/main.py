@@ -8,7 +8,7 @@ from .albums import AlbumsPanel
 class MainWindow(Gtk.Window):
     """Defines the main window for LibremSonic."""
 
-    def __init__(self):
+    def __init__(self, server):
         Gtk.Window.__init__(self, title="LibremSonic")
         self.set_default_size(400, 200)
 
@@ -18,7 +18,7 @@ class MainWindow(Gtk.Window):
 
         # Create the stack
         stack = self.create_stack(
-            Albums=AlbumsPanel(),
+            Albums=AlbumsPanel(server),
             Artists=artists,
             Playlists=playlists,
             More=more,

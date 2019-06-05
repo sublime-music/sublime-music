@@ -1,5 +1,6 @@
 import requests
-from typing import List, Optional, Dict
+from asyncio import sleep
+from typing import List, Optional, Dict, Awaitable
 
 from .api_objects import (SubsonicResponse, License, MusicFolder, Indexes,
                           AlbumInfo, ArtistInfo, VideoInfo, File, Album,
@@ -33,7 +34,7 @@ class Server:
     def _make_url(self, endpoint: str) -> str:
         return f'{self.hostname}/rest/{endpoint}.view'
 
-    def _post(self, url, **params) -> SubsonicResponse:
+    async def _post(self, url, **params) -> SubsonicResponse:
         """
         Make a post to a *Sonic REST API. Handle all types of errors including
         *Sonic ``<error>`` responses.
@@ -64,11 +65,11 @@ class Server:
 
         return response
 
-    def ping(self) -> SubsonicResponse:
+    async def ping(self) -> SubsonicResponse:
         """
         Used to test connectivity with the server.
         """
-        return self._post(self._make_url('ping'))
+        return await self._post(self._make_url('ping'))
 
     def get_license(self) -> License:
         """
@@ -249,4 +250,4 @@ class Server:
             to API Spec.
         """
         result = self._post(self._make_url('getAlbumInfo2'), id=id)
-        return result.similarSongs
+        return result.similarSongs.song
