@@ -9,16 +9,12 @@ from .api_objects import (SubsonicResponse, License, MusicFolder, Indexes,
 class Server:
     """Defines a *Sonic server."""
 
-    def __init__(self,
-                 name: str = None,
-                 hostname: str = None,
-                 username: str = None,
-                 password: str = None):
+    def __init__(self, name: str, hostname: str, username: str, password: str):
         # TODO handle these optionals better.
-        self.name: str = name or ''
-        self.hostname: str = hostname or ''
-        self.username: str = username or ''
-        self.password: str = password or ''
+        self.name: str = name
+        self.hostname: str = hostname
+        self.username: str = username
+        self.password: str = password
 
     def _get_params(self) -> Dict[str, str]:
         """See Subsonic API Introduction for details."""
