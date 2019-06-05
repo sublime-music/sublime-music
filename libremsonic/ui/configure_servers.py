@@ -45,6 +45,10 @@ class EditServerDialog(Gtk.Dialog):
             entry_box.pack_start(entry, True, True, 0)
             self.data[label] = entry
 
+        # TODO boolean fields
+        # TODO test server button
+        # TODO open in browser button
+
         content_area.pack_start(flowbox, True, True, 10)
         self.show_all()
 
