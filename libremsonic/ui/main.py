@@ -5,11 +5,11 @@ from gi.repository import Gio, Gtk
 from .albums import AlbumsPanel
 
 
-class MainWindow(Gtk.Window):
+class MainWindow(Gtk.ApplicationWindow):
     """Defines the main window for LibremSonic."""
 
-    def __init__(self, server):
-        Gtk.Window.__init__(self, title="LibremSonic")
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.set_default_size(400, 200)
 
         artists = Gtk.Label('Artists')
@@ -18,14 +18,15 @@ class MainWindow(Gtk.Window):
 
         # Create the stack
         stack = self.create_stack(
-            Albums=AlbumsPanel(server),
+            Albums=AlbumsPanel(),
             Artists=artists,
             Playlists=playlists,
             More=more,
         )
         stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
 
-        self.set_titlebar(self.create_headerbar(stack))
+        titlebar = self.create_headerbar(stack)
+        self.set_titlebar(titlebar)
         self.add(stack)
 
     def create_stack(self, **kwargs):
@@ -67,8 +68,14 @@ class MainWindow(Gtk.Window):
     def create_menu(self):
         self.menu = Gtk.PopoverMenu()
 
+        menu_items = [
+            ('app.configure_servers', Gtk.ModelButton('Configure Servers')),
+        ]
+
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        vbox.pack_start(Gtk.Label('Foo'), False, True, 10)
+        for name, item in menu_items:
+            item.set_action_name(name)
+            vbox.pack_start(item, False, True, 10)
         self.menu.add(vbox)
 
         return self.menu

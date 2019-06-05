@@ -6,11 +6,18 @@ from dateutil import parser
 
 def _from_json(cls, data):
     """
-    Approach for deserialization here:
-    https://stackoverflow.com/a/40639688/2319844
+    Converts data from a JSON parse into Python data structures.
+
+    Arguments:
+
+    cls: the template class to deserialize into
+    data: the data to deserialize to the class
     """
+    # Approach for deserialization here:
+    # https://stackoverflow.com/a/40639688/2319844
+
     # If it's a forward reference, evaluate it to figure out the actual
-    # type.
+    # type. This allows for types that have to be put into a string.
     if isinstance(cls, typing.ForwardRef):
         cls = cls._evaluate(globals(), locals())
 

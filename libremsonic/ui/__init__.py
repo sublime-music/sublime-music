@@ -1,1 +1,1 @@
-from .main import MainWindow
+from .app import LibremsonicApp
