@@ -1,6 +1,10 @@
+import os
+
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk
+
+from libremsonic.config import get_config, save_config
 
 from .main import MainWindow
 from .configure_servers import ConfigureServersDialog
@@ -16,7 +20,7 @@ class LibremsonicApp(Gtk.Application):
         self.window = None
 
         # TODO load this from the config file
-        self.current_server = None
+        self.config = None
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
@@ -35,13 +39,29 @@ class LibremsonicApp(Gtk.Application):
         self.window.show_all()
         self.window.present()
 
-        if not self.current_server:
+        self.load_settings()
+
+        if self.config.current_server is None:
             self.show_configure_servers_dialog()
+
+        print('current config', self.config)
 
     def on_configure_servers(self, action, param):
         self.show_configure_servers_dialog()
 
+    def on_server_list_changed(self, action, params):
+        server_config, *_ = params
+
+        self.save_settings()
+
     def show_configure_servers_dialog(self):
-        dialog = ConfigureServersDialog(self.window)
+        dialog = ConfigureServersDialog(self.window, self.config.servers)
+        dialog.connect('server-list-changed', self.on_server_list_changed)
         dialog.run()
         dialog.destroy()
+
+    def load_settings(self):
+        self.config = get_config(os.path.expanduser('~/tmp/test.json'))
+
+    def save_settings(self):
+        save_config(self.config, os.path.expanduser('~/tmp/test.json'))

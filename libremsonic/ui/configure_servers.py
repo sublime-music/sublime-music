@@ -1,7 +1,9 @@
 import gi
+import subprocess
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk
+from gi.repository import Gtk, GObject
 
+from libremsonic.server import Server
 from libremsonic.config import ServerConfiguration
 
 
@@ -31,26 +33,29 @@ class EditServerDialog(Gtk.Dialog):
 
         # Create all of the text entry fields for the server configuration.
         text_fields = [
-            ('Name', existing_config.name),
-            ('Server address', existing_config.server_address),
-            ('Local network address', existing_config.local_network_address),
-            ('Local network SSID', existing_config.local_network_ssid),
-            ('Username', existing_config.username),
-            ('Password', existing_config.password),
+            ('Name', existing_config.name, False),
+            ('Server address', existing_config.server_address, False),
+            ('Local network address', existing_config.local_network_address,
+             False),
+            ('Local network SSID', existing_config.local_network_ssid, False),
+            ('Username', existing_config.username, False),
+            ('Password', existing_config.password, True),
         ]
-        for label, value in text_fields:
+        for label, value, is_password in text_fields:
             entry_label = Gtk.Label(label + ':')
             entry_label.set_halign(Gtk.Align.START)
             label_box.pack_start(entry_label, True, True, 0)
 
             entry = Gtk.Entry(text=value)
+            if is_password:
+                entry.set_visibility(False)
             entry_box.pack_start(entry, True, True, 0)
             self.data[label] = entry
 
         # Create all of the check box fields for the server configuration.
         boolean_fields = [
             ('Browse by tags', existing_config.browse_by_tags),
-            ('Sync Enabled', existing_config.sync_enabled),
+            ('Sync enabled', existing_config.sync_enabled),
         ]
         for label, value in boolean_fields:
             entry_label = Gtk.Label(label + ':')
@@ -67,28 +72,41 @@ class EditServerDialog(Gtk.Dialog):
         button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         test_server = Gtk.Button('Test Connection to Server')
-        # TODO: connect to ping
+        test_server.connect('clicked', self.on_test_server_clicked)
         button_box.pack_start(test_server, False, True, 5)
 
         open_in_browser = Gtk.Button('Open in Browser')
-        # TODO: connect to open in browser
+        open_in_browser.connect('clicked', self.on_open_in_browser_clicked)
         button_box.pack_start(open_in_browser, False, True, 5)
 
         content_area.pack_start(button_box, True, True, 10)
 
         self.show_all()
 
+    def on_test_server_clicked(self, event):
+        server = Server(
+            self.data['Name'].get_text(),
+            self.data['Server address'].get_text(),
+            self.data['Username'].get_text(),
+            self.data['Password'].get_text(),
+        )
+        server.ping()
+
+    def on_open_in_browser_clicked(self, event):
+        subprocess.call(['xdg-open', self.data['Server address'].get_text()])
+
 
 class ConfigureServersDialog(Gtk.Dialog):
-    def __init__(self, parent):
+    __gsignals__ = {
+        'server-list-changed': (GObject.SIGNAL_RUN_FIRST, GObject.TYPE_NONE,
+                                (object, ))
+    }
+
+    def __init__(self, parent, server_configs):
         Gtk.Dialog.__init__(self, 'Configure Servers', parent, 0, ())
 
         # TODO: DEBUG DATA
-        self.server_configs = [
-            ServerConfiguration(name='ohea'),
-            ServerConfiguration()
-        ]
-
+        self.server_configs = server_configs
         self.set_default_size(400, 250)
 
         flowbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -126,6 +144,8 @@ class ConfigureServersDialog(Gtk.Dialog):
 
         content_area = self.get_content_area()
         content_area.pack_start(flowbox, True, True, 10)
+
+        self.server_list_on_selected_rows_changed(None)
         self.show_all()
 
     def refresh_server_list(self):
@@ -139,7 +159,6 @@ class ConfigureServersDialog(Gtk.Dialog):
             row.add(server_name_label)
             self.server_list.add(row)
 
-        print(self.server_list, self.server_configs)
         self.show_all()
 
     def on_remove_clicked(self, event):
@@ -147,6 +166,7 @@ class ConfigureServersDialog(Gtk.Dialog):
         if selected:
             del self.server_configs[selected.get_index()]
             self.refresh_server_list()
+            self.emit('server-list-changed', self.server_configs)
 
     def on_edit_clicked(self, event, add):
         if add:
@@ -167,6 +187,8 @@ class ConfigureServersDialog(Gtk.Dialog):
                 ),
                 username=dialog.data['Username'].get_text(),
                 password=dialog.data['Password'].get_text(),
+                browse_by_tags=dialog.data['Browse by tags'].get_active(),
+                sync_enabled=dialog.data['Sync enabled'].get_active(),
             )
 
             if add:
@@ -174,9 +196,9 @@ class ConfigureServersDialog(Gtk.Dialog):
             else:
                 self.server_configs[selected_index] = new_config
 
-            print([x.name for x in self.server_configs])
-
             self.refresh_server_list()
+            self.emit('server-list-changed', self.server_configs)
+
         dialog.destroy()
 
     def server_list_on_selected_rows_changed(self, event):
