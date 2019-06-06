@@ -18,6 +18,7 @@ class EditServerDialog(Gtk.Dialog):
         if not existing_config:
             existing_config = ServerConfiguration()
 
+        # Create the two columns for the labels and corresponding entry fields.
         self.set_default_size(400, 250)
         content_area = self.get_content_area()
         flowbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -28,6 +29,7 @@ class EditServerDialog(Gtk.Dialog):
 
         self.data = {}
 
+        # Create all of the text entry fields for the server configuration.
         text_fields = [
             ('Name', existing_config.name),
             ('Server address', existing_config.server_address),
@@ -45,11 +47,35 @@ class EditServerDialog(Gtk.Dialog):
             entry_box.pack_start(entry, True, True, 0)
             self.data[label] = entry
 
-        # TODO boolean fields
-        # TODO test server button
-        # TODO open in browser button
+        # Create all of the check box fields for the server configuration.
+        boolean_fields = [
+            ('Browse by tags', existing_config.browse_by_tags),
+            ('Sync Enabled', existing_config.sync_enabled),
+        ]
+        for label, value in boolean_fields:
+            entry_label = Gtk.Label(label + ':')
+            entry_label.set_halign(Gtk.Align.START)
+            label_box.pack_start(entry_label, True, True, 0)
+
+            checkbox = Gtk.CheckButton(active=value)
+            entry_box.pack_start(checkbox, True, True, 5)
+            self.data[label] = checkbox
 
         content_area.pack_start(flowbox, True, True, 10)
+
+        # Create a box for buttons.
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+
+        test_server = Gtk.Button('Test Connection to Server')
+        # TODO: connect to ping
+        button_box.pack_start(test_server, False, True, 5)
+
+        open_in_browser = Gtk.Button('Open in Browser')
+        # TODO: connect to open in browser
+        button_box.pack_start(open_in_browser, False, True, 5)
+
+        content_area.pack_start(button_box, True, True, 10)
+
         self.show_all()
 
 
