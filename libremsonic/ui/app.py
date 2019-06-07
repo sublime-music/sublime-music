@@ -2,7 +2,7 @@ import os
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk
+from gi.repository import Gio, Gtk, GLib
 
 from libremsonic.config import get_config, save_config
 
@@ -15,12 +15,25 @@ class LibremsonicApp(Gtk.Application):
         super().__init__(
             *args,
             application_id="com.sumnerevans.libremsonic",
+            flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
             **kwargs,
         )
         self.window = None
 
+        self.add_main_option(
+            'config', ord('c'), GLib.OptionFlags.NONE, GLib.OptionArg.NONE,
+            'Specify a configuration file. Defaults to ~/.config/libremsonic/config.json',
+            None)
+
         # TODO load this from the config file
         self.config = None
+
+    def do_command_line(self, command_line):
+        options = command_line.get_options_dict().end().unpack()
+        print(options)
+
+        self.activate()
+        return 0
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
