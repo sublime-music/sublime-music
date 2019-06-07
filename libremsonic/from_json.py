@@ -58,7 +58,7 @@ def from_json(cls, data):
                 instance[key] = value
         else:
             raise Exception(
-                'Trying to deserialize an unsupported type: {cls._name}')
+                f'Trying to deserialize an unsupported type: {cls._name}')
 
     # Handle everything else by first instantiating the class, then adding
     # all of the sub-elements, recursively calling from_json on them.

@@ -3,6 +3,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk
 
 from .albums import AlbumsPanel
+from libremsonic.config import AppConfiguration
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -10,7 +11,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.set_default_size(400, 200)
+        self.set_default_size(1024, 768)
 
         artists = Gtk.Label('Artists')
         playlists = Gtk.Label('Playlists')
@@ -28,6 +29,10 @@ class MainWindow(Gtk.ApplicationWindow):
         titlebar = self.create_headerbar(stack)
         self.set_titlebar(titlebar)
         self.add(stack)
+
+    def update(self, config: AppConfiguration):
+        server_name = config.servers[config.current_server].name
+        self.connected_to_label.set_markup(f'Connected to {server_name}')
 
     def create_stack(self, **kwargs):
         stack = Gtk.Stack()
@@ -68,13 +73,21 @@ class MainWindow(Gtk.ApplicationWindow):
     def create_menu(self):
         self.menu = Gtk.PopoverMenu()
 
+        self.connected_to_label = Gtk.Label()
+        self.connected_to_label.set_markup(
+            f'<span style="italic">Not Connected to a Server</span>')
+        self.connected_to_label.set_margin_left(10)
+        self.connected_to_label.set_margin_right(10)
+
         menu_items = [
-            ('app.configure_servers', Gtk.ModelButton('Configure Servers')),
+            (None, self.connected_to_label),
+            ('app.configure_servers', Gtk.ModelButton('Connect to Server')),
         ]
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         for name, item in menu_items:
-            item.set_action_name(name)
+            if name:
+                item.set_action_name(name)
             vbox.pack_start(item, False, True, 10)
         self.menu.add(vbox)
 

@@ -1,6 +1,6 @@
 import os
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 import json
 
 from libremsonic.from_json import from_json
@@ -38,7 +38,7 @@ class ServerConfiguration:
 
 class AppConfiguration:
     servers: List[ServerConfiguration]
-    current_server: Optional[int]
+    current_server: int
 
     def to_json(self):
         return {
@@ -57,7 +57,7 @@ def get_config(filename: str) -> AppConfiguration:
         if not response_json:
             default_configuration = AppConfiguration()
             default_configuration.servers = []
-            default_configuration.current_server = None
+            default_configuration.current_server = -1
             return default_configuration
 
         return from_json(AppConfiguration, response_json)

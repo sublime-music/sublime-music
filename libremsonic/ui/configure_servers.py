@@ -21,7 +21,7 @@ class EditServerDialog(Gtk.Dialog):
             existing_config = ServerConfiguration()
 
         # Create the two columns for the labels and corresponding entry fields.
-        self.set_default_size(400, 250)
+        self.set_default_size(450, 250)
         content_area = self.get_content_area()
         flowbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         label_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -99,22 +99,23 @@ class EditServerDialog(Gtk.Dialog):
 class ConfigureServersDialog(Gtk.Dialog):
     __gsignals__ = {
         'server-list-changed': (GObject.SIGNAL_RUN_FIRST, GObject.TYPE_NONE,
-                                (object, ))
+                                (object, )),
+        'connected-server-changed': (GObject.SIGNAL_RUN_FIRST,
+                                     GObject.TYPE_NONE, (object, )),
     }
 
-    def __init__(self, parent, server_configs):
-        Gtk.Dialog.__init__(self, 'Configure Servers', parent, 0, ())
+    def __init__(self, parent, config):
+        Gtk.Dialog.__init__(self, 'Connect to Server', parent, 0, ())
 
-        # TODO: DEBUG DATA
-        self.server_configs = server_configs
-        self.set_default_size(400, 250)
+        self.server_configs = config.servers
+        self.selected_server_index = config.current_server
+        self.set_default_size(450, 300)
 
         flowbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         self.server_list = Gtk.ListBox()
         self.server_list.connect('selected-rows-changed',
                                  self.server_list_on_selected_rows_changed)
-        self.refresh_server_list()
 
         flowbox.pack_start(self.server_list, True, True, 10)
 
@@ -128,6 +129,7 @@ class ConfigureServersDialog(Gtk.Dialog):
             (Gtk.Button('Add...'), lambda e: self.on_edit_clicked(e, True),
              'start', False),
             (Gtk.Button('Remove'), self.on_remove_clicked, 'start', True),
+            (Gtk.Button('Connect'), self.on_connect_clicked, 'end', False),
             (Gtk.Button('Close'), lambda _: self.close(), 'end', False),
         ]
         for button_cfg in self.buttons:
@@ -145,8 +147,9 @@ class ConfigureServersDialog(Gtk.Dialog):
         content_area = self.get_content_area()
         content_area.pack_start(flowbox, True, True, 10)
 
-        self.server_list_on_selected_rows_changed(None)
         self.show_all()
+        self.refresh_server_list()
+        self.server_list_on_selected_rows_changed(None)
 
     def refresh_server_list(self):
         for el in self.server_list:
@@ -160,6 +163,9 @@ class ConfigureServersDialog(Gtk.Dialog):
             self.server_list.add(row)
 
         self.show_all()
+        if self.selected_server_index is not None and self.selected_server_index >= 0:
+            self.server_list.select_row(
+                self.server_list.get_row_at_index(self.selected_server_index))
 
     def on_remove_clicked(self, event):
         selected = self.server_list.get_selected_row()
@@ -196,10 +202,14 @@ class ConfigureServersDialog(Gtk.Dialog):
             else:
                 self.server_configs[selected_index] = new_config
 
-            self.refresh_server_list()
             self.emit('server-list-changed', self.server_configs)
 
         dialog.destroy()
+
+    def on_connect_clicked(self, event):
+        selected_index = self.server_list.get_selected_row().get_index()
+        self.emit('connected-server-changed', selected_index)
+        self.close()
 
     def server_list_on_selected_rows_changed(self, event):
         has_selection = self.server_list.get_selected_row()
