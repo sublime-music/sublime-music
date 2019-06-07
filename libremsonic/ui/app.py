@@ -39,7 +39,7 @@ class LibremsonicApp(Gtk.Application):
             config_folder = (os.environ.get('XDG_CONFIG_HOME')
                              or os.environ.get('APPDATA') or os.path.join(
                                  os.environ.get('HOME'), '.config'))
-            config_folder = os.path.join(config_folder, 'visplay')
+            config_folder = os.path.join(config_folder, 'libremsonic')
             self.config_file = os.path.join(config_folder, 'config.yaml')
 
         self.activate()

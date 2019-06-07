@@ -46,8 +46,18 @@ class AppConfiguration:
             'current_server': self.current_server,
         }
 
+    @classmethod
+    def get_default_configuration(cls):
+        config = AppConfiguration()
+        config.servers = []
+        config.current_server = -1
+        return config
+
 
 def get_config(filename: str) -> AppConfiguration:
+    if not os.path.exists(filename):
+        return AppConfiguration.get_default_configuration()
+
     with open(filename, 'r') as f:
         try:
             response_json = json.load(f)
@@ -64,5 +74,7 @@ def get_config(filename: str) -> AppConfiguration:
 
 
 def save_config(config: AppConfiguration, filename: str):
+    # Make the necessary directories before writing the config.
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'w+') as f:
         f.write(json.dumps(config.to_json(), indent=2, sort_keys=True))

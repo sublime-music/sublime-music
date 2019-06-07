@@ -90,7 +90,24 @@ class EditServerDialog(Gtk.Dialog):
             self.data['Username'].get_text(),
             self.data['Password'].get_text(),
         )
-        server.ping()
+        try:
+            server.ping()
+            dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
+                                       Gtk.ButtonsType.OK,
+                                       'Connection to server successful.')
+            dialog.format_secondary_markup(
+                f"Connection to {self.data['Server address'].get_text()} successful."
+            )
+        except Exception as err:
+            dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.ERROR,
+                                       Gtk.ButtonsType.OK,
+                                       'Connection to server unsuccessful.')
+            dialog.format_secondary_markup(
+                f"Connection to {self.data['Server address'].get_text()} resulted in the following error:\n\n{err}"
+            )
+
+        dialog.run()
+        dialog.destroy()
 
     def on_open_in_browser_clicked(self, event):
         subprocess.call(['xdg-open', self.data['Server address'].get_text()])
@@ -129,8 +146,8 @@ class ConfigureServersDialog(Gtk.Dialog):
             (Gtk.Button('Add...'), lambda e: self.on_edit_clicked(e, True),
              'start', False),
             (Gtk.Button('Remove'), self.on_remove_clicked, 'start', True),
-            (Gtk.Button('Connect'), self.on_connect_clicked, 'end', False),
             (Gtk.Button('Close'), lambda _: self.close(), 'end', False),
+            (Gtk.Button('Connect'), self.on_connect_clicked, 'end', True),
         ]
         for button_cfg in self.buttons:
             btn, action, pack_end, requires_selection = button_cfg
@@ -202,6 +219,7 @@ class ConfigureServersDialog(Gtk.Dialog):
             else:
                 self.server_configs[selected_index] = new_config
 
+            self.refresh_server_list()
             self.emit('server-list-changed', self.server_configs)
 
         dialog.destroy()

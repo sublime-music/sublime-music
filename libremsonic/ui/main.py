@@ -31,8 +31,13 @@ class MainWindow(Gtk.ApplicationWindow):
         self.add(stack)
 
     def update(self, config: AppConfiguration):
-        server_name = config.servers[config.current_server].name
-        self.connected_to_label.set_markup(f'Connected to {server_name}')
+        # Update the Connected to label on the popup menu.
+        if config.current_server >= 0:
+            server_name = config.servers[config.current_server].name
+            self.connected_to_label.set_markup(f'Connected to {server_name}')
+        else:
+            self.connected_to_label.set_markup(
+                f'<span style="italic">Not Connected to a Server</span>')
 
     def create_stack(self, **kwargs):
         stack = Gtk.Stack()
