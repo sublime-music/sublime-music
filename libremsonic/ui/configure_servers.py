@@ -8,8 +8,12 @@ from libremsonic.config import ServerConfiguration
 
 
 class EditServerDialog(Gtk.Dialog):
+    """
+    The Add New/Edit Server Dialog. The dialogs are the same, but when editing,
+    an ``existing_config`` will be specified.
+    """
     def __init__(self, parent, existing_config=None):
-        editing = existing_config != None
+        editing = existing_config is not None
         Gtk.Dialog.__init__(
             self,
             f'Edit {existing_config.name}' if editing else 'Add New Server',
@@ -29,6 +33,7 @@ class EditServerDialog(Gtk.Dialog):
         flowbox.pack_start(label_box, False, True, 10)
         flowbox.pack_start(entry_box, True, True, 10)
 
+        # Store a map of field label to GTK component.
         self.data = {}
 
         # Create all of the text entry fields for the server configuration.
@@ -42,10 +47,12 @@ class EditServerDialog(Gtk.Dialog):
             ('Password', existing_config.password, True),
         ]
         for label, value, is_password in text_fields:
+            # Put the label in the left box.
             entry_label = Gtk.Label(label + ':')
             entry_label.set_halign(Gtk.Align.START)
             label_box.pack_start(entry_label, True, True, 0)
 
+            # Put the text entry in the right box.
             entry = Gtk.Entry(text=value)
             if is_password:
                 entry.set_visibility(False)
@@ -58,10 +65,13 @@ class EditServerDialog(Gtk.Dialog):
             ('Sync enabled', existing_config.sync_enabled),
         ]
         for label, value in boolean_fields:
+            # Put the label in the left box.
             entry_label = Gtk.Label(label + ':')
             entry_label.set_halign(Gtk.Align.START)
             label_box.pack_start(entry_label, True, True, 0)
 
+            # Put the checkbox in the right box. Note we have to pad here since
+            # the checkboxes are smaller than the text fields.
             checkbox = Gtk.CheckButton(active=value)
             entry_box.pack_start(checkbox, True, True, 5)
             self.data[label] = checkbox
@@ -84,12 +94,15 @@ class EditServerDialog(Gtk.Dialog):
         self.show_all()
 
     def on_test_server_clicked(self, event):
+        # Instantiate the server.
         server = Server(
             self.data['Name'].get_text(),
             self.data['Server address'].get_text(),
             self.data['Username'].get_text(),
             self.data['Password'].get_text(),
         )
+
+        # Try to ping, and show a message box with whether or not it worked.
         try:
             server.ping()
             dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
@@ -128,17 +141,18 @@ class ConfigureServersDialog(Gtk.Dialog):
         self.selected_server_index = config.current_server
         self.set_default_size(450, 300)
 
+        # Flow box to hold the server list and the buttons.
         flowbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
+        # Server List
         self.server_list = Gtk.ListBox()
         self.server_list.connect('selected-rows-changed',
                                  self.server_list_on_selected_rows_changed)
-
         flowbox.pack_start(self.server_list, True, True, 10)
 
-        # Right Side
-        button_array = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         # Tuples: (button, action function, pack side, requires_selection)
+        # Add all of the buttons to the button box.
         self.buttons = [
             # TODO get good icons for these
             (Gtk.Button('Edit...'), lambda e: self.on_edit_clicked(e, False),
@@ -153,14 +167,15 @@ class ConfigureServersDialog(Gtk.Dialog):
             btn, action, pack_end, requires_selection = button_cfg
 
             if pack_end == 'end':
-                button_array.pack_end(btn, False, True, 5)
+                button_box.pack_end(btn, False, True, 5)
             else:
-                button_array.pack_start(btn, False, True, 5)
+                button_box.pack_start(btn, False, True, 5)
 
             btn.connect('clicked', action)
 
-        flowbox.pack_end(button_array, False, False, 0)
+        flowbox.pack_end(button_box, False, False, 0)
 
+        # Add the flowbox to the dialog and show the dialog.
         content_area = self.get_content_area()
         content_area.pack_start(flowbox, True, True, 10)
 
@@ -169,9 +184,11 @@ class ConfigureServersDialog(Gtk.Dialog):
         self.server_list_on_selected_rows_changed(None)
 
     def refresh_server_list(self):
+        # Clear out the list.
         for el in self.server_list:
             self.server_list.remove(el)
 
+        # Add all of the rows for each of the servers.
         for config in self.server_configs:
             row = Gtk.ListBoxRow()
             server_name_label = Gtk.Label(config.name)
@@ -179,6 +196,7 @@ class ConfigureServersDialog(Gtk.Dialog):
             row.add(server_name_label)
             self.server_list.add(row)
 
+        # Show them, and select the current server.
         self.show_all()
         if self.selected_server_index is not None and self.selected_server_index >= 0:
             self.server_list.select_row(
@@ -201,6 +219,7 @@ class ConfigureServersDialog(Gtk.Dialog):
 
         result = dialog.run()
         if result == Gtk.ResponseType.OK:
+            # Create a new server configuration to use.
             new_config = ServerConfiguration(
                 name=dialog.data['Name'].get_text(),
                 server_address=dialog.data['Server address'].get_text(),
@@ -230,6 +249,8 @@ class ConfigureServersDialog(Gtk.Dialog):
         self.close()
 
     def server_list_on_selected_rows_changed(self, event):
+        # Update the state of the buttons depending on whether or not a row is
+        # selected in the server list.
         has_selection = self.server_list.get_selected_row()
 
         for button, *_, requires_selection in self.buttons:

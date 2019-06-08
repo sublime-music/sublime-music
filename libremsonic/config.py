@@ -60,17 +60,9 @@ def get_config(filename: str) -> AppConfiguration:
 
     with open(filename, 'r') as f:
         try:
-            response_json = json.load(f)
+            return from_json(AppConfiguration, json.load(f))
         except json.decoder.JSONDecodeError:
-            response_json = None
-
-        if not response_json:
-            default_configuration = AppConfiguration()
-            default_configuration.servers = []
-            default_configuration.current_server = -1
-            return default_configuration
-
-        return from_json(AppConfiguration, response_json)
+            return AppConfiguration.get_default_configuration()
 
 
 def save_config(config: AppConfiguration, filename: str):
