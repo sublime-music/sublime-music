@@ -1,47 +1,142 @@
 import gi
-import sys
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, Gtk
 
 
-class PlayerControls(Gtk.Box):
+class PlayerControls(Gtk.ActionBar):
     """
     Defines the player controls panel that appears at the bottom of the window.
     """
 
     def __init__(self):
-        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
+        Gtk.ActionBar.__init__(self)
+        self.set_name('player-controls-bar')
 
         self.song_display = self.create_song_display()
         self.playback_controls = self.create_playback_controls()
         self.up_next_volume = self.create_up_next_volume()
 
-        # TODO this sucks because we can't use GtkCenterBox, so we nee to
-        # figure out a different way to make the playback controls centered
-        # even if the song_display and up_next_volume are not the same size.
-        self.pack_start(self.song_display, False, True, 5)
-        self.pack_start(self.playback_controls, True, True, 5)
-        self.pack_end(self.up_next_volume, False, True, 5)
+        self.pack_start(self.song_display)
+        self.set_center_widget(self.playback_controls)
+        self.pack_end(self.up_next_volume)
 
     def create_song_display(self):
-        return Gtk.Label('The title and album art here')
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+
+        self.album_art = Gtk.Image()
+        box.pack_start(self.album_art, False, False, 5)
+
+        details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        details_box.pack_start(Gtk.Box(), True, True, 0)
+
+        self.song_name = Gtk.Label('<b>Song name</b>',
+                                   halign=Gtk.Align.START,
+                                   use_markup=True)
+        self.song_name.set_name('song-name')
+        details_box.add(self.song_name)
+
+        self.album_name = Gtk.Label('Album name', halign=Gtk.Align.START)
+        details_box.add(self.album_name)
+
+        details_box.pack_start(Gtk.Box(), True, True, 0)
+        box.pack_start(details_box, True, True, 5)
+
+        return box
 
     def create_playback_controls(self):
-        return Gtk.Label('Buttons and scubber')
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        # Scrubber and song progress/length labels
+        scrubber_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+
+        self.song_progress_label = Gtk.Label('0:00')
+        scrubber_box.pack_start(self.song_progress_label, False, False, 5)
+
+        self.song_scrubber = Gtk.Scale.new_with_range(
+            orientation=Gtk.Orientation.HORIZONTAL, min=0, max=100, step=5)
+        self.song_scrubber.set_name('song-scrubber')
+        self.song_scrubber.set_draw_value(False)
+        scrubber_box.pack_start(self.song_scrubber, True, True, 0)
+
+        self.song_lengh_label = Gtk.Label('0:00')
+        scrubber_box.pack_start(self.song_lengh_label, False, False, 5)
+
+        box.add(scrubber_box)
+
+        buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        buttons.pack_start(Gtk.Box(), True, True, 0)
+
+        # Repeat button
+        self.repeat_button = self.button_with_icon(
+            'media-playlist-repeat-symbolic')
+        buttons.pack_start(self.repeat_button, False, False, 5)
+
+        # Previous button
+        previous_button = self.button_with_icon(
+            'media-skip-backward-symbolic',
+            icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        buttons.pack_start(previous_button, False, False, 5)
+
+        # Play button
+        play_button = self.button_with_icon(
+            'media-playback-start-symbolic',
+            relief=True,
+            icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        play_button.set_name('play-button')
+        buttons.pack_start(play_button, False, False, 0)
+
+        # Next button
+        next_button = self.button_with_icon(
+            'media-skip-forward-symbolic',
+            icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        buttons.pack_start(next_button, False, False, 5)
+
+        # Shuffle button
+        self.shuffle_button = self.button_with_icon(
+            'media-playlist-shuffle-symbolic')
+        buttons.pack_start(self.shuffle_button, False, False, 5)
+
+        buttons.pack_start(Gtk.Box(), True, True, 0)
+        box.add(buttons)
+
+        return box
 
     def create_up_next_volume(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        # TODO use an icon and connect it to something.
-        up_next_button = Gtk.Button('Up Next')
+
+        # Up Next button
+        # TODO connect it to something.
+        up_next_button = self.button_with_icon(
+            'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         box.pack_start(up_next_button, False, True, 5)
 
-        # TODO volume indicator icon
+        # Volume mute toggle
+        # TODO connect it to something.
+        self.volume_mute_toggle = self.button_with_icon('audio-volume-high')
+        box.pack_start(self.volume_mute_toggle, False, True, 0)
 
         # Volume slider
+        # TODO connect it to something.
         volume_slider = Gtk.Scale.new_with_range(
             orientation=Gtk.Orientation.HORIZONTAL, min=0, max=100, step=5)
-        volume_slider.set_value_pos(Gtk.PositionType.RIGHT)
         volume_slider.set_name('volume-slider')
+        volume_slider.set_value_pos(Gtk.PositionType.RIGHT)
+        volume_slider.set_value(100)
         box.pack_start(volume_slider, True, True, 0)
+
         return box
+
+    def button_with_icon(self,
+                         icon_name,
+                         relief=False,
+                         icon_size=Gtk.IconSize.BUTTON):
+        button = Gtk.Button()
+        icon = Gio.ThemedIcon(name=icon_name)
+        image = Gtk.Image.new_from_gicon(icon, icon_size)
+        button.add(image)
+
+        if not relief:
+            button.props.relief = Gtk.ReliefStyle.NONE
+
+        return button
