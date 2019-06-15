@@ -1,10 +1,12 @@
+from typing import Optional
+
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk
 
 from .albums import AlbumsPanel
 from .player_controls import PlayerControls
-from libremsonic.config import AppConfiguration
+from libremsonic.server import Server
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -35,16 +37,16 @@ class MainWindow(Gtk.ApplicationWindow):
         flowbox.pack_start(self.player_controls, False, True, 0)
         self.add(flowbox)
 
-    def update(self, config: AppConfiguration):
+    def update(self, server: Optional[Server]):
         # Update the Connected to label on the popup menu.
-        if config.current_server >= 0:
-            server_name = config.servers[config.current_server].name
-            self.connected_to_label.set_markup(f'Connected to {server_name}')
+        if server:
+            self.connected_to_label.set_markup(f'Connected to {server.name}')
         else:
             self.connected_to_label.set_markup(
                 f'<span style="italic">Not Connected to a Server</span>')
 
         print(self.panels)
+        print(self.player_controls)
 
     def create_stack(self, **kwargs):
         stack = Gtk.Stack()

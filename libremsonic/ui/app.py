@@ -98,7 +98,7 @@ class LibremsonicApp(Gtk.Application):
         self.save_settings()
 
         # Update the window according to the new server configuration.
-        self.window.update(self.config)
+        self.window.update(self.config.servers[self.config.current_server])
 
     def show_configure_servers_dialog(self):
         """Show the Connect to Server dialog."""
