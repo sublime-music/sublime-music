@@ -37,7 +37,8 @@ class MainWindow(Gtk.ApplicationWindow):
         flowbox.pack_start(self.player_controls, False, True, 0)
         self.add(flowbox)
 
-    def update(self, server: Optional[Server]):
+    # TODO the song should eventually be an API object...
+    def update(self, server: Optional[Server], current_song, is_playing):
         # Update the Connected to label on the popup menu.
         if server:
             self.connected_to_label.set_markup(f'Connected to {server.name}')
@@ -45,8 +46,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self.connected_to_label.set_markup(
                 f'<span style="italic">Not Connected to a Server</span>')
 
-        print(self.panels)
-        print(self.player_controls)
+        self.player_controls.update(current_song, is_playing)
 
     def create_stack(self, **kwargs):
         stack = Gtk.Stack()

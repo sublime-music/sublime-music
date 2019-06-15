@@ -1,5 +1,7 @@
 import os
 
+import mpv
+
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, GLib, Gdk
@@ -28,6 +30,9 @@ class LibremsonicApp(Gtk.Application):
             'Specify a configuration file. Defaults to ~/.config/libremsonic/config.json',
             None)
 
+        self.player = mpv.MPV()
+        self.is_playing = False
+
     # Handle command line option parsing.
     def do_command_line(self, command_line):
         options = command_line.get_options_dict()
@@ -40,8 +45,7 @@ class LibremsonicApp(Gtk.Application):
         else:
             # Default to ~/.config/libremsonic.
             config_folder = (os.environ.get('XDG_CONFIG_HOME')
-                             or os.environ.get('APPDATA') or os.path.join(
-                                 os.environ.get('HOME'), '.config'))
+                             or os.path.expanduser('~/.config'))
             config_folder = os.path.join(config_folder, 'libremsonic')
             self.config_file = os.path.join(config_folder, 'config.yaml')
 
@@ -56,6 +60,11 @@ class LibremsonicApp(Gtk.Application):
         # Add action for configuring servers
         action = Gio.SimpleAction.new('configure_servers', None)
         action.connect('activate', self.on_configure_servers)
+        self.add_action(action)
+
+        # Add action for configuring servers
+        action = Gio.SimpleAction.new('play_pause', None)
+        action.connect('activate', self.on_play_pause)
         self.add_action(action)
 
     def do_activate(self):
@@ -79,27 +88,40 @@ class LibremsonicApp(Gtk.Application):
         # Load the configuration and update the UI with the curent server, if
         # it exists. If there is no current server, show the dialog to select a
         # server.
-        self.load_settings()
+        self.load_config()
 
         if self.config.current_server is None:
             self.show_configure_servers_dialog()
         else:
             self.on_connected_server_changed(None, self.config.current_server)
 
+    # ########## ACTION HANDLERS ########## #
     def on_configure_servers(self, action, param):
         self.show_configure_servers_dialog()
 
+    def on_play_pause(self, action, param):
+        if self.is_playing:
+            self.player.command('cycle', 'pause')
+        else:
+            self.player.loadfile(
+                '/home/sumner/Music/Sapphyre/All You See Is Christ (live).mp3')
+
+        self.is_playing = not self.is_playing
+
+        self.update_window()
+
     def on_server_list_changed(self, action, servers):
         self.config.servers = servers
-        self.save_settings()
+        self.save_config()
 
     def on_connected_server_changed(self, action, current_server):
         self.config.current_server = current_server
-        self.save_settings()
+        self.save_config()
 
         # Update the window according to the new server configuration.
-        self.window.update(self.config.servers[self.config.current_server])
+        self.update_window()
 
+    # ########## HELPER METHODS ########## #
     def show_configure_servers_dialog(self):
         """Show the Connect to Server dialog."""
         dialog = ConfigureServersDialog(self.window, self.config)
@@ -109,8 +131,15 @@ class LibremsonicApp(Gtk.Application):
         dialog.run()
         dialog.destroy()
 
-    def load_settings(self):
+    def load_config(self):
         self.config = get_config(self.config_file)
 
-    def save_settings(self):
+    def save_config(self):
         save_config(self.config, self.config_file)
+
+    def update_window(self):
+        self.window.update(
+            server=self.config.servers[self.config.current_server],
+            current_song=None,
+            is_playing=self.is_playing,
+        )

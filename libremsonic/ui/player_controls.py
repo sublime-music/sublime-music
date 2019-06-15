@@ -21,6 +21,11 @@ class PlayerControls(Gtk.ActionBar):
         self.set_center_widget(self.playback_controls)
         self.pack_end(self.up_next_volume)
 
+    def update(self, current_song, playing):
+        self.play_button.get_child().set_from_icon_name(
+            f"media-playback-{'start' if not playing else 'pause'}-symbolic",
+            Gtk.IconSize.LARGE_TOOLBAR)
+
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
@@ -79,12 +84,13 @@ class PlayerControls(Gtk.ActionBar):
         buttons.pack_start(previous_button, False, False, 5)
 
         # Play button
-        play_button = self.button_with_icon(
+        self.play_button = self.button_with_icon(
             'media-playback-start-symbolic',
             relief=True,
             icon_size=Gtk.IconSize.LARGE_TOOLBAR)
-        play_button.set_name('play-button')
-        buttons.pack_start(play_button, False, False, 0)
+        self.play_button.set_name('play-button')
+        self.play_button.set_action_name('app.play_pause')
+        buttons.pack_start(self.play_button, False, False, 0)
 
         # Next button
         next_button = self.button_with_icon(
