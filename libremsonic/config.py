@@ -39,6 +39,8 @@ class ServerConfiguration:
 class AppConfiguration:
     servers: List[ServerConfiguration]
     current_server: int
+    cache_location: str
+    music_storage_location: str
 
     def to_json(self):
         return {
