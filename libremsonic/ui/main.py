@@ -3,6 +3,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk
 
 from .albums import AlbumsPanel
+from .player_controls import PlayerControls
 from libremsonic.config import AppConfiguration
 
 
@@ -13,22 +14,26 @@ class MainWindow(Gtk.ApplicationWindow):
         super().__init__(*args, **kwargs)
         self.set_default_size(1024, 768)
 
-        artists = Gtk.Label('Artists')
-        playlists = Gtk.Label('Playlists')
-        more = Gtk.Label('More')
+        self.panels = {
+            'Albums': AlbumsPanel(),
+            'Artists': Gtk.Label('Artists'),
+            'Playlists': Gtk.Label('Playlists'),
+            'More': Gtk.Label('More'),
+        }
 
         # Create the stack
-        stack = self.create_stack(
-            Albums=AlbumsPanel(),
-            Artists=artists,
-            Playlists=playlists,
-            More=more,
-        )
+        stack = self.create_stack(**self.panels)
         stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
 
-        titlebar = self.create_headerbar(stack)
-        self.set_titlebar(titlebar)
-        self.add(stack)
+        self.titlebar = self.create_headerbar(stack)
+        self.set_titlebar(self.titlebar)
+
+        self.player_controls = PlayerControls()
+
+        flowbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        flowbox.pack_start(stack, True, True, 0)
+        flowbox.pack_start(self.player_controls, False, True, 0)
+        self.add(flowbox)
 
     def update(self, config: AppConfiguration):
         # Update the Connected to label on the popup menu.
@@ -38,6 +43,8 @@ class MainWindow(Gtk.ApplicationWindow):
         else:
             self.connected_to_label.set_markup(
                 f'<span style="italic">Not Connected to a Server</span>')
+
+        print(self.panels)
 
     def create_stack(self, **kwargs):
         stack = Gtk.Stack()

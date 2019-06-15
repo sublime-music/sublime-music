@@ -2,7 +2,7 @@ import os
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, GLib
+from gi.repository import Gio, Gtk, GLib, Gdk
 
 from libremsonic.config import get_config, save_config
 
@@ -64,6 +64,14 @@ class LibremsonicApp(Gtk.Application):
             # Windows are associated with the application
             # when the last one is closed the application shuts down
             self.window = MainWindow(application=self, title="LibremSonic")
+            css_provider = Gtk.CssProvider()
+            css_provider.load_from_path(
+                os.path.join(os.path.dirname(__file__), 'app_styles.css'))
+
+            context = Gtk.StyleContext()
+            screen = Gdk.Screen.get_default()
+            context.add_provider_for_screen(screen, css_provider,
+                                            Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
         self.window.show_all()
         self.window.present()

@@ -9,7 +9,7 @@ class AlbumsPanel(Gtk.Box):
     """Defines the albums panel."""
 
     def __init__(self):
-        Gtk.Container.__init__(self)
+        Gtk.Box.__init__(self)
 
         albums = Gtk.Label('Albums')
 
