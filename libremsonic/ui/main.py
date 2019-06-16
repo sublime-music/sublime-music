@@ -7,6 +7,7 @@ from gi.repository import Gio, Gtk
 from .albums import AlbumsPanel
 from .player_controls import PlayerControls
 from libremsonic.server import Server
+from libremsonic.state_manager import ApplicationState
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -38,15 +39,17 @@ class MainWindow(Gtk.ApplicationWindow):
         self.add(flowbox)
 
     # TODO the song should eventually be an API object...
-    def update(self, server: Optional[Server], current_song, is_playing):
+    def update(self, state: ApplicationState):
         # Update the Connected to label on the popup menu.
-        if server:
-            self.connected_to_label.set_markup(f'Connected to {server.name}')
+        if state.config.current_server >= 0:
+            server_name = state.config.servers[
+                state.config.current_server].name
+            self.connected_to_label.set_markup(f'Connected to {server_name}')
         else:
             self.connected_to_label.set_markup(
                 f'<span style="italic">Not Connected to a Server</span>')
 
-        self.player_controls.update(current_song, is_playing)
+        self.player_controls.update(state)
 
     def create_stack(self, **kwargs):
         stack = Gtk.Stack()
@@ -95,7 +98,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         menu_items = [
             (None, self.connected_to_label),
-            ('app.configure_servers', Gtk.ModelButton('Connect to Server')),
+            ('app.configure-servers', Gtk.ModelButton('Connect to Server')),
         ]
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
