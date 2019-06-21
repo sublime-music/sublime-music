@@ -246,5 +246,78 @@ class Server:
         :param count: Max number of songs to return. Defaults to 50 according
             to API Spec.
         """
-        result = self._post(self._make_url('getAlbumInfo2'), id=id)
+        result = self._post(self._make_url('getSimilarSongs'),
+                            id=id,
+                            count=count)
         return result.similarSongs.song
+
+    def get_similar_songs2(self, id: int, count: int = None) -> List[File]:
+        """
+        Similar to getSimilarSongs, but organizes music according to ID3 tags.
+
+        :param id: The artist, album or song ID.
+        :param count: Max number of songs to return. Defaults to 50 according
+            to API Spec.
+        """
+        result = self._post(self._make_url('getSimilarSongs2'),
+                            id=id,
+                            count=count)
+        return result.similarSongs2.song
+
+    def get_top_songs(self, artist: str, count: int = None) -> List[File]:
+        """
+        Returns top songs for the given artist, using data from last.fm.
+
+        :param id: The artist name.
+        :param count: Max number of songs to return. Defaults to 50 according
+            to API Spec.
+        """
+        result = self._post(self._make_url('getTopSongs'),
+                            artist=artist,
+                            count=count)
+        return result.topSongs.song
+
+    def get_album_list(self,
+                       type: str,
+                       size: int = None,
+                       offset: int = None,
+                       from_year: int = None,
+                       to_year: int = None,
+                       genre: str = None,
+                       music_folder_id: int = None) -> List[File]:
+        """
+        Returns a list of random, newest, highest rated etc. albums. Similar to
+        the album lists on the home page of the Subsonic web interface.
+
+        :param type: The list type. Must be one of the following: ``random``,
+            ``newest``, ``highest``, ``frequent``, ``recent``. Since 1.8.0 you
+            can also use ``alphabeticalByName`` or ``alphabeticalByArtist`` to
+            page through all albums alphabetically, and ``starred`` to retrieve
+            starred albums.  Since 1.10.1 you can use ``byYear`` and
+            ``byGenre`` to list albums in a given year range or genre.
+        :param size: The number of albums to return. Max 500. Deafult is 10
+            according to API Spec.
+        :param offset: The list offset. Useful if you for example want to page
+            through the list of newest albums. Default is 0 according to API
+            Spec.
+        :param from_year: Required if ``type`` is ``byYear``. The first year in
+            the range. If ``fromYear > toYear`` a reverse chronological list is
+            returned.
+        :param to_year: Required if ``type`` is ``byYear``. The last year in
+            the range.
+        :param genre: Required if ``type`` is ``byGenre``. The name of the
+            genre, e.g., "Rock".
+        :param music_folder_id: (Since 1.11.0) Only return albums in the music
+            folder with the given ID. See ``getMusicFolders``.
+        """
+        result = self._post(
+            self._make_url('getAlbumList'),
+            type=type,
+            size=size,
+            offset=offset,
+            fromYear=from_year,
+            toYear=to_year,
+            genre=genre,
+            musicFolderId=music_folder_id,
+        )
+        return result.albumList
