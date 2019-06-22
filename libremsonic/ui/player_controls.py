@@ -4,6 +4,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, Gtk
 
 from libremsonic.state_manager import ApplicationState
+from libremsonic.ui import util
 
 
 class PlayerControls(Gtk.ActionBar):
@@ -90,20 +91,20 @@ class PlayerControls(Gtk.ActionBar):
         buttons.pack_start(Gtk.Box(), True, True, 0)
 
         # Repeat button
-        self.repeat_button = self.button_with_icon(
+        self.repeat_button = util.button_with_icon(
             'media-playlist-repeat-symbolic')
         self.repeat_button.set_action_name('app.repeat-press')
         buttons.pack_start(self.repeat_button, False, False, 5)
 
         # Previous button
-        previous_button = self.button_with_icon(
+        previous_button = util.button_with_icon(
             'media-skip-backward-symbolic',
             icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         previous_button.set_action_name('app.prev-track')
         buttons.pack_start(previous_button, False, False, 5)
 
         # Play button
-        self.play_button = self.button_with_icon(
+        self.play_button = util.button_with_icon(
             'media-playback-start-symbolic',
             relief=True,
             icon_size=Gtk.IconSize.LARGE_TOOLBAR)
@@ -112,14 +113,14 @@ class PlayerControls(Gtk.ActionBar):
         buttons.pack_start(self.play_button, False, False, 0)
 
         # Next button
-        next_button = self.button_with_icon(
+        next_button = util.button_with_icon(
             'media-skip-forward-symbolic',
             icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         next_button.set_action_name('app.next-track')
         buttons.pack_start(next_button, False, False, 5)
 
         # Shuffle button
-        self.shuffle_button = self.button_with_icon(
+        self.shuffle_button = util.button_with_icon(
             'media-playlist-shuffle-symbolic')
         self.shuffle_button.set_action_name('app.shuffle-press')
         buttons.pack_start(self.shuffle_button, False, False, 5)
@@ -136,13 +137,13 @@ class PlayerControls(Gtk.ActionBar):
 
         # Up Next button
         # TODO connect it to something.
-        up_next_button = self.button_with_icon(
+        up_next_button = util.button_with_icon(
             'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         box.pack_start(up_next_button, False, True, 5)
 
         # Volume mute toggle
         # TODO connect it to something.
-        self.volume_mute_toggle = self.button_with_icon('audio-volume-high')
+        self.volume_mute_toggle = util.button_with_icon('audio-volume-high')
         box.pack_start(self.volume_mute_toggle, False, True, 0)
 
         # Volume slider
@@ -157,17 +158,3 @@ class PlayerControls(Gtk.ActionBar):
         vbox.pack_start(box, False, True, 0)
         vbox.pack_start(Gtk.Box(), True, True, 0)
         return vbox
-
-    def button_with_icon(self,
-                         icon_name,
-                         relief=False,
-                         icon_size=Gtk.IconSize.BUTTON):
-        button = Gtk.Button()
-        icon = Gio.ThemedIcon(name=icon_name)
-        image = Gtk.Image.new_from_gicon(icon, icon_size)
-        button.add(image)
-
-        if not relief:
-            button.props.relief = Gtk.ReliefStyle.NONE
-
-        return button

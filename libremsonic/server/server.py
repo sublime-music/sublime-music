@@ -109,7 +109,7 @@ class Server:
 
         # Debug
         # TODO: logging
-        print(subsonic_response)
+        # print(subsonic_response)
 
         response = Response.from_json(subsonic_response)
 

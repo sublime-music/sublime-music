@@ -1,4 +1,23 @@
 /* ********** Playback Controls ********** */
+#album-artwork {
+  min-height: 200px;
+  min-width: 200px;
+}
+
+#album-artwork.collapsed {
+  min-height: 40px;
+  min-width: 40px;
+}
+
+#playlist-name {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
+
+#playlist-comment, #playlist-stats {
+  margin-bottom: 10px;
+}
+
 #new-playlist-button {
   border-radius: 0;
   border-left: none;
