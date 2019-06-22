@@ -25,19 +25,17 @@ def from_json(cls, data):
 
     annotations: Dict[str, Type] = getattr(cls, '__annotations__', {})
 
-    print(type(cls))
-
     # Handle primitive of objects
     if data is None:
         instance = None
-    elif cls == str:
+    elif cls == str or issubclass(cls, str):
         instance = data
-    elif cls == int:
+    elif cls == int or issubclass(cls, int):
         instance = int(data)
-    elif cls == bool:
+    elif cls == bool or issubclass(cls, bool):
         instance = bool(data)
     elif type(cls) == EnumMeta:
-        instance = cls[data]
+        instance = cls(data)
     elif cls == datetime:
         instance = parser.parse(data)
 

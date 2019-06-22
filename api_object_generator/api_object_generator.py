@@ -7,7 +7,7 @@ represents those API objects in Python.
 
 import re
 from collections import defaultdict
-from typing import cast, Dict, DefaultDict, Set, Match, Tuple, List, Union
+from typing import cast, Dict, DefaultDict, Set, Match, Tuple, List
 import sys
 
 from graphviz import Digraph
@@ -16,6 +16,13 @@ from lxml import etree
 # Global variables.
 tag_type_re = re.compile(r'\{.*\}(.*)')
 element_type_re = re.compile(r'.*:(.*)')
+primitive_translation_map = {
+    'string': 'str',
+    'double': 'float',
+    'boolean': 'bool',
+    'long': 'int',
+    'dateTime': 'datetime',
+}
 
 
 def render_digraph(graph, filename):
@@ -32,8 +39,14 @@ def render_digraph(graph, filename):
     g.render()
 
 
+def primitive_translate(type_str):
+    # Translate the primitive values, but default to the actual value.
+    return primitive_translation_map.get(type_str, type_str)
+
+
 def extract_type(type_str):
-    return cast(Match, element_type_re.match(type_str)).group(1)
+    return primitive_translate(
+        cast(Match, element_type_re.match(type_str)).group(1))
 
 
 def extract_tag_type(tag_type_str):
@@ -71,15 +84,15 @@ def get_dependencies(xs_el) -> Tuple[Set[str], Dict[str, str]]:
 
         restriction = xs_el.getchildren()[0]
         restriction_type = extract_type(restriction.attrib['base'])
-        if restriction_type == 'string':
+        if restriction_type == 'str':
             restriction_children = restriction.getchildren()
             if extract_tag_type(restriction_children[0].tag) == 'enumeration':
                 type_fields['__inherits__'] = 'Enum'
                 for rc in restriction_children:
-                    rc_type = rc.attrib['value']
+                    rc_type = primitive_translate(rc.attrib['value'])
                     type_fields[rc_type] = rc_type
             else:
-                type_fields['__inherits__'] = 'string'
+                type_fields['__inherits__'] = 'str'
         else:
             type_fields['__inherits__'] = restriction_type
 
@@ -139,7 +152,7 @@ def get_dependencies(xs_el) -> Tuple[Set[str], Dict[str, str]]:
     else:
         raise Exception(f'Unknown tag type {tag_type}.')
 
-    depends_on -= {'boolean', 'int', 'string', 'float', 'long', 'dateTime'}
+    depends_on -= {'bool', 'int', 'str', 'float', 'datetime'}
     return depends_on, type_fields
 
 
@@ -151,7 +164,7 @@ if len(sys.argv) < 3:
 
 schema_file, output_file = sys.argv[1:]
 
-# First pass, determine who depends on what.
+# Determine who depends on what and determine what fields are on each object.
 # =============================================================================
 with open(schema_file) as f:
     tree = etree.parse(f)
@@ -204,22 +217,26 @@ dfs(dependency_graph, 'subsonic-response')
 output_order = [x[0] for x in sorted(end_times, key=lambda x: x[1])]
 output_order.remove('subsonic-response')
 
-# Second pass, determine the fields on each of the elements and create the code
-# accordingly.
+# Create the code according to the spec that was generated earlier.
 # =============================================================================
 
 
 def generate_class_for_type(type_name):
-    # print(type_name, type_fields[type_name])
     fields = type_fields[type_name]
-    is_enum = 'Enum' in fields.get('__inherits__', '')
 
     code = ['', '']
     inherits_from = ['APIObject']
 
-    for inherit in map(str.strip, fields.get('__inherits__', '').split(',')):
-        if inherit != '':
-            inherits_from.append(inherit)
+    inherits = fields.get('__inherits__', '')
+    is_enum = 'Enum' in inherits
+
+    if inherits:
+        if inherits in primitive_translation_map.values() or is_enum:
+            inherits_from.append(inherits)
+        else:
+            # Add the fields, we can't directly inherit due to the Diamond
+            # Problem.
+            fields.update(type_fields[inherits])
 
     format_str = '    ' + ("{} = '{}'" if is_enum else '{}: {}')
 
@@ -229,7 +246,9 @@ def generate_class_for_type(type_name):
         if key.startswith('__'):
             continue
 
+        # Uppercase the key if an Enum.
         key = key.upper() if is_enum else key
+
         code.append(format_str.format(key, value))
         has_properties = True
 
@@ -251,6 +270,6 @@ with open(output_file, 'w+') as outfile:
         'from datetime import datetime',
         'from typing import List',
         'from enum import Enum',
-        'from .api_object import APIObject',
+        'from libremsonic.server.api_object import APIObject',
         *map(generate_class_for_type, output_order),
     ]) + '\n')

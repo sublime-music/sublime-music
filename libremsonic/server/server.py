@@ -1,9 +1,9 @@
 import requests
 from typing import List, Optional, Dict
 
-from .api_objects import (SubsonicResponse, License, MusicFolder, Indexes,
-                          AlbumInfo, ArtistInfo, VideoInfo, Child, Album,
-                          Artist, Artists, Directory, Genre)
+from .api_objects import (Response, License, MusicFolder, Indexes, AlbumInfo,
+                          ArtistInfo, VideoInfo, Child, AlbumID3, Artist,
+                          ArtistsID3, Directory, Genre)
 
 
 class Server:
@@ -29,12 +29,12 @@ class Server:
     def _make_url(self, endpoint: str) -> str:
         return f'{self.hostname}/rest/{endpoint}.view'
 
-    def _post(self, url, **params) -> SubsonicResponse:
+    def _post(self, url, **params) -> Response:
         """
         Make a post to a *Sonic REST API. Handle all types of errors including
         *Sonic ``<error>`` responses.
 
-        :returns: a SubsonicResponse containing all of the data of the
+        :returns: a Response containing all of the data of the
             response, deserialized
         :raises Exception: needs some work TODO
         """
@@ -54,7 +54,7 @@ class Server:
         # TODO: logging
         print(subsonic_response)
 
-        response = SubsonicResponse.from_json(subsonic_response)
+        response = Response.from_json(subsonic_response)
 
         # Check for an error and if it exists, raise it.
         if response.get('error'):
@@ -62,7 +62,7 @@ class Server:
 
         return response
 
-    def ping(self) -> SubsonicResponse:
+    def ping(self) -> Response:
         """
         Used to test connectivity with the server.
         """
@@ -73,7 +73,6 @@ class Server:
         Get details about the software license.
         """
         result = self._post(self._make_url('getLicense'))
-        print(result)
         return result.license
 
     def get_music_folders(self) -> List[MusicFolder]:
@@ -119,7 +118,7 @@ class Server:
         result = self._post(self._make_url('getGenres'))
         return result.genres.genre
 
-    def get_artists(self, music_folder_id: int = None) -> Artists:
+    def get_artists(self, music_folder_id: int = None) -> ArtistsID3:
         """
         Similar to getIndexes, but organizes music according to ID3 tags.
 
@@ -140,7 +139,7 @@ class Server:
         result = self._post(self._make_url('getArtist'), id=artist_id)
         return result.artist
 
-    def get_album(self, album_id: int) -> Album:
+    def get_album(self, album_id: int) -> AlbumID3:
         """
         Returns details for an album, including a list of songs. This method
         organizes music according to ID3 tags.
