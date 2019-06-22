@@ -28,17 +28,6 @@ def from_json(cls, data):
     # Handle primitive of objects
     if data is None:
         instance = None
-    elif cls == str or issubclass(cls, str):
-        instance = data
-    elif cls == int or issubclass(cls, int):
-        instance = int(data)
-    elif cls == bool or issubclass(cls, bool):
-        instance = bool(data)
-    elif type(cls) == EnumMeta:
-        instance = cls(data)
-    elif cls == datetime:
-        instance = parser.parse(data)
-
     # Handle generics. List[*], Dict[*, *] in particular.
     elif type(cls) == typing._GenericAlias:
         # Having to use this because things changed in Python 3.7.
@@ -62,6 +51,17 @@ def from_json(cls, data):
         else:
             raise Exception(
                 f'Trying to deserialize an unsupported type: {cls._name}')
+
+    elif cls == str or issubclass(cls, str):
+        instance = data
+    elif cls == int or issubclass(cls, int):
+        instance = int(data)
+    elif cls == bool or issubclass(cls, bool):
+        instance = bool(data)
+    elif type(cls) == EnumMeta:
+        instance = cls(data)
+    elif cls == datetime:
+        instance = parser.parse(data)
 
     # Handle everything else by first instantiating the class, then adding
     # all of the sub-elements, recursively calling from_json on them.

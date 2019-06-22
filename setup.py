@@ -49,6 +49,7 @@ setup(
         'pyyaml',
         'gobject',
         'PyGObject',
+        'Deprecated',
     ],
 
     # To provide executable scripts, use entry points in preference to the
