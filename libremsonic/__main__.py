@@ -17,6 +17,6 @@ def main():
 
     print(server.ping())
     # print(server.search2('The Band Perry'))
-    stream = server.stream(740)
+    stream = server.download(740)
     # app = LibremsonicApp()
     # app.run(sys.argv)

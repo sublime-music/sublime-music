@@ -1,6 +1,6 @@
 import math
 from deprecated import deprecated
-from typing import Any, Optional, Dict, List, Union, Iterator
+from typing import Any, Optional, Dict, List, Union, Iterator, cast
 from datetime import datetime
 
 import requests
@@ -13,31 +13,48 @@ from .api_objects import (
     ArtistInfo,
     ArtistsID3,
     ArtistWithAlbumsID3,
+    Bookmarks,
     Child,
     Directory,
     Genres,
     Indexes,
+    InternetRadioStations,
     License,
+    Lyrics,
     MusicFolders,
     NowPlaying,
     Playlists,
     PlaylistWithSongs,
+    PlayQueue,
     Response,
+    ScanStatus,
     SearchResult,
     SearchResult2,
     SearchResult3,
+    Shares,
     Starred,
     Starred2,
     Songs,
+    User,
+    Users,
     VideoInfo,
 )
 
 
 class Server:
-    """Defines a *Sonic server."""
+    """
+    Defines a *Sonic server.
+
+    Notes:
+
+    * The ``hls`` endpoint is not supported.
+    * The ``getCaptions`` endpoint is not supported
+    * None of the podcast endpoints are supported.
+    * The ``jukeboxControl`` endpoint is not supported.
+    * None of the chat message endpoints are supported.
+    """
 
     def __init__(self, name: str, hostname: str, username: str, password: str):
-        # TODO handle these optionals better.
         self.name: str = name
         self.hostname: str = hostname
         self.username: str = username
@@ -59,7 +76,11 @@ class Server:
     def _subsonic_error_to_exception(self, error):
         return Exception(f'{error.code}: {error.message}')
 
-    def _post(self, url, **params) -> Response:
+    def _post(
+            self,
+            url: str,
+            **params: Union[None, str, datetime, int, List[int]],
+    ) -> Response:
         """
         Make a post to a *Sonic REST API. Handle all types of errors including
         *Sonic ``<error>`` responses.
@@ -69,6 +90,12 @@ class Server:
         :raises Exception: needs some work TODO
         """
         params = {**self._get_params(), **params}
+
+        # Deal with datetime parameters (convert to milliseconds since 1970)
+        for k, v in params.items():
+            if type(v) == datetime:
+                params[k] = int(cast(datetime, v).timestamp() * 1000)
+
         result = requests.post(url, data=params)
         # TODO make better
         if result.status_code != 200:
@@ -148,8 +175,7 @@ class Server:
         :param music_folder_id: If specified, only return artists in the music
             folder with the given ID. See ``getMusicFolders``.
         :param if_modified_since: If specified, only return a result if the
-            artist collection has changed since the given time (in milliseconds
-            since 1 Jan 1970).
+            artist collection has changed since the given time.
         """
         result = self._post(self._make_url('getIndexes'),
                             musicFolderId=music_folder_id,
@@ -711,10 +737,10 @@ class Server:
         :param comment: The playlist comment.
         :param public: ``true`` if the playlist should be visible to all users,
             ``false`` otherwise.
-        :param song_id_to_add: Add this song with this ID to the playlist.
-            Multiple parameters allowed.
-        :param song_id_to_remove: Remove the song at this position in the
-            playlist. Multiple parameters allowed.
+        :param song_id_to_add: Add this song with this/these ID(s) to the
+            playlist. Can be a single ID or a list of IDs.
+        :param song_id_to_remove: Remove the song at this/these position(s) in
+            the playlist. Can be a single ID or a list of IDs.
         """
         return self._post(
             self._make_url('updatePlaylist'),
@@ -791,4 +817,540 @@ class Server:
             Obtained by calls to ``getMusicDirectory``.
         """
         # TODO make this a decent object
-        return self._post(self._make_url('stream'), id=id)
+        return self._post(self._make_url('download'), id=id)
+
+    def get_cover_art(self, id: int, size: str = None):
+        """
+        Returns the cover art image in binary form.
+
+        :param id: The ID of a song, album or artist.
+        :param size: If specified, scale image to this size.
+        """
+        return self._post(self._make_url('getCoverArt'), id=id, size=size)
+
+    def get_lyrics(self, artist: str = None, title: str = None) -> Lyrics:
+        """
+        Searches for and returns lyrics for a given song.
+
+        :param artist: The artist name.
+        :param title: The song title.
+        """
+        result = self._post(
+            self._make_url('getLyrics'),
+            artist=artist,
+            title=title,
+        )
+        return result.lyrics
+
+    def get_avatar(self, username: str):
+        """
+        Returns the avatar (personal image) for a user.
+
+        :param username: the user in question.
+        """
+        return self._post(self._make_url('getAvatar'), username=username)
+
+    def star(
+            self,
+            id: Union[int, List[int]] = None,
+            album_id: Union[int, List[int]] = None,
+            artist_id: Union[int, List[int]] = None,
+    ) -> Response:
+        """
+        Attaches a star to a song, album or artist.
+
+        :param id: The ID(s) of the file(s) (song(s)) or folder(s)
+            (album(s)/artist(s)) to star. Can be a single ID or a list of IDs.
+        :param album_id: The ID(s) of an album/albums to star. Use this rather
+            than ``id`` if the client accesses the media collection according
+            to ID3 tags rather than file structure. Can be a single ID or a
+            list of IDs.
+        :param artist_id: The ID(s) of an artist/artists to star. Use this
+            rather than ``id`` if the client accesses the media collection
+            according to ID3 tags rather than file structure. Can be a single
+            ID or a list of IDs.
+        """
+        return self._post(
+            self._make_url('star'),
+            id=id,
+            albumId=album_id,
+            artistId=artist_id,
+        )
+
+    def unstar(
+            self,
+            id: Union[int, List[int]] = None,
+            album_id: Union[int, List[int]] = None,
+            artist_id: Union[int, List[int]] = None,
+    ) -> Response:
+        """
+        Removes the star from a song, album or artist.
+
+        :param id: The ID(s) of the file(s) (song(s)) or folder(s)
+            (album(s)/artist(s)) to star. Can be a single ID or a list of IDs.
+        :param album_id: The ID(s) of an album/albums to star. Use this rather
+            than ``id`` if the client accesses the media collection according
+            to ID3 tags rather than file structure. Can be a single ID or a
+            list of IDs.
+        :param artist_id: The ID(s) of an artist/artists to star. Use this
+            rather than ``id`` if the client accesses the media collection
+            according to ID3 tags rather than file structure. Can be a single
+            ID or a list of IDs.
+        """
+        return self._post(
+            self._make_url('unstar'),
+            id=id,
+            albumId=album_id,
+            artistId=artist_id,
+        )
+
+    def set_rating(self, id: int, rating: int) -> Response:
+        """
+        Sets the rating for a music file.
+
+        :param id: A string which uniquely identifies the file (song) or folder
+            (album/artist) to rate.
+        :param rating: The rating between 1 and 5 (inclusive), or 0 to remove
+            the rating.
+        """
+        return self._post(self._make_url('setRating'), id=id, rating=rating)
+
+    def scrobble(
+            self,
+            id: int,
+            time: datetime = None,
+            submission: bool = True,
+    ) -> Response:
+        """
+        Registers the local playback of one or more media files. Typically used
+        when playing media that is cached on the client. This operation
+        includes the following:
+
+            * "Scrobbles" the media files on last.fm if the user has configured
+              his/her last.fm credentials on the Subsonic server (Settings >
+              Personal).
+            * Updates the play count and last played timestamp for the media
+              files. (Since 1.11.0)
+            * Makes the media files appear in the "Now playing" page in the web
+              app, and appear in the list of songs returned by
+              ``getNowPlaying`` (Since 1.11.0)
+
+        Since 1.8.0 you may specify multiple id (and optionally time)
+        parameters to scrobble multiple files.
+
+        :param id: The ID of the file to scrobble.
+        :param time: (Since 1.8.0) The time at which the song was listened to.
+        :param submission: Whether this is a "submission" or a "now playing"
+            notification.
+        """
+        return self._post(
+            self._make_url('scrobble'),
+            id=id,
+            time=time,
+            submission=submission,
+        )
+
+    def get_shares(self) -> Shares:
+        """
+        Returns information about shared media this user is allowed to manage.
+        Takes no extra parameters.
+        """
+        result = self._post(self._make_url('getShares'))
+        return result.shares
+
+    def create_share(
+            self,
+            id: Union[int, List[int]],
+            description: str = None,
+            expires: datetime = None,
+    ) -> Shares:
+        """
+        Creates a public URL that can be used by anyone to stream music or
+        video from the Subsonic server. The URL is short and suitable for
+        posting on Facebook, Twitter etc. Note: The user must be authorized to
+        share (see Settings > Users > User is allowed to share files with
+        anyone).
+
+        :param id: ID(s) of (a) song(s), album(s) or video(s) to share. Can be
+            a single ID or a list of IDs.
+        :param description: A user-defined description that will be displayed
+            to people visiting the shared media.
+        :param expires: The time at which the share expires.
+        """
+        result = self._post(
+            self._make_url('createShare'),
+            id=id,
+            description=description,
+            expires=expires,
+        )
+        return result.shares
+
+    def update_share(
+            self,
+            id: int,
+            description: str = None,
+            expires: datetime = None,
+    ) -> Response:
+        """
+        Updates the description and/or expiration date for an existing share.
+
+        :param id: ID of the share to update.
+        :param description: A user-defined description that will be displayed
+            to people visiting the shared media.
+        :param expires: The time at which the share expires.
+        """
+        return self._post(
+            self._make_url('updateShare'),
+            id=id,
+            description=description,
+            expires=expires,
+        )
+
+    def delete_share(self, id: int) -> Response:
+        """
+        Deletes an existing share.
+
+        :param id: ID of the share to delete.
+        """
+        return self._post(self._make_url('deleteShare'), id=id)
+
+    def get_internet_radio_stations(self) -> InternetRadioStations:
+        """
+        Returns all internet radio stations. Takes no extra parameters.
+        """
+        result = self._post(self._make_url('getInternetRadioStations'))
+        return result.internetRadioStations
+
+    def create_internet_radio_station(
+            self,
+            stream_url: str,
+            name: str,
+            homepage_url: str = None,
+    ) -> Response:
+        """
+        Adds a new internet radio station. Only users with admin privileges are
+        allowed to call this method.
+
+        :param stream_url: The stream URL for the station.
+        :param name: The user-defined name for the station.
+        :param homepage_url: The home page URL for the station.
+        """
+        return self._post(
+            self._make_url('createInternetRadioStation'),
+            streamUrl=stream_url,
+            name=name,
+            homepageUrl=homepage_url,
+        )
+
+    def update_internet_radio_station(
+            self,
+            id: int,
+            stream_url: str,
+            name: str,
+            homepage_url: str = None,
+    ) -> Response:
+        """
+        Updates an existing internet radio station. Only users with admin
+        privileges are allowed to call this method.
+
+        :param id: The ID for the station.
+        :param stream_url: The stream URL for the station.
+        :param name: The user-defined name for the station.
+        :param homepage_url: The home page URL for the station.
+        """
+        return self._post(
+            self._make_url('updateInternetRadioStation'),
+            id=id,
+            streamUrl=stream_url,
+            name=name,
+            homepageUrl=homepage_url,
+        )
+
+    def delete_internet_radio_station(self, id: int) -> Response:
+        """
+        Deletes an existing internet radio station. Only users with admin
+        privileges are allowed to call this method.
+
+        :param id: The ID for the station.
+        """
+        return self._post(self._make_url('deleteInternetRadioStation'), id=id)
+
+    def get_user(self, username: str) -> User:
+        """
+        Get details about a given user, including which authorization roles and
+        folder access it has. Can be used to enable/disable certain features in
+        the client, such as jukebox control.
+
+        :param username: The name of the user to retrieve. You can only
+            retrieve your own user unless you have admin privileges.
+        """
+        result = self._post(self._make_url('getUser'), username=username)
+        return result.user
+
+    def get_users(self) -> Users:
+        """
+        Get details about all users, including which authorization roles and
+        folder access they have. Only users with admin privileges are allowed
+        to call this method.
+        """
+        result = self._post(self._make_url('getUsers'))
+        return result.users
+
+    def create_user(
+            self,
+            username: str,
+            password: str,
+            email: str,
+            ldap_authenticated: bool = False,
+            admin_role: bool = False,
+            settings_role: bool = True,
+            stream_role: bool = True,
+            jukebox_role: bool = False,
+            download_role: bool = False,
+            upload_role: bool = False,
+            playlist_role: bool = False,
+            covert_art_role: bool = False,
+            comment_role: bool = False,
+            podcast_role: bool = False,
+            share_role: bool = False,
+            video_conversion_role: bool = False,
+            music_folder_id: Union[int, List[int]] = None,
+    ) -> Response:
+        """
+        Creates a new Subsonic user.
+
+        :param username: The name of the new user.
+        :param password: The password of the new user, either in clear text or
+            hex-encoded.
+        :param email: The email address of the new user.
+        :param ldap_authenticated: Whether the user is authenicated in LDAP.
+        :param admin_role: Whether the user is administrator.
+        :param settings_role: Whether the user is allowed to change personal
+            settings and password.
+        :param stream_role: Whether the user is allowed to play files.
+        :param jukebox_role: Whether the user is allowed to play files in
+            jukebox mode.
+        :param download_role: Whether the user is allowed to download files.
+        :param upload_role: Whether the user is allowed to upload files.
+        :param playlist_role: Whether the user is allowed to create and delete
+            playlists. Since 1.8.0, changing this role has no effect.
+        :param covert_art_role: Whether the user is allowed to change cover art
+            and tags.
+        :param comment_role: Whether the user is allowed to create and edit
+            comments and ratings.
+        :param podcast_role: Whether the user is allowed to administrate
+            Podcasts.
+        :param share_role: (Since 1.8.0) Whether the user is allowed to share
+            files with anyone.
+        :param video_conversion_role: (Since 1.15.0) Whether the user is
+            allowed to start video conversions.
+        :param music_folder_id: (Since 1.12.0) IDs of the music folders the
+            user is allowed access to. Can be a single ID or a list of IDs.
+        """
+        return self._post(
+            self._make_url('createUser'),
+            username=username,
+            password=password,
+            email=email,
+            ldapAuthenticated=ldap_authenticated,
+            adminRole=admin_role,
+            settingsRole=settings_role,
+            streamRole=stream_role,
+            jukeboxRole=jukebox_role,
+            downloadRole=download_role,
+            uploadRole=upload_role,
+            playlistRole=playlist_role,
+            coverArtRole=covert_art_role,
+            commentRole=comment_role,
+            podcastRole=podcast_role,
+            shareRole=share_role,
+            videoConversionRole=video_conversion_role,
+            musicFolderId=music_folder_id,
+        )
+
+    def update_user(
+            self,
+            username: str,
+            password: str = None,
+            email: str = None,
+            ldap_authenticated: bool = False,
+            admin_role: bool = False,
+            settings_role: bool = True,
+            stream_role: bool = True,
+            jukebox_role: bool = False,
+            download_role: bool = False,
+            upload_role: bool = False,
+            playlist_role: bool = False,
+            covert_art_role: bool = False,
+            comment_role: bool = False,
+            podcast_role: bool = False,
+            share_role: bool = False,
+            video_conversion_role: bool = False,
+            music_folder_id: Union[int, List[int]] = None,
+    ) -> Response:
+        """
+        Modifies an existing Subsonic user.
+
+        :param username: The name of the user.
+        :param password: The password of the user, either in clear text or
+            hex-encoded.
+        :param email: The email address of the user.
+        :param ldap_authenticated: Whether the user is authenicated in LDAP.
+        :param admin_role: Whether the user is administrator.
+        :param settings_role: Whether the user is allowed to change personal
+            settings and password.
+        :param stream_role: Whether the user is allowed to play files.
+        :param jukebox_role: Whether the user is allowed to play files in
+            jukebox mode.
+        :param download_role: Whether the user is allowed to download files.
+        :param upload_role: Whether the user is allowed to upload files.
+        :param playlist_role: Whether the user is allowed to create and delete
+            playlists. Since 1.8.0, changing this role has no effect.
+        :param covert_art_role: Whether the user is allowed to change cover art
+            and tags.
+        :param comment_role: Whether the user is allowed to create and edit
+            comments and ratings.
+        :param podcast_role: Whether the user is allowed to administrate
+            Podcasts.
+        :param share_role: (Since 1.8.0) Whether the user is allowed to share
+            files with anyone.
+        :param video_conversion_role: (Since 1.15.0) Whether the user is
+            allowed to start video conversions.
+        :param music_folder_id: (Since 1.12.0) IDs of the music folders the
+            user is allowed access to. Can be a single ID or a list of IDs.
+        """
+        return self._post(
+            self._make_url('updateUser'),
+            username=username,
+            password=password,
+            email=email,
+            ldapAuthenticated=ldap_authenticated,
+            adminRole=admin_role,
+            settingsRole=settings_role,
+            streamRole=stream_role,
+            jukeboxRole=jukebox_role,
+            downloadRole=download_role,
+            uploadRole=upload_role,
+            playlistRole=playlist_role,
+            coverArtRole=covert_art_role,
+            commentRole=comment_role,
+            podcastRole=podcast_role,
+            shareRole=share_role,
+            videoConversionRole=video_conversion_role,
+            musicFolderId=music_folder_id,
+        )
+
+    def delete_user(self, username: str) -> Response:
+        """
+        Deletes an existing Subsonic user.
+
+        :param username: The name of the new user.
+        """
+        return self._post(self._make_url('deleteUser'), username=username)
+
+    def change_password(self, username: str, password: str) -> Response:
+        """
+        Changes the password of an existing Subsonic user. You can only change
+        your own password unless you have admin privileges.
+
+        :param username: The name of the user which should change its password.
+        :param password: The new password of the new user, either in clear text
+            of hex-encoded.
+        """
+        return self._post(
+            self._make_url('changePassword'),
+            username=username,
+            password=password,
+        )
+
+    def get_bookmarks(self) -> Bookmarks:
+        """
+        Returns all bookmarks for this user. A bookmark is a position within a
+        certain media file.
+        """
+        result = self._post(self._make_url('getBookmarks'))
+        return result.bookmarks
+
+    def create_bookmarks(
+            self,
+            id: int,
+            position: int,
+            comment: str = None,
+    ) -> Response:
+        """
+        Creates or updates a bookmark (a position within a media file).
+        Bookmarks are personal and not visible to other users.
+
+        :param id: ID of the media file to bookmark. If a bookmark already
+            exists for this file it will be overwritten.
+        :param position: The position (in milliseconds) within the media file.
+        :param comment: A user-defined comment.
+        """
+        return self._post(
+            self._make_url('createBookmark'),
+            id=id,
+            position=position,
+            comment=comment,
+        )
+
+    def delete_bookmark(self, id: int) -> Response:
+        """
+        Deletes the bookmark for a given file.
+
+        :param id: ID of the media file for which to delete the bookmark. Other
+            users' bookmarks are not affected.
+        """
+        return self._post(self._make_url('deleteBookmark'), id=id)
+
+    def get_play_queue(self) -> Optional[PlayQueue]:
+        """
+        Returns the state of the play queue for this user (as set by
+        ``savePlayQueue``). This includes the tracks in the play queue, the
+        currently playing track, and the position within this track. Typically
+        used to allow a user to move between different clients/apps while
+        retaining the same play queue (for instance when listening to an audio
+        book).
+        """
+        result = self._post(self._make_url('getPlayQueue'))
+        return result.playQueue
+
+    def savePlayQueue(
+            self,
+            id: Union[int, List[int]],
+            current: int = None,
+            position: int = None,
+    ) -> Response:
+        """
+        Saves the state of the play queue for this user. This includes the
+        tracks in the play queue, the currently playing track, and the position
+        within this track. Typically used to allow a user to move between
+        different clients/apps while retaining the same play queue (for
+        instance when listening to an audio book).
+
+        :param id: ID(s) of a/the song(s) in the play queue. Can be either a
+            single ID or a list of IDs.
+        :param current: The Id of the current playing song.
+        :param position: The position in milliseconds within the currently
+            playing song.
+        """
+        return self._post(
+            self._make_url('savePlayQueue'),
+            id=id,
+            current=current,
+            position=position,
+        )
+
+    def get_scan_status(self) -> ScanStatus:
+        """
+        Returns the current status for media library scanning. Takes no extra
+        parameters.
+        """
+        result = self._post(self._make_url('getScanStatus'))
+        return result.scanStatus
+
+    def start_scan(self) -> ScanStatus:
+        """
+        Initiates a rescan of the media libraries. Takes no extra parameters.
+        """
+        result = self._post(self._make_url('startScan'))
+        return result.scanStatus
