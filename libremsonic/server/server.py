@@ -2,7 +2,7 @@ import requests
 from typing import List, Optional, Dict
 
 from .api_objects import (SubsonicResponse, License, MusicFolder, Indexes,
-                          AlbumInfo, ArtistInfo, VideoInfo, File, Album,
+                          AlbumInfo, ArtistInfo, VideoInfo, Child, Album,
                           Artist, Artists, Directory, Genre)
 
 
@@ -73,6 +73,7 @@ class Server:
         Get details about the software license.
         """
         result = self._post(self._make_url('getLicense'))
+        print(result)
         return result.license
 
     def get_music_folders(self) -> List[MusicFolder]:
@@ -149,7 +150,7 @@ class Server:
         result = self._post(self._make_url('getAlbum'), id=album_id)
         return result.album
 
-    def get_song(self, song_id: int) -> File:
+    def get_song(self, song_id: int) -> Child:
         """
         Returns details for a song.
 
@@ -158,7 +159,7 @@ class Server:
         result = self._post(self._make_url('getSong'), id=song_id)
         return result.song
 
-    def get_videos(self) -> Optional[List[File]]:
+    def get_videos(self) -> Optional[List[Child]]:
         """
         Returns all video files.
         """
@@ -236,7 +237,7 @@ class Server:
         result = self._post(self._make_url('getAlbumInfo2'), id=id)
         return result.albumInfo2
 
-    def get_similar_songs(self, id: int, count: int = None) -> List[File]:
+    def get_similar_songs(self, id: int, count: int = None) -> List[Child]:
         """
         Returns a random collection of songs from the given artist and similar
         artists, using data from last.fm. Typically used for artist radio
@@ -251,7 +252,7 @@ class Server:
                             count=count)
         return result.similarSongs.song
 
-    def get_similar_songs2(self, id: int, count: int = None) -> List[File]:
+    def get_similar_songs2(self, id: int, count: int = None) -> List[Child]:
         """
         Similar to getSimilarSongs, but organizes music according to ID3 tags.
 
@@ -264,7 +265,7 @@ class Server:
                             count=count)
         return result.similarSongs2.song
 
-    def get_top_songs(self, artist: str, count: int = None) -> List[File]:
+    def get_top_songs(self, artist: str, count: int = None) -> List[Child]:
         """
         Returns top songs for the given artist, using data from last.fm.
 
@@ -284,7 +285,7 @@ class Server:
                        from_year: int = None,
                        to_year: int = None,
                        genre: str = None,
-                       music_folder_id: int = None) -> List[File]:
+                       music_folder_id: int = None) -> List[Child]:
         """
         Returns a list of random, newest, highest rated etc. albums. Similar to
         the album lists on the home page of the Subsonic web interface.

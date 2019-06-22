@@ -1,25 +1,8 @@
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import List
+from enum import Enum
 
-from libremsonic.from_json import from_json as _from_json
-
-
-class APIObject:
-    @classmethod
-    def from_json(cls, data):
-        return _from_json(cls, data)
-
-    def get(self, field, default=None):
-        return getattr(self, field, default)
-
-    def __repr__(self):
-        annotations: Dict[str, Any] = self.get('__annotations__', {})
-        typename = type(self).__name__
-        fieldstr = ' '.join([
-            f'{field}={getattr(self, field)!r}'
-            for field in annotations.keys() if hasattr(self, field)
-        ])
-        return f'<{typename} {fieldstr}>'
+from .api_object import APIObject
 
 
 class SubsonicError(APIObject):
@@ -41,8 +24,9 @@ class MusicFolder(APIObject):
     id: int
     name: str
 
+
 class MediaType(APIObject, Enum):
-    
+    pass
 
 
 class Child(APIObject):
@@ -265,9 +249,14 @@ class AlbumList(APIObject):
     album: List[Album]
 
 
+class ResponseStatus(APIObject, Enum):
+    ok = "ok"
+    failed = "failed"
+
+
 class SubsonicResponse(APIObject):
     # On every Subsonic Response
-    status: str
+    status: ResponseStatus
     version: str
 
     # One of these will exist on each SubsonicResponse

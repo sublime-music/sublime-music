@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import EnumMeta
 import typing
 from typing import Dict, List, Type
 
@@ -24,6 +25,8 @@ def from_json(cls, data):
 
     annotations: Dict[str, Type] = getattr(cls, '__annotations__', {})
 
+    print(type(cls))
+
     # Handle primitive of objects
     if data is None:
         instance = None
@@ -33,6 +36,8 @@ def from_json(cls, data):
         instance = int(data)
     elif cls == bool:
         instance = bool(data)
+    elif type(cls) == EnumMeta:
+        instance = cls[data]
     elif cls == datetime:
         instance = parser.parse(data)
 
