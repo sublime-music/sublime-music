@@ -1,4 +1,12 @@
 /* ********** Playback Controls ********** */
+#new-playlist-button {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+}
+
+/* ********** Playback Controls ********** */
 #player-controls-bar #play-button {
   min-height: 45px;
   min-width: 35px;
@@ -13,7 +21,7 @@
 }
 
 #player-controls-bar #song-scrubber {
-  min-width: 300px;
+  min-width: 400px;
 }
 
 #player-controls-bar #volume-slider {

@@ -5,6 +5,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk
 
 from .albums import AlbumsPanel
+from .playlists import PlaylistsPanel
 from .player_controls import PlayerControls
 from libremsonic.server import Server
 from libremsonic.state_manager import ApplicationState
@@ -20,21 +21,21 @@ class MainWindow(Gtk.ApplicationWindow):
         self.panels = {
             'Albums': AlbumsPanel(),
             'Artists': Gtk.Label('Artists'),
-            'Playlists': Gtk.Label('Playlists'),
+            'Playlists': PlaylistsPanel(),
             'More': Gtk.Label('More'),
         }
 
         # Create the stack
-        stack = self.create_stack(**self.panels)
-        stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
+        self.stack = self.create_stack(**self.panels)
+        self.stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
 
-        self.titlebar = self.create_headerbar(stack)
+        self.titlebar = self.create_headerbar(self.stack)
         self.set_titlebar(self.titlebar)
 
         self.player_controls = PlayerControls()
 
         flowbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        flowbox.pack_start(stack, True, True, 0)
+        flowbox.pack_start(self.stack, True, True, 0)
         flowbox.pack_start(self.player_controls, False, True, 0)
         self.add(flowbox)
 
@@ -48,6 +49,10 @@ class MainWindow(Gtk.ApplicationWindow):
         else:
             self.connected_to_label.set_markup(
                 f'<span style="italic">Not Connected to a Server</span>')
+
+        active_panel = self.stack.get_visible_child()
+        if hasattr(active_panel, 'update'):
+            active_panel.update(state)
 
         self.player_controls.update(state)
 

@@ -1,10 +1,12 @@
 from typing import List, Any
 
+from libremsonic.cache_manager import CacheManager
 from .config import get_config, save_config, AppConfiguration
 
 
 class ApplicationState:
     config: AppConfiguration = AppConfiguration.get_default_configuration()
+    cache_manager: CacheManager = None
     current_song: Any  # TODO fix
     config_file: str
     playing: bool = False

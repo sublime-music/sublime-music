@@ -11,6 +11,7 @@ from .ui.main import MainWindow
 from .ui.configure_servers import ConfigureServersDialog
 
 from .state_manager import ApplicationState
+from .cache_manager import CacheManager
 
 
 class LibremsonicApp(Gtk.Application):
@@ -96,6 +97,9 @@ class LibremsonicApp(Gtk.Application):
             context.add_provider_for_screen(screen, css_provider,
                                             Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
+        self.window.stack.connect('notify::visible-child',
+                                  self.on_stack_change)
+
         # Display the window.
         self.window.show_all()
         self.window.present()
@@ -108,8 +112,10 @@ class LibremsonicApp(Gtk.Application):
         if self.state.config.current_server is None:
             self.show_configure_servers_dialog()
         else:
-            self.on_connected_server_changed(None,
-                                             self.state.config.current_server)
+            self.on_connected_server_changed(
+                None,
+                self.state.config.current_server,
+            )
 
     # ########## ACTION HANDLERS ########## #
     def on_configure_servers(self, action, param):
@@ -141,7 +147,13 @@ class LibremsonicApp(Gtk.Application):
         self.state.config.current_server = current_server
         self.state.save_config()
 
+        self.state.cache_manager = CacheManager(
+            self.state.config.servers[self.state.config.current_server])
+
         # Update the window according to the new server configuration.
+        self.update_window()
+
+    def on_stack_change(self, stack, child):
         self.update_window()
 
     # ########## HELPER METHODS ########## #

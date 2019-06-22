@@ -37,19 +37,27 @@ class PlayerControls(Gtk.ActionBar):
         details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         details_box.pack_start(Gtk.Box(), True, True, 0)
 
-        self.song_name = Gtk.Label('<b>Song name</b>',
-                                   halign=Gtk.Align.START,
-                                   use_markup=True)
+        self.song_name = Gtk.Label(
+            '<b>Song name</b>',
+            halign=Gtk.Align.START,
+            use_markup=True,
+        )
         self.song_name.set_name('song-name')
         details_box.add(self.song_name)
 
-        self.album_name = Gtk.Label('Album name', halign=Gtk.Align.START)
+        self.album_name = Gtk.Label(
+            '<i>Album name</i>',
+            halign=Gtk.Align.START,
+            use_markup=True,
+        )
         self.album_name.set_name('album-name')
         details_box.add(self.album_name)
 
-        self.artist_name = Gtk.Label('<i>Artist name</i>',
-                                     halign=Gtk.Align.START,
-                                     use_markup=True)
+        self.artist_name = Gtk.Label(
+            'Artist name',
+            halign=Gtk.Align.START,
+            use_markup=True,
+        )
         self.artist_name.set_name('artist-name')
         details_box.add(self.artist_name)
 
@@ -122,6 +130,8 @@ class PlayerControls(Gtk.ActionBar):
         return box
 
     def create_up_next_volume(self):
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        vbox.pack_start(Gtk.Box(), True, True, 0)
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         # Up Next button
@@ -144,7 +154,9 @@ class PlayerControls(Gtk.ActionBar):
         volume_slider.set_value(100)
         box.pack_start(volume_slider, True, True, 0)
 
-        return box
+        vbox.pack_start(box, False, True, 0)
+        vbox.pack_start(Gtk.Box(), True, True, 0)
+        return vbox
 
     def button_with_icon(self,
                          icon_name,
