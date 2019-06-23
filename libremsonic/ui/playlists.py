@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk
+from gi.repository import Gio, Gtk, Pango
 
 from libremsonic.server.api_objects import Child, PlaylistWithSongs
 from libremsonic.state_manager import ApplicationState
@@ -89,17 +89,32 @@ class PlaylistsPanel(Gtk.Paned):
 
         # Playlist songs list
         songs_scroll_window = Gtk.ScrolledWindow()
-        self.playlist_songs = Gtk.TreeView()
-        self.playlist_songs.insert_column_with_attributes(
-            -1, 'TITLE', Gtk.CellRendererText())
-        self.playlist_songs.insert_column_with_attributes(
-            -1, 'ALBUM', Gtk.CellRendererText())
-        self.playlist_songs.insert_column_with_attributes(
-            -1, 'ARTIST', Gtk.CellRendererText())
-        self.playlist_songs.insert_column_with_attributes(
-            -1, 'DURATION', Gtk.CellRendererText())
-        self.playlist_songs.connect(
-            'row-activated', lambda x, y: print('a', x, y))
+
+        def create_column(header, text_idx, bold=False, align=0, width=None):
+            renderer = Gtk.CellRendererText(
+                xalign=align,
+                weight=Pango.Weight.BOLD if bold else Pango.Weight.NORMAL,
+                ellipsize=Pango.EllipsizeMode.END,
+            )
+            renderer.set_fixed_size(width or -1, 35)
+
+            column = Gtk.TreeViewColumn(header, renderer, text=text_idx)
+            column.set_resizable(True)
+            column.set_expand(not width)
+            return column
+
+        self.playlist_song_model = Gtk.ListStore(str, str, str, str, str)
+
+        self.playlist_songs = Gtk.TreeView(model=self.playlist_song_model,
+                                           margin_top=15)
+        self.playlist_songs.append_column(create_column('TITLE', 0, bold=True))
+        self.playlist_songs.append_column(create_column('ALBUM', 1))
+        self.playlist_songs.append_column(create_column('ARTIST', 2))
+        self.playlist_songs.append_column(
+            create_column('DURATION', 3, align=1, width=40))
+
+        self.playlist_songs.connect('row-activated', self.on_song_double_click)
+
         songs_scroll_window.add(self.playlist_songs)
         playlist_box.pack_end(songs_scroll_window, True, True, 0)
 
@@ -119,19 +134,29 @@ class PlaylistsPanel(Gtk.Paned):
         self.playlist_comment.set_text(playlist.comment or '')
         self.playlist_stats.set_markup(self.format_stats(playlist))
 
-        # Update the song list
-        self.song_ids = []
-        for c in self.playlist_songs.get_children():
-            self.playlist_songs.remove(c)
-
+        # Update the song list model
+        self.playlist_song_model.clear()
         for song in (playlist.entry or []):
-            self.song_ids.append(song.id)
-            self.playlist_songs.add(self.create_song_row(song))
-
-        self.playlist_songs.show_all()
+            self.playlist_song_model.append([
+                song.title,
+                song.album,
+                song.artist,
+                self.format_song_duration(song.duration),
+                song.id,
+            ])
 
     def on_list_refresh_click(self, button):
+        # TODO: this should reselect the selected playlist. If the playlist no
+        # longer exists, it should also update the playlist view on the right.
         self.update_playlist_list(force=True)
+
+    def on_song_double_click(self, treeview, idx, column):
+        song_id = self.playlist_song_model[idx][4]
+        CacheManager.save_play_queue(
+            id=[m[4] for m in self.playlist_song_model],
+            current=song_id,
+        )
+        print(f'Song ID {song_id} clicked.')
 
     # Helper Methods
     # =========================================================================
@@ -156,25 +181,6 @@ class PlaylistsPanel(Gtk.Paned):
         return self.make_label(f'<b>{playlist.name}</b>',
                                use_markup=True,
                                margin=10)
-
-    def create_song_row(self, song: Child):
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        title = self.make_label(f'<b>{song.title}</b>',
-                                use_markup=True,
-                                margin=5)
-        box.pack_start(title, True, True, 0)
-
-        album = self.make_label(song.album, margin=5)
-        box.pack_start(album, True, True, 0)
-
-        artist = self.make_label(song.artist, margin=5)
-        box.pack_start(artist, True, True, 0)
-
-        duration = self.make_label(self.format_song_duration(song.duration),
-                                   margin=5)
-        box.pack_start(duration, False, True, 0)
-
-        return box
 
     def pluralize(self, string, number, pluralized_form=None):
         if number != 1:

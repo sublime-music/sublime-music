@@ -1335,7 +1335,7 @@ class Server:
 
         :param id: ID(s) of a/the song(s) in the play queue. Can be either a
             single ID or a list of IDs.
-        :param current: The Id of the current playing song.
+        :param current: The ID of the current playing song.
         :param position: The position in milliseconds within the currently
             playing song.
         """
