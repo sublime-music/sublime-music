@@ -149,7 +149,7 @@ class PlaylistsPanel(Gtk.Paned):
                 song.title,
                 song.album,
                 song.artist,
-                self.format_song_duration(song.duration),
+                util.format_song_duration(song.duration),
                 song.id,
             ])
 
@@ -224,6 +224,3 @@ class PlaylistsPanel(Gtk.Paned):
             format_components.append(secs)
 
         return ', '.join(format_components)
-
-    def format_song_duration(self, duration_secs) -> str:
-        return f'{duration_secs // 60}:{duration_secs % 60:02}'

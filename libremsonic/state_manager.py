@@ -2,10 +2,12 @@ from typing import List, Any
 
 from .config import get_config, save_config, AppConfiguration
 
+from .server.api_objects import Child
+
 
 class ApplicationState:
     config: AppConfiguration = AppConfiguration.get_default_configuration()
-    current_song: Any  # TODO fix
+    current_song: Child  # TODO fix
     config_file: str
     playing: bool = False
     song_progress: float = 0.0

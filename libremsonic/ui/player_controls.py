@@ -1,9 +1,12 @@
+import math
+
 import gi
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, Gtk
 
 from libremsonic.state_manager import ApplicationState
+from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
 
 
@@ -29,6 +32,22 @@ class PlayerControls(Gtk.ActionBar):
         self.play_button.get_child().set_from_icon_name(
             f"media-playback-{icon}-symbolic", Gtk.IconSize.LARGE_TOOLBAR)
 
+        if not state.current_song:
+            return
+
+        self.album_art.set_from_file(
+            CacheManager.get_cover_art_filename(
+                state.current_song.coverArt,
+                size=70,
+            ))
+
+        def esc(string):
+            return string.replace('&', '&amp;')
+
+        self.song_title.set_markup(f'<b>{esc(state.current_song.title)}</b>')
+        self.album_name.set_markup(f'<i>{esc(state.current_song.album)}</i>')
+        self.artist_name.set_markup(f'{esc(state.current_song.artist)}')
+
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
@@ -38,27 +57,15 @@ class PlayerControls(Gtk.ActionBar):
         details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         details_box.pack_start(Gtk.Box(), True, True, 0)
 
-        self.song_name = Gtk.Label(
-            '<b>Song name</b>',
-            halign=Gtk.Align.START,
-            use_markup=True,
-        )
-        self.song_name.set_name('song-name')
-        details_box.add(self.song_name)
+        self.song_title = Gtk.Label(halign=Gtk.Align.START, use_markup=True)
+        self.song_title.set_name('song-title')
+        details_box.add(self.song_title)
 
-        self.album_name = Gtk.Label(
-            '<i>Album name</i>',
-            halign=Gtk.Align.START,
-            use_markup=True,
-        )
+        self.album_name = Gtk.Label(halign=Gtk.Align.START, use_markup=True)
         self.album_name.set_name('album-name')
         details_box.add(self.album_name)
 
-        self.artist_name = Gtk.Label(
-            'Artist name',
-            halign=Gtk.Align.START,
-            use_markup=True,
-        )
+        self.artist_name = Gtk.Label(halign=Gtk.Align.START, use_markup=True)
         self.artist_name.set_name('artist-name')
         details_box.add(self.artist_name)
 
@@ -73,7 +80,7 @@ class PlayerControls(Gtk.ActionBar):
         # Scrubber and song progress/length labels
         scrubber_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
-        self.song_progress_label = Gtk.Label('0:00')
+        self.song_progress_label = Gtk.Label('-:--')
         scrubber_box.pack_start(self.song_progress_label, False, False, 5)
 
         self.song_scrubber = Gtk.Scale.new_with_range(
@@ -82,8 +89,8 @@ class PlayerControls(Gtk.ActionBar):
         self.song_scrubber.set_draw_value(False)
         scrubber_box.pack_start(self.song_scrubber, True, True, 0)
 
-        self.song_length_label = Gtk.Label('0:00')
-        scrubber_box.pack_start(self.song_length_label, False, False, 5)
+        self.song_duration_label = Gtk.Label('-:--')
+        scrubber_box.pack_start(self.song_duration_label, False, False, 5)
 
         box.add(scrubber_box)
 
@@ -158,3 +165,11 @@ class PlayerControls(Gtk.ActionBar):
         vbox.pack_start(box, False, True, 0)
         vbox.pack_start(Gtk.Box(), True, True, 0)
         return vbox
+
+    def update_scrubber(self, current, duration):
+        current = current or 0
+        percent_complete = current / duration * 100
+        self.song_scrubber.set_value(percent_complete)
+        self.song_duration_label.set_text(util.format_song_duration(duration))
+        self.song_progress_label.set_text(
+            util.format_song_duration(math.floor(current)))

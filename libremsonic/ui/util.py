@@ -18,3 +18,7 @@ def button_with_icon(
         button.props.relief = Gtk.ReliefStyle.NONE
 
     return button
+
+
+def format_song_duration(duration_secs) -> str:
+    return f'{duration_secs // 60}:{duration_secs % 60:02}'

@@ -31,13 +31,12 @@ class LibremsonicApp(Gtk.Application):
             'Specify a configuration file. Defaults to ~/.config/libremsonic/config.json',
             None)
 
-        self.player = mpv.MPV(pause=True)
+        self.player = mpv.MPV()
 
         @self.player.property_observer('time-pos')
         def time_observer(_name, value):
-            # TODO handle this
-            # self.window.player_controls.update_scrubber
-            pass
+            self.window.player_controls.update_scrubber(
+                value, self.state.current_song.duration)
 
     # Handle command line option parsing.
     def do_command_line(self, command_line):
@@ -164,9 +163,12 @@ class LibremsonicApp(Gtk.Application):
     def on_song_clicked(self, win, song_id, song_queue):
         CacheManager.save_play_queue(id=song_queue, current=song_id)
         song = CacheManager.get_song(song_id)
+        self.state.current_song = song
+        self.state.playing = True
         # print(CacheManager.get_play_queue())
         song_file = CacheManager.get_song_filename(song)
-        self.player.command('loadfile', song_file, 'replace')
+        self.player.loadfile(song_file)
+        self.update_window()
 
     # ########## HELPER METHODS ########## #
     def show_configure_servers_dialog(self):
