@@ -32,7 +32,7 @@ class PlayerControls(Gtk.ActionBar):
         self.play_button.get_child().set_from_icon_name(
             f"media-playback-{icon}-symbolic", Gtk.IconSize.LARGE_TOOLBAR)
 
-        if not state.current_song:
+        if not hasattr(state, 'current_song'):
             return
 
         self.album_art.set_from_file(
@@ -57,16 +57,16 @@ class PlayerControls(Gtk.ActionBar):
         details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         details_box.pack_start(Gtk.Box(), True, True, 0)
 
-        self.song_title = Gtk.Label(halign=Gtk.Align.START, use_markup=True)
-        self.song_title.set_name('song-title')
+        def make_label(n):
+            return Gtk.Label(name=n, halign=Gtk.Align.START, use_markup=True)
+
+        self.song_title = make_label('song-title')
         details_box.add(self.song_title)
 
-        self.album_name = Gtk.Label(halign=Gtk.Align.START, use_markup=True)
-        self.album_name.set_name('album-name')
+        self.album_name = make_label('album-name')
         details_box.add(self.album_name)
 
-        self.artist_name = Gtk.Label(halign=Gtk.Align.START, use_markup=True)
-        self.artist_name.set_name('artist-name')
+        self.artist_name = make_label('artist-name')
         details_box.add(self.artist_name)
 
         details_box.pack_start(Gtk.Box(), True, True, 0)
