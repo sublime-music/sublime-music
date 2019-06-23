@@ -50,6 +50,7 @@ setup(
         'gobject',
         'PyGObject',
         'Deprecated',
+        'jsonpickle',
     ],
 
     # To provide executable scripts, use entry points in preference to the

@@ -2,37 +2,43 @@ from typing import Optional
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk
+from gi.repository import Gio, Gtk, GObject
 
-from .albums import AlbumsPanel
-from .playlists import PlaylistsPanel
-from .player_controls import PlayerControls
+from . import albums, artists, playlists, more, player_controls
 from libremsonic.server import Server
 from libremsonic.state_manager import ApplicationState
 
 
 class MainWindow(Gtk.ApplicationWindow):
     """Defines the main window for LibremSonic."""
+    __gsignals__ = {
+        'song-clicked': (
+            GObject.SIGNAL_RUN_FIRST,
+            GObject.TYPE_NONE,
+            (str, object),
+        ),
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.set_default_size(1024, 768)
 
         self.panels = {
-            'Albums': AlbumsPanel(),
-            'Artists': Gtk.Label('Artists'),
-            'Playlists': PlaylistsPanel(),
-            'More': Gtk.Label('More'),
+            'Albums': albums.AlbumsPanel(),
+            'Artists': artists.ArtistsPanel(),
+            'Playlists': playlists.PlaylistsPanel(),
+            'More': more.MorePanel(),
         }
 
         # Create the stack
         self.stack = self.create_stack(**self.panels)
-        self.stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
+        self.stack.set_transition_type(
+            Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
 
         self.titlebar = self.create_headerbar(self.stack)
         self.set_titlebar(self.titlebar)
 
-        self.player_controls = PlayerControls()
+        self.player_controls = player_controls.PlayerControls()
 
         flowbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         flowbox.pack_start(self.stack, True, True, 0)
@@ -56,9 +62,13 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self.player_controls.update(state)
 
+    def on_song_clicked(self, panel, song, queue):
+        self.emit('song-clicked', song, queue)
+
     def create_stack(self, **kwargs):
         stack = Gtk.Stack()
         for name, child in kwargs.items():
+            child.connect('song-clicked', self.on_song_clicked)
             stack.add_titled(child, name.lower(), name)
         return stack
 

@@ -819,7 +819,6 @@ class Server:
         :param id: A string which uniquely identifies the file to stream.
             Obtained by calls to ``getMusicDirectory``.
         """
-        # TODO make this a decent object
         return self._download(self._make_url('download'), id=id)
 
     def get_cover_art(self, id: str, size: str = None):

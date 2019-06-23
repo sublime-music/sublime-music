@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, Pango
+from gi.repository import Gio, Gtk, Pango, GObject
 
 from libremsonic.server.api_objects import Child, PlaylistWithSongs
 from libremsonic.state_manager import ApplicationState
@@ -14,6 +14,14 @@ from libremsonic.ui import util
 
 class PlaylistsPanel(Gtk.Paned):
     """Defines the playlists panel."""
+    __gsignals__ = {
+        'song-clicked': (
+            GObject.SIGNAL_RUN_FIRST,
+            GObject.TYPE_NONE,
+            (str, object),
+        ),
+    }
+
     playlist_ids: List[int] = []
     song_ids: List[int] = []
 
@@ -128,7 +136,7 @@ class PlaylistsPanel(Gtk.Paned):
 
         # Update the Playlist Info panel
         self.playlist_artwork.set_from_file(
-            CacheManager.get_cover_art(playlist.coverArt))
+            CacheManager.get_cover_art_filename(playlist.coverArt))
         self.playlist_indicator.set_markup('PLAYLIST')
         self.playlist_name.set_markup(f'<b>{playlist.name}</b>')
         self.playlist_comment.set_text(playlist.comment or '')
@@ -152,11 +160,8 @@ class PlaylistsPanel(Gtk.Paned):
 
     def on_song_double_click(self, treeview, idx, column):
         song_id = self.playlist_song_model[idx][4]
-        CacheManager.save_play_queue(
-            id=[m[4] for m in self.playlist_song_model],
-            current=song_id,
-        )
-        print(f'Song ID {song_id} clicked.')
+        self.emit('song-clicked', song_id,
+                  [m[4] for m in self.playlist_song_model])
 
     # Helper Methods
     # =========================================================================

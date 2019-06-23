@@ -99,6 +99,7 @@ class LibremsonicApp(Gtk.Application):
 
         self.window.stack.connect('notify::visible-child',
                                   self.on_stack_change)
+        self.window.connect('song-clicked', self.on_song_clicked)
 
         # Display the window.
         self.window.show_all()
@@ -159,6 +160,13 @@ class LibremsonicApp(Gtk.Application):
 
     def on_stack_change(self, stack, child):
         self.update_window()
+
+    def on_song_clicked(self, win, song_id, song_queue):
+        CacheManager.save_play_queue(id=song_queue, current=song_id)
+        song = CacheManager.get_song(song_id)
+        # print(CacheManager.get_play_queue())
+        song_file = CacheManager.get_song_filename(song)
+        self.player.command('loadfile', song_file, 'replace')
 
     # ########## HELPER METHODS ########## #
     def show_configure_servers_dialog(self):

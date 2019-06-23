@@ -7,7 +7,7 @@ from gi.repository import Gio, Gtk, GObject
 from libremsonic.state_manager import ApplicationState
 
 
-class AlbumsPanel(Gtk.ScrolledWindow):
+class MorePanel(Gtk.ScrolledWindow):
     __gsignals__ = {
         'song-clicked': (
             GObject.SIGNAL_RUN_FIRST,
@@ -18,14 +18,14 @@ class AlbumsPanel(Gtk.ScrolledWindow):
 
     def __init__(self):
         Gtk.ScrolledWindow.__init__(self)
-        self.child = AlbumsGrid()
+        self.child = MoreGrid()
         self.add(self.child)
 
     def update(self, state: ApplicationState):
         self.child.update(state)
 
 
-class AlbumsGrid(Gtk.FlowBox):
+class MoreGrid(Gtk.FlowBox):
     """Defines the albums panel."""
 
     def __init__(self):

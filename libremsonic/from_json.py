@@ -59,9 +59,15 @@ def from_json(cls, data):
     elif cls == bool or issubclass(cls, bool):
         instance = bool(data)
     elif type(cls) == EnumMeta:
-        instance = cls(data)
+        if type(data) == dict:
+            instance = cls(data.get('_value_'))
+        else:
+            instance = cls(data)
     elif cls == datetime:
-        instance = parser.parse(data)
+        if type(data) == int:
+            instance = datetime.fromtimestamp(data / 1000)
+        else:
+            instance = parser.parse(data)
 
     # Handle everything else by first instantiating the class, then adding
     # all of the sub-elements, recursively calling from_json on them.
