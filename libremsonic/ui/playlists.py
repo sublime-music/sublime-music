@@ -65,25 +65,22 @@ class PlaylistsPanel(Gtk.Paned):
             orientation=Gtk.Orientation.HORIZONTAL,
         )
         self.playlist_artwork = Gtk.Image(name='album-artwork')
-        self.info_panel.pack_start(self.playlist_artwork, False, False, 10)
+        self.info_panel.pack_start(self.playlist_artwork, False, False, 0)
 
         # Name, comment, number of songs, etc.
         playlist_details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         playlist_details_box.pack_start(Gtk.Box(), True, False, 0)
 
-        def make_label(name):
-            return Gtk.Label(name=name, halign=Gtk.Align.START)
-
-        self.playlist_indicator = make_label('playlist-indicator')
+        self.playlist_indicator = self.make_label(name='playlist-indicator')
         playlist_details_box.add(self.playlist_indicator)
 
-        self.playlist_name = make_label('playlist-name')
+        self.playlist_name = self.make_label(name='playlist-name')
         playlist_details_box.add(self.playlist_name)
 
-        self.playlist_comment = make_label('playlist-comment')
+        self.playlist_comment = self.make_label(name='playlist-comment')
         playlist_details_box.add(self.playlist_comment)
 
-        self.playlist_stats = make_label('playlist-stats')
+        self.playlist_stats = self.make_label(name='playlist-stats')
         playlist_details_box.add(self.playlist_stats)
 
         self.info_panel.pack_start(playlist_details_box, True, True, 10)
@@ -92,7 +89,17 @@ class PlaylistsPanel(Gtk.Paned):
 
         # Playlist songs list
         songs_scroll_window = Gtk.ScrolledWindow()
-        self.playlist_songs = Gtk.ListBox()
+        self.playlist_songs = Gtk.TreeView()
+        self.playlist_songs.insert_column_with_attributes(
+            -1, 'TITLE', Gtk.CellRendererText())
+        self.playlist_songs.insert_column_with_attributes(
+            -1, 'ALBUM', Gtk.CellRendererText())
+        self.playlist_songs.insert_column_with_attributes(
+            -1, 'ARTIST', Gtk.CellRendererText())
+        self.playlist_songs.insert_column_with_attributes(
+            -1, 'DURATION', Gtk.CellRendererText())
+        self.playlist_songs.connect(
+            'row-activated', lambda x, y: print('a', x, y))
         songs_scroll_window.add(self.playlist_songs)
         playlist_box.pack_end(songs_scroll_window, True, True, 0)
 
@@ -104,7 +111,9 @@ class PlaylistsPanel(Gtk.Paned):
         playlist_id = self.playlist_ids[row.get_index()]
         playlist: PlaylistWithSongs = CacheManager.get_playlist(playlist_id)
 
-        # Update the Playlist Name
+        # Update the Playlist Info panel
+        self.playlist_artwork.set_from_file(
+            CacheManager.get_cover_art(playlist.coverArt))
         self.playlist_indicator.set_markup('PLAYLIST')
         self.playlist_name.set_markup(f'<b>{playlist.name}</b>')
         self.playlist_comment.set_text(playlist.comment or '')
@@ -126,6 +135,9 @@ class PlaylistsPanel(Gtk.Paned):
 
     # Helper Methods
     # =========================================================================
+    def make_label(self, text=None, name=None, **params):
+        return Gtk.Label(text, name=name, halign=Gtk.Align.START, **params)
+
     def update(self, state: ApplicationState):
         self.update_playlist_list()
 
@@ -141,20 +153,28 @@ class PlaylistsPanel(Gtk.Paned):
         self.playlist_list.show_all()
 
     def create_playlist_label(self, playlist: PlaylistWithSongs):
-        return Gtk.Label(
-            f'<b>{playlist.name}</b>',
-            halign=Gtk.Align.START,
-            use_markup=True,
-            margin=10,
-        )
+        return self.make_label(f'<b>{playlist.name}</b>',
+                               use_markup=True,
+                               margin=10)
 
     def create_song_row(self, song: Child):
-        return Gtk.Label(
-            f'<b>{song.title}</b>',
-            halign=Gtk.Align.START,
-            use_markup=True,
-            margin=5,
-        )
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        title = self.make_label(f'<b>{song.title}</b>',
+                                use_markup=True,
+                                margin=5)
+        box.pack_start(title, True, True, 0)
+
+        album = self.make_label(song.album, margin=5)
+        box.pack_start(album, True, True, 0)
+
+        artist = self.make_label(song.artist, margin=5)
+        box.pack_start(artist, True, True, 0)
+
+        duration = self.make_label(self.format_song_duration(song.duration),
+                                   margin=5)
+        box.pack_start(duration, False, True, 0)
+
+        return box
 
     def pluralize(self, string, number, pluralized_form=None):
         if number != 1:
@@ -193,3 +213,6 @@ class PlaylistsPanel(Gtk.Paned):
             format_components.append(secs)
 
         return ', '.join(format_components)
+
+    def format_song_duration(self, duration_secs) -> str:
+        return f'{duration_secs // 60}:{duration_secs % 60:02}'

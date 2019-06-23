@@ -73,22 +73,10 @@ class Server:
     def _make_url(self, endpoint: str) -> str:
         return f'{self.hostname}/rest/{endpoint}.view'
 
-    def _subsonic_error_to_exception(self, error):
+    def _subsonic_error_to_exception(self, error) -> Exception:
         return Exception(f'{error.code}: {error.message}')
 
-    def _post(
-            self,
-            url: str,
-            **params: Union[None, str, datetime, int, List[int]],
-    ) -> Response:
-        """
-        Make a post to a *Sonic REST API. Handle all types of errors including
-        *Sonic ``<error>`` responses.
-
-        :returns: a Response containing all of the data of the
-            response, deserialized
-        :raises Exception: needs some work TODO
-        """
+    def _post(self, url, **params):
         params = {**self._get_params(), **params}
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
@@ -101,6 +89,22 @@ class Server:
         if result.status_code != 200:
             raise Exception(f'Fail! {result.status_code}')
 
+        return result
+
+    def _post_json(
+            self,
+            url: str,
+            **params: Union[None, str, datetime, int, List[int]],
+    ) -> Response:
+        """
+        Make a post to a *Sonic REST API. Handle all types of errors including
+        *Sonic ``<error>`` responses.
+
+        :returns: a Response containing all of the data of the
+            response, deserialized
+        :raises Exception: needs some work TODO
+        """
+        result = self._post(url, **params)
         subsonic_response = result.json()['subsonic-response']
 
         # TODO make better
@@ -123,12 +127,7 @@ class Server:
         """
         Stream a file.
         """
-        params = {**self._get_params(), **params}
-        result = requests.post(url, data=params, stream=True)
-        # TODO make better
-        if result.status_code != 200:
-            raise Exception(f'Fail! {result.status_code}')
-
+        result = self._post(url, **params)
         content_type = result.headers.get('Content-Type', '')
 
         if 'application/json' in content_type:
@@ -144,24 +143,27 @@ class Server:
         else:
             return result.iter_content(chunk_size=1024)
 
+    def _download(self, url, **params) -> bytes:
+        return self._post(url, **params).content
+
     def ping(self) -> Response:
         """
         Used to test connectivity with the server.
         """
-        return self._post(self._make_url('ping'))
+        return self._post_json(self._make_url('ping'))
 
     def get_license(self) -> License:
         """
         Get details about the software license.
         """
-        result = self._post(self._make_url('getLicense'))
+        result = self._post_json(self._make_url('getLicense'))
         return result.license
 
     def get_music_folders(self) -> MusicFolders:
         """
         Returns all configured top-level music folders.
         """
-        result = self._post(self._make_url('getMusicFolders'))
+        result = self._post_json(self._make_url('getMusicFolders'))
         return result.musicFolders
 
     def get_indexes(
@@ -177,9 +179,9 @@ class Server:
         :param if_modified_since: If specified, only return a result if the
             artist collection has changed since the given time.
         """
-        result = self._post(self._make_url('getIndexes'),
-                            musicFolderId=music_folder_id,
-                            ifModifiedSince=if_modified_since)
+        result = self._post_json(self._make_url('getIndexes'),
+                                 musicFolderId=music_folder_id,
+                                 ifModifiedSince=if_modified_since)
         return result.indexes
 
     def get_music_directory(self, dir_id) -> Directory:
@@ -190,15 +192,15 @@ class Server:
         :param dir_id: A string which uniquely identifies the music folder.
             Obtained by calls to ``getIndexes`` or ``getMusicDirectory``.
         """
-        result = self._post(self._make_url('getMusicDirectory'),
-                            id=str(dir_id))
+        result = self._post_json(self._make_url('getMusicDirectory'),
+                                 id=str(dir_id))
         return result.directory
 
     def get_genres(self) -> Genres:
         """
         Returns all genres.
         """
-        result = self._post(self._make_url('getGenres'))
+        result = self._post_json(self._make_url('getGenres'))
         return result.genres
 
     def get_artists(self, music_folder_id: int = None) -> ArtistsID3:
@@ -208,8 +210,8 @@ class Server:
         :param music_folder_id: If specified, only return artists in the music
             folder with the given ID. See ``getMusicFolders``.
         """
-        result = self._post(self._make_url('getArtists'),
-                            musicFolderId=music_folder_id)
+        result = self._post_json(self._make_url('getArtists'),
+                                 musicFolderId=music_folder_id)
         return result.artists
 
     def get_artist(self, artist_id: int) -> ArtistWithAlbumsID3:
@@ -219,7 +221,7 @@ class Server:
 
         :param artist_id: The artist ID.
         """
-        result = self._post(self._make_url('getArtist'), id=artist_id)
+        result = self._post_json(self._make_url('getArtist'), id=artist_id)
         return result.artist
 
     def get_album(self, album_id: int) -> AlbumWithSongsID3:
@@ -229,7 +231,7 @@ class Server:
 
         :param album_id: The album ID.
         """
-        result = self._post(self._make_url('getAlbum'), id=album_id)
+        result = self._post_json(self._make_url('getAlbum'), id=album_id)
         return result.album
 
     def get_song(self, song_id: int) -> Child:
@@ -238,14 +240,14 @@ class Server:
 
         :param song_id: The song ID.
         """
-        result = self._post(self._make_url('getSong'), id=song_id)
+        result = self._post_json(self._make_url('getSong'), id=song_id)
         return result.song
 
     def get_videos(self) -> Optional[List[Child]]:
         """
         Returns all video files.
         """
-        result = self._post(self._make_url('getVideos'))
+        result = self._post_json(self._make_url('getVideos'))
         return result.videos.video
 
     def get_video_info(self, video_id: int) -> Optional[VideoInfo]:
@@ -255,7 +257,7 @@ class Server:
 
         :param video_id: The video ID.
         """
-        result = self._post(self._make_url('getVideoInfo'), id=video_id)
+        result = self._post_json(self._make_url('getVideoInfo'), id=video_id)
         return result.videoInfo
 
     def get_artist_info(
@@ -275,7 +277,7 @@ class Server:
             present in the media library. Defaults to false according to API
             Spec.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('getArtistInfo'),
             id=id,
             count=count,
@@ -299,7 +301,7 @@ class Server:
             present in the media library. Defaults to false according to API
             Spec.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('getArtistInfo2'),
             id=id,
             count=count,
@@ -313,7 +315,7 @@ class Server:
 
         :param id: The album or song ID.
         """
-        result = self._post(self._make_url('getAlbumInfo'), id=id)
+        result = self._post_json(self._make_url('getAlbumInfo'), id=id)
         return result.albumInfo
 
     def get_album_info2(self, id: int) -> Optional[AlbumInfo]:
@@ -322,7 +324,7 @@ class Server:
 
         :param id: The album or song ID.
         """
-        result = self._post(self._make_url('getAlbumInfo2'), id=id)
+        result = self._post_json(self._make_url('getAlbumInfo2'), id=id)
         return result.albumInfo
 
     def get_similar_songs(self, id: int, count: int = None) -> List[Child]:
@@ -335,7 +337,7 @@ class Server:
         :param count: Max number of songs to return. Defaults to 50 according
             to API Spec.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('getSimilarSongs'),
             id=id,
             count=count,
@@ -350,7 +352,7 @@ class Server:
         :param count: Max number of songs to return. Defaults to 50 according
             to API Spec.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('getSimilarSongs2'),
             id=id,
             count=count,
@@ -365,7 +367,7 @@ class Server:
         :param count: Max number of songs to return. Defaults to 50 according
             to API Spec.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('getTopSongs'),
             artist=artist,
             count=count,
@@ -407,7 +409,7 @@ class Server:
         :param music_folder_id: (Since 1.11.0) Only return albums in the music
             folder with the given ID. See ``getMusicFolders``.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('getAlbumList'),
             type=type,
             size=size,
@@ -452,7 +454,7 @@ class Server:
         :param music_folder_id: (Since 1.11.0) Only return albums in the music
             folder with the given ID. See ``getMusicFolders``.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('getAlbumList2'),
             type=type,
             size=size,
@@ -483,7 +485,7 @@ class Server:
         :param music_folder_id: Only return albums in the music folder with the
             given ID. See ``getMusicFolders``.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('getRandomSongs'),
             size=size,
             genre=genre,
@@ -511,7 +513,7 @@ class Server:
         :param music_folder_id: (Since 1.12.0) Only return albums in the music
             folder with the given ID. See ``getMusicFolders``.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('getSongsByGenre'),
             genre=genre,
             count=count,
@@ -525,7 +527,7 @@ class Server:
         Returns what is currently being played by all users. Takes no extra
         parameters.
         """
-        result = self._post(self._make_url('getNowPlaying'))
+        result = self._post_json(self._make_url('getNowPlaying'))
         return result.nowPlaying
 
     def get_starred(self, music_folder_id: int = None) -> Starred:
@@ -535,7 +537,7 @@ class Server:
         :param music_folder_id: (Since 1.12.0) Only return results from the
             music folder with the given ID. See ``getMusicFolders``.
         """
-        result = self._post(self._make_url('getStarred'))
+        result = self._post_json(self._make_url('getStarred'))
         return result.starred
 
     def get_starred2(self, music_folder_id: int = None) -> Starred2:
@@ -545,7 +547,7 @@ class Server:
         :param music_folder_id: (Since 1.12.0) Only return results from the
             music folder with the given ID. See ``getMusicFolders``.
         """
-        result = self._post(self._make_url('getStarred2'))
+        result = self._post_json(self._make_url('getStarred2'))
         return result.starred2
 
     @deprecated(version='1.4.0', reason='You should use search2 instead.')
@@ -571,7 +573,7 @@ class Server:
         :param offset: Search result offset. Used for paging.
         :param newer_than: Only return matches that are newer than this.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('search'),
             artist=artist,
             album=album,
@@ -615,7 +617,7 @@ class Server:
         :param music_folder_id: (Since 1.12.0) Only return results from the
             music folder with the given ID. See ``getMusicFolders``.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('search2'),
             query=query,
             artistCount=artist_count,
@@ -658,7 +660,7 @@ class Server:
         :param music_folder_id: (Since 1.12.0) Only return results from the
             music folder with the given ID. See ``getMusicFolders``.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('search3'),
             query=query,
             artistCount=artist_count,
@@ -679,7 +681,8 @@ class Server:
             user rather than for the authenticated user. The authenticated user
             must have admin role if this parameter is used.
         """
-        result = self._post(self._make_url('getPlaylists'), username=username)
+        result = self._post_json(self._make_url('getPlaylists'),
+                                 username=username)
         return result.playlists
 
     def get_playlist(self, id: int = None) -> PlaylistWithSongs:
@@ -689,7 +692,7 @@ class Server:
         :param username: ID of the playlist to return, as obtained by
             ``getPlaylists``.
         """
-        result = self._post(self._make_url('getPlaylist'), id=id)
+        result = self._post_json(self._make_url('getPlaylist'), id=id)
         return result.playlist
 
     def create_playlist(
@@ -707,7 +710,7 @@ class Server:
         :param song_id: ID(s) of a song in the playlist. Can be a single ID or
             a list of IDs.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('createPlaylist'),
             playlistId=playlist_id,
             name=name,
@@ -742,7 +745,7 @@ class Server:
         :param song_id_to_remove: Remove the song at this/these position(s) in
             the playlist. Can be a single ID or a list of IDs.
         """
-        return self._post(
+        return self._post_json(
             self._make_url('updatePlaylist'),
             playlistId=playlist_id,
             name=name,
@@ -756,7 +759,7 @@ class Server:
         """
         Deletes a saved playlist
         """
-        return self._post(self._make_url('deletePlaylist'), id=id)
+        return self._post_json(self._make_url('deletePlaylist'), id=id)
 
     def stream(
             self,
@@ -817,16 +820,16 @@ class Server:
             Obtained by calls to ``getMusicDirectory``.
         """
         # TODO make this a decent object
-        return self._post(self._make_url('download'), id=id)
+        return self._download(self._make_url('download'), id=id)
 
-    def get_cover_art(self, id: int, size: str = None):
+    def get_cover_art(self, id: str, size: str = None):
         """
         Returns the cover art image in binary form.
 
         :param id: The ID of a song, album or artist.
         :param size: If specified, scale image to this size.
         """
-        return self._post(self._make_url('getCoverArt'), id=id, size=size)
+        return self._download(self._make_url('getCoverArt'), id=id, size=size)
 
     def get_lyrics(self, artist: str = None, title: str = None) -> Lyrics:
         """
@@ -835,7 +838,7 @@ class Server:
         :param artist: The artist name.
         :param title: The song title.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('getLyrics'),
             artist=artist,
             title=title,
@@ -848,7 +851,7 @@ class Server:
 
         :param username: the user in question.
         """
-        return self._post(self._make_url('getAvatar'), username=username)
+        return self._download(self._make_url('getAvatar'), username=username)
 
     def star(
             self,
@@ -870,7 +873,7 @@ class Server:
             according to ID3 tags rather than file structure. Can be a single
             ID or a list of IDs.
         """
-        return self._post(
+        return self._post_json(
             self._make_url('star'),
             id=id,
             albumId=album_id,
@@ -897,7 +900,7 @@ class Server:
             according to ID3 tags rather than file structure. Can be a single
             ID or a list of IDs.
         """
-        return self._post(
+        return self._post_json(
             self._make_url('unstar'),
             id=id,
             albumId=album_id,
@@ -913,7 +916,9 @@ class Server:
         :param rating: The rating between 1 and 5 (inclusive), or 0 to remove
             the rating.
         """
-        return self._post(self._make_url('setRating'), id=id, rating=rating)
+        return self._post_json(self._make_url('setRating'),
+                               id=id,
+                               rating=rating)
 
     def scrobble(
             self,
@@ -943,7 +948,7 @@ class Server:
         :param submission: Whether this is a "submission" or a "now playing"
             notification.
         """
-        return self._post(
+        return self._post_json(
             self._make_url('scrobble'),
             id=id,
             time=time,
@@ -955,7 +960,7 @@ class Server:
         Returns information about shared media this user is allowed to manage.
         Takes no extra parameters.
         """
-        result = self._post(self._make_url('getShares'))
+        result = self._post_json(self._make_url('getShares'))
         return result.shares
 
     def create_share(
@@ -977,7 +982,7 @@ class Server:
             to people visiting the shared media.
         :param expires: The time at which the share expires.
         """
-        result = self._post(
+        result = self._post_json(
             self._make_url('createShare'),
             id=id,
             description=description,
@@ -999,7 +1004,7 @@ class Server:
             to people visiting the shared media.
         :param expires: The time at which the share expires.
         """
-        return self._post(
+        return self._post_json(
             self._make_url('updateShare'),
             id=id,
             description=description,
@@ -1012,13 +1017,13 @@ class Server:
 
         :param id: ID of the share to delete.
         """
-        return self._post(self._make_url('deleteShare'), id=id)
+        return self._post_json(self._make_url('deleteShare'), id=id)
 
     def get_internet_radio_stations(self) -> InternetRadioStations:
         """
         Returns all internet radio stations. Takes no extra parameters.
         """
-        result = self._post(self._make_url('getInternetRadioStations'))
+        result = self._post_json(self._make_url('getInternetRadioStations'))
         return result.internetRadioStations
 
     def create_internet_radio_station(
@@ -1035,7 +1040,7 @@ class Server:
         :param name: The user-defined name for the station.
         :param homepage_url: The home page URL for the station.
         """
-        return self._post(
+        return self._post_json(
             self._make_url('createInternetRadioStation'),
             streamUrl=stream_url,
             name=name,
@@ -1058,7 +1063,7 @@ class Server:
         :param name: The user-defined name for the station.
         :param homepage_url: The home page URL for the station.
         """
-        return self._post(
+        return self._post_json(
             self._make_url('updateInternetRadioStation'),
             id=id,
             streamUrl=stream_url,
@@ -1073,7 +1078,8 @@ class Server:
 
         :param id: The ID for the station.
         """
-        return self._post(self._make_url('deleteInternetRadioStation'), id=id)
+        return self._post_json(self._make_url('deleteInternetRadioStation'),
+                               id=id)
 
     def get_user(self, username: str) -> User:
         """
@@ -1084,7 +1090,7 @@ class Server:
         :param username: The name of the user to retrieve. You can only
             retrieve your own user unless you have admin privileges.
         """
-        result = self._post(self._make_url('getUser'), username=username)
+        result = self._post_json(self._make_url('getUser'), username=username)
         return result.user
 
     def get_users(self) -> Users:
@@ -1093,7 +1099,7 @@ class Server:
         folder access they have. Only users with admin privileges are allowed
         to call this method.
         """
-        result = self._post(self._make_url('getUsers'))
+        result = self._post_json(self._make_url('getUsers'))
         return result.users
 
     def create_user(
@@ -1147,7 +1153,7 @@ class Server:
         :param music_folder_id: (Since 1.12.0) IDs of the music folders the
             user is allowed access to. Can be a single ID or a list of IDs.
         """
-        return self._post(
+        return self._post_json(
             self._make_url('createUser'),
             username=username,
             password=password,
@@ -1219,7 +1225,7 @@ class Server:
         :param music_folder_id: (Since 1.12.0) IDs of the music folders the
             user is allowed access to. Can be a single ID or a list of IDs.
         """
-        return self._post(
+        return self._post_json(
             self._make_url('updateUser'),
             username=username,
             password=password,
@@ -1246,7 +1252,7 @@ class Server:
 
         :param username: The name of the new user.
         """
-        return self._post(self._make_url('deleteUser'), username=username)
+        return self._post_json(self._make_url('deleteUser'), username=username)
 
     def change_password(self, username: str, password: str) -> Response:
         """
@@ -1257,7 +1263,7 @@ class Server:
         :param password: The new password of the new user, either in clear text
             of hex-encoded.
         """
-        return self._post(
+        return self._post_json(
             self._make_url('changePassword'),
             username=username,
             password=password,
@@ -1268,7 +1274,7 @@ class Server:
         Returns all bookmarks for this user. A bookmark is a position within a
         certain media file.
         """
-        result = self._post(self._make_url('getBookmarks'))
+        result = self._post_json(self._make_url('getBookmarks'))
         return result.bookmarks
 
     def create_bookmarks(
@@ -1286,7 +1292,7 @@ class Server:
         :param position: The position (in milliseconds) within the media file.
         :param comment: A user-defined comment.
         """
-        return self._post(
+        return self._post_json(
             self._make_url('createBookmark'),
             id=id,
             position=position,
@@ -1300,7 +1306,7 @@ class Server:
         :param id: ID of the media file for which to delete the bookmark. Other
             users' bookmarks are not affected.
         """
-        return self._post(self._make_url('deleteBookmark'), id=id)
+        return self._post_json(self._make_url('deleteBookmark'), id=id)
 
     def get_play_queue(self) -> Optional[PlayQueue]:
         """
@@ -1311,10 +1317,10 @@ class Server:
         retaining the same play queue (for instance when listening to an audio
         book).
         """
-        result = self._post(self._make_url('getPlayQueue'))
+        result = self._post_json(self._make_url('getPlayQueue'))
         return result.playQueue
 
-    def savePlayQueue(
+    def save_play_queue(
             self,
             id: Union[int, List[int]],
             current: int = None,
@@ -1333,7 +1339,7 @@ class Server:
         :param position: The position in milliseconds within the currently
             playing song.
         """
-        return self._post(
+        return self._post_json(
             self._make_url('savePlayQueue'),
             id=id,
             current=current,
@@ -1345,12 +1351,12 @@ class Server:
         Returns the current status for media library scanning. Takes no extra
         parameters.
         """
-        result = self._post(self._make_url('getScanStatus'))
+        result = self._post_json(self._make_url('getScanStatus'))
         return result.scanStatus
 
     def start_scan(self) -> ScanStatus:
         """
         Initiates a rescan of the media libraries. Takes no extra parameters.
         """
-        result = self._post(self._make_url('startScan'))
+        result = self._post_json(self._make_url('startScan'))
         return result.scanStatus

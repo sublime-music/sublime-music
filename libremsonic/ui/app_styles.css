@@ -2,6 +2,7 @@
 #album-artwork {
   min-height: 200px;
   min-width: 200px;
+  margin: 10px;
 }
 
 #album-artwork.collapsed {

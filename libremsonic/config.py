@@ -39,16 +39,14 @@ class ServerConfiguration:
 class AppConfiguration:
     servers: List[ServerConfiguration]
     current_server: int
-    permanent_cache_location: str
-    temporary_cache_location: str
+    cache_location: str
     max_cache_size_mb: int  # -1 means unlimited
 
     def to_json(self):
         return {
             'servers': [s.__dict__ for s in self.servers],
             'current_server': self.current_server,
-            'permanent_cache_location': self.permanent_cache_location,
-            'temporary_cache_location': self.temporary_cache_location,
+            'cache_location': self.cache_location,
             'max_cache_size_mb': self.max_cache_size_mb,
         }
 
@@ -61,8 +59,7 @@ class AppConfiguration:
         config = AppConfiguration()
         config.servers = []
         config.current_server = -1
-        config.permanent_cache_location = default_cache_location
-        config.temporary_cache_location = config.permanent_cache_location
+        config.cache_location = default_cache_location
         config.max_cache_size_mb = -1
         return config
 

@@ -149,7 +149,10 @@ class LibremsonicApp(Gtk.Application):
 
         # Reset the CacheManager.
         CacheManager.reset(
-            self.state.config.servers[self.state.config.current_server])
+            self.state.config,
+            self.state.config.servers[current_server]
+            if current_server >= 0 else None,
+        )
 
         # Update the window according to the new server configuration.
         self.update_window()

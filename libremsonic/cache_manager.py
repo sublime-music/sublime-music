@@ -1,6 +1,9 @@
-from typing import Dict, List, Optional
+import os
+from pathlib import Path
+from collections import defaultdict
+from typing import DefaultDict, Dict, List, Optional, Tuple
 
-from libremsonic.config import ServerConfiguration
+from libremsonic.config import AppConfiguration, ServerConfiguration
 from libremsonic.server import Server
 from libremsonic.server.api_objects import Playlist, PlaylistWithSongs
 
@@ -18,13 +21,31 @@ class CacheManager(metaclass=Singleton):
         playlists: Optional[List[Playlist]] = None
         playlist_details: Dict[int, PlaylistWithSongs] = {}
 
-        def __init__(self, server_config: ServerConfiguration):
+        # {id -> {size -> file_location}}
+        cover_art: DefaultDict[str, Dict[str, Path]] = defaultdict(dict)
+
+        def __init__(
+                self,
+                app_config: AppConfiguration,
+                server_config: ServerConfiguration,
+        ):
+            self.app_config = app_config
             self.server = Server(
                 name=server_config.name,
                 hostname=server_config.server_address,
                 username=server_config.username,
                 password=server_config.password,
             )
+
+        def save_file(self, relative_path: str, data: bytes) -> Path:
+            cache_location = Path(self.app_config.cache_location)
+            absolute_path = cache_location.joinpath(relative_path)
+
+            # Make the necessary directories and write to file.
+            os.makedirs(absolute_path.parent, exist_ok=True)
+            with open(absolute_path, 'wb+') as f:
+                f.write(data)
+            return absolute_path
 
         def get_playlists(self, force: bool = False) -> List[Playlist]:
             if not self.playlists or force:
@@ -43,12 +64,25 @@ class CacheManager(metaclass=Singleton):
 
             return self.playlist_details[playlist_id]
 
+        def get_cover_art(
+                self,
+                id: str,
+                size: str = '200',
+                force: bool = False,
+        ) -> str:
+            if not self.cover_art[id].get(size):
+                raw_cover = self.server.get_cover_art(id, size)
+                abs_path = self.save_file(f'cover_art/{id}_{size}', raw_cover)
+                self.cover_art[id][size] = abs_path
+
+            return str(self.cover_art[id][size])
+
     _instance: Optional[__CacheManagerInternal] = None
 
     def __init__(self, server_config: ServerConfiguration):
         raise Exception('Do not instantiate the CacheManager.')
 
     @classmethod
-    def reset(cls, server_config):
+    def reset(cls, app_config, server_config):
         CacheManager._instance = CacheManager.__CacheManagerInternal(
-            server_config)
+            app_config, server_config)
