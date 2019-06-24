@@ -42,7 +42,7 @@ class PlayerControls(Gtk.ActionBar):
 
         has_current_song = hasattr(state, 'current_song')
         has_prev_song, has_next_song = False, False
-        if has_current_song:
+        if has_current_song and state.current_song.id in state.play_queue:
             # TODO will need to change when repeat is implemented
             current = state.play_queue.index(state.current_song.id)
             has_prev_song = current > 0

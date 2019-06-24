@@ -42,18 +42,8 @@ class LibremsonicApp(Gtk.Application):
                 value,
                 self.state.current_song.duration,
             )
-
-        @self.player.property_observer('eof-reached')
-        def file_end(_, value):
-            print('eof', value)
-            return
-            if value is None:
-                # TODO handle repeat
-                current_idx = self.state.play_queue.index(
-                    self.state.current_song)
-                has_next_song = current_idx < len(self.state.play_queue) - 1
-                if has_next_song:
-                    self.on_next_track(None, None)
+            if abs((value or 0) - self.state.current_song.duration) < 0.1:
+                GLib.idle_add(self.on_next_track, None, None)
 
     # Handle command line option parsing.
     def do_command_line(self, command_line):
@@ -210,12 +200,13 @@ class LibremsonicApp(Gtk.Application):
         lambda *a, **k: CacheManager.get_song_details(*a, **k),
     )
     def play_song(self, song: Child):
-        self.state.playing = True
+        self.update_window()
 
         song_filename_future = CacheManager.get_song_filename(song)
 
         def filename_future_done(song_file):
             self.state.current_song = song
+            self.state.playing = True
             self.update_window()
             self.player.loadfile(song_file, 'replace')
             self.player.pause = False

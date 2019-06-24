@@ -69,7 +69,6 @@ class PlaylistsPanel(Gtk.Paned):
         # The playlist view on the right side
         # =====================================================================
         loading_overlay = Gtk.Overlay(name='playlist-view-overlay')
-        playlist_view_scroll_window = Gtk.ScrolledWindow()
         playlist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Playlist info panel
@@ -111,6 +110,7 @@ class PlaylistsPanel(Gtk.Paned):
         playlist_box.pack_start(self.big_info_panel, False, True, 0)
 
         # Playlist songs list
+        playlist_view_scroll_window = Gtk.ScrolledWindow()
 
         def create_column(header, text_idx, bold=False, align=0, width=None):
             renderer = Gtk.CellRendererText(
@@ -152,10 +152,10 @@ class PlaylistsPanel(Gtk.Paned):
             create_column('DURATION', 4, align=1, width=40))
 
         self.playlist_songs.connect('row-activated', self.on_song_double_click)
-        playlist_box.pack_end(self.playlist_songs, True, True, 0)
+        playlist_view_scroll_window.add(self.playlist_songs)
 
-        playlist_view_scroll_window.add(playlist_box)
-        loading_overlay.add(playlist_view_scroll_window)
+        playlist_box.pack_end(playlist_view_scroll_window, True, True, 0)
+        loading_overlay.add(playlist_box)
 
         playlist_view_spinner = Gtk.Spinner(active=True)
         playlist_view_spinner.start()
@@ -195,9 +195,13 @@ class PlaylistsPanel(Gtk.Paned):
         return Gtk.Label(text, name=name, halign=Gtk.Align.START, **params)
 
     def update(self, state: ApplicationState):
-        self.update_playlist_list()
         self.set_playlist_view_loading(False)
         self.set_playlist_art_loading(False)
+        self.update_playlist_list()
+        selected = self.playlist_list.get_selected_row()
+        if selected:
+            playlist_id = self.playlist_ids[selected.get_index() - 1]
+            self.update_playlist_view(playlist_id)
 
     def set_playlist_list_loading(self, loading_status):
         if loading_status:
