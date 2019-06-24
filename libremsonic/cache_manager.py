@@ -121,8 +121,9 @@ class CacheManager(metaclass=Singleton):
             with open(absolute_path, 'wb+') as f:
                 f.write(data)
 
-        def calculate_abs_path(self, relative_path):
-            return Path(self.app_config.cache_location).joinpath(relative_path)
+        def calculate_abs_path(self, *relative_paths):
+            return Path(
+                self.app_config.cache_location).joinpath(*relative_paths)
 
         def return_cache_or_download(
                 self,
@@ -131,9 +132,15 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ):
             abs_path = self.calculate_abs_path(relative_path)
+            download_path = self.calculate_abs_path('.downloading',
+                                                    relative_path)
             if not abs_path.exists() or force:
                 print(abs_path, 'not found. Downloading...')
-                self.save_file(abs_path, download_fn())
+                self.save_file(download_path, download_fn())
+
+                # Move the file to its cache download location.
+                os.makedirs(abs_path.parent, exist_ok=True)
+                os.rename(download_path, abs_path)
 
             return str(abs_path)
 
@@ -207,14 +214,17 @@ class CacheManager(metaclass=Singleton):
             return CacheManager.executor.submit(do_get_song_filename)
 
         def get_cached_status(self, song: Child) -> SongCacheStatus:
-            path = self.calculate_abs_path(song.path)
-            if path.exists():
-                if path in self.permanently_cached_paths:
+            cache_path = self.calculate_abs_path(song.path)
+            download_path = self.calculate_abs_path('.downloading', song.path)
+            if cache_path.exists():
+                if cache_path in self.permanently_cached_paths:
                     return SongCacheStatus.PERMANENTLY_CACHED
                 else:
                     return SongCacheStatus.CACHED
-
-            return SongCacheStatus.NOT_CACHED
+            elif download_path.exists():
+                return SongCacheStatus.DOWNLOADING
+            else:
+                return SongCacheStatus.NOT_CACHED
 
     _instance: Optional[__CacheManagerInternal] = None
 

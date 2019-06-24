@@ -180,8 +180,8 @@ class LibremsonicApp(Gtk.Application):
     def on_song_clicked(self, win, song_id, song_queue):
         CacheManager.executor.submit(lambda: CacheManager.save_play_queue(
             id=song_queue, current=song_id))
-        self.play_song(song_id)
         self.state.play_queue = song_queue
+        self.play_song(song_id)
 
     def on_song_scrub(self, _, scrub_value):
         if not hasattr(self.state, 'current_song'):
@@ -209,11 +209,10 @@ class LibremsonicApp(Gtk.Application):
     def play_song(self, song: Child):
         self.state.playing = True
         self.state.current_song = song
-        self.play_file(song)
+        future = CacheManager.get_song_filename(song)
+        self.update_window()
+        future.add_done_callback(lambda f: self.play_file(f.result()))
 
-    @util.async_callback(
-        lambda *a, **k: CacheManager.get_song_filename(*a, **k),
-    )
     def play_file(self, song_file):
         self.player.loadfile(song_file, 'replace')
         self.player.pause = False
