@@ -64,6 +64,7 @@ class PlaylistsPanel(Gtk.Paned):
         # The playlist view on the right side
         # =====================================================================
         playlist_view_scroll_window = Gtk.ScrolledWindow()
+        playlist_view_scroll_window.do_scroll_child = lambda: None
         playlist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Playlist info panel
@@ -204,7 +205,7 @@ class PlaylistsPanel(Gtk.Paned):
                 SongCacheStatus.NOT_CACHED: '',
                 SongCacheStatus.CACHED: 'folder-download-symbolic',
                 SongCacheStatus.PERMANENTLY_CACHED: 'view-pin-symbolic',
-                SongCacheStatus.DOWNLOADING: 'folder-download-symbolic',
+                SongCacheStatus.DOWNLOADING: 'emblem-synchronizing-symbolic',
             }
             self.playlist_song_model.append([
                 cache_icon[CacheManager.get_cached_status(song)],

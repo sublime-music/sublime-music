@@ -1,4 +1,5 @@
 import os
+import shutil
 import json
 
 from concurrent.futures import ThreadPoolExecutor, Future
@@ -125,6 +126,12 @@ class CacheManager(metaclass=Singleton):
             return Path(
                 self.app_config.cache_location).joinpath(*relative_paths)
 
+        def calculate_download_path(self, *relative_paths):
+            xdg_cache_home = (os.environ.get('XDG_CACHE_HOME')
+                              or os.path.expanduser('~/.cache'))
+            return Path(xdg_cache_home).joinpath('libremsonic',
+                                                 *relative_paths)
+
         def return_cache_or_download(
                 self,
                 relative_path: Union[Path, str],
@@ -132,15 +139,14 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ):
             abs_path = self.calculate_abs_path(relative_path)
-            download_path = self.calculate_abs_path('.downloading',
-                                                    relative_path)
+            download_path = self.calculate_download_path(relative_path)
             if not abs_path.exists() or force:
                 print(abs_path, 'not found. Downloading...')
                 self.save_file(download_path, download_fn())
 
                 # Move the file to its cache download location.
                 os.makedirs(abs_path.parent, exist_ok=True)
-                os.rename(download_path, abs_path)
+                shutil.move(download_path, abs_path)
 
             return str(abs_path)
 
@@ -215,7 +221,7 @@ class CacheManager(metaclass=Singleton):
 
         def get_cached_status(self, song: Child) -> SongCacheStatus:
             cache_path = self.calculate_abs_path(song.path)
-            download_path = self.calculate_abs_path('.downloading', song.path)
+            download_path = self.calculate_download_path(song.path)
             if cache_path.exists():
                 if cache_path in self.permanently_cached_paths:
                     return SongCacheStatus.PERMANENTLY_CACHED
