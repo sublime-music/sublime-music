@@ -1,6 +1,5 @@
 import gi
-import sys
-from datetime import datetime
+from pathlib import Path
 from typing import List
 
 gi.require_version('Gtk', '3.0')
@@ -8,7 +7,7 @@ from gi.repository import Gio, Gtk, Pango, GObject
 
 from libremsonic.server.api_objects import Child, PlaylistWithSongs
 from libremsonic.state_manager import ApplicationState
-from libremsonic.cache_manager import CacheManager
+from libremsonic.cache_manager import CacheManager, SongCacheStatus
 from libremsonic.ui import util
 
 
@@ -111,15 +110,31 @@ class PlaylistsPanel(Gtk.Paned):
             column.set_expand(not width)
             return column
 
-        self.playlist_song_model = Gtk.ListStore(str, str, str, str, str)
+        self.playlist_song_model = Gtk.ListStore(
+            str,  # cache status
+            str,  # title
+            str,  # album
+            str,  # artist
+            str,  # duration
+            str,  # song ID
+        )
 
         self.playlist_songs = Gtk.TreeView(model=self.playlist_song_model,
                                            margin_top=15)
-        self.playlist_songs.append_column(create_column('TITLE', 0, bold=True))
-        self.playlist_songs.append_column(create_column('ALBUM', 1))
-        self.playlist_songs.append_column(create_column('ARTIST', 2))
+
+        # Song status column.
+        renderer = Gtk.CellRendererPixbuf()
+        renderer.set_fixed_size(30, 35)
+
+        column = Gtk.TreeViewColumn('', renderer, icon_name=0)
+        column.set_resizable(True)
+        self.playlist_songs.append_column(column)
+
+        self.playlist_songs.append_column(create_column('TITLE', 1, bold=True))
+        self.playlist_songs.append_column(create_column('ALBUM', 2))
+        self.playlist_songs.append_column(create_column('ARTIST', 3))
         self.playlist_songs.append_column(
-            create_column('DURATION', 3, align=1, width=40))
+            create_column('DURATION', 4, align=1, width=40))
 
         self.playlist_songs.connect('row-activated', self.on_song_double_click)
 
@@ -139,13 +154,24 @@ class PlaylistsPanel(Gtk.Paned):
             CacheManager.get_cover_art_filename(playlist.coverArt))
         self.playlist_indicator.set_markup('PLAYLIST')
         self.playlist_name.set_markup(f'<b>{playlist.name}</b>')
-        self.playlist_comment.set_text(playlist.comment or '')
+        if playlist.comment:
+            self.playlist_comment.set_text(playlist.comment)
+            self.playlist_comment.show()
+        else:
+            self.playlist_comment.hide()
         self.playlist_stats.set_markup(self.format_stats(playlist))
 
         # Update the song list model
         self.playlist_song_model.clear()
         for song in (playlist.entry or []):
+            cache_icon = {
+                SongCacheStatus.NOT_CACHED: '',
+                SongCacheStatus.CACHED: 'folder-download-symbolic',
+                SongCacheStatus.PERMANENTLY_CACHED: 'view-pin-symbolic',
+                SongCacheStatus.DOWNLOADING: 'folder-download-symbolic',
+            }
             self.playlist_song_model.append([
+                cache_icon[CacheManager.get_cached_status(song)],
                 song.title,
                 song.album,
                 song.artist,
@@ -159,9 +185,10 @@ class PlaylistsPanel(Gtk.Paned):
         self.update_playlist_list(force=True)
 
     def on_song_double_click(self, treeview, idx, column):
-        song_id = self.playlist_song_model[idx][4]
+        # The song ID is in the last column of the model.
+        song_id = self.playlist_song_model[idx][-1]
         self.emit('song-clicked', song_id,
-                  [m[4] for m in self.playlist_song_model])
+                  [m[-1] for m in self.playlist_song_model])
 
     # Helper Methods
     # =========================================================================
@@ -172,13 +199,16 @@ class PlaylistsPanel(Gtk.Paned):
         self.update_playlist_list()
 
     def update_playlist_list(self, force=False):
-        self.playlist_ids = []
-        for c in self.playlist_list.get_children():
-            self.playlist_list.remove(c)
-
+        not_seen = set(self.playlist_ids)
         for playlist in CacheManager.get_playlists(force=force):
-            self.playlist_ids.append(playlist.id)
-            self.playlist_list.add(self.create_playlist_label(playlist))
+            if playlist.id not in self.playlist_ids:
+                self.playlist_ids.append(playlist.id)
+                self.playlist_list.add(self.create_playlist_label(playlist))
+            else:
+                not_seen.remove(playlist.id)
+
+        for playlist_id in not_seen:
+            print(playlist_id)
 
         self.playlist_list.show_all()
 

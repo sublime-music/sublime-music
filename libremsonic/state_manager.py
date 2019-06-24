@@ -7,11 +7,11 @@ from .server.api_objects import Child
 
 class ApplicationState:
     config: AppConfiguration = AppConfiguration.get_default_configuration()
-    current_song: Child  # TODO fix
+    current_song: Child
     config_file: str
     playing: bool = False
     song_progress: float = 0.0
-    up_next: List[Any]  # TODO should be song
+    play_queue: List[Child]
     volume: int = 100
 
     def load_config(self):

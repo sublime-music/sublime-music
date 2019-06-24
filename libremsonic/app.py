@@ -12,6 +12,7 @@ from .ui.configure_servers import ConfigureServersDialog
 
 from .state_manager import ApplicationState
 from .cache_manager import CacheManager
+from .server.api_objects import Child
 
 
 class LibremsonicApp(Gtk.Application):
@@ -37,6 +38,18 @@ class LibremsonicApp(Gtk.Application):
         def time_observer(_name, value):
             self.window.player_controls.update_scrubber(
                 value, self.state.current_song.duration)
+
+        @self.player.property_observer('eof-reached')
+        def file_end(_, value):
+            print('eof', value)
+            return
+            if value is None:
+                # TODO handle repeat
+                current_idx = self.state.play_queue.index(
+                    self.state.current_song)
+                has_next_song = current_idx < len(self.state.play_queue) - 1
+                if has_next_song:
+                    self.on_next_track(None, None)
 
     # Handle command line option parsing.
     def do_command_line(self, command_line):
@@ -99,6 +112,7 @@ class LibremsonicApp(Gtk.Application):
         self.window.stack.connect('notify::visible-child',
                                   self.on_stack_change)
         self.window.connect('song-clicked', self.on_song_clicked)
+        self.window.player_controls.connect('song-scrub', self.on_song_scrub)
 
         # Display the window.
         self.window.show_all()
@@ -122,16 +136,18 @@ class LibremsonicApp(Gtk.Application):
         self.show_configure_servers_dialog()
 
     def on_play_pause(self, action, param):
-        self.player.command('cycle', 'pause')
+        self.player.cycle('pause')
         self.state.playing = not self.state.playing
 
         self.update_window()
 
     def on_next_track(self, action, params):
-        self.player.playlist_next()
+        current_idx = self.state.play_queue.index(self.state.current_song)
+        self.play_song(self.state.play_queue[current_idx + 1])
 
     def on_prev_track(self, action, params):
-        self.player.playlist_prev()
+        current_idx = self.state.play_queue.index(self.state.current_song)
+        self.play_song(self.state.play_queue[current_idx - 1])
 
     def on_repeat_press(self, action, params):
         print('repeat press')
@@ -163,12 +179,16 @@ class LibremsonicApp(Gtk.Application):
     def on_song_clicked(self, win, song_id, song_queue):
         CacheManager.save_play_queue(id=song_queue, current=song_id)
         song = CacheManager.get_song(song_id)
-        self.state.current_song = song
+        self.state.play_queue = [CacheManager.get_song(s) for s in song_queue]
         self.state.playing = True
-        # print(CacheManager.get_play_queue())
-        song_file = CacheManager.get_song_filename(song)
-        self.player.loadfile(song_file)
-        self.update_window()
+        self.play_song(song)
+
+    def on_song_scrub(self, _, scrub_value):
+        if not hasattr(self.state, 'current_song'):
+            return
+
+        new_time = self.state.current_song.duration * (scrub_value / 100)
+        self.player.command('seek', str(new_time), 'absolute')
 
     # ########## HELPER METHODS ########## #
     def show_configure_servers_dialog(self):
@@ -182,3 +202,10 @@ class LibremsonicApp(Gtk.Application):
 
     def update_window(self):
         self.window.update(self.state)
+
+    def play_song(self, song: Child):
+        self.state.current_song = song
+        song_file = CacheManager.get_song_filename(song)
+        self.player.loadfile(song_file, 'replace')
+        self.player.pause = False
+        self.update_window()

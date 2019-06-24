@@ -1,8 +1,7 @@
 import gi
-import sys
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, GObject
+from gi.repository import Gtk, GObject
 
 from libremsonic.state_manager import ApplicationState
 

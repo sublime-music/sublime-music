@@ -1,11 +1,11 @@
 import os
 import json
 
-from enum import EnumMeta
+from enum import EnumMeta, Enum
 from datetime import datetime
 from pathlib import Path
 from collections import defaultdict
-from typing import DefaultDict, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Union, Callable, Set
 
 from libremsonic.config import AppConfiguration, ServerConfiguration
 from libremsonic.server import Server
@@ -27,6 +27,13 @@ class Singleton(type):
         return None
 
 
+class SongCacheStatus(Enum):
+    NOT_CACHED = 0
+    CACHED = 1
+    PERMANENTLY_CACHED = 2
+    DOWNLOADING = 3
+
+
 class CacheManager(metaclass=Singleton):
     class CacheEncoder(json.JSONEncoder):
         def default(self, obj):
@@ -43,15 +50,8 @@ class CacheManager(metaclass=Singleton):
         server: Server
         playlists: Optional[List[Playlist]] = None
         playlist_details: Dict[int, PlaylistWithSongs] = {}
-
-        # {id -> {size -> file_location}}
-        cover_art: DefaultDict[str, Dict[str, str]] = defaultdict(dict)
-
-        # {id -> Child}
+        permanently_cached_paths: Set[str] = set()
         song_details: Dict[int, Child] = {}
-
-        # { (artist, album, title) -> file_location }
-        song_cache: Dict[str, str] = {}
 
         def __init__(
                 self,
@@ -69,8 +69,7 @@ class CacheManager(metaclass=Singleton):
             self.load_cache_info()
 
         def load_cache_info(self):
-            cache_location = Path(self.app_config.cache_location)
-            cache_meta_file = cache_location.joinpath('.cache_meta')
+            cache_meta_file = self.calculate_abs_path('.cache_meta')
 
             if not cache_meta_file.exists():
                 return
@@ -88,42 +87,51 @@ class CacheManager(metaclass=Singleton):
                 id: PlaylistWithSongs.from_json(v)
                 for id, v in meta_json.get('playlist_details', {}).items()
             }
-            self.cover_art = defaultdict(dict,
-                                         **meta_json.get('cover_art', {}))
             self.song_details = {
                 id: Child.from_json(v)
                 for id, v in meta_json.get('song_details', {}).items()
             }
-            self.song_cache = dict(**meta_json.get('song_cache', {}))
+            self.permanently_cached_paths = set(
+                meta_json.get('permanently_cached_paths', []))
 
         def save_cache_info(self):
-            cache_location = Path(self.app_config.cache_location)
-            os.makedirs(cache_location, exist_ok=True)
+            os.makedirs(self.app_config.cache_location, exist_ok=True)
 
-            cache_meta_file = cache_location.joinpath('.cache_meta')
+            cache_meta_file = self.calculate_abs_path('.cache_meta')
             with open(cache_meta_file, 'w+') as f:
+                cache_info = dict(
+                    playlists=self.playlists,
+                    playlist_details=self.playlist_details,
+                    song_details=self.song_details,
+                    permanently_cached_paths=list(
+                        self.permanently_cached_paths),
+                )
                 f.write(
-                    json.dumps(
-                        dict(
-                            playlists=self.playlists,
-                            playlist_details=self.playlist_details,
-                            cover_art=self.cover_art,
-                            song_details=self.song_details,
-                            song_cache=self.song_cache,
-                        ),
-                        indent=2,
-                        cls=CacheManager.CacheEncoder,
-                    ))
+                    json.dumps(cache_info,
+                               indent=2,
+                               cls=CacheManager.CacheEncoder))
 
-        def save_file(self, relative_path: str, data: bytes) -> Path:
-            cache_location = Path(self.app_config.cache_location)
-            absolute_path = cache_location.joinpath(relative_path)
-
+        def save_file(self, absolute_path: Path, data: bytes):
             # Make the necessary directories and write to file.
             os.makedirs(absolute_path.parent, exist_ok=True)
             with open(absolute_path, 'wb+') as f:
                 f.write(data)
-            return absolute_path
+
+        def calculate_abs_path(self, relative_path):
+            return Path(self.app_config.cache_location).joinpath(relative_path)
+
+        def return_cache_or_download(
+                self,
+                relative_path: Union[Path, str],
+                download_fn: Callable[[], bytes],
+                force: bool = False,
+        ):
+            abs_path = self.calculate_abs_path(relative_path)
+            if not abs_path.exists() or force:
+                print(abs_path, 'not found. Downloading...')
+                self.save_file(abs_path, download_fn())
+
+            return str(abs_path)
 
         def get_playlists(self, force: bool = False) -> List[Playlist]:
             if not self.playlists or force:
@@ -147,35 +155,38 @@ class CacheManager(metaclass=Singleton):
         def get_cover_art_filename(
                 self,
                 id: str,
-                size: str = '200',
+                size: Union[str, int] = 200,
                 force: bool = False,
         ) -> str:
-            if not self.cover_art[id].get(size):
-                raw_cover = self.server.get_cover_art(id, size)
-                abs_path = self.save_file(f'cover_art/{id}_{size}', raw_cover)
-                self.cover_art[id][size] = str(abs_path)
-                self.save_cache_info()
-                print('cover art cache not hit')
+            return self.return_cache_or_download(
+                f'cover_art/{id}_{size}',
+                lambda: self.server.get_cover_art(id, str(size)),
+                force=force,
+            )
 
-            return self.cover_art[id][size]
-
-        def get_song(self, song_id: int, force: bool = False):
+        def get_song(self, song_id: int, force: bool = False) -> Child:
             if not self.song_details.get(song_id) or force:
                 self.song_details[song_id] = self.server.get_song(song_id)
                 self.save_cache_info()
-                print('song info cache not hit')
 
             return self.song_details[song_id]
 
-        def get_song_filename(self, song: Child, force: bool = False):
-            if not self.song_cache.get(song.id) or force:
-                raw_song = self.server.download(song.id)
-                abs_path = self.save_file(song.path, raw_song)
-                self.song_cache[song.id] = str(abs_path)
-                self.save_cache_info()
-                print('song file cache not hit')
+        def get_song_filename(self, song: Child, force: bool = False) -> str:
+            return self.return_cache_or_download(
+                song.path,
+                lambda: self.server.download(song.id),
+                force=force,
+            )
 
-            return self.song_cache[song.id]
+        def get_cached_status(self, song: Child) -> SongCacheStatus:
+            path = self.calculate_abs_path(song.path)
+            if path.exists():
+                if path in self.permanently_cached_paths:
+                    return SongCacheStatus.PERMANENTLY_CACHED
+                else:
+                    return SongCacheStatus.CACHED
+
+            return SongCacheStatus.NOT_CACHED
 
     _instance: Optional[__CacheManagerInternal] = None
 

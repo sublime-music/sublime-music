@@ -21,7 +21,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.set_default_size(1024, 768)
+        self.set_default_size(1100, 768)
 
         self.panels = {
             'Albums': albums.AlbumsPanel(),
@@ -45,7 +45,6 @@ class MainWindow(Gtk.ApplicationWindow):
         flowbox.pack_start(self.player_controls, False, True, 0)
         self.add(flowbox)
 
-    # TODO the song should eventually be an API object...
     def update(self, state: ApplicationState):
         # Update the Connected to label on the popup menu.
         if state.config.current_server >= 0:
