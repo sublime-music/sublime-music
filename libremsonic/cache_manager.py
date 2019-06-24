@@ -15,14 +15,15 @@ from libremsonic.server.api_objects import Playlist, PlaylistWithSongs, Child
 
 class Singleton(type):
     def __getattr__(cls, name):
-        if CacheManager._instance:
-            # If the cache has a function to do the thing we want, use it. If
-            # not, then go directly to the server (this is useful for things
-            # that just send data  to the server.)
-            if hasattr(CacheManager._instance, name):
-                return getattr(CacheManager._instance, name)
-            else:
-                return getattr(CacheManager._instance.server, name)
+        if not CacheManager._instance:
+            CacheManager.reset(None, None)
+        # If the cache has a function to do the thing we want, use it. If
+        # not, then go directly to the server (this is useful for things
+        # that just send data  to the server.)
+        if hasattr(CacheManager._instance, name):
+            return getattr(CacheManager._instance, name)
+        else:
+            return getattr(CacheManager._instance.server, name)
 
         return None
 

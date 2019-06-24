@@ -39,29 +39,34 @@ class ServerConfiguration:
 class AppConfiguration:
     servers: List[ServerConfiguration]
     current_server: int
-    cache_location: str
+    _cache_location: str
     max_cache_size_mb: int  # -1 means unlimited
 
     def to_json(self):
         return {
             'servers': [s.__dict__ for s in self.servers],
             'current_server': self.current_server,
-            'cache_location': self.cache_location,
+            '_cache_location': self._cache_location,
             'max_cache_size_mb': self.max_cache_size_mb,
         }
 
     @classmethod
     def get_default_configuration(cls):
-        default_cache_location = (os.environ.get('XDG_DATA_HOME')
-                                  or os.path.expanduser('~/.local/share'))
-        default_cache_location = os.path.join(default_cache_location,
-                                              'libremsonic')
         config = AppConfiguration()
         config.servers = []
         config.current_server = -1
-        config.cache_location = default_cache_location
         config.max_cache_size_mb = -1
         return config
+
+    @property
+    def cache_location(self):
+        if (hasattr(self, '_cache_location')
+                and self._cache_location is not None):
+            return self.cache_location
+        else:
+            default_cache_location = (os.environ.get('XDG_DATA_HOME')
+                                      or os.path.expanduser('~/.local/share'))
+            return os.path.join(default_cache_location, 'libremsonic')
 
 
 def get_config(filename: str) -> AppConfiguration:
