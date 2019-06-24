@@ -5,7 +5,7 @@ import mpv
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, GLib, Gdk
+from gi.repository import Gio, Gtk, GLib, Gdk, GObject
 
 from .ui.main import MainWindow
 from .ui.configure_servers import ConfigureServersDialog
@@ -37,8 +37,11 @@ class LibremsonicApp(Gtk.Application):
 
         @self.player.property_observer('time-pos')
         def time_observer(_name, value):
-            self.window.player_controls.update_scrubber(
-                value, self.state.current_song.duration)
+            GLib.idle_add(
+                self.window.player_controls.update_scrubber,
+                value,
+                self.state.current_song.duration,
+            )
 
         @self.player.property_observer('eof-reached')
         def file_end(_, value):
@@ -201,19 +204,21 @@ class LibremsonicApp(Gtk.Application):
         dialog.destroy()
 
     def update_window(self):
-        self.window.update(self.state)
+        GLib.idle_add(self.window.update, self.state)
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_song_details(*a, **k),
     )
     def play_song(self, song: Child):
         self.state.playing = True
-        self.state.current_song = song
-        future = CacheManager.get_song_filename(song)
-        self.update_window()
-        future.add_done_callback(lambda f: self.play_file(f.result()))
 
-    def play_file(self, song_file):
-        self.player.loadfile(song_file, 'replace')
-        self.player.pause = False
-        self.update_window()
+        song_filename_future = CacheManager.get_song_filename(song)
+
+        def filename_future_done(song_file):
+            self.state.current_song = song
+            self.update_window()
+            self.player.loadfile(song_file, 'replace')
+            self.player.pause = False
+
+        song_filename_future.add_done_callback(
+            lambda f: GLib.idle_add(filename_future_done, f.result()), )

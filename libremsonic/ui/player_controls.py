@@ -49,11 +49,9 @@ class PlayerControls(Gtk.ActionBar):
             has_next_song = current < len(state.play_queue) - 1
 
         self.song_scrubber.set_sensitive(has_current_song)
-        self.repeat_button.set_sensitive(has_current_song)
         self.prev_button.set_sensitive(has_current_song and has_prev_song)
         self.play_button.set_sensitive(has_current_song)
         self.next_button.set_sensitive(has_current_song and has_next_song)
-        self.shuffle_button.set_sensitive(has_current_song)
 
         if not has_current_song:
             return
@@ -92,7 +90,7 @@ class PlayerControls(Gtk.ActionBar):
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
-        self.album_art = Gtk.Image()
+        self.album_art = Gtk.Image(name="player-controls-album-artwork")
         box.pack_start(self.album_art, False, False, 5)
 
         details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)

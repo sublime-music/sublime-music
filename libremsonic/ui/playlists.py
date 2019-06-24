@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, Pango, GObject
+from gi.repository import Gio, Gtk, Pango, GObject, GLib
 
 from libremsonic.server.api_objects import Child, PlaylistWithSongs
 from libremsonic.state_manager import ApplicationState
@@ -52,7 +52,12 @@ class PlaylistsPanel(Gtk.Paned):
         playlist_list_vbox.add(playlist_list_actions)
 
         list_scroll_window = Gtk.ScrolledWindow(min_content_width=220)
-        self.playlist_list = Gtk.ListBox()
+        self.playlist_list = Gtk.ListBox(name='playlist-list-listbox')
+
+        self.playlist_list_loading = Gtk.Spinner(name='playlist-list-spinner',
+                                                 active=True)
+        self.playlist_list.add(self.playlist_list_loading)
+
         self.playlist_list.connect('row-activated', self.on_playlist_selected)
         list_scroll_window.add(self.playlist_list)
         playlist_list_vbox.pack_start(list_scroll_window, True, True, 0)
@@ -63,8 +68,8 @@ class PlaylistsPanel(Gtk.Paned):
 
         # The playlist view on the right side
         # =====================================================================
+        loading_overlay = Gtk.Overlay(name='playlist-view-overlay')
         playlist_view_scroll_window = Gtk.ScrolledWindow()
-        playlist_view_scroll_window.do_scroll_child = lambda: None
         playlist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Playlist info panel
@@ -73,8 +78,17 @@ class PlaylistsPanel(Gtk.Paned):
             name='playlist-info-panel',
             orientation=Gtk.Orientation.HORIZONTAL,
         )
-        self.playlist_artwork = Gtk.Image(name='album-artwork')
-        self.big_info_panel.pack_start(self.playlist_artwork, False, False, 0)
+
+        artwork_overlay = Gtk.Overlay()
+        self.playlist_artwork = Gtk.Image(name='playlist-album-artwork')
+        artwork_overlay.add(self.playlist_artwork)
+
+        self.artwork_spinner = Gtk.Spinner(name='playlist-artwork-spinner',
+                                           active=True,
+                                           halign=Gtk.Align.CENTER,
+                                           valign=Gtk.Align.CENTER)
+        artwork_overlay.add_overlay(self.artwork_spinner)
+        self.big_info_panel.pack_start(artwork_overlay, False, False, 0)
 
         # Name, comment, number of songs, etc.
         playlist_details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -141,13 +155,27 @@ class PlaylistsPanel(Gtk.Paned):
         playlist_box.pack_end(self.playlist_songs, True, True, 0)
 
         playlist_view_scroll_window.add(playlist_box)
+        loading_overlay.add(playlist_view_scroll_window)
 
-        self.pack2(playlist_view_scroll_window, True, False)
+        playlist_view_spinner = Gtk.Spinner(active=True)
+        playlist_view_spinner.start()
+
+        self.playlist_view_loading_box = Gtk.Alignment(
+            name='playlist-view-overlay',
+            xalign=0.5,
+            yalign=0.5,
+            xscale=0.1,
+            yscale=0.1)
+        self.playlist_view_loading_box.add(playlist_view_spinner)
+        loading_overlay.add_overlay(self.playlist_view_loading_box)
+
+        self.pack2(loading_overlay, True, False)
 
     # Event Handlers
     # =========================================================================
     def on_playlist_selected(self, playlist_list, row):
-        playlist_id = self.playlist_ids[row.get_index()]
+        # Use row index - 1 due to the loading indicator.
+        playlist_id = self.playlist_ids[row.get_index() - 1]
         self.update_playlist_view(playlist_id)
 
     def on_list_refresh_click(self, button):
@@ -168,8 +196,32 @@ class PlaylistsPanel(Gtk.Paned):
 
     def update(self, state: ApplicationState):
         self.update_playlist_list()
+        self.set_playlist_view_loading(False)
+        self.set_playlist_art_loading(False)
 
-    @util.async_callback(lambda *a, **k: CacheManager.get_playlists(*a, **k))
+    def set_playlist_list_loading(self, loading_status):
+        if loading_status:
+            self.playlist_list_loading.show()
+        else:
+            self.playlist_list_loading.hide()
+
+    def set_playlist_view_loading(self, loading_status):
+        if loading_status:
+            self.playlist_view_loading_box.show()
+            self.artwork_spinner.show()
+        else:
+            self.playlist_view_loading_box.hide()
+
+    def set_playlist_art_loading(self, loading_status):
+        if loading_status:
+            self.artwork_spinner.show()
+        else:
+            self.artwork_spinner.hide()
+
+    @util.async_callback(
+        lambda *a, **k: CacheManager.get_playlists(*a, **k),
+        before_fn=lambda self: self.set_playlist_list_loading(True),
+    )
     def update_playlist_list(self, playlists: List[PlaylistWithSongs]):
         not_seen = set(self.playlist_ids)
 
@@ -184,8 +236,12 @@ class PlaylistsPanel(Gtk.Paned):
             print(playlist_id)
 
         self.playlist_list.show_all()
+        self.set_playlist_list_loading(False)
 
-    @util.async_callback(lambda *a, **k: CacheManager.get_playlist(*a, **k))
+    @util.async_callback(
+        lambda *a, **k: CacheManager.get_playlist(*a, **k),
+        before_fn=lambda self: self.set_playlist_view_loading(True),
+    )
     def update_playlist_view(self, playlist):
         # Update the Playlist Info panel
         self.update_playlist_artwork(playlist.coverArt)
@@ -215,17 +271,20 @@ class PlaylistsPanel(Gtk.Paned):
                 util.format_song_duration(song.duration),
                 song.id,
             ])
+        self.set_playlist_view_loading(False)
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_cover_art_filename(*a, **k),
+        before_fn=lambda self: self.set_playlist_art_loading(True),
     )
     def update_playlist_artwork(self, cover_art_filename):
         self.playlist_artwork.set_from_file(cover_art_filename)
+        self.set_playlist_art_loading(False)
 
     def create_playlist_label(self, playlist: PlaylistWithSongs):
         return self.make_label(f'<b>{playlist.name}</b>',
                                use_markup=True,
-                               margin=10)
+                               margin=12)
 
     def pluralize(self, string, number, pluralized_form=None):
         if number != 1:

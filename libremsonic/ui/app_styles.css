@@ -1,11 +1,26 @@
-/* ********** Playback Controls ********** */
-#album-artwork {
+/* ********** Playlist ********** */
+#playlist-list-listbox row {
+  margin: 0;
+  padding: 0;
+}
+
+#playlist-list-spinner:checked {
+  margin: 10px;
+  padding: 0px;
+}
+
+#playlist-artwork-spinner {
+  min-height: 35px;
+  min-width: 35px;
+}
+
+#playlist-album-artwork {
   min-height: 200px;
   min-width: 200px;
   margin: 10px;
 }
 
-#album-artwork.collapsed {
+#playlist-album-artwork.collapsed {
   min-height: 40px;
   min-width: 40px;
 }
@@ -27,6 +42,11 @@
 }
 
 /* ********** Playback Controls ********** */
+#player-controls-album-artwork #player-controls-album-artwork {
+  min-height: 70px;
+  min-width: 70px;
+}
+
 #player-controls-bar #play-button {
   min-height: 45px;
   min-width: 35px;
