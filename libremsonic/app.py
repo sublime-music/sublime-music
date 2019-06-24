@@ -1,5 +1,5 @@
 import os
-from typing import Callable
+from typing import List
 
 import mpv
 
@@ -9,6 +9,7 @@ from gi.repository import Gio, Gtk, GLib, Gdk
 
 from .ui.main import MainWindow
 from .ui.configure_servers import ConfigureServersDialog
+from .ui import util
 
 from .state_manager import ApplicationState
 from .cache_manager import CacheManager
@@ -142,11 +143,11 @@ class LibremsonicApp(Gtk.Application):
         self.update_window()
 
     def on_next_track(self, action, params):
-        current_idx = self.state.play_queue.index(self.state.current_song)
+        current_idx = self.state.play_queue.index(self.state.current_song.id)
         self.play_song(self.state.play_queue[current_idx + 1])
 
     def on_prev_track(self, action, params):
-        current_idx = self.state.play_queue.index(self.state.current_song)
+        current_idx = self.state.play_queue.index(self.state.current_song.id)
         self.play_song(self.state.play_queue[current_idx - 1])
 
     def on_repeat_press(self, action, params):
@@ -177,11 +178,10 @@ class LibremsonicApp(Gtk.Application):
         self.update_window()
 
     def on_song_clicked(self, win, song_id, song_queue):
-        CacheManager.save_play_queue(id=song_queue, current=song_id)
-        song = CacheManager.get_song(song_id)
-        self.state.play_queue = [CacheManager.get_song(s) for s in song_queue]
-        self.state.playing = True
-        self.play_song(song)
+        CacheManager.executor.submit(lambda: CacheManager.save_play_queue(
+            id=song_queue, current=song_id))
+        self.play_song(song_id)
+        self.state.play_queue = song_queue
 
     def on_song_scrub(self, _, scrub_value):
         if not hasattr(self.state, 'current_song'):
@@ -203,9 +203,18 @@ class LibremsonicApp(Gtk.Application):
     def update_window(self):
         self.window.update(self.state)
 
+    @util.async_callback(
+        lambda *a, **k: CacheManager.get_song_details(*a, **k),
+    )
     def play_song(self, song: Child):
+        self.state.playing = True
         self.state.current_song = song
-        song_file = CacheManager.get_song_filename(song)
+        self.play_file(song)
+
+    @util.async_callback(
+        lambda *a, **k: CacheManager.get_song_filename(*a, **k),
+    )
+    def play_file(self, song_file):
         self.player.loadfile(song_file, 'replace')
         self.player.pause = False
         self.update_window()

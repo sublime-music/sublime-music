@@ -44,9 +44,9 @@ class PlayerControls(Gtk.ActionBar):
         has_prev_song, has_next_song = False, False
         if has_current_song:
             # TODO will need to change when repeat is implemented
-            has_prev_song = state.play_queue.index(state.current_song) > 0
-            has_next_song = state.play_queue.index(state.current_song) < len(
-                state.play_queue) - 1
+            current = state.play_queue.index(state.current_song.id)
+            has_prev_song = current > 0
+            has_next_song = current < len(state.play_queue) - 1
 
         self.song_scrubber.set_sensitive(has_current_song)
         self.repeat_button.set_sensitive(has_current_song)
@@ -58,11 +58,7 @@ class PlayerControls(Gtk.ActionBar):
         if not has_current_song:
             return
 
-        self.album_art.set_from_file(
-            CacheManager.get_cover_art_filename(
-                state.current_song.coverArt,
-                size='70',
-            ))
+        self.update_cover_art(state.current_song.coverArt, size='70')
 
         def esc(string):
             return string.replace('&', '&amp;')
@@ -70,6 +66,12 @@ class PlayerControls(Gtk.ActionBar):
         self.song_title.set_markup(f'<b>{esc(state.current_song.title)}</b>')
         self.album_name.set_markup(f'<i>{esc(state.current_song.album)}</i>')
         self.artist_name.set_markup(f'{esc(state.current_song.artist)}')
+
+    @util.async_callback(
+        lambda *k, **v: CacheManager.get_cover_art_filename(*k, **v),
+    )
+    def update_cover_art(self, cover_art_filename):
+        self.album_art.set_from_file(cover_art_filename)
 
     def update_scrubber(self, current, duration):
         current = current or 0
@@ -86,9 +88,6 @@ class PlayerControls(Gtk.ActionBar):
 
         if not self.editing:
             self.emit('song-scrub', self.song_scrubber.get_value())
-
-    def on_scrub_edit(self, box, event):
-        print(event.x)
 
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)

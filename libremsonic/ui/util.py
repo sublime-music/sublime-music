@@ -1,4 +1,7 @@
 import gi
+import functools
+
+from concurrent.futures import Future
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk
@@ -22,3 +25,27 @@ def button_with_icon(
 
 def format_song_duration(duration_secs) -> str:
     return f'{duration_secs // 60}:{duration_secs % 60:02}'
+
+
+def async_callback(future_fn):
+    """
+    Defines the ``async_callback`` decorator.
+
+    When a function is annotated with this decorator, the function becomes the
+    done callback for the given future-generating lambda function. The
+    annotated function will be called with the result of the future generated
+    by said lambda function.
+
+    :param future_fn: a function which generates a
+        ``concurrent.futures.Future``.
+    """
+
+    def decorator(callback_fn):
+        @functools.wraps(callback_fn)
+        def wrapper(self, *args, **kwargs):
+            future: Future = future_fn(*args, **kwargs)
+            future.add_done_callback(lambda f: callback_fn(self, f.result()))
+
+        return wrapper
+
+    return decorator

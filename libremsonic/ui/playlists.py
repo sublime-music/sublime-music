@@ -21,7 +21,7 @@ class PlaylistsPanel(Gtk.Paned):
         ),
     }
 
-    playlist_ids: List[int] = []
+    playlist_ids: List[str] = []
     song_ids: List[int] = []
 
     def __init__(self):
@@ -63,16 +63,17 @@ class PlaylistsPanel(Gtk.Paned):
 
         # The playlist view on the right side
         # =====================================================================
+        playlist_view_scroll_window = Gtk.ScrolledWindow()
         playlist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Playlist info panel
         # TODO shrink when playlist is is scrolled down.
-        self.info_panel = Gtk.Box(
+        self.big_info_panel = Gtk.Box(
             name='playlist-info-panel',
             orientation=Gtk.Orientation.HORIZONTAL,
         )
         self.playlist_artwork = Gtk.Image(name='album-artwork')
-        self.info_panel.pack_start(self.playlist_artwork, False, False, 0)
+        self.big_info_panel.pack_start(self.playlist_artwork, False, False, 0)
 
         # Name, comment, number of songs, etc.
         playlist_details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -90,12 +91,11 @@ class PlaylistsPanel(Gtk.Paned):
         self.playlist_stats = self.make_label(name='playlist-stats')
         playlist_details_box.add(self.playlist_stats)
 
-        self.info_panel.pack_start(playlist_details_box, True, True, 10)
+        self.big_info_panel.pack_start(playlist_details_box, True, True, 10)
 
-        playlist_box.pack_start(self.info_panel, False, False, 0)
+        playlist_box.pack_start(self.big_info_panel, False, True, 0)
 
         # Playlist songs list
-        songs_scroll_window = Gtk.ScrolledWindow()
 
         def create_column(header, text_idx, bold=False, align=0, width=None):
             renderer = Gtk.CellRendererText(
@@ -137,21 +137,57 @@ class PlaylistsPanel(Gtk.Paned):
             create_column('DURATION', 4, align=1, width=40))
 
         self.playlist_songs.connect('row-activated', self.on_song_double_click)
+        playlist_box.pack_end(self.playlist_songs, True, True, 0)
 
-        songs_scroll_window.add(self.playlist_songs)
-        playlist_box.pack_end(songs_scroll_window, True, True, 0)
+        playlist_view_scroll_window.add(playlist_box)
 
-        self.pack2(playlist_box, True, False)
+        self.pack2(playlist_view_scroll_window, True, False)
 
     # Event Handlers
     # =========================================================================
     def on_playlist_selected(self, playlist_list, row):
         playlist_id = self.playlist_ids[row.get_index()]
-        playlist: PlaylistWithSongs = CacheManager.get_playlist(playlist_id)
+        self.update_playlist_view(playlist_id)
 
+    def on_list_refresh_click(self, button):
+        # TODO: this should reselect the selected playlist. If the playlist no
+        # longer exists, it should also update the playlist view on the right.
+        self.update_playlist_list(force=True)
+
+    def on_song_double_click(self, treeview, idx, column):
+        # The song ID is in the last column of the model.
+        song_id = self.playlist_song_model[idx][-1]
+        self.emit('song-clicked', song_id,
+                  [m[-1] for m in self.playlist_song_model])
+
+    # Helper Methods
+    # =========================================================================
+    def make_label(self, text=None, name=None, **params):
+        return Gtk.Label(text, name=name, halign=Gtk.Align.START, **params)
+
+    def update(self, state: ApplicationState):
+        self.update_playlist_list()
+
+    @util.async_callback(lambda *a, **k: CacheManager.get_playlists(*a, **k))
+    def update_playlist_list(self, playlists: List[PlaylistWithSongs]):
+        not_seen = set(self.playlist_ids)
+
+        for playlist in playlists:
+            if playlist.id not in self.playlist_ids:
+                self.playlist_ids.append(playlist.id)
+                self.playlist_list.add(self.create_playlist_label(playlist))
+            else:
+                not_seen.remove(playlist.id)
+
+        for playlist_id in not_seen:
+            print(playlist_id)
+
+        self.playlist_list.show_all()
+
+    @util.async_callback(lambda *a, **k: CacheManager.get_playlist(*a, **k))
+    def update_playlist_view(self, playlist):
         # Update the Playlist Info panel
-        self.playlist_artwork.set_from_file(
-            CacheManager.get_cover_art_filename(playlist.coverArt))
+        self.update_playlist_artwork(playlist.coverArt)
         self.playlist_indicator.set_markup('PLAYLIST')
         self.playlist_name.set_markup(f'<b>{playlist.name}</b>')
         if playlist.comment:
@@ -179,38 +215,11 @@ class PlaylistsPanel(Gtk.Paned):
                 song.id,
             ])
 
-    def on_list_refresh_click(self, button):
-        # TODO: this should reselect the selected playlist. If the playlist no
-        # longer exists, it should also update the playlist view on the right.
-        self.update_playlist_list(force=True)
-
-    def on_song_double_click(self, treeview, idx, column):
-        # The song ID is in the last column of the model.
-        song_id = self.playlist_song_model[idx][-1]
-        self.emit('song-clicked', song_id,
-                  [m[-1] for m in self.playlist_song_model])
-
-    # Helper Methods
-    # =========================================================================
-    def make_label(self, text=None, name=None, **params):
-        return Gtk.Label(text, name=name, halign=Gtk.Align.START, **params)
-
-    def update(self, state: ApplicationState):
-        self.update_playlist_list()
-
-    def update_playlist_list(self, force=False):
-        not_seen = set(self.playlist_ids)
-        for playlist in CacheManager.get_playlists(force=force):
-            if playlist.id not in self.playlist_ids:
-                self.playlist_ids.append(playlist.id)
-                self.playlist_list.add(self.create_playlist_label(playlist))
-            else:
-                not_seen.remove(playlist.id)
-
-        for playlist_id in not_seen:
-            print(playlist_id)
-
-        self.playlist_list.show_all()
+    @util.async_callback(
+        lambda *a, **k: CacheManager.get_cover_art_filename(*a, **k),
+    )
+    def update_playlist_artwork(self, cover_art_filename):
+        self.playlist_artwork.set_from_file(cover_art_filename)
 
     def create_playlist_label(self, playlist: PlaylistWithSongs):
         return self.make_label(f'<b>{playlist.name}</b>',

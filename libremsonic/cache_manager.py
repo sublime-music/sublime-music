@@ -1,6 +1,7 @@
 import os
 import json
 
+from concurrent.futures import ThreadPoolExecutor, Future
 from enum import EnumMeta, Enum
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +17,7 @@ from libremsonic.server.api_objects import Playlist, PlaylistWithSongs, Child
 class Singleton(type):
     def __getattr__(cls, name):
         if not CacheManager._instance:
-            CacheManager.reset(None, None)
+            return None
         # If the cache has a function to do the thing we want, use it. If
         # not, then go directly to the server (this is useful for things
         # that just send data  to the server.)
@@ -36,6 +37,8 @@ class SongCacheStatus(Enum):
 
 
 class CacheManager(metaclass=Singleton):
+    executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=5)
+
     class CacheEncoder(json.JSONEncoder):
         def default(self, obj):
             if type(obj) == datetime:
@@ -134,50 +137,74 @@ class CacheManager(metaclass=Singleton):
 
             return str(abs_path)
 
-        def get_playlists(self, force: bool = False) -> List[Playlist]:
-            if not self.playlists or force:
-                self.playlists = self.server.get_playlists().playlist
-                self.save_cache_info()
+        def get_playlists(self, force: bool = False) -> Future:
+            def do_get_playlists() -> List[Playlist]:
+                if not self.playlists or force:
+                    self.playlists = self.server.get_playlists().playlist
+                    self.save_cache_info()
+                return self.playlists
 
-            return self.playlists
+            return CacheManager.executor.submit(do_get_playlists)
 
         def get_playlist(
                 self,
                 playlist_id: int,
                 force: bool = False,
-        ) -> PlaylistWithSongs:
-            if not self.playlist_details.get(playlist_id) or force:
-                self.playlist_details[playlist_id] = self.server.get_playlist(
-                    playlist_id)
-                self.save_cache_info()
+        ) -> Future:
+            def do_get_playlist() -> PlaylistWithSongs:
+                if not self.playlist_details.get(playlist_id) or force:
+                    playlist = self.server.get_playlist(playlist_id)
+                    self.playlist_details[playlist_id] = playlist
 
-            return self.playlist_details[playlist_id]
+                    # Playlists also have song details, so save that as well.
+                    for song in playlist.entry:
+                        self.song_details[song.id] = song
+
+                    self.save_cache_info()
+
+                return self.playlist_details[playlist_id]
+
+            return CacheManager.executor.submit(do_get_playlist)
 
         def get_cover_art_filename(
                 self,
                 id: str,
                 size: Union[str, int] = 200,
                 force: bool = False,
-        ) -> str:
-            return self.return_cache_or_download(
-                f'cover_art/{id}_{size}',
-                lambda: self.server.get_cover_art(id, str(size)),
-                force=force,
-            )
+        ) -> Future:
+            def do_get_cover_art_filename() -> str:
+                return self.return_cache_or_download(
+                    f'cover_art/{id}_{size}',
+                    lambda: self.server.get_cover_art(id, str(size)),
+                    force=force,
+                )
 
-        def get_song(self, song_id: int, force: bool = False) -> Child:
-            if not self.song_details.get(song_id) or force:
-                self.song_details[song_id] = self.server.get_song(song_id)
-                self.save_cache_info()
+            return CacheManager.executor.submit(do_get_cover_art_filename)
 
-            return self.song_details[song_id]
+        def get_song_details(self, song_id: int,
+                             force: bool = False) -> Future:
+            def do_get_song_details() -> Child:
+                if not self.song_details.get(song_id) or force:
+                    self.song_details[song_id] = self.server.get_song(song_id)
+                    self.save_cache_info()
 
-        def get_song_filename(self, song: Child, force: bool = False) -> str:
-            return self.return_cache_or_download(
-                song.path,
-                lambda: self.server.download(song.id),
-                force=force,
-            )
+                return self.song_details[song_id]
+
+            return CacheManager.executor.submit(do_get_song_details)
+
+        def get_song_filename(
+                self,
+                song: Child,
+                force: bool = False,
+        ) -> Future:
+            def do_get_song_filename() -> str:
+                return self.return_cache_or_download(
+                    song.path,
+                    lambda: self.server.download(song.id),
+                    force=force,
+                )
+
+            return CacheManager.executor.submit(do_get_song_filename)
 
         def get_cached_status(self, song: Child) -> SongCacheStatus:
             path = self.calculate_abs_path(song.path)

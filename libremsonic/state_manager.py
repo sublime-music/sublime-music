@@ -11,7 +11,7 @@ class ApplicationState:
     config_file: str
     playing: bool = False
     song_progress: float = 0.0
-    play_queue: List[Child]
+    play_queue: List[str]
     volume: int = 100
 
     def load_config(self):

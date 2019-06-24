@@ -78,6 +78,7 @@ class Server:
 
     def _post(self, url, **params):
         params = {**self._get_params(), **params}
+        print(f'post: {url} params: {params}')
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():
