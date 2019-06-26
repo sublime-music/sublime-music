@@ -136,11 +136,13 @@ class CacheManager(metaclass=Singleton):
                 self,
                 relative_path: Union[Path, str],
                 download_fn: Callable[[], bytes],
+                before_download: Callable[[], None],
                 force: bool = False,
         ):
             abs_path = self.calculate_abs_path(relative_path)
             download_path = self.calculate_download_path(relative_path)
             if not abs_path.exists() or force:
+                before_download()
                 print(abs_path, 'not found. Downloading...')
                 self.save_file(download_path, download_fn())
 
@@ -150,9 +152,14 @@ class CacheManager(metaclass=Singleton):
 
             return str(abs_path)
 
-        def get_playlists(self, force: bool = False) -> Future:
+        def get_playlists(
+                self,
+                before_download: Callable[[], None],
+                force: bool = False,
+        ) -> Future:
             def do_get_playlists() -> List[Playlist]:
                 if not self.playlists or force:
+                    before_download()
                     self.playlists = self.server.get_playlists().playlist
                     self.save_cache_info()
                 return self.playlists
@@ -162,10 +169,12 @@ class CacheManager(metaclass=Singleton):
         def get_playlist(
                 self,
                 playlist_id: int,
+                before_download: Callable[[], None],
                 force: bool = False,
         ) -> Future:
             def do_get_playlist() -> PlaylistWithSongs:
                 if not self.playlist_details.get(playlist_id) or force:
+                    before_download()
                     playlist = self.server.get_playlist(playlist_id)
                     self.playlist_details[playlist_id] = playlist
 
@@ -182,6 +191,7 @@ class CacheManager(metaclass=Singleton):
         def get_cover_art_filename(
                 self,
                 id: str,
+                before_download: Callable[[], None],
                 size: Union[str, int] = 200,
                 force: bool = False,
         ) -> Future:
@@ -189,15 +199,21 @@ class CacheManager(metaclass=Singleton):
                 return self.return_cache_or_download(
                     f'cover_art/{id}_{size}',
                     lambda: self.server.get_cover_art(id, str(size)),
+                    before_download=before_download,
                     force=force,
                 )
 
             return CacheManager.executor.submit(do_get_cover_art_filename)
 
-        def get_song_details(self, song_id: int,
-                             force: bool = False) -> Future:
+        def get_song_details(
+                self,
+                song_id: int,
+                before_download: Callable[[], None],
+                force: bool = False,
+        ) -> Future:
             def do_get_song_details() -> Child:
                 if not self.song_details.get(song_id) or force:
+                    before_download()
                     self.song_details[song_id] = self.server.get_song(song_id)
                     self.save_cache_info()
 
@@ -208,12 +224,14 @@ class CacheManager(metaclass=Singleton):
         def get_song_filename(
                 self,
                 song: Child,
+                before_download: Callable[[], None],
                 force: bool = False,
         ) -> Future:
             def do_get_song_filename() -> str:
                 return self.return_cache_or_download(
                     song.path,
                     lambda: self.server.download(song.id),
+                    before_download=before_download,
                     force=force,
                 )
 

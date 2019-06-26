@@ -200,14 +200,20 @@ class LibremsonicApp(Gtk.Application):
         lambda *a, **k: CacheManager.get_song_details(*a, **k),
     )
     def play_song(self, song: Child):
-        self.update_window()
+        self.play_song(song)
 
-        song_filename_future = CacheManager.get_song_filename(song)
+        # Do this the old fashioned way so that we can have access to ``song``
+        # in the callback.
+        song_filename_future = CacheManager.get_song_filename(
+            song,
+            before_download=lambda: None,
+        )
 
         def filename_future_done(song_file):
             self.state.current_song = song
             self.state.playing = True
             self.update_window()
+
             self.player.loadfile(song_file, 'replace')
             self.player.pause = False
 

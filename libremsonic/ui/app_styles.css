@@ -9,6 +9,16 @@
   padding: 0px;
 }
 
+#playlist-list-new-playlist-entry {
+  margin: 10px;
+  margin-right: 0;
+}
+
+#playlist-list-new-playlist-confirm {
+  margin: 10px;
+  margin-left: 0;
+}
+
 #playlist-artwork-spinner {
   min-height: 35px;
   min-width: 35px;

@@ -27,7 +27,7 @@ def format_song_duration(duration_secs) -> str:
     return f'{duration_secs // 60}:{duration_secs % 60:02}'
 
 
-def async_callback(future_fn, before_fn=None):
+def async_callback(future_fn, before_download=None, on_failure=None):
     """
     Defines the ``async_callback`` decorator.
 
@@ -43,12 +43,28 @@ def async_callback(future_fn, before_fn=None):
     def decorator(callback_fn):
         @functools.wraps(callback_fn)
         def wrapper(self, *args, **kwargs):
-            if before_fn:
-                before_fn(self)
+            if before_download:
+                on_before_download = (
+                    lambda: GLib.idle_add(before_download, self))
+            else:
+                on_before_download = (lambda: None)
 
-            future: Future = future_fn(*args, **kwargs)
-            future.add_done_callback(
-                lambda f: GLib.idle_add(callback_fn, self, f.result()), )
+            def future_callback(f):
+                try:
+                    result = f.result()
+                except Exception as e:
+                    if on_failure:
+                        on_failure(self, e)
+                    return
+
+                return GLib.idle_add(callback_fn, self, result)
+
+            future: Future = future_fn(
+                *args,
+                before_download=on_before_download,
+                **kwargs,
+            )
+            future.add_done_callback(future_callback)
 
         return wrapper
 
