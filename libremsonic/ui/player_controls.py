@@ -3,7 +3,7 @@ import math
 import gi
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Pango, GObject
+from gi.repository import Gtk, Pango, GObject, Gio
 
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
@@ -53,7 +53,26 @@ class PlayerControls(Gtk.ActionBar):
         self.play_button.set_sensitive(has_current_song)
         self.next_button.set_sensitive(has_current_song and has_next_song)
 
+        # Volume button and slider
+        if state.volume == 0:
+            icon_name = 'muted'
+        elif state.volume < 30:
+            icon_name = 'low'
+        elif state.volume < 70:
+            icon_name = 'medium'
+        else:
+            icon_name = 'high'
+
+        icon = Gio.ThemedIcon(name='audio-volume-' + icon_name)
+        image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
+        self.volume_mute_toggle.remove(self.volume_mute_toggle.get_child())
+        self.volume_mute_toggle.add(image)
+        self.volume_mute_toggle.show_all()
+
+        self.volume_slider.set_value(state.volume)
+
         if not has_current_song:
+            # TODO should probably clear out something?
             return
 
         self.update_cover_art(state.current_song.coverArt, size='70')
@@ -197,18 +216,16 @@ class PlayerControls(Gtk.ActionBar):
         box.pack_start(up_next_button, False, True, 5)
 
         # Volume mute toggle
-        # TODO connect it to something.
         self.volume_mute_toggle = util.button_with_icon('audio-volume-high')
+        self.volume_mute_toggle.set_action_name('app.mute-toggle')
         box.pack_start(self.volume_mute_toggle, False, True, 0)
 
         # Volume slider
-        # TODO connect it to something.
-        volume_slider = Gtk.Scale.new_with_range(
+        self.volume_slider = Gtk.Scale.new_with_range(
             orientation=Gtk.Orientation.HORIZONTAL, min=0, max=100, step=5)
-        volume_slider.set_name('volume-slider')
-        volume_slider.set_draw_value(False)
-        volume_slider.set_value(100)
-        box.pack_start(volume_slider, True, True, 0)
+        self.volume_slider.set_name('volume-slider')
+        self.volume_slider.set_draw_value(False)
+        box.pack_start(self.volume_slider, True, True, 0)
 
         vbox.pack_start(box, False, True, 0)
         vbox.pack_start(Gtk.Box(), True, True, 0)

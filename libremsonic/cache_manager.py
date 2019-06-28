@@ -152,6 +152,11 @@ class CacheManager(metaclass=Singleton):
 
             return str(abs_path)
 
+        def delete_cache(self, relative_path: Union[Path, str]):
+            abs_path = self.calculate_abs_path(relative_path)
+            if abs_path.exists():
+                abs_path.unlink()
+
         def get_playlists(
                 self,
                 before_download: Callable[[], None],
@@ -184,7 +189,14 @@ class CacheManager(metaclass=Singleton):
 
                     self.save_cache_info()
 
-                return self.playlist_details[playlist_id]
+                playlist_details = self.playlist_details[playlist_id]
+
+                # Invalidate the cached photo if we are forcing a retrieval
+                # from the server.
+                if force:
+                    self.delete_cache(playlist_details.coverArt)
+
+                return playlist_details
 
             return CacheManager.executor.submit(do_get_playlist)
 

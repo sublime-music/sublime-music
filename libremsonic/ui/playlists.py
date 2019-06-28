@@ -46,9 +46,9 @@ class PlaylistsPanel(Gtk.Paned):
         self.new_playlist.connect('clicked', self.on_new_playlist_clicked)
         playlist_list_actions.pack_start(self.new_playlist)
 
-        refresh_button = util.button_with_icon('view-refresh')
-        refresh_button.connect('clicked', self.on_list_refresh_click)
-        playlist_list_actions.pack_end(refresh_button)
+        list_refresh_button = util.button_with_icon('view-refresh')
+        list_refresh_button.connect('clicked', self.on_list_refresh_click)
+        playlist_list_actions.pack_end(list_refresh_button)
 
         playlist_list_vbox.add(playlist_list_actions)
 
@@ -112,8 +112,19 @@ class PlaylistsPanel(Gtk.Paned):
         artwork_overlay.add_overlay(self.artwork_spinner)
         self.big_info_panel.pack_start(artwork_overlay, False, False, 0)
 
-        # Name, comment, number of songs, etc.
+        # Action buttons, name, comment, number of songs, etc.
         playlist_details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        # Action buttons
+        # TODO hide this if there is no selected playlist
+        action_button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+
+        view_refresh_button = util.button_with_icon('view-refresh')
+        view_refresh_button.connect('clicked', self.on_view_refresh_click)
+        action_button_box.pack_end(view_refresh_button, False, False, 5)
+
+        playlist_details_box.pack_start(action_button_box, False, False, 5)
+
         playlist_details_box.pack_start(Gtk.Box(), True, False, 0)
 
         self.playlist_indicator = self.make_label(name='playlist-indicator')
@@ -214,6 +225,11 @@ class PlaylistsPanel(Gtk.Paned):
 
     def on_list_refresh_click(self, button):
         self.update_playlist_list(force=True)
+
+    def on_view_refresh_click(self, button):
+        playlist_id = self.playlist_map[
+            self.playlist_list.get_selected_row().get_index()]
+        self.update_playlist_view(playlist_id, force=True)
 
     def on_song_double_click(self, treeview, idx, column):
         # The song ID is in the last column of the model.

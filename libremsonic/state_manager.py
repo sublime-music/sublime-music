@@ -10,9 +10,11 @@ class ApplicationState:
     current_song: Child
     config_file: str
     playing: bool = False
-    song_progress: float = 0.0
     play_queue: List[str]
     volume: int = 100
+    old_volume: int = 100
+
+    # TODO save these values that aren't necessarily config to disk
 
     def load_config(self):
         self.config = get_config(self.config_file)

@@ -86,6 +86,8 @@ class LibremsonicApp(Gtk.Application):
         add_action('repeat-press', self.on_repeat_press)
         add_action('shuffle-press', self.on_shuffle_press)
 
+        add_action('mute-toggle', self.on_mute_toggle)
+
     def do_activate(self):
         # We only allow a single window and raise any existing ones
         if not self.window:
@@ -107,6 +109,8 @@ class LibremsonicApp(Gtk.Application):
                                   self.on_stack_change)
         self.window.connect('song-clicked', self.on_song_clicked)
         self.window.player_controls.connect('song-scrub', self.on_song_scrub)
+        self.window.player_controls.volume_slider.connect(
+            'value-changed', self.on_volume_change)
 
         # Display the window.
         self.window.show_all()
@@ -141,7 +145,14 @@ class LibremsonicApp(Gtk.Application):
 
     def on_prev_track(self, action, params):
         current_idx = self.state.play_queue.index(self.state.current_song.id)
-        self.play_song(self.state.play_queue[current_idx - 1])
+        # Go back to the beginning of the song if we are past 5 seconds.
+        # Otherwise, go to the previous song.
+        if self.player.time_pos < 5:
+            song_to_play = current_idx - 1
+        else:
+            song_to_play = current_idx
+
+        self.play_song(self.state.play_queue[song_to_play])
 
     def on_repeat_press(self, action, params):
         print('repeat press')
@@ -182,6 +193,22 @@ class LibremsonicApp(Gtk.Application):
 
         new_time = self.state.current_song.duration * (scrub_value / 100)
         self.player.command('seek', str(new_time), 'absolute')
+
+    def on_mute_toggle(self, action, _):
+        if self.state.volume == 0:
+            new_volume = self.state.old_volume
+        else:
+            self.state.old_volume = self.state.volume
+            new_volume = 0
+
+        self.state.volume = new_volume
+        self.player.volume = new_volume
+        self.update_window()
+
+    def on_volume_change(self, scale):
+        self.state.volume = scale.get_value()
+        self.player.volume = self.state.volume
+        self.update_window()
 
     # ########## HELPER METHODS ########## #
     def show_configure_servers_dialog(self):
