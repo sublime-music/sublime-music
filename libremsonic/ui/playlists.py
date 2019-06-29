@@ -290,9 +290,9 @@ class PlaylistsPanel(Gtk.Paned):
         dialog.destroy()
 
     def on_view_refresh_click(self, button):
-        playlist_id = self.playlist_map[
+        playlist = self.playlist_map[
             self.playlist_list.get_selected_row().get_index()]
-        self.update_playlist_view(playlist_id, force=True)
+        self.update_playlist_view(playlist.id, force=True)
 
     def on_song_double_click(self, treeview, idx, column):
         # The song ID is in the last column of the model.
