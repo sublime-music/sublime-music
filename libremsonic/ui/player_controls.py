@@ -37,6 +37,10 @@ class PlayerControls(Gtk.ActionBar):
         self.pack_end(up_next_volume)
 
     def update(self, state: ApplicationState):
+        if state.current_song is not None:
+            self.update_scrubber(state.song_progress,
+                                 state.current_song.duration)
+
         icon = 'pause' if state.playing else 'start'
         self.play_button.get_child().set_from_icon_name(
             f"media-playback-{icon}-symbolic", Gtk.IconSize.LARGE_TOOLBAR)

@@ -48,6 +48,7 @@ class ApplicationState:
     old_volume: int = 100
     repeat_type: RepeatType = RepeatType.NO_REPEAT
     shuffle_on: bool = False
+    song_progress: float = 0
 
     def to_json(self):
         return {
@@ -60,6 +61,7 @@ class ApplicationState:
             'repeat_type': getattr(self, 'repeat_type',
                                    RepeatType.NO_REPEAT).value,
             'shuffle_on': getattr(self, 'shuffle_on', None),
+            'song_progress': getattr(self, 'song_progress', None),
         }
 
     def load_from_json(self, json_object):
@@ -75,6 +77,7 @@ class ApplicationState:
         self.repeat_type = (RepeatType(json_object.get('repeat_type'))
                             or RepeatType.NO_REPEAT)
         self.shuffle_on = json_object.get('shuffle_on', False)
+        self.song_progress = json_object.get('song_progress', 0.0)
 
     def load(self):
         self.config = self.get_config(self.config_file)

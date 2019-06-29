@@ -1,4 +1,5 @@
 import os
+import math
 import random
 
 import mpv
@@ -33,19 +34,27 @@ class LibremsonicApp(Gtk.Application):
             'Specify a configuration file. Defaults to ~/.config/libremsonic/config.json',
             None)
 
-        self.connect('shutdown', lambda _: self.state.save())
+        self.connect('shutdown', self.on_app_shutdown)
 
         self.player = mpv.MPV()
 
+        self.last_play_queue_update = 0
+
         @self.player.property_observer('time-pos')
         def time_observer(_name, value):
+            self.state.song_progress = value
             GLib.idle_add(
                 self.window.player_controls.update_scrubber,
-                value,
+                self.state.song_progress,
                 self.state.current_song.duration,
             )
             if abs((value or 0) - self.state.current_song.duration) < 0.1:
                 GLib.idle_add(self.on_next_track, None, None)
+
+            if not value:
+                self.last_play_queue_update = 0
+            elif self.last_play_queue_update + 15 <= value:
+                self.save_play_queue()
 
     # Handle command line option parsing.
     def do_command_line(self, command_line):
@@ -113,6 +122,7 @@ class LibremsonicApp(Gtk.Application):
         self.window.player_controls.connect('song-scrub', self.on_song_scrub)
         self.window.player_controls.volume_slider.connect(
             'value-changed', self.on_volume_change)
+        self.window.connect('key-press-event', self.on_window_key_press)
 
         # Display the window.
         self.window.show_all()
@@ -131,7 +141,7 @@ class LibremsonicApp(Gtk.Application):
     def on_configure_servers(self, action, param):
         self.show_configure_servers_dialog()
 
-    def on_play_pause(self, action, param):
+    def on_play_pause(self, action=None, param=None):
         if self.player.time_pos is None:
             # This is from a restart, start playing the file.
             self.play_song(self.state.current_song.id)
@@ -151,7 +161,9 @@ class LibremsonicApp(Gtk.Application):
         elif current_idx == len(self.state.play_queue) - 1:
             current_idx = -1
 
+        self.state.song_progress = 0
         self.play_song(self.state.play_queue[current_idx + 1])
+        self.save_play_queue(position=0)
 
     def on_prev_track(self, action, params):
         current_idx = self.state.play_queue.index(self.state.current_song.id)
@@ -159,7 +171,7 @@ class LibremsonicApp(Gtk.Application):
         # Otherwise, go to the previous song.
         if self.state.repeat_type == RepeatType.REPEAT_SONG:
             song_to_play = current_idx
-        elif self.player.time_pos < 5:
+        elif self.state.song_progress < 5:
             if (current_idx == 0
                     and self.state.repeat_type == RepeatType.NO_REPEAT):
                 song_to_play = 0
@@ -168,7 +180,9 @@ class LibremsonicApp(Gtk.Application):
         else:
             song_to_play = current_idx
 
+        self.state.song_progress = 0
         self.play_song(self.state.play_queue[song_to_play])
+        self.save_play_queue(position=0)
 
     def on_repeat_press(self, action, params):
         # Cycle through the repeat types.
@@ -189,6 +203,7 @@ class LibremsonicApp(Gtk.Application):
             random.shuffle(self.state.play_queue)
             self.state.play_queue = [song_id] + self.state.play_queue
 
+        self.save_play_queue()
         self.state.shuffle_on = not self.state.shuffle_on
         self.update_window()
 
@@ -214,17 +229,27 @@ class LibremsonicApp(Gtk.Application):
         self.update_window()
 
     def on_song_clicked(self, win, song_id, song_queue):
-        CacheManager.executor.submit(lambda: CacheManager.save_play_queue(
-            id=song_queue, current=song_id))
         self.state.play_queue = song_queue
+        self.state.song_progress = 0
         self.play_song(song_id)
+        self.save_play_queue(position=0)
 
     def on_song_scrub(self, _, scrub_value):
         if not hasattr(self.state, 'current_song'):
             return
 
         new_time = self.state.current_song.duration * (scrub_value / 100)
-        self.player.command('seek', str(new_time), 'absolute')
+
+        if not self.player.time_pos:
+            # This is from a restart. Just change the song_progress and when
+            # they click play it will seek to that location.
+            self.state.song_progress = new_time
+            self.window.player_controls.update_scrubber(
+                self.state.song_progress, self.state.current_song.duration)
+        else:
+            self.player.seek(str(new_time), 'absolute')
+
+        self.save_play_queue()
 
     def on_mute_toggle(self, action, _):
         if self.state.volume == 0:
@@ -241,6 +266,16 @@ class LibremsonicApp(Gtk.Application):
         self.state.volume = scale.get_value()
         self.player.volume = self.state.volume
         self.update_window()
+
+    def on_window_key_press(self, window, event):
+        # Returning True prevents further propagation of the event.
+        if event.keyval == 32:
+            self.on_play_pause()
+            return True
+
+    def on_app_shutdown(self, app):
+        self.state.save()
+        self.save_play_queue()
 
     # ########## HELPER METHODS ########## #
     def show_configure_servers_dialog(self):
@@ -271,8 +306,20 @@ class LibremsonicApp(Gtk.Application):
             self.state.playing = True
             self.update_window()
 
-            self.player.loadfile(song_file, 'replace')
+            print(self.state.song_progress)
+            self.player.command('loadfile', song_file, 'replace',
+                                f'start={self.state.song_progress}')
             self.player.pause = False
 
         song_filename_future.add_done_callback(
             lambda f: GLib.idle_add(filename_future_done, f.result()), )
+
+    def save_play_queue(self, position=None):
+        if position is None:
+            position = self.state.song_progress
+        self.last_play_queue_update = position
+        CacheManager.executor.submit(lambda: CacheManager.save_play_queue(
+            id=self.state.play_queue,
+            current=self.state.current_song.id,
+            position=math.floor(position * 1000),
+        ))

@@ -75,18 +75,23 @@ class PlaylistsPanel(Gtk.Paned):
         list_scroll_window = Gtk.ScrolledWindow(min_content_width=220)
         self.playlist_list = Gtk.ListBox(name='playlist-list-listbox')
 
-        self.playlist_list_loading = Gtk.Spinner(name='playlist-list-spinner',
-                                                 active=True)
+        self.playlist_list_loading = Gtk.ListBoxRow(activatable=False,
+                                                    selectable=False)
+        playlist_list_loading_spinner = Gtk.Spinner(
+            name='playlist-list-spinner', active=True)
+        self.playlist_list_loading.add(playlist_list_loading_spinner)
         self.playlist_list.add(self.playlist_list_loading)
 
-        self.new_playlist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
-                                        visible=False)
+        self.new_playlist_row = Gtk.ListBoxRow(activatable=False,
+                                               selectable=False)
+        new_playlist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
+                                   visible=False)
 
         self.playlist_list_new_entry = Gtk.Entry(
             name='playlist-list-new-playlist-entry')
         self.playlist_list_new_entry.connect(
             'activate', self.on_playlist_list_new_entry_activate)
-        self.new_playlist_box.add(self.playlist_list_new_entry)
+        new_playlist_box.add(self.playlist_list_new_entry)
 
         new_playlist_actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
@@ -108,9 +113,9 @@ class PlaylistsPanel(Gtk.Paned):
         new_playlist_actions.pack_end(self.playlist_list_new_cancel_button,
                                       False, True, 0)
 
-        self.new_playlist_box.add(new_playlist_actions)
-
-        self.playlist_list.add(self.new_playlist_box)
+        new_playlist_box.add(new_playlist_actions)
+        self.new_playlist_row.add(new_playlist_box)
+        self.playlist_list.add(self.new_playlist_row)
 
         self.playlist_list.connect('row-activated', self.on_playlist_selected)
         list_scroll_window.add(self.playlist_list)
@@ -247,14 +252,10 @@ class PlaylistsPanel(Gtk.Paned):
     def on_new_playlist_clicked(self, new_playlist_button):
         self.playlist_list_new_entry.set_text('Untitled Playlist')
         self.playlist_list_new_entry.grab_focus()
-        self.new_playlist_box.show()
+        self.new_playlist_row.show()
 
     def on_playlist_selected(self, playlist_list, row):
         row_idx = row.get_index()
-        if row_idx == 0 or row_idx == len(self.playlist_map) + 1:
-            # Clicked on the loading indicator or the new playlist entry.
-            # TODO: make these just not activatable
-            return
 
         # TODO don't update if selecting the same playlist.
         # Use row index - 1 due to the loading indicator.
@@ -304,7 +305,7 @@ class PlaylistsPanel(Gtk.Paned):
         self.create_playlist(entry.get_text())
 
     def on_playlist_list_new_cancel_button_clicked(self, button):
-        self.new_playlist_box.hide()
+        self.new_playlist_row.hide()
 
     def on_playlist_list_new_confirm_button_clicked(self, button):
         self.create_playlist(self.playlist_list_new_entry.get_text())
@@ -344,6 +345,7 @@ class PlaylistsPanel(Gtk.Paned):
 
     def create_playlist(self, playlist_name):
         try:
+            # TODO make this async eventually
             CacheManager.create_playlist(name=playlist_name)
         except ConnectionError:
             # TODO show a message box
@@ -380,7 +382,7 @@ class PlaylistsPanel(Gtk.Paned):
 
         self.playlist_list.show_all()
         self.set_playlist_list_loading(False)
-        self.new_playlist_box.hide()
+        self.new_playlist_row.hide()
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_playlist(*a, **k),
