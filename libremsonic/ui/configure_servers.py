@@ -5,93 +5,35 @@ from gi.repository import Gtk, GObject
 
 from libremsonic.server import Server
 from libremsonic.config import ServerConfiguration
+from libremsonic.ui import util
 
 
-class EditServerDialog(Gtk.Dialog):
-    """
-    The Add New/Edit Server Dialog. The dialogs are the same, but when editing,
-    an ``existing_config`` will be specified.
-    """
-    def __init__(self, parent, existing_config=None):
-        editing = existing_config is not None
-        Gtk.Dialog.__init__(
-            self,
-            f'Edit {existing_config.name}' if editing else 'Add New Server',
-            parent, 0, (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-                        Gtk.STOCK_EDIT if editing else Gtk.STOCK_ADD,
-                        Gtk.ResponseType.OK))
+class EditServerDialog(util.EditFormDialog):
+    entity_name: str = 'Server'
+    initial_size = (450, 250)
+    text_fields = [
+        ('Name', 'name', False),
+        ('Server address', 'server_address', False),
+        ('Local network address', 'local_network_address', False),
+        ('Local network SSID', 'local_network_ssid', False),
+        ('Username', 'username', False),
+        ('Password', 'password', True),
+    ]
+    boolean_fields = [
+        ('Browse by tags', 'browse_by_tags'),
+        ('Sync enabled', 'sync_enabled'),
+    ]
 
-        if not existing_config:
-            existing_config = ServerConfiguration()
-
-        # Create the two columns for the labels and corresponding entry fields.
-        self.set_default_size(450, 250)
-        content_area = self.get_content_area()
-        flowbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        label_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        entry_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        flowbox.pack_start(label_box, False, True, 10)
-        flowbox.pack_start(entry_box, True, True, 10)
-
-        # Store a map of field label to GTK component.
-        self.data = {}
-
-        # Create all of the text entry fields for the server configuration.
-        text_fields = [
-            ('Name', existing_config.name, False),
-            ('Server address', existing_config.server_address, False),
-            ('Local network address', existing_config.local_network_address,
-             False),
-            ('Local network SSID', existing_config.local_network_ssid, False),
-            ('Username', existing_config.username, False),
-            ('Password', existing_config.password, True),
-        ]
-        for label, value, is_password in text_fields:
-            # Put the label in the left box.
-            entry_label = Gtk.Label(label + ':')
-            entry_label.set_halign(Gtk.Align.START)
-            label_box.pack_start(entry_label, True, True, 0)
-
-            # Put the text entry in the right box.
-            entry = Gtk.Entry(text=value)
-            if is_password:
-                entry.set_visibility(False)
-            entry_box.pack_start(entry, True, True, 0)
-            self.data[label] = entry
-
-        # Create all of the check box fields for the server configuration.
-        boolean_fields = [
-            ('Browse by tags', existing_config.browse_by_tags),
-            ('Sync enabled', existing_config.sync_enabled),
-        ]
-        for label, value in boolean_fields:
-            # Put the label in the left box.
-            entry_label = Gtk.Label(label + ':')
-            entry_label.set_halign(Gtk.Align.START)
-            label_box.pack_start(entry_label, True, True, 0)
-
-            # Put the checkbox in the right box. Note we have to pad here since
-            # the checkboxes are smaller than the text fields.
-            checkbox = Gtk.CheckButton(active=value)
-            entry_box.pack_start(checkbox, True, True, 5)
-            self.data[label] = checkbox
-
-        content_area.pack_start(flowbox, True, True, 10)
-
-        # Create a box for buttons.
-        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-
+    def __init__(self, *args, **kwargs):
         test_server = Gtk.Button('Test Connection to Server')
         test_server.connect('clicked', self.on_test_server_clicked)
-        button_box.pack_start(test_server, False, True, 5)
 
         open_in_browser = Gtk.Button('Open in Browser')
         open_in_browser.connect('clicked', self.on_open_in_browser_clicked)
-        button_box.pack_start(open_in_browser, False, True, 5)
 
-        content_area.pack_start(button_box, True, True, 10)
+        self.extra_buttons = [test_server, open_in_browser]
 
-        self.show_all()
+        super().__init__(*args, **kwargs)
 
     def on_test_server_clicked(self, event):
         # Instantiate the server.

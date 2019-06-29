@@ -11,6 +11,13 @@ from libremsonic.cache_manager import CacheManager, SongCacheStatus
 from libremsonic.ui import util
 
 
+class EditPlaylistDialog(util.EditFormDialog):
+    entity_name: str = 'Playlist'
+    initial_size = (350, 120)
+    text_fields = [('Name', 'name', False), ('Comment', 'comment', False)]
+    boolean_fields = [('Public', 'public')]
+
+
 class PlaylistsPanel(Gtk.Paned):
     """Defines the playlists panel."""
     __gsignals__ = {
@@ -126,13 +133,19 @@ class PlaylistsPanel(Gtk.Paned):
         # Action buttons, name, comment, number of songs, etc.
         playlist_details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-        # Action buttons
+        # Action buttons (note we are packing end here, so we have to put them
+        # in right-to-left).
         # TODO hide this if there is no selected playlist
         action_button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
-        view_refresh_button = util.button_with_icon('view-refresh')
+        view_refresh_button = util.button_with_icon('view-refresh-symbolic')
         view_refresh_button.connect('clicked', self.on_view_refresh_click)
         action_button_box.pack_end(view_refresh_button, False, False, 5)
+
+        playlist_edit_button = util.button_with_icon('document-edit-symbolic')
+        playlist_edit_button.connect('clicked',
+                                     self.on_playlist_edit_button_click)
+        action_button_box.pack_end(playlist_edit_button, False, False, 5)
 
         playlist_details_box.pack_start(action_button_box, False, False, 5)
 
@@ -236,6 +249,24 @@ class PlaylistsPanel(Gtk.Paned):
 
     def on_list_refresh_click(self, button):
         self.update_playlist_list(force=True)
+
+    def on_playlist_edit_button_click(self, button):
+        selected = self.playlist_list.get_selected_row()
+        playlist_id = self.playlist_map[selected.get_index()].id
+        dialog = EditPlaylistDialog(
+            self.get_toplevel(),
+            CacheManager.get_playlist(playlist_id,
+                                      before_download=lambda: None).result())
+        result = dialog.run()
+        if result == Gtk.ResponseType.OK:
+            CacheManager.update_playlist(
+                playlist_id,
+                name=dialog.data['Name'].get_text(),
+                comment=dialog.data['Comment'].get_text(),
+                public=dialog.data['Public'].get_active(),
+            )
+            self.update_playlist_view(playlist_id, force=True)
+        dialog.destroy()
 
     def on_view_refresh_click(self, button):
         playlist_id = self.playlist_map[
@@ -385,12 +416,18 @@ class PlaylistsPanel(Gtk.Paned):
 
     def format_stats(self, playlist):
         created_date = playlist.created.strftime('%B %d, %Y')
-        return '  •  '.join([
-            f'Created by {playlist.owner} on {created_date}',
-            '{} {}'.format(playlist.songCount,
-                           util.pluralize("song", playlist.songCount)),
-            self.format_playlist_duration(playlist.duration)
-        ])
+        lines = [
+            '  •  '.join([
+                f'Created by {playlist.owner} on {created_date}',
+                f"{'Not v' if not playlist.public else 'V'}isible with others",
+            ]),
+            '  •  '.join([
+                '{} {}'.format(playlist.songCount,
+                               util.pluralize("song", playlist.songCount)),
+                self.format_playlist_duration(playlist.duration)
+            ]),
+        ]
+        return '\n'.join(lines)
 
     def format_playlist_duration(self, duration_secs) -> str:
         duration_mins = (duration_secs // 60) % 60
