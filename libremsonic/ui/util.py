@@ -1,8 +1,8 @@
-import gi
 import functools
 
 from concurrent.futures import Future
 
+import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, GObject, GLib
 
@@ -25,6 +25,16 @@ def button_with_icon(
 
 def format_song_duration(duration_secs) -> str:
     return f'{duration_secs // 60}:{duration_secs % 60:02}'
+
+
+def pluralize(string: str, number: int, pluralized_form=None):
+    if number != 1:
+        return pluralized_form or f'{string}s'
+    return string
+
+
+def esc(string):
+    return string.replace('&', '&amp;')
 
 
 def async_callback(future_fn, before_download=None, on_failure=None):

@@ -1,4 +1,5 @@
 import os
+import random
 
 import mpv
 
@@ -125,20 +126,19 @@ class LibremsonicApp(Gtk.Application):
         if (self.state.config.current_server is None
                 or self.state.config.current_server < 0):
             self.show_configure_servers_dialog()
-        else:
-            self.on_connected_server_changed(
-                None,
-                self.state.config.current_server,
-            )
 
     # ########## ACTION HANDLERS ########## #
     def on_configure_servers(self, action, param):
         self.show_configure_servers_dialog()
 
     def on_play_pause(self, action, param):
-        self.player.cycle('pause')
-        self.state.playing = not self.state.playing
+        if self.player.time_pos is None:
+            # This is from a restart, start playing the file.
+            self.play_song(self.state.current_song.id)
+        else:
+            self.player.cycle('pause')
 
+        self.state.playing = not self.state.playing
         self.update_window()
 
     def on_next_track(self, action, params):
@@ -177,6 +177,18 @@ class LibremsonicApp(Gtk.Application):
         self.update_window()
 
     def on_shuffle_press(self, action, params):
+        if self.state.shuffle_on:
+            # Revert to the old play queue.
+            self.state.play_queue = self.state.old_play_queue
+        else:
+            self.state.old_play_queue = self.state.play_queue.copy()
+
+            # Remove the current song, then shuffle and put the song back.
+            song_id = self.state.current_song.id
+            self.state.play_queue.remove(song_id)
+            random.shuffle(self.state.play_queue)
+            self.state.play_queue = [song_id] + self.state.play_queue
+
         self.state.shuffle_on = not self.state.shuffle_on
         self.update_window()
 
@@ -247,8 +259,6 @@ class LibremsonicApp(Gtk.Application):
         lambda *a, **k: CacheManager.get_song_details(*a, **k),
     )
     def play_song(self, song: Child):
-        self.play_song(song)
-
         # Do this the old fashioned way so that we can have access to ``song``
         # in the callback.
         song_filename_future = CacheManager.get_song_filename(

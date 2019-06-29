@@ -10,13 +10,15 @@
 }
 
 #playlist-list-new-playlist-entry {
-  margin: 10px;
-  margin-right: 0;
+  margin: 10px 10px 5px 10px;
+}
+
+#playlist-list-new-playlist-cancel {
+  margin: 5px 0 10px 0;
 }
 
 #playlist-list-new-playlist-confirm {
-  margin: 10px;
-  margin-left: 0;
+  margin: 5px 10px 10px 0;
 }
 
 #playlist-artwork-spinner {
@@ -42,13 +44,6 @@
 
 #playlist-comment, #playlist-stats {
   margin-bottom: 10px;
-}
-
-#new-playlist-button {
-  border-radius: 0;
-  border-left: none;
-  border-right: none;
-  border-bottom: none;
 }
 
 /* ********** Playback Controls ********** */
@@ -89,4 +84,9 @@
 
 #player-controls-bar #album-name {
   margin-bottom: 3px;
+  font-style: italic;
+}
+
+#up-next-popover #label {
+  margin: 10px;
 }

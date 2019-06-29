@@ -1,9 +1,10 @@
 import math
+import concurrent
 
 import gi
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Pango, GObject, Gio
+from gi.repository import Gtk, Pango, GObject, Gio, GLib
 
 from libremsonic.state_manager import ApplicationState, RepeatType
 from libremsonic.cache_manager import CacheManager
@@ -94,18 +95,57 @@ class PlayerControls(Gtk.ActionBar):
 
         self.volume_slider.set_value(state.volume)
 
-        if not has_current_song:
-            # TODO should probably clear out the cover art display?
-            return
+        # Update the current song information.
+        if has_current_song:
+            # TODO should probably clear out the cover art display if no song??
+            self.update_cover_art(state.current_song.coverArt, size='70')
 
-        self.update_cover_art(state.current_song.coverArt, size='70')
+            self.song_title.set_text(util.esc(state.current_song.title))
+            self.album_name.set_text(util.esc(state.current_song.album))
+            self.artist_name.set_text(util.esc(state.current_song.artist))
 
-        def esc(string):
-            return string.replace('&', '&amp;')
+        # Set the Up Next button popup.
+        if hasattr(state, 'play_queue'):
+            play_queue_len = len(state.play_queue)
+            if play_queue_len == 0:
+                self.popover_label.set_markup('<b>Up Next</b>')
+            else:
+                song_label = str(play_queue_len) + ' ' + util.pluralize(
+                    'song', play_queue_len)
+                self.popover_label.set_markup(f'<b>Up Next:</b> {song_label}')
 
-        self.song_title.set_text(esc(state.current_song.title))
-        self.album_name.set_text(esc(state.current_song.album))
-        self.artist_name.set_text(esc(state.current_song.artist))
+            # Remove everything from the play queue.
+            for c in self.popover_list.get_children():
+                self.popover_list.remove(c)
+
+            for s in state.play_queue:
+                self.popover_list.add(
+                    Gtk.Label(
+                        halign=Gtk.Align.START,
+                        use_markup=True,
+                        margin=5,
+                    ))
+
+            self.popover_list.show_all()
+
+            # These are normally already have been retrieved, so should be no
+            # cost for doing the ``get_song_details`` call.
+            for i, song_id in enumerate(state.play_queue):
+                # Create a function to capture the value of i for the inner
+                # function. This outer function creates the actual callback
+                # function.
+                def update_fn_generator(i):
+                    def do_update_label(result):
+                        title = util.esc(result.title)
+                        album = util.esc(result.album)
+                        row = self.popover_list.get_row_at_index(i)
+                        row.get_child().set_markup(f'<b>{title}</b>\n{album}')
+                        row.show_all()
+
+                    return lambda f: GLib.idle_add(do_update_label, f.result())
+
+                future = CacheManager.get_song_details(song_id, lambda: None)
+                future.add_done_callback(update_fn_generator(i))
 
     @util.async_callback(
         lambda *k, **v: CacheManager.get_cover_art_filename(*k, **v),
@@ -128,6 +168,11 @@ class PlayerControls(Gtk.ActionBar):
 
         if not self.editing:
             self.emit('song-scrub', self.song_scrubber.get_value())
+
+    def on_up_next_click(self, button):
+        self.up_next_popover.set_relative_to(button)
+        self.up_next_popover.show_all()
+        self.up_next_popover.popup()
 
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -231,10 +276,31 @@ class PlayerControls(Gtk.ActionBar):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         # Up Next button
-        # TODO connect it to something.
         up_next_button = util.button_with_icon(
             'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        up_next_button.connect('clicked', self.on_up_next_click)
         box.pack_start(up_next_button, False, True, 5)
+
+        self.up_next_popover = Gtk.PopoverMenu(name='up-next-popover')
+
+        popover_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.popover_label = Gtk.Label(
+            '<b>Up Next</b>',
+            name='label',
+            use_markup=True,
+            halign=Gtk.Align.START,
+        )
+        popover_box.add(self.popover_label)
+
+        popover_scroll_box = Gtk.ScrolledWindow(
+            min_content_height=600,
+            min_content_width=400,
+        )
+        self.popover_list = Gtk.ListBox()
+        popover_scroll_box.add(self.popover_list)
+        popover_box.pack_end(popover_scroll_box, True, True, 0)
+
+        self.up_next_popover.add(popover_box)
 
         # Volume mute toggle
         self.volume_mute_toggle = util.button_with_icon('audio-volume-high')

@@ -38,7 +38,7 @@ class AppConfiguration:
     servers: List[ServerConfiguration]
     current_server: int = -1
     _cache_location: str = ''
-    max_cache_size_mb: int # -1 means unlimited
+    max_cache_size_mb: int  # -1 means unlimited
 
     def to_json(self):
         return {
@@ -59,8 +59,9 @@ class AppConfiguration:
     @property
     def cache_location(self):
         if (hasattr(self, '_cache_location')
-                and self._cache_location is not None):
-            return self.cache_location
+                and self._cache_location is not None
+                and self._cache_location != ''):
+            return self._cache_location
         else:
             default_cache_location = (os.environ.get('XDG_DATA_HOME')
                                       or os.path.expanduser('~/.local/share'))

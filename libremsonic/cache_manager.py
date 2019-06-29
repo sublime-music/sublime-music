@@ -86,18 +86,19 @@ class CacheManager(metaclass=Singleton):
                     return
 
             self.playlists = [
-                Playlist.from_json(p) for p in meta_json.get('playlists', [])
+                Playlist.from_json(p)
+                for p in meta_json.get('playlists') or []
             ]
             self.playlist_details = {
                 id: PlaylistWithSongs.from_json(v)
-                for id, v in meta_json.get('playlist_details', {}).items()
+                for id, v in (meta_json.get('playlist_details') or {}).items()
             }
             self.song_details = {
                 id: Child.from_json(v)
-                for id, v in meta_json.get('song_details', {}).items()
+                for id, v in (meta_json.get('song_details') or {}).items()
             }
             self.permanently_cached_paths = set(
-                meta_json.get('permanently_cached_paths', []))
+                meta_json.get('permanently_cached_paths') or [])
 
         def save_cache_info(self):
             os.makedirs(self.app_config.cache_location, exist_ok=True)
@@ -184,7 +185,7 @@ class CacheManager(metaclass=Singleton):
                     self.playlist_details[playlist_id] = playlist
 
                     # Playlists also have song details, so save that as well.
-                    for song in playlist.entry:
+                    for song in (playlist.entry or []):
                         self.song_details[song.id] = song
 
                     self.save_cache_info()

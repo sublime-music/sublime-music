@@ -59,16 +59,16 @@ class PlaylistsPanel(Gtk.Paned):
                                                  active=True)
         self.playlist_list.add(self.playlist_list_loading)
 
-        self.new_playlist_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.new_playlist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
+                                        visible=False)
 
         self.playlist_list_new_entry = Gtk.Entry(
             name='playlist-list-new-playlist-entry')
         self.playlist_list_new_entry.connect(
             'activate', self.on_playlist_list_new_entry_activate)
-        self.playlist_list_new_entry.connect(
-            'focus-out-event', self.on_playlist_list_new_entry_focus_loose)
-        self.new_playlist_box.pack_start(self.playlist_list_new_entry, True,
-                                         True, 0)
+        self.new_playlist_box.add(self.playlist_list_new_entry)
+
+        new_playlist_actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         self.playlist_list_new_confirm_button = Gtk.Button.new_from_icon_name(
             'object-select-symbolic', Gtk.IconSize.BUTTON)
@@ -76,8 +76,19 @@ class PlaylistsPanel(Gtk.Paned):
             'playlist-list-new-playlist-confirm')
         self.playlist_list_new_confirm_button.connect(
             'clicked', self.on_playlist_list_new_confirm_button_clicked)
-        self.new_playlist_box.pack_end(self.playlist_list_new_confirm_button,
-                                       False, True, 0)
+        new_playlist_actions.pack_end(self.playlist_list_new_confirm_button,
+                                      False, True, 0)
+
+        self.playlist_list_new_cancel_button = Gtk.Button.new_from_icon_name(
+            'process-stop-symbolic', Gtk.IconSize.BUTTON)
+        self.playlist_list_new_cancel_button.set_name(
+            'playlist-list-new-playlist-cancel')
+        self.playlist_list_new_cancel_button.connect(
+            'clicked', self.on_playlist_list_new_cancel_button_clicked)
+        new_playlist_actions.pack_end(self.playlist_list_new_cancel_button,
+                                      False, True, 0)
+
+        self.new_playlist_box.add(new_playlist_actions)
 
         self.playlist_list.add(self.new_playlist_box)
 
@@ -238,21 +249,13 @@ class PlaylistsPanel(Gtk.Paned):
                   [m[-1] for m in self.playlist_song_model])
 
     def on_playlist_list_new_entry_activate(self, entry):
-        try:
-            CacheManager.create_playlist(name=entry.get_text())
-        except ConnectionError:
-            # TODO show message box
-            return
-        self.update_playlist_list(force=True)
+        self.create_playlist(entry.get_text())
 
-    def on_playlist_list_new_entry_focus_loose(self, entry, event):
-        # TODO don't do this, have an X button
-        print(entry, event)
-        print('ohea')
+    def on_playlist_list_new_cancel_button_clicked(self, button):
+        self.new_playlist_box.hide()
 
     def on_playlist_list_new_confirm_button_clicked(self, button):
-        print('check')
-        # TODO figure out hwo to make the button styled nicer so that it looks integrated
+        self.create_playlist(self.playlist_list_new_entry.get_text())
 
     # Helper Methods
     # =========================================================================
@@ -286,6 +289,15 @@ class PlaylistsPanel(Gtk.Paned):
             self.artwork_spinner.show()
         else:
             self.artwork_spinner.hide()
+
+    def create_playlist(self, playlist_name):
+        try:
+            CacheManager.create_playlist(name=playlist_name)
+        except ConnectionError:
+            # TODO show a message box
+            return
+
+        self.update_playlist_list(force=True)
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_playlists(*a, **k),
@@ -371,17 +383,12 @@ class PlaylistsPanel(Gtk.Paned):
                                use_markup=True,
                                margin=12)
 
-    def pluralize(self, string, number, pluralized_form=None):
-        if number != 1:
-            return pluralized_form or f'{string}s'
-        return string
-
     def format_stats(self, playlist):
         created_date = playlist.created.strftime('%B %d, %Y')
         return '  •  '.join([
             f'Created by {playlist.owner} on {created_date}',
             '{} {}'.format(playlist.songCount,
-                           self.pluralize("song", playlist.songCount)),
+                           util.pluralize("song", playlist.songCount)),
             self.format_playlist_duration(playlist.duration)
         ])
 
@@ -393,18 +400,18 @@ class PlaylistsPanel(Gtk.Paned):
         format_components = []
         if duration_hrs > 0:
             hrs = '{} {}'.format(duration_hrs,
-                                 self.pluralize('hour', duration_hrs))
+                                 util.pluralize('hour', duration_hrs))
             format_components.append(hrs)
 
         if duration_mins > 0:
             mins = '{} {}'.format(duration_mins,
-                                  self.pluralize('minute', duration_mins))
+                                  util.pluralize('minute', duration_mins))
             format_components.append(mins)
 
         # Show seconds if there are no hours.
         if duration_hrs == 0:
             secs = '{} {}'.format(duration_secs,
-                                  self.pluralize('second', duration_secs))
+                                  util.pluralize('second', duration_secs))
             format_components.append(secs)
 
         return ', '.join(format_components)

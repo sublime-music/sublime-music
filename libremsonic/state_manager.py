@@ -5,6 +5,7 @@ from typing import List
 
 from libremsonic.from_json import from_json
 from .config import AppConfiguration
+from .cache_manager import CacheManager
 from .server.api_objects import Child
 
 
@@ -42,6 +43,7 @@ class ApplicationState:
     config_file: str
     playing: bool = False
     play_queue: List[str]
+    old_play_queue: List[str]
     volume: int = 100
     old_volume: int = 100
     repeat_type: RepeatType = RepeatType.NO_REPEAT
@@ -49,8 +51,11 @@ class ApplicationState:
 
     def to_json(self):
         return {
-            # 'current_song': getattr(self, 'current_song', None),
+            'current_song': (self.current_song.id if
+                             (hasattr(self, 'current_song')
+                              and self.current_song is not None) else None),
             'play_queue': getattr(self, 'play_queue', None),
+            'old_play_queue': getattr(self, 'old_play_queue', None),
             'volume': getattr(self, 'volume', None),
             'repeat_type': getattr(self, 'repeat_type',
                                    RepeatType.NO_REPEAT).value,
@@ -58,8 +63,14 @@ class ApplicationState:
         }
 
     def load_from_json(self, json_object):
-        # self.current_song = json_object.get('current_song') or None
+        current_song_id = json_object.get('current_song') or None
+        if current_song_id:
+            self.current_song = CacheManager.song_details.get(current_song_id)
+        else:
+            self.current_song = None
+
         self.play_queue = json_object.get('play_queue') or []
+        self.old_play_queue = json_object.get('old_play_queue') or []
         self.volume = json_object.get('volume') or 100
         self.repeat_type = (RepeatType(json_object.get('repeat_type'))
                             or RepeatType.NO_REPEAT)
@@ -67,6 +78,14 @@ class ApplicationState:
 
     def load(self):
         self.config = self.get_config(self.config_file)
+
+        if self.config.current_server >= 0:
+            # Reset the CacheManager.
+            CacheManager.reset(
+                self.config,
+                self.config.servers[self.config.current_server]
+                if self.config.current_server >= 0 else None,
+            )
 
         if os.path.exists(self.state_filename):
             with open(self.state_filename, 'r') as f:
