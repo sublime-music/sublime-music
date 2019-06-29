@@ -50,7 +50,8 @@ class MainWindow(Gtk.ApplicationWindow):
         if state.config.current_server >= 0:
             server_name = state.config.servers[
                 state.config.current_server].name
-            self.connected_to_label.set_markup(f'Connected to {server_name}')
+            self.connected_to_label.set_markup(
+                f'<b>Connected to {server_name}</b>')
         else:
             self.connected_to_label.set_markup(
                 f'<span style="italic">Not Connected to a Server</span>')
