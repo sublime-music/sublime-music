@@ -1,11 +1,10 @@
 import os
-from typing import List
 
 import mpv
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, GLib, Gdk, GObject
+from gi.repository import Gdk, Gio, GLib, Gtk
 
 from .ui.main import MainWindow
 from .ui.configure_servers import ConfigureServersDialog
@@ -32,6 +31,8 @@ class LibremsonicApp(Gtk.Application):
             'config', ord('c'), GLib.OptionFlags.NONE, GLib.OptionArg.FILENAME,
             'Specify a configuration file. Defaults to ~/.config/libremsonic/config.json',
             None)
+
+        self.connect('shutdown', lambda _: self.state.save())
 
         self.player = mpv.MPV()
 
@@ -118,7 +119,7 @@ class LibremsonicApp(Gtk.Application):
 
         # Load the configuration and update the UI with the curent server, if
         # it exists.
-        self.state.load_config()
+        self.state.load()
 
         # If there is no current server, show the dialog to select a server.
         if self.state.config.current_server is None:
@@ -162,11 +163,11 @@ class LibremsonicApp(Gtk.Application):
 
     def on_server_list_changed(self, action, servers):
         self.state.config.servers = servers
-        self.state.save_config()
+        self.state.save()
 
     def on_connected_server_changed(self, action, current_server):
         self.state.config.current_server = current_server
-        self.state.save_config()
+        self.state.save()
 
         # Reset the CacheManager.
         CacheManager.reset(

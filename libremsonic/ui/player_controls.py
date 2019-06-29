@@ -40,7 +40,8 @@ class PlayerControls(Gtk.ActionBar):
         self.play_button.get_child().set_from_icon_name(
             f"media-playback-{icon}-symbolic", Gtk.IconSize.LARGE_TOOLBAR)
 
-        has_current_song = hasattr(state, 'current_song')
+        has_current_song = (hasattr(state, 'current_song')
+                            and state.current_song is not None)
         has_prev_song, has_next_song = False, False
         if has_current_song and state.current_song.id in state.play_queue:
             # TODO will need to change when repeat is implemented
@@ -72,7 +73,7 @@ class PlayerControls(Gtk.ActionBar):
         self.volume_slider.set_value(state.volume)
 
         if not has_current_song:
-            # TODO should probably clear out something?
+            # TODO should probably clear out the cover art display?
             return
 
         self.update_cover_art(state.current_song.coverArt, size='70')

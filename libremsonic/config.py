@@ -1,9 +1,6 @@
 import os
 
-from typing import Any, Dict, List
-import json
-
-from libremsonic.from_json import from_json
+from typing import List
 
 
 class ServerConfiguration:
@@ -16,16 +13,17 @@ class ServerConfiguration:
     browse_by_tags: bool
     sync_enabled: bool
 
-    def __init__(self,
-                 name='Default',
-                 server_address='http://yourhost',
-                 local_network_address='',
-                 local_network_ssid='',
-                 username='',
-                 password='',
-                 browse_by_tags=False,
-                 sync_enabled=True):
-
+    def __init__(
+            self,
+            name='Default',
+            server_address='http://yourhost',
+            local_network_address='',
+            local_network_ssid='',
+            username='',
+            password='',
+            browse_by_tags=False,
+            sync_enabled=True,
+    ):
         self.name = name
         self.server_address = server_address
         self.local_network_address = local_network_address
@@ -67,21 +65,3 @@ class AppConfiguration:
             default_cache_location = (os.environ.get('XDG_DATA_HOME')
                                       or os.path.expanduser('~/.local/share'))
             return os.path.join(default_cache_location, 'libremsonic')
-
-
-def get_config(filename: str) -> AppConfiguration:
-    if not os.path.exists(filename):
-        return AppConfiguration.get_default_configuration()
-
-    with open(filename, 'r') as f:
-        try:
-            return from_json(AppConfiguration, json.load(f))
-        except json.decoder.JSONDecodeError:
-            return AppConfiguration.get_default_configuration()
-
-
-def save_config(config: AppConfiguration, filename: str):
-    # Make the necessary directories before writing the config.
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
-    with open(filename, 'w+') as f:
-        f.write(json.dumps(config.to_json(), indent=2, sort_keys=True))
