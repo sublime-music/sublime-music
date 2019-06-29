@@ -337,6 +337,8 @@ class PlaylistsPanel(Gtk.Paned):
         self.playlist_stats.set_markup(self.format_stats(playlist))
 
         # Update the song list model
+        # TODO don't do this. it clears out the list an refreshes it which is
+        # not what we want in most cases. Need to do some diffing.
         self.playlist_song_model.clear()
         for song in (playlist.entry or []):
             cache_icon = {

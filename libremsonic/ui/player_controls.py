@@ -5,7 +5,7 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Pango, GObject, Gio
 
-from libremsonic.state_manager import ApplicationState
+from libremsonic.state_manager import ApplicationState, RepeatType
 from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
 
@@ -42,15 +42,37 @@ class PlayerControls(Gtk.ActionBar):
 
         has_current_song = (hasattr(state, 'current_song')
                             and state.current_song is not None)
-        has_prev_song, has_next_song = False, False
-        if has_current_song and state.current_song.id in state.play_queue:
-            # TODO will need to change when repeat is implemented
+        has_next_song = False
+        if state.repeat_type in (RepeatType.REPEAT_QUEUE,
+                                 RepeatType.REPEAT_SONG):
+            has_next_song = True
+        elif has_current_song and state.current_song.id in state.play_queue:
             current = state.play_queue.index(state.current_song.id)
-            has_prev_song = current > 0
             has_next_song = current < len(state.play_queue) - 1
 
+        # Repeat button state
+        # TODO: it's not correct to use symboloc vs. not symbolic icons for
+        # lighter/darker versions of the icon. Fix this by using FG color I
+        # think? But then we have to deal with styling, which sucks.
+        icon = Gio.ThemedIcon(name=state.repeat_type.icon)
+        image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
+        self.repeat_button.remove(self.repeat_button.get_child())
+        self.repeat_button.add(image)
+        self.repeat_button.show_all()
+
+        # Shuffle button state
+        # TODO: it's not correct to use symboloc vs. not symbolic icons for
+        # lighter/darker versions of the icon. Fix this by using FG color I
+        # think? But then we have to deal with styling, which sucks.
+        icon = Gio.ThemedIcon(name='media-playlist-shuffle' +
+                              ('-symbolic' if state.shuffle_on else ''))
+        image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
+        self.shuffle_button.remove(self.shuffle_button.get_child())
+        self.shuffle_button.add(image)
+        self.shuffle_button.show_all()
+
         self.song_scrubber.set_sensitive(has_current_song)
-        self.prev_button.set_sensitive(has_current_song and has_prev_song)
+        self.prev_button.set_sensitive(has_current_song)
         self.play_button.set_sensitive(has_current_song)
         self.next_button.set_sensitive(has_current_song and has_next_song)
 
@@ -81,9 +103,9 @@ class PlayerControls(Gtk.ActionBar):
         def esc(string):
             return string.replace('&', '&amp;')
 
-        self.song_title.set_markup(f'<b>{esc(state.current_song.title)}</b>')
-        self.album_name.set_markup(f'<i>{esc(state.current_song.album)}</i>')
-        self.artist_name.set_markup(f'{esc(state.current_song.artist)}')
+        self.song_title.set_text(esc(state.current_song.title))
+        self.album_name.set_text(esc(state.current_song.album))
+        self.artist_name.set_text(esc(state.current_song.artist))
 
     @util.async_callback(
         lambda *k, **v: CacheManager.get_cover_art_filename(*k, **v),
@@ -166,8 +188,7 @@ class PlayerControls(Gtk.ActionBar):
         buttons.pack_start(Gtk.Box(), True, True, 0)
 
         # Repeat button
-        self.repeat_button = util.button_with_icon(
-            'media-playlist-repeat-symbolic')
+        self.repeat_button = util.button_with_icon('media-playlist-repeat')
         self.repeat_button.set_action_name('app.repeat-press')
         buttons.pack_start(self.repeat_button, False, False, 5)
 
@@ -195,8 +216,7 @@ class PlayerControls(Gtk.ActionBar):
         buttons.pack_start(self.next_button, False, False, 5)
 
         # Shuffle button
-        self.shuffle_button = util.button_with_icon(
-            'media-playlist-shuffle-symbolic')
+        self.shuffle_button = util.button_with_icon('media-playlist-shuffle')
         self.shuffle_button.set_action_name('app.shuffle-press')
         buttons.pack_start(self.shuffle_button, False, False, 5)
 

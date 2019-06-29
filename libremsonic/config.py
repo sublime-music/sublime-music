@@ -36,15 +36,15 @@ class ServerConfiguration:
 
 class AppConfiguration:
     servers: List[ServerConfiguration]
-    current_server: int
-    _cache_location: str
-    max_cache_size_mb: int  # -1 means unlimited
+    current_server: int = -1
+    _cache_location: str = ''
+    max_cache_size_mb: int # -1 means unlimited
 
     def to_json(self):
         return {
             'servers': [s.__dict__ for s in self.servers],
             'current_server': self.current_server,
-            '_cache_location': self._cache_location,
+            '_cache_location': getattr(self, '_cache_location', None),
             'max_cache_size_mb': self.max_cache_size_mb,
         }
 

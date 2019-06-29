@@ -84,6 +84,7 @@
 
 #player-controls-bar #song-title {
   margin-bottom: 3px;
+  font-weight: bold;
 }
 
 #player-controls-bar #album-name {

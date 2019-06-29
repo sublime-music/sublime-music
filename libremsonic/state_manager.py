@@ -1,11 +1,26 @@
 import os
-from pathlib import Path
+from enum import Enum
 import json
 from typing import List
 
 from libremsonic.from_json import from_json
 from .config import AppConfiguration
 from .server.api_objects import Child
+
+
+class RepeatType(Enum):
+    NO_REPEAT = 0
+    REPEAT_QUEUE = 1
+    REPEAT_SONG = 2
+
+    @property
+    def icon(self):
+        icon_name = [
+            'repeat',
+            'repeat-symbolic',
+            'repeat-song-symbolic',
+        ][self.value]
+        return 'media-playlist-' + icon_name
 
 
 class ApplicationState:
@@ -29,25 +44,37 @@ class ApplicationState:
     play_queue: List[str]
     volume: int = 100
     old_volume: int = 100
+    repeat_type: RepeatType = RepeatType.NO_REPEAT
+    shuffle_on: bool = False
 
     def to_json(self):
         return {
-            'current_song': getattr(self, 'current_song', None),
+            # 'current_song': getattr(self, 'current_song', None),
             'play_queue': getattr(self, 'play_queue', None),
             'volume': getattr(self, 'volume', None),
+            'repeat_type': getattr(self, 'repeat_type',
+                                   RepeatType.NO_REPEAT).value,
+            'shuffle_on': getattr(self, 'shuffle_on', None),
         }
 
     def load_from_json(self, json_object):
-        self.current_song = json_object.get('current_song') or None
+        # self.current_song = json_object.get('current_song') or None
         self.play_queue = json_object.get('play_queue') or []
         self.volume = json_object.get('volume') or 100
+        self.repeat_type = (RepeatType(json_object.get('repeat_type'))
+                            or RepeatType.NO_REPEAT)
+        self.shuffle_on = json_object.get('shuffle_on', False)
 
     def load(self):
         self.config = self.get_config(self.config_file)
 
         if os.path.exists(self.state_filename):
             with open(self.state_filename, 'r') as f:
-                self.load_from_json(json.load(f))
+                try:
+                    self.load_from_json(json.load(f))
+                except json.decoder.JSONDecodeError:
+                    # Who cares, it's just state.
+                    pass
 
     def save(self):
         # Make the necessary directories before writing the config and state.

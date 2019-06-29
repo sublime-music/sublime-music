@@ -10,7 +10,7 @@ from .ui.main import MainWindow
 from .ui.configure_servers import ConfigureServersDialog
 from .ui import util
 
-from .state_manager import ApplicationState
+from .state_manager import ApplicationState, RepeatType
 from .cache_manager import CacheManager
 from .server.api_objects import Child
 
@@ -122,7 +122,8 @@ class LibremsonicApp(Gtk.Application):
         self.state.load()
 
         # If there is no current server, show the dialog to select a server.
-        if self.state.config.current_server is None:
+        if (self.state.config.current_server is None
+                or self.state.config.current_server < 0):
             self.show_configure_servers_dialog()
         else:
             self.on_connected_server_changed(
@@ -142,24 +143,42 @@ class LibremsonicApp(Gtk.Application):
 
     def on_next_track(self, action, params):
         current_idx = self.state.play_queue.index(self.state.current_song.id)
+
+        # Handle song repeating
+        if self.state.repeat_type == RepeatType.REPEAT_SONG:
+            current_idx = current_idx - 1
+        # Wrap around the play queue if at the end.
+        elif current_idx == len(self.state.play_queue) - 1:
+            current_idx = -1
+
         self.play_song(self.state.play_queue[current_idx + 1])
 
     def on_prev_track(self, action, params):
         current_idx = self.state.play_queue.index(self.state.current_song.id)
         # Go back to the beginning of the song if we are past 5 seconds.
         # Otherwise, go to the previous song.
-        if self.player.time_pos < 5:
-            song_to_play = current_idx - 1
+        if self.state.repeat_type == RepeatType.REPEAT_SONG:
+            song_to_play = current_idx
+        elif self.player.time_pos < 5:
+            if (current_idx == 0
+                    and self.state.repeat_type == RepeatType.NO_REPEAT):
+                song_to_play = 0
+            else:
+                song_to_play = current_idx - 1
         else:
             song_to_play = current_idx
 
         self.play_song(self.state.play_queue[song_to_play])
 
     def on_repeat_press(self, action, params):
-        print('repeat press')
+        # Cycle through the repeat types.
+        new_repeat_type = RepeatType((self.state.repeat_type.value + 1) % 3)
+        self.state.repeat_type = new_repeat_type
+        self.update_window()
 
     def on_shuffle_press(self, action, params):
-        print('shuffle press')
+        self.state.shuffle_on = not self.state.shuffle_on
+        self.update_window()
 
     def on_server_list_changed(self, action, servers):
         self.state.config.servers = servers
