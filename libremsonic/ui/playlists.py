@@ -12,10 +12,23 @@ from libremsonic.ui import util
 
 
 class EditPlaylistDialog(util.EditFormDialog):
+    __gsignals__ = {
+        'delete-playlist': (GObject.SIGNAL_RUN_FIRST, GObject.TYPE_NONE, ()),
+    }
+
     entity_name: str = 'Playlist'
     initial_size = (350, 120)
     text_fields = [('Name', 'name', False), ('Comment', 'comment', False)]
     boolean_fields = [('Public', 'public')]
+
+    def __init__(self, *args, **kwargs):
+        delete_playlist = Gtk.Button('Delete Playlist')
+        delete_playlist.connect('clicked', self.on_delete_playlist_click)
+        self.extra_buttons = [delete_playlist]
+        super().__init__(*args, **kwargs)
+
+    def on_delete_playlist_click(self, event):
+        self.emit('delete-playlist')
 
 
 class PlaylistsPanel(Gtk.Paned):
@@ -257,6 +270,14 @@ class PlaylistsPanel(Gtk.Paned):
             self.get_toplevel(),
             CacheManager.get_playlist(playlist_id,
                                       before_download=lambda: None).result())
+
+        def on_delete_playlist(e):
+            CacheManager.delete_playlist(playlist_id)
+            dialog.destroy()
+            self.update_playlist_list(force=True)
+
+        dialog.connect('delete-playlist', on_delete_playlist)
+
         result = dialog.run()
         if result == Gtk.ResponseType.OK:
             CacheManager.update_playlist(
