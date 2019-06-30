@@ -287,13 +287,20 @@ class PlayerControls(Gtk.ActionBar):
         self.up_next_popover = Gtk.PopoverMenu(name='up-next-popover')
 
         popover_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        popover_box_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+
         self.popover_label = Gtk.Label(
             '<b>Up Next</b>',
-            name='label',
             use_markup=True,
             halign=Gtk.Align.START,
         )
-        popover_box.add(self.popover_label)
+        popover_box_header.add(self.popover_label)
+
+        load_up_next = Gtk.Button('Load Queue from Server', margin=5)
+        load_up_next.set_action_name('app.update-play-queue-from-server')
+        popover_box_header.pack_end(load_up_next, False, False, 0)
+
+        popover_box.add(popover_box_header)
 
         popover_scroll_box = Gtk.ScrolledWindow(
             min_content_height=600,

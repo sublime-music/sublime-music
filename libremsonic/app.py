@@ -104,6 +104,10 @@ class LibremsonicApp(Gtk.Application):
         add_action('shuffle-press', self.on_shuffle_press)
 
         add_action('mute-toggle', self.on_mute_toggle)
+        add_action(
+            'update-play-queue-from-server',
+            lambda a, p: self.update_play_state_from_server(),
+        )
 
     def do_activate(self):
         # We only allow a single window and raise any existing ones
@@ -291,6 +295,18 @@ class LibremsonicApp(Gtk.Application):
 
     def update_window(self):
         GLib.idle_add(self.window.update, self.state)
+
+    def update_play_state_from_server(self):
+        # TODO make this non-blocking eventually (need to make everything in
+        # loading state)
+        play_queue = CacheManager.get_play_queue()
+        self.state.play_queue = [s.id for s in play_queue.entry]
+        self.state.song_progress = play_queue.position / 1000
+
+        current_song_idx = self.state.play_queue.index(str(play_queue.current))
+        self.state.current_song = play_queue.entry[current_song_idx]
+
+        self.update_window()
 
     def play_song(self, song: Child, reset=False, play_queue=None):
         # Do this the old fashioned way so that we can have access to ``reset``
