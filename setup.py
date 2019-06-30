@@ -45,6 +45,7 @@ setup(
     install_requires=[
         'python-dateutil',
         'python-mpv',
+        'deepdiff',
         'requests',
         'pyyaml',
         'gobject',

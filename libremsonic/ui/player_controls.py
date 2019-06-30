@@ -37,7 +37,7 @@ class PlayerControls(Gtk.ActionBar):
         self.pack_end(up_next_volume)
 
     def update(self, state: ApplicationState):
-        if state.current_song is not None:
+        if hasattr(state, 'current_song') and state.current_song is not None:
             self.update_scrubber(state.song_progress,
                                  state.current_song.duration)
 
@@ -153,6 +153,8 @@ class PlayerControls(Gtk.ActionBar):
 
     @util.async_callback(
         lambda *k, **v: CacheManager.get_cover_art_filename(*k, **v),
+        before_download=lambda self: print('set loading here'),
+        on_failure=lambda self, e: print('stop loading here'),
     )
     def update_cover_art(self, cover_art_filename):
         self.album_art.set_from_file(cover_art_filename)

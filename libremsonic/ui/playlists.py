@@ -1,6 +1,9 @@
 import gi
+import re
 from pathlib import Path
 from typing import List, OrderedDict
+
+from deepdiff import DeepDiff
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, Pango, GObject, GLib
@@ -165,6 +168,11 @@ class PlaylistsPanel(Gtk.Paned):
                                      self.on_playlist_edit_button_click)
         action_button_box.pack_end(playlist_edit_button, False, False, 5)
 
+        download_all_button = util.button_with_icon('folder-download-symbolic')
+        download_all_button.connect(
+            'clicked', self.on_playlist_list_download_all_button_click)
+        action_button_box.pack_end(download_all_button, False, False, 5)
+
         playlist_details_box.pack_start(action_button_box, False, False, 5)
 
         playlist_details_box.pack_start(Gtk.Box(), True, False, 0)
@@ -269,8 +277,7 @@ class PlaylistsPanel(Gtk.Paned):
         playlist_id = self.playlist_map[selected.get_index()].id
         dialog = EditPlaylistDialog(
             self.get_toplevel(),
-            CacheManager.get_playlist(playlist_id,
-                                      before_download=lambda: None).result())
+            CacheManager.get_playlist(playlist_id).result())
 
         def on_delete_playlist(e):
             CacheManager.delete_playlist(playlist_id)
@@ -289,6 +296,28 @@ class PlaylistsPanel(Gtk.Paned):
             )
             self.update_playlist_view(playlist_id, force=True)
         dialog.destroy()
+
+    def on_playlist_list_download_all_button_click(self, button):
+        # TODO make this rate-limited so that it doesn't overwhelm the thread
+        # pool.
+        playlist = self.playlist_map[
+            self.playlist_list.get_selected_row().get_index()]
+
+        def do_download_song(song: Child):
+            song_filename_future = CacheManager.get_song_filename(
+                song,
+                before_download=lambda: self.update_playlist_view(playlist.id),
+            )
+
+            def on_song_download_complete(f):
+                self.update_playlist_view(playlist)
+
+            song_filename_future.add_done_callback(on_song_download_complete)
+
+        for song in self.playlist_song_model:
+            song_details_future = CacheManager.get_song_details(song[-1])
+            song_details_future.add_done_callback(
+                lambda f: do_download_song(f.result()), )
 
     def on_view_refresh_click(self, button):
         playlist = self.playlist_map[
@@ -402,25 +431,47 @@ class PlaylistsPanel(Gtk.Paned):
             self.playlist_comment.hide()
         self.playlist_stats.set_markup(self.format_stats(playlist))
 
-        # Update the song list model
-        # TODO don't do this. it clears out the list an refreshes it which is
-        # not what we want in most cases. Need to do some diffing.
-        self.playlist_song_model.clear()
-        for song in (playlist.entry or []):
-            cache_icon = {
-                SongCacheStatus.NOT_CACHED: '',
-                SongCacheStatus.CACHED: 'folder-download-symbolic',
-                SongCacheStatus.PERMANENTLY_CACHED: 'view-pin-symbolic',
-                SongCacheStatus.DOWNLOADING: 'emblem-synchronizing-symbolic',
-            }
-            self.playlist_song_model.append([
-                cache_icon[CacheManager.get_cached_status(song)],
-                song.title,
-                song.album,
-                song.artist,
-                util.format_song_duration(song.duration),
-                song.id,
-            ])
+        # Update the song list model. This requires some fancy diffing to
+        # update the list.
+        old_model = [row[:] for row in self.playlist_song_model]
+
+        cache_icon = {
+            SongCacheStatus.NOT_CACHED: '',
+            SongCacheStatus.CACHED: 'folder-download-symbolic',
+            SongCacheStatus.PERMANENTLY_CACHED: 'view-pin-symbolic',
+            SongCacheStatus.DOWNLOADING: 'emblem-synchronizing-symbolic',
+        }
+        new_model = [[
+            cache_icon[CacheManager.get_cached_status(song)],
+            song.title,
+            song.album,
+            song.artist,
+            util.format_song_duration(song.duration),
+            song.id,
+        ] for song in (playlist.entry or [])]
+
+        # Diff the lists to determine what needs to be changed.
+        diff = DeepDiff(old_model, new_model)
+        changed = diff.get('values_changed', {})
+        added = diff.get('iterable_item_added', {})
+        removed = diff.get('iterable_item_removed', {})
+
+        def parse_location(location):
+            match = re.match(r'root\[(\d*)\](?:\[(\d*)\])?', location)
+            return tuple(map(int,
+                             (g for g in match.groups() if g is not None)))
+
+        for edit_location, diff in changed.items():
+            idx, field = parse_location(edit_location)
+            self.playlist_song_model[idx][field] = diff['new_value']
+
+        for add_location, value in added.items():
+            self.playlist_song_model.append(value)
+
+        for remove_location, value in reversed(list(removed.items())):
+            remove_at = parse_location(remove_location)[0]
+            del self.playlist_song_model[remove_at]
+
         self.set_playlist_view_loading(False)
 
     @util.async_callback(
@@ -442,7 +493,7 @@ class PlaylistsPanel(Gtk.Paned):
         lines = [
             '  •  '.join([
                 f'Created by {playlist.owner} on {created_date}',
-                f"{'Not v' if not playlist.public else 'V'}isible with others",
+                f"{'Not v' if not playlist.public else 'V'}isible to others",
             ]),
             '  •  '.join([
                 '{} {}'.format(playlist.songCount,

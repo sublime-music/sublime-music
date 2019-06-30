@@ -79,7 +79,7 @@ class Server:
 
     def _post(self, url, **params):
         params = {**self._get_params(), **params}
-        print(f'post: {url} params: {params}')
+        print(f'[START] post: {url}')
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():
@@ -91,6 +91,7 @@ class Server:
         if result.status_code != 200:
             raise Exception(f'Fail! {result.status_code}')
 
+        print(f'[FINISH] post: {url}')
         return result
 
     def _post_json(
@@ -146,6 +147,7 @@ class Server:
             return result.iter_content(chunk_size=1024)
 
     def _download(self, url, **params) -> bytes:
+        print('download', url)
         return self._post(url, **params).content
 
     def ping(self) -> Response:

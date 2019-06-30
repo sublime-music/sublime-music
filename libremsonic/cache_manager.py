@@ -1,4 +1,5 @@
 import os
+import threading
 import shutil
 import json
 
@@ -6,7 +7,6 @@ from concurrent.futures import ThreadPoolExecutor, Future
 from enum import EnumMeta, Enum
 from datetime import datetime
 from pathlib import Path
-from collections import defaultdict
 from typing import Dict, List, Optional, Union, Callable, Set
 
 from libremsonic.config import AppConfiguration, ServerConfiguration
@@ -38,7 +38,7 @@ class SongCacheStatus(Enum):
 
 
 class CacheManager(metaclass=Singleton):
-    executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=5)
+    executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=50)
 
     class CacheEncoder(json.JSONEncoder):
         def default(self, obj):
@@ -57,6 +57,13 @@ class CacheManager(metaclass=Singleton):
         playlist_details: Dict[int, PlaylistWithSongs] = {}
         permanently_cached_paths: Set[str] = set()
         song_details: Dict[int, Child] = {}
+
+        # Thread lock for preventing threads from overriding the state while
+        # it's being saved.
+        cache_lock = threading.Lock()
+
+        download_set_lock = threading.Lock()
+        current_downloads: Set[Path] = set()
 
         def __init__(
                 self,
@@ -104,7 +111,7 @@ class CacheManager(metaclass=Singleton):
             os.makedirs(self.app_config.cache_location, exist_ok=True)
 
             cache_meta_file = self.calculate_abs_path('.cache_meta')
-            with open(cache_meta_file, 'w+') as f:
+            with open(cache_meta_file, 'w+') as f, self.cache_lock:
                 cache_info = dict(
                     playlists=self.playlists,
                     playlist_details=self.playlist_details,
@@ -137,19 +144,28 @@ class CacheManager(metaclass=Singleton):
                 self,
                 relative_path: Union[Path, str],
                 download_fn: Callable[[], bytes],
-                before_download: Callable[[], None],
+                before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
         ):
             abs_path = self.calculate_abs_path(relative_path)
             download_path = self.calculate_download_path(relative_path)
             if not abs_path.exists() or force:
-                before_download()
                 print(abs_path, 'not found. Downloading...')
+
+                with self.download_set_lock:
+                    self.current_downloads.add(abs_path)
+
+                os.makedirs(download_path.parent, exist_ok=True)
+                download_path.touch()
+                before_download()
                 self.save_file(download_path, download_fn())
 
                 # Move the file to its cache download location.
                 os.makedirs(abs_path.parent, exist_ok=True)
                 shutil.move(download_path, abs_path)
+
+                with self.download_set_lock:
+                    self.current_downloads.remove(abs_path)
 
             return str(abs_path)
 
@@ -160,13 +176,14 @@ class CacheManager(metaclass=Singleton):
 
         def get_playlists(
                 self,
-                before_download: Callable[[], None],
+                before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
         ) -> Future:
             def do_get_playlists() -> List[Playlist]:
                 if not self.playlists or force:
                     before_download()
-                    self.playlists = self.server.get_playlists().playlist
+                    with self.cache_lock:
+                        self.playlists = self.server.get_playlists().playlist
                     self.save_cache_info()
                 return self.playlists
 
@@ -175,18 +192,20 @@ class CacheManager(metaclass=Singleton):
         def get_playlist(
                 self,
                 playlist_id: int,
-                before_download: Callable[[], None],
+                before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
         ) -> Future:
             def do_get_playlist() -> PlaylistWithSongs:
                 if not self.playlist_details.get(playlist_id) or force:
                     before_download()
                     playlist = self.server.get_playlist(playlist_id)
-                    self.playlist_details[playlist_id] = playlist
+                    with self.cache_lock:
+                        self.playlist_details[playlist_id] = playlist
 
-                    # Playlists also have song details, so save that as well.
-                    for song in (playlist.entry or []):
-                        self.song_details[song.id] = song
+                        # Playlists also have song details, so save that as
+                        # well.
+                        for song in (playlist.entry or []):
+                            self.song_details[song.id] = song
 
                     self.save_cache_info()
 
@@ -204,7 +223,7 @@ class CacheManager(metaclass=Singleton):
         def get_cover_art_filename(
                 self,
                 id: str,
-                before_download: Callable[[], None],
+                before_download: Callable[[], None] = lambda: None,
                 size: Union[str, int] = 200,
                 force: bool = False,
         ) -> Future:
@@ -221,13 +240,15 @@ class CacheManager(metaclass=Singleton):
         def get_song_details(
                 self,
                 song_id: int,
-                before_download: Callable[[], None],
+                before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
         ) -> Future:
             def do_get_song_details() -> Child:
                 if not self.song_details.get(song_id) or force:
                     before_download()
-                    self.song_details[song_id] = self.server.get_song(song_id)
+                    with self.cache_lock:
+                        self.song_details[song_id] = self.server.get_song(
+                            song_id)
                     self.save_cache_info()
 
                 return self.song_details[song_id]
@@ -237,28 +258,28 @@ class CacheManager(metaclass=Singleton):
         def get_song_filename(
                 self,
                 song: Child,
-                before_download: Callable[[], None],
+                before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
         ) -> Future:
             def do_get_song_filename() -> str:
-                return self.return_cache_or_download(
+                song_filename = self.return_cache_or_download(
                     song.path,
                     lambda: self.server.download(song.id),
                     before_download=before_download,
                     force=force,
                 )
+                return song_filename
 
             return CacheManager.executor.submit(do_get_song_filename)
 
         def get_cached_status(self, song: Child) -> SongCacheStatus:
             cache_path = self.calculate_abs_path(song.path)
-            download_path = self.calculate_download_path(song.path)
             if cache_path.exists():
                 if cache_path in self.permanently_cached_paths:
                     return SongCacheStatus.PERMANENTLY_CACHED
                 else:
                     return SongCacheStatus.CACHED
-            elif download_path.exists():
+            elif cache_path in self.current_downloads:
                 return SongCacheStatus.DOWNLOADING
             else:
                 return SongCacheStatus.NOT_CACHED

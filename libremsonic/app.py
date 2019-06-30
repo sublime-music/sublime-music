@@ -40,6 +40,10 @@ class LibremsonicApp(Gtk.Application):
 
         self.last_play_queue_update = 0
 
+        # Need to do this for determining if we are at the end of the song.
+        # It's dumb, but whatever.
+        self.had_progress_value = False
+
         @self.player.property_observer('time-pos')
         def time_observer(_name, value):
             self.state.song_progress = value
@@ -48,13 +52,15 @@ class LibremsonicApp(Gtk.Application):
                 self.state.song_progress,
                 self.state.current_song.duration,
             )
-            if abs((value or 0) - self.state.current_song.duration) < 0.1:
+            if value is None and self.had_progress_value:
                 GLib.idle_add(self.on_next_track, None, None)
+                self.had_progress_value = False
 
             if not value:
                 self.last_play_queue_update = 0
             elif self.last_play_queue_update + 15 <= value:
                 self.save_play_queue()
+                self.had_progress_value = True
 
     # Handle command line option parsing.
     def do_command_line(self, command_line):
@@ -147,6 +153,7 @@ class LibremsonicApp(Gtk.Application):
             self.play_song(self.state.current_song.id)
         else:
             self.player.cycle('pause')
+            self.save_play_queue()
 
         self.state.playing = not self.state.playing
         self.update_window()
@@ -161,9 +168,7 @@ class LibremsonicApp(Gtk.Application):
         elif current_idx == len(self.state.play_queue) - 1:
             current_idx = -1
 
-        self.state.song_progress = 0
-        self.play_song(self.state.play_queue[current_idx + 1])
-        self.save_play_queue(position=0)
+        self.play_song(self.state.play_queue[current_idx + 1], reset=True)
 
     def on_prev_track(self, action, params):
         current_idx = self.state.play_queue.index(self.state.current_song.id)
@@ -180,9 +185,7 @@ class LibremsonicApp(Gtk.Application):
         else:
             song_to_play = current_idx
 
-        self.state.song_progress = 0
-        self.play_song(self.state.play_queue[song_to_play])
-        self.save_play_queue(position=0)
+        self.play_song(self.state.play_queue[song_to_play], reset=True)
 
     def on_repeat_press(self, action, params):
         # Cycle through the repeat types.
@@ -203,7 +206,6 @@ class LibremsonicApp(Gtk.Application):
             random.shuffle(self.state.play_queue)
             self.state.play_queue = [song_id] + self.state.play_queue
 
-        self.save_play_queue()
         self.state.shuffle_on = not self.state.shuffle_on
         self.update_window()
 
@@ -229,10 +231,9 @@ class LibremsonicApp(Gtk.Application):
         self.update_window()
 
     def on_song_clicked(self, win, song_id, song_queue):
-        self.state.play_queue = song_queue
-        self.state.song_progress = 0
-        self.play_song(song_id)
-        self.save_play_queue(position=0)
+        # Need to reset this here to prevent it from going to the next song.
+        self.had_progress_value = False
+        self.play_song(song_id, reset=True, play_queue=song_queue)
 
     def on_song_scrub(self, _, scrub_value):
         if not hasattr(self.state, 'current_song'):
@@ -274,6 +275,7 @@ class LibremsonicApp(Gtk.Application):
             return True
 
     def on_app_shutdown(self, app):
+        self.player.pause = True
         self.state.save()
         self.save_play_queue()
 
@@ -290,33 +292,44 @@ class LibremsonicApp(Gtk.Application):
     def update_window(self):
         GLib.idle_add(self.window.update, self.state)
 
-    @util.async_callback(
-        lambda *a, **k: CacheManager.get_song_details(*a, **k),
-    )
-    def play_song(self, song: Child):
-        # Do this the old fashioned way so that we can have access to ``song``
+    def play_song(self, song: Child, reset=False, play_queue=None):
+        # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.
-        song_filename_future = CacheManager.get_song_filename(
-            song,
-            before_download=lambda: None,
-        )
+        def do_play_song(song: Child):
+            # Do this the old fashioned way so that we can have access to
+            # ``song`` in the callback.
+            def filename_future_done(song_file):
+                self.state.current_song = song
+                self.state.playing = True
+                self.update_window()
 
-        def filename_future_done(song_file):
-            self.state.current_song = song
-            self.state.playing = True
-            self.update_window()
+                # Prevent it from doing the thing where it continually loads
+                # songs when it has to download.
+                if reset:
+                    self.had_progress_value = False
+                    self.state.song_progress = 0
 
-            print(self.state.song_progress)
-            self.player.command('loadfile', song_file, 'replace',
-                                f'start={self.state.song_progress}')
-            self.player.pause = False
+                self.player.command('loadfile', song_file, 'replace',
+                                    f'start={self.state.song_progress}')
+                self.player.pause = False
 
-        song_filename_future.add_done_callback(
-            lambda f: GLib.idle_add(filename_future_done, f.result()), )
+                if play_queue:
+                    self.state.play_queue = play_queue
+                    self.save_play_queue()
 
-    def save_play_queue(self, position=None):
-        if position is None:
-            position = self.state.song_progress
+            song_filename_future = CacheManager.get_song_filename(
+                song,
+                before_download=lambda: self.update_window(),
+            )
+            song_filename_future.add_done_callback(
+                lambda f: GLib.idle_add(filename_future_done, f.result()), )
+
+        song_details_future = CacheManager.get_song_details(song)
+        song_details_future.add_done_callback(
+            lambda f: GLib.idle_add(do_play_song, f.result()), )
+
+    def save_play_queue(self):
+        position = self.state.song_progress
         self.last_play_queue_update = position
         CacheManager.executor.submit(lambda: CacheManager.save_play_queue(
             id=self.state.play_queue,
