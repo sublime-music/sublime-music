@@ -1,4 +1,5 @@
 import os
+import glob
 import threading
 import shutil
 import json
@@ -170,9 +171,13 @@ class CacheManager(metaclass=Singleton):
             return str(abs_path)
 
         def delete_cache(self, relative_path: Union[Path, str]):
+            """
+            :param relative_path: The path to the cached element to delete.
+                Note that this can be a globed path.
+            """
             abs_path = self.calculate_abs_path(relative_path)
-            if abs_path.exists():
-                abs_path.unlink()
+            for path in glob.glob(str(abs_path)):
+                Path(path).unlink()
 
         def get_playlists(
                 self,
@@ -214,7 +219,8 @@ class CacheManager(metaclass=Singleton):
                 # Invalidate the cached photo if we are forcing a retrieval
                 # from the server.
                 if force:
-                    self.delete_cache(playlist_details.coverArt)
+                    cover_art_filename = f'cover_art/{playlist_details.coverArt}_*'
+                    self.delete_cache(cover_art_filename)
 
                 return playlist_details
 

@@ -274,13 +274,13 @@ class PlaylistsPanel(Gtk.Paned):
 
     def on_playlist_edit_button_click(self, button):
         selected = self.playlist_list.get_selected_row()
-        playlist_id = self.playlist_map[selected.get_index()].id
+        playlist = self.playlist_map[selected.get_index()]
         dialog = EditPlaylistDialog(
             self.get_toplevel(),
-            CacheManager.get_playlist(playlist_id).result())
+            CacheManager.get_playlist(playlist.id).result())
 
         def on_delete_playlist(e):
-            CacheManager.delete_playlist(playlist_id)
+            CacheManager.delete_playlist(playlist.id)
             dialog.destroy()
             self.update_playlist_list(force=True)
 
@@ -289,12 +289,17 @@ class PlaylistsPanel(Gtk.Paned):
         result = dialog.run()
         if result == Gtk.ResponseType.OK:
             CacheManager.update_playlist(
-                playlist_id,
+                playlist.id,
                 name=dialog.data['Name'].get_text(),
                 comment=dialog.data['Comment'].get_text(),
                 public=dialog.data['Public'].get_active(),
             )
-            self.update_playlist_view(playlist_id, force=True)
+
+            cover_art_filename = f'cover_art/{playlist.coverArt}_*'
+            CacheManager.delete_cache(cover_art_filename)
+
+            self.update_playlist_list(force=True)
+            self.update_playlist_view(playlist.id, force=True)
         dialog.destroy()
 
     def on_playlist_list_download_all_button_click(self, button):
