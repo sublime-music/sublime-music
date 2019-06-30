@@ -6,7 +6,7 @@ from typing import List, OrderedDict
 from deepdiff import DeepDiff
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, Pango, GObject, GLib
+from gi.repository import Gio, Gtk, Pango, GObject, GLib, Gdk
 
 from libremsonic.server.api_objects import Child, PlaylistWithSongs
 from libremsonic.state_manager import ApplicationState
@@ -16,7 +16,8 @@ from libremsonic.ui import util
 
 class EditPlaylistDialog(util.EditFormDialog):
     __gsignals__ = {
-        'delete-playlist': (GObject.SIGNAL_RUN_FIRST, GObject.TYPE_NONE, ()),
+        'delete-playlist': (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE,
+                            ()),
     }
 
     entity_name: str = 'Playlist'
@@ -37,15 +38,15 @@ class EditPlaylistDialog(util.EditFormDialog):
 class PlaylistsPanel(Gtk.Paned):
     """Defines the playlists panel."""
     __gsignals__ = {
-        'song-clicked': (
-            GObject.SIGNAL_RUN_FIRST,
-            GObject.TYPE_NONE,
-            (str, object),
-        ),
+        'song-clicked': (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE,
+                         (str, object)),
     }
 
     playlist_map: OrderedDict[int, PlaylistWithSongs] = {}
     song_ids: List[int] = []
+
+    editing_playlist_song_list: bool = False
+    reordering_playlist_song_list: bool = False
 
     def __init__(self):
         Gtk.FlowBox.__init__(
@@ -219,7 +220,10 @@ class PlaylistsPanel(Gtk.Paned):
         )
 
         self.playlist_songs = Gtk.TreeView(model=self.playlist_song_model,
+                                           reorderable=True,
                                            margin_top=15)
+        self.playlist_songs.get_selection().set_mode(
+            Gtk.SelectionMode.MULTIPLE)
 
         # Song status column.
         renderer = Gtk.CellRendererPixbuf()
@@ -236,6 +240,14 @@ class PlaylistsPanel(Gtk.Paned):
             create_column('DURATION', 4, align=1, width=40))
 
         self.playlist_songs.connect('row-activated', self.on_song_double_click)
+
+        # Set up drag-and-drop on the song list for editing the order of the
+        # playlist.
+        self.playlist_song_model.connect('row-inserted',
+                                         self.playlist_model_row_move)
+        self.playlist_song_model.connect('row-deleted',
+                                         self.playlist_model_row_move)
+
         playlist_view_scroll_window.add(self.playlist_songs)
 
         playlist_box.pack_end(playlist_view_scroll_window, True, True, 0)
@@ -344,6 +356,18 @@ class PlaylistsPanel(Gtk.Paned):
     def on_playlist_list_new_confirm_button_clicked(self, button):
         self.create_playlist(self.playlist_list_new_entry.get_text())
 
+    def playlist_model_row_move(self, *args):
+        if self.editing_playlist_song_list:
+            return
+
+        if self.reordering_playlist_song_list:
+            selected = self.playlist_list.get_selected_row()
+            playlist = self.playlist_map[selected.get_index()]
+            self.update_playlist_order(playlist.id)
+            self.reordering_playlist_song_list = False
+        else:
+            self.reordering_playlist_song_list = True
+
     # Helper Methods
     # =========================================================================
     def make_label(self, text=None, name=None, **params):
@@ -436,8 +460,15 @@ class PlaylistsPanel(Gtk.Paned):
             self.playlist_comment.hide()
         self.playlist_stats.set_markup(self.format_stats(playlist))
 
+        self.update_playlist_song_list(playlist.id)
+
+    @util.async_callback(
+        lambda *a, **k: CacheManager.get_playlist(*a, **k),
+    )
+    def update_playlist_song_list(self, playlist):
         # Update the song list model. This requires some fancy diffing to
         # update the list.
+        self.editing_playlist_song_list = True
         old_model = [row[:] for row in self.playlist_song_model]
 
         cache_icon = {
@@ -477,6 +508,7 @@ class PlaylistsPanel(Gtk.Paned):
             remove_at = parse_location(remove_location)[0]
             del self.playlist_song_model[remove_at]
 
+        self.editing_playlist_song_list = False
         self.set_playlist_view_loading(False)
 
     @util.async_callback(
@@ -487,6 +519,17 @@ class PlaylistsPanel(Gtk.Paned):
     def update_playlist_artwork(self, cover_art_filename):
         self.playlist_artwork.set_from_file(cover_art_filename)
         self.set_playlist_art_loading(False)
+
+    @util.async_callback(
+        lambda *a, **k: CacheManager.get_playlist(*a, **k),
+    )
+    def update_playlist_order(self, playlist):
+        CacheManager.update_playlist(
+            playlist_id=playlist.id,
+            song_index_to_remove=list(range(playlist.songCount)),
+            song_id_to_add=[s[-1] for s in self.playlist_song_model],
+        )
+        self.update_playlist_song_list(playlist.id, force=True)
 
     def create_playlist_label(self, playlist: PlaylistWithSongs):
         return self.make_label(f'<b>{playlist.name}</b>',

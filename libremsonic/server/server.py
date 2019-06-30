@@ -756,7 +756,7 @@ class Server:
             comment=comment,
             public=public,
             songIdToAdd=song_id_to_add,
-            songIdToRemove=song_index_to_remove,
+            songIndexToRemove=song_index_to_remove,
         )
 
     def delete_playlist(self, id: int) -> Response:

@@ -16,11 +16,8 @@ class PlayerControls(Gtk.ActionBar):
     Defines the player controls panel that appears at the bottom of the window.
     """
     __gsignals__ = {
-        'song-scrub': (
-            GObject.SIGNAL_RUN_FIRST,
-            GObject.TYPE_NONE,
-            (float, ),
-        ),
+        'song-scrub': (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE,
+                       (float, )),
     }
     editing: bool = False
 

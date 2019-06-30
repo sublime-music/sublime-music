@@ -70,9 +70,9 @@ class EditServerDialog(util.EditFormDialog):
 
 class ConfigureServersDialog(Gtk.Dialog):
     __gsignals__ = {
-        'server-list-changed': (GObject.SIGNAL_RUN_FIRST, GObject.TYPE_NONE,
-                                (object, )),
-        'connected-server-changed': (GObject.SIGNAL_RUN_FIRST,
+        'server-list-changed': (GObject.SignalFlags.RUN_FIRST,
+                                GObject.TYPE_NONE, (object, )),
+        'connected-server-changed': (GObject.SignalFlags.RUN_FIRST,
                                      GObject.TYPE_NONE, (object, )),
     }
 

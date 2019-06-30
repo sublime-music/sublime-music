@@ -9,11 +9,8 @@ from libremsonic.state_manager import ApplicationState
 
 class MorePanel(Gtk.ScrolledWindow):
     __gsignals__ = {
-        'song-clicked': (
-            GObject.SIGNAL_RUN_FIRST,
-            GObject.TYPE_NONE,
-            (str, object),
-        ),
+        'song-clicked': (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE,
+                         (str, object)),
     }
 
     def __init__(self):

@@ -1,3 +1,8 @@
+/* ********** Main ********** */
+#connected-to-label {
+  margin: 0 10px;
+}
+
 /* ********** Playlist ********** */
 #playlist-list-listbox row {
   margin: 0;

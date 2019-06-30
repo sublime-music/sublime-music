@@ -12,11 +12,8 @@ from libremsonic.state_manager import ApplicationState
 class MainWindow(Gtk.ApplicationWindow):
     """Defines the main window for LibremSonic."""
     __gsignals__ = {
-        'song-clicked': (
-            GObject.SIGNAL_RUN_FIRST,
-            GObject.TYPE_NONE,
-            (str, object),
-        ),
+        'song-clicked': (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE,
+                         (str, object)),
     }
 
     def __init__(self, *args, **kwargs):
@@ -105,11 +102,9 @@ class MainWindow(Gtk.ApplicationWindow):
     def create_menu(self):
         self.menu = Gtk.PopoverMenu()
 
-        self.connected_to_label = Gtk.Label()
+        self.connected_to_label = Gtk.Label(name='connected-to-label')
         self.connected_to_label.set_markup(
             f'<span style="italic">Not Connected to a Server</span>')
-        self.connected_to_label.set_margin_left(10)
-        self.connected_to_label.set_margin_right(10)
 
         menu_items = [
             (None, self.connected_to_label),
