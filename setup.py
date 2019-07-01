@@ -9,7 +9,8 @@ with codecs.open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 # Find the version
-with codecs.open(os.path.join(here, 'libremsonic/__init__.py'), encoding='utf-8') as f:
+with codecs.open(os.path.join(here, 'libremsonic/__init__.py'),
+                 encoding='utf-8') as f:
     for line in f:
         if line.startswith('__version__'):
             version = eval(line.split()[-1])
@@ -42,6 +43,7 @@ setup(
     ],
     keywords='airsonic subsonic libresonic music',
     packages=find_packages(exclude=['tests']),
+    package_data={'libremsonic': ['ui/app_styles.css']},
     install_requires=[
         'python-dateutil',
         'python-mpv',
