@@ -1,10 +1,9 @@
-import gi
 import re
-from pathlib import Path
 from typing import List, OrderedDict
 
 from deepdiff import DeepDiff
 
+import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, Pango, GObject, GLib, Gdk
 
@@ -65,7 +64,7 @@ class PlaylistsPanel(Gtk.Paned):
         add_icon = Gio.ThemedIcon(name='list-add')
         image = Gtk.Image.new_from_gicon(add_icon, Gtk.IconSize.LARGE_TOOLBAR)
         box.add(image)
-        box.add(Gtk.Label('New Playlist', margin=5))
+        box.add(Gtk.Label(label='New Playlist', margin=5))
         self.new_playlist.add(box)
         self.new_playlist.connect('clicked', self.on_new_playlist_clicked)
         playlist_list_actions.pack_start(self.new_playlist)
@@ -239,7 +238,9 @@ class PlaylistsPanel(Gtk.Paned):
         self.playlist_songs.append_column(
             create_column('DURATION', 4, align=1, width=40))
 
-        self.playlist_songs.connect('row-activated', self.on_song_double_click)
+        self.playlist_songs.connect('row-activated', self.on_song_activated)
+        self.playlist_songs.connect('button-press-event',
+                                    self.on_song_button_press)
 
         # Set up drag-and-drop on the song list for editing the order of the
         # playlist.
@@ -341,11 +342,18 @@ class PlaylistsPanel(Gtk.Paned):
             self.playlist_list.get_selected_row().get_index()]
         self.update_playlist_view(playlist.id, force=True)
 
-    def on_song_double_click(self, treeview, idx, column):
+    def on_song_activated(self, treeview, idx, column):
         # The song ID is in the last column of the model.
         song_id = self.playlist_song_model[idx][-1]
         self.emit('song-clicked', song_id,
                   [m[-1] for m in self.playlist_song_model])
+
+    def on_song_button_press(self, tree, button):
+        if button.button == 3:  # Right click
+            print('right click')
+            # TODO show the popup
+            # TODO should probably have a menu button on each of the songs in
+            # the list.
 
     def on_playlist_list_new_entry_activate(self, entry):
         self.create_playlist(entry.get_text())
@@ -357,9 +365,13 @@ class PlaylistsPanel(Gtk.Paned):
         self.create_playlist(self.playlist_list_new_entry.get_text())
 
     def playlist_model_row_move(self, *args):
+        # If we are programatically editing the song list, don't do anything.
         if self.editing_playlist_song_list:
             return
 
+        # We get both a delete and insert event, I think it's deterministic
+        # which one comes first, but just in case, we have this
+        # reordering_playlist_song_list flag..
         if self.reordering_playlist_song_list:
             selected = self.playlist_list.get_selected_row()
             playlist = self.playlist_map[selected.get_index()]
@@ -371,7 +383,12 @@ class PlaylistsPanel(Gtk.Paned):
     # Helper Methods
     # =========================================================================
     def make_label(self, text=None, name=None, **params):
-        return Gtk.Label(text, name=name, halign=Gtk.Align.START, **params)
+        return Gtk.Label(
+            label=text,
+            name=name,
+            halign=Gtk.Align.START,
+            **params,
+        )
 
     def update(self, state: ApplicationState):
         self.set_playlist_view_loading(False)

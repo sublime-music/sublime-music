@@ -214,7 +214,7 @@ class PlayerControls(Gtk.ActionBar):
         # Scrubber and song progress/length labels
         scrubber_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
-        self.song_progress_label = Gtk.Label('-:--')
+        self.song_progress_label = Gtk.Label(label='-:--')
         scrubber_box.pack_start(self.song_progress_label, False, False, 5)
 
         self.song_scrubber = Gtk.Scale.new_with_range(
@@ -227,7 +227,7 @@ class PlayerControls(Gtk.ActionBar):
                                    self.on_scrub_state_change)
         scrubber_box.pack_start(self.song_scrubber, True, True, 0)
 
-        self.song_duration_label = Gtk.Label('-:--')
+        self.song_duration_label = Gtk.Label(label='-:--')
         scrubber_box.pack_start(self.song_duration_label, False, False, 5)
 
         box.add(scrubber_box)
@@ -290,13 +290,13 @@ class PlayerControls(Gtk.ActionBar):
         popover_box_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         self.popover_label = Gtk.Label(
-            '<b>Up Next</b>',
+            label='<b>Up Next</b>',
             use_markup=True,
             halign=Gtk.Align.START,
         )
         popover_box_header.add(self.popover_label)
 
-        load_up_next = Gtk.Button('Load Queue from Server', margin=5)
+        load_up_next = Gtk.Button(label='Load Queue from Server', margin=5)
         load_up_next.set_action_name('app.update-play-queue-from-server')
         popover_box_header.pack_end(load_up_next, False, False, 0)
 

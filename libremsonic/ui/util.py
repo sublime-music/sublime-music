@@ -87,7 +87,7 @@ class EditFormDialog(Gtk.Dialog):
             # Create all of the text entry fields.
             for label, value_field_name, is_password in self.text_fields:
                 # Put the label in the left box.
-                entry_label = Gtk.Label(label + ':')
+                entry_label = Gtk.Label(label=label + ':')
                 entry_label.set_halign(Gtk.Align.START)
                 label_box.pack_start(entry_label, True, True, 0)
 
@@ -102,7 +102,7 @@ class EditFormDialog(Gtk.Dialog):
             # Create all of the check box fields.
             for label, value_field_name in self.boolean_fields:
                 # Put the label in the left box.
-                entry_label = Gtk.Label(label + ':')
+                entry_label = Gtk.Label(label=label + ':')
                 entry_label.set_halign(Gtk.Align.START)
                 label_box.pack_start(entry_label, True, True, 0)
 

@@ -108,7 +108,8 @@ class MainWindow(Gtk.ApplicationWindow):
 
         menu_items = [
             (None, self.connected_to_label),
-            ('app.configure-servers', Gtk.ModelButton('Connect to Server')),
+            ('app.configure-servers',
+             Gtk.ModelButton(label='Connect to Server')),
         ]
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
