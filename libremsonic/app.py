@@ -10,7 +10,6 @@ from gi.repository import Gdk, Gio, GLib, Gtk
 
 from .ui.main import MainWindow
 from .ui.configure_servers import ConfigureServersDialog
-from .ui import util
 
 from .state_manager import ApplicationState, RepeatType
 from .cache_manager import CacheManager
