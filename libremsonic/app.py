@@ -346,8 +346,14 @@ class LibremsonicApp(Gtk.Application):
     def save_play_queue(self):
         position = self.state.song_progress
         self.last_play_queue_update = position
-        CacheManager.executor.submit(lambda: CacheManager.save_play_queue(
-            id=self.state.play_queue,
-            current=self.state.current_song.id,
-            position=math.floor(position * 1000),
-        ))
+
+        current_server = self.state.config.current_server
+        current_server = self.state.config.servers[current_server]
+
+        if current_server.sync_enabled:
+            CacheManager.executor.submit(
+                CacheManager.save_play_queue,
+                id=self.state.play_queue,
+                current=self.state.current_song.id,
+                position=math.floor(position * 1000),
+            )

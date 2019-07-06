@@ -321,21 +321,15 @@ class PlaylistsPanel(Gtk.Paned):
         playlist = self.playlist_map[
             self.playlist_list.get_selected_row().get_index()]
 
-        def do_download_song(song: Child):
-            song_filename_future = CacheManager.get_song_filename(
-                song,
-                before_download=lambda: self.update_playlist_view(playlist.id),
-            )
+        def download_state_change(*args):
+            GLib.idle_add(self.update_playlist_view, playlist.id)
 
-            def on_song_download_complete(f):
-                self.update_playlist_view(playlist)
-
-            song_filename_future.add_done_callback(on_song_download_complete)
-
-        for song in self.playlist_song_model:
-            song_details_future = CacheManager.get_song_details(song[-1])
-            song_details_future.add_done_callback(
-                lambda f: do_download_song(f.result()), )
+        song_ids = [s[-1] for s in self.playlist_song_model]
+        CacheManager.batch_download_songs(
+            song_ids,
+            before_download=download_state_change,
+            on_song_download_complete=download_state_change,
+        )
 
     def on_view_refresh_click(self, button):
         playlist = self.playlist_map[

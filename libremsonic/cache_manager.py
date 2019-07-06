@@ -66,6 +66,9 @@ class CacheManager(metaclass=Singleton):
         download_set_lock = threading.Lock()
         current_downloads: Set[Path] = set()
 
+        # TODO make this configurable.
+        download_limiter_semaphore = threading.Semaphore(5)
+
         def __init__(
                 self,
                 app_config: AppConfiguration,
@@ -225,6 +228,33 @@ class CacheManager(metaclass=Singleton):
                 return playlist_details
 
             return CacheManager.executor.submit(do_get_playlist)
+
+        def batch_download_songs(
+                self,
+                song_ids: List[int],
+                before_download: Callable[[], None],
+                on_song_download_complete: Callable[[int], None],
+        ) -> Future:
+            def do_download_song(song_id):
+                # Do the actual download.
+                song_details_future = CacheManager.get_song_details(song_id)
+                song_filename_future = CacheManager.get_song_filename(
+                    song_details_future.result(),
+                    before_download=before_download,
+                )
+
+                def filename_future_done(f):
+                    on_song_download_complete(song_id)
+                    self.download_limiter_semaphore.release()
+
+                song_filename_future.add_done_callback(filename_future_done)
+
+            def do_batch_download_songs():
+                for song_id in song_ids:
+                    self.download_limiter_semaphore.acquire()
+                    CacheManager.executor.submit(do_download_song, song_id)
+
+            return CacheManager.executor.submit(do_batch_download_songs)
 
         def get_cover_art_filename(
                 self,
