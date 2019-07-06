@@ -109,14 +109,15 @@ class MainWindow(Gtk.ApplicationWindow):
         menu_items = [
             (None, self.connected_to_label),
             ('app.configure-servers',
-             Gtk.ModelButton(label='Connect to Server')),
+             Gtk.ModelButton(text='Connect to Server')),
         ]
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         for name, item in menu_items:
             if name:
                 item.set_action_name(name)
-            vbox.pack_start(item, False, True, 10)
+            item.get_style_context().add_class('menu-button')
+            vbox.pack_start(item, False, True, 0)
         self.menu.add(vbox)
 
         return self.menu

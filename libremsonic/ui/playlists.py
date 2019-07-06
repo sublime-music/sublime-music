@@ -25,7 +25,7 @@ class EditPlaylistDialog(util.EditFormDialog):
     boolean_fields = [('Public', 'public')]
 
     def __init__(self, *args, **kwargs):
-        delete_playlist = Gtk.Button('Delete Playlist')
+        delete_playlist = Gtk.Button(label='Delete Playlist')
         delete_playlist.connect('clicked', self.on_delete_playlist_click)
         self.extra_buttons = [delete_playlist]
         super().__init__(*args, **kwargs)
@@ -156,24 +156,28 @@ class PlaylistsPanel(Gtk.Paned):
 
         # Action buttons (note we are packing end here, so we have to put them
         # in right-to-left).
-        # TODO hide this if there is no selected playlist
-        action_button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.playlist_action_buttons = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL)
 
         view_refresh_button = util.button_with_icon('view-refresh-symbolic')
         view_refresh_button.connect('clicked', self.on_view_refresh_click)
-        action_button_box.pack_end(view_refresh_button, False, False, 5)
+        self.playlist_action_buttons.pack_end(view_refresh_button, False,
+                                              False, 5)
 
         playlist_edit_button = util.button_with_icon('document-edit-symbolic')
         playlist_edit_button.connect('clicked',
                                      self.on_playlist_edit_button_click)
-        action_button_box.pack_end(playlist_edit_button, False, False, 5)
+        self.playlist_action_buttons.pack_end(playlist_edit_button, False,
+                                              False, 5)
 
         download_all_button = util.button_with_icon('folder-download-symbolic')
         download_all_button.connect(
             'clicked', self.on_playlist_list_download_all_button_click)
-        action_button_box.pack_end(download_all_button, False, False, 5)
+        self.playlist_action_buttons.pack_end(download_all_button, False,
+                                              False, 5)
 
-        playlist_details_box.pack_start(action_button_box, False, False, 5)
+        playlist_details_box.pack_start(self.playlist_action_buttons, False,
+                                        False, 5)
 
         playlist_details_box.pack_start(Gtk.Box(), True, False, 0)
 
@@ -224,10 +228,12 @@ class PlaylistsPanel(Gtk.Paned):
         self.playlist_songs.get_selection().set_mode(
             Gtk.SelectionMode.MULTIPLE)
 
+        # TODO: add playing/menu column which shows whether a song is playing,
+        # and when hovered shows a 3-dot menu (the same as right click menu).
+
         # Song status column.
         renderer = Gtk.CellRendererPixbuf()
         renderer.set_fixed_size(30, 35)
-
         column = Gtk.TreeViewColumn('', renderer, icon_name=0)
         column.set_resizable(True)
         self.playlist_songs.append_column(column)
@@ -276,11 +282,7 @@ class PlaylistsPanel(Gtk.Paned):
         self.new_playlist_row.show()
 
     def on_playlist_selected(self, playlist_list, row):
-        row_idx = row.get_index()
-
-        # TODO don't update if selecting the same playlist.
-        # Use row index - 1 due to the loading indicator.
-        self.update_playlist_view(self.playlist_map[row_idx].id)
+        self.update_playlist_view(self.playlist_map[row.get_index()].id)
 
     def on_list_refresh_click(self, button):
         self.update_playlist_list(force=True)
@@ -316,8 +318,6 @@ class PlaylistsPanel(Gtk.Paned):
         dialog.destroy()
 
     def on_playlist_list_download_all_button_click(self, button):
-        # TODO make this rate-limited so that it doesn't overwhelm the thread
-        # pool.
         playlist = self.playlist_map[
             self.playlist_list.get_selected_row().get_index()]
 
@@ -342,12 +342,54 @@ class PlaylistsPanel(Gtk.Paned):
         self.emit('song-clicked', song_id,
                   [m[-1] for m in self.playlist_song_model])
 
-    def on_song_button_press(self, tree, button):
-        if button.button == 3:  # Right click
-            print('right click')
-            # TODO show the popup
-            # TODO should probably have a menu button on each of the songs in
-            # the list.
+    def on_song_button_press(self, tree, event):
+        if event.button == 3:  # Right click
+            clicked_path = tree.get_path_at_pos(event.x, event.y)[0]
+            store, paths = tree.get_selection().get_selected_rows()
+            allow_deselect = False
+
+            playlist = self.playlist_map[
+                self.playlist_list.get_selected_row().get_index()]
+
+            def on_download_state_change(song_id=None):
+                GLib.idle_add(self.update_playlist_song_list, playlist.id)
+
+            # Use the new selection instead of the old one for calculating what
+            # to do the right click on.
+            if clicked_path not in paths:
+                paths = [clicked_path]
+                allow_deselect = True
+
+            song_ids = [self.playlist_song_model[p][-1] for p in paths]
+
+            # Used to adjust for the header row.
+            bin_coords = tree.convert_tree_to_bin_window_coords(
+                event.x, event.y)
+            widget_coords = tree.convert_tree_to_widget_coords(
+                event.x, event.y)
+
+            def on_remove_songs_click(button):
+                CacheManager.update_playlist(
+                    playlist_id=playlist.id,
+                    song_index_to_remove=[p.get_indices()[0] for p in paths],
+                )
+                self.update_playlist_song_list(playlist.id, force=True)
+
+            remove_text = f"Remove {util.pluralize('song', len(song_ids))} from playlist"
+            util.show_song_popover(
+                song_ids,
+                event.x,
+                event.y + abs(bin_coords.by - widget_coords.wy),
+                tree,
+                on_download_state_change=on_download_state_change,
+                extra_menu_items=[(
+                    Gtk.ModelButton(text=remove_text),
+                    on_remove_songs_click,
+                )])
+
+            # If the click was on a selected row, don't deselect anything.
+            if not allow_deselect:
+                return True
 
     def on_playlist_list_new_entry_activate(self, entry):
         self.create_playlist(entry.get_text())
@@ -392,6 +434,9 @@ class PlaylistsPanel(Gtk.Paned):
         if selected:
             playlist_id = self.playlist_map[selected.get_index()].id
             self.update_playlist_view(playlist_id)
+            self.playlist_action_buttons.show()
+        else:
+            self.playlist_action_buttons.hide()
 
     def set_playlist_list_loading(self, loading_status):
         if loading_status:
@@ -472,6 +517,7 @@ class PlaylistsPanel(Gtk.Paned):
         self.playlist_stats.set_markup(self.format_stats(playlist))
 
         self.update_playlist_song_list(playlist.id)
+        self.playlist_action_buttons.show()
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_playlist(*a, **k),
@@ -533,6 +579,7 @@ class PlaylistsPanel(Gtk.Paned):
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_playlist(*a, **k),
+        # TODO make loading here
     )
     def update_playlist_order(self, playlist):
         CacheManager.update_playlist(

@@ -160,7 +160,6 @@ class CacheManager(metaclass=Singleton):
                     self.current_downloads.add(abs_path)
 
                 os.makedirs(download_path.parent, exist_ok=True)
-                download_path.touch()
                 before_download()
                 self.save_file(download_path, download_fn())
 

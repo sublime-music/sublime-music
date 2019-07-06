@@ -1,11 +1,13 @@
 import functools
-from typing import List, Tuple
+from typing import Callable, List, Tuple, Any, Optional
 
 from concurrent.futures import Future
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, GObject, GLib
+from gi.repository import Gio, Gtk, GObject, GLib, Gdk
+
+from libremsonic.cache_manager import CacheManager, SongCacheStatus
 
 
 def button_with_icon(
@@ -36,6 +38,104 @@ def pluralize(string: str, number: int, pluralized_form=None):
 
 def esc(string):
     return string.replace('&', '&amp;')
+
+
+def show_song_popover(
+        song_ids,
+        x: int,
+        y: int,
+        relative_to: Any,
+        position: Gtk.PositionType = Gtk.PositionType.BOTTOM,
+        on_download_state_change: Callable[[int], None] = lambda x: None,
+        show_remove_from_playlist_button: bool = False,
+        extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = [],
+):
+    def on_download_songs_click(button):
+        CacheManager.batch_download_songs(
+            song_ids,
+            before_download=on_download_state_change,
+            on_song_download_complete=on_download_state_change,
+        )
+
+    def on_add_to_playlist_click(button, playlist):
+        CacheManager.executor.submit(
+            CacheManager.update_playlist,
+            playlist_id=playlist.id,
+            song_id_to_add=song_ids,
+        )
+
+    popover = Gtk.PopoverMenu()
+    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+    # Add all of the menu items to the popover.
+    song_count = len(song_ids)
+
+    # Determine if we should enable the download button.
+    sensitive = False
+    for song_id in song_ids:
+        details = CacheManager.get_song_details(song_id)
+        status = CacheManager.get_cached_status(details.result())
+        if status == SongCacheStatus.NOT_CACHED:
+            sensitive = True
+            break
+
+    menu_items = [
+        (
+            Gtk.ModelButton(
+                text=(f"Download {pluralize('song', song_count)}"
+                      if song_count > 1 else 'Download Song'),
+                sensitive=sensitive,
+            ),
+            on_download_songs_click,
+        ),
+        (
+            Gtk.ModelButton(
+                text=f"Add {pluralize('song', song_count)} to playlist",
+                menu_name='add-to-playlist',
+            ),
+            None,
+        ),
+        *extra_menu_items,
+    ]
+
+    for button, action in menu_items:
+        if action:
+            button.connect('clicked', action)
+        button.get_style_context().add_class('menu-button')
+        vbox.pack_start(button, False, True, 0)
+
+    popover.add(vbox)
+
+    # Create the "Add song(s) to playlist" sub-menu.
+    playlists_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+    # Back button
+    playlists_vbox.add(
+        Gtk.ModelButton(
+            inverted=True,
+            centered=True,
+            menu_name='main',
+        ))
+
+    # The playlist buttons
+    for playlist in CacheManager.get_playlists().result():
+        button = Gtk.ModelButton(text=playlist.name)
+        button.get_style_context().add_class('menu-button')
+        button.connect('clicked', on_add_to_playlist_click, playlist)
+        playlists_vbox.pack_start(button, False, True, 0)
+
+    popover.add(playlists_vbox)
+    popover.child_set_property(playlists_vbox, 'submenu', 'add-to-playlist')
+
+    # Positioning of the popover.
+    rect = Gdk.Rectangle()
+    rect.x, rect.y, rect.width, rect.height = x, y, 1, 1
+    popover.set_pointing_to(rect)
+    popover.set_position(position)
+    popover.set_relative_to(relative_to)
+
+    popover.popup()
+    popover.show_all()
 
 
 class EditFormDialog(Gtk.Dialog):

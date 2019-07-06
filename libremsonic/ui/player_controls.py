@@ -174,8 +174,8 @@ class PlayerControls(Gtk.ActionBar):
 
     def on_up_next_click(self, button):
         self.up_next_popover.set_relative_to(button)
-        self.up_next_popover.show_all()
         self.up_next_popover.popup()
+        self.up_next_popover.show_all()
 
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
