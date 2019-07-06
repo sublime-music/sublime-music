@@ -332,10 +332,15 @@ class LibremsonicApp(Gtk.Application):
                     self.state.play_queue = play_queue
                     self.save_play_queue()
 
+            def before_song_download():
+                # Pause the currently playing song. This prevents anything from
+                # playing while a download occurs.
+                self.player.pause = True
+                self.state.playing = False
+                self.update_window()
+
             song_filename_future = CacheManager.get_song_filename(
-                song,
-                before_download=lambda: self.update_window(),
-            )
+                song, before_download=before_song_download)
             song_filename_future.add_done_callback(
                 lambda f: GLib.idle_add(filename_future_done, f.result()), )
 
