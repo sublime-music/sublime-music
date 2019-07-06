@@ -369,7 +369,10 @@ class PlaylistsPanel(Gtk.Paned):
 
     def on_song_button_press(self, tree, event):
         if event.button == 3:  # Right click
-            clicked_path = tree.get_path_at_pos(event.x, event.y)[0]
+            clicked_path = tree.get_path_at_pos(event.x, event.y)
+            if not clicked_path:
+                return False
+
             store, paths = tree.get_selection().get_selected_rows()
             allow_deselect = False
 
@@ -381,8 +384,8 @@ class PlaylistsPanel(Gtk.Paned):
 
             # Use the new selection instead of the old one for calculating what
             # to do the right click on.
-            if clicked_path not in paths:
-                paths = [clicked_path]
+            if clicked_path[0] not in paths:
+                paths = [clicked_path[0]]
                 allow_deselect = True
 
             song_ids = [self.playlist_song_model[p][-1] for p in paths]
