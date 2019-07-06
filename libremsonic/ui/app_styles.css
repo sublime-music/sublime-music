@@ -27,12 +27,12 @@
   margin: 5px 10px 10px 0;
 }
 
-#playlist-artwork-spinner, #artist-artwork-spinner {
+#playlist-artwork-spinner, #artist-artwork-spinner, #album-artwork-spinner {
   min-height: 35px;
   min-width: 35px;
 }
 
-#playlist-album-artwork, #artist-artwork {
+#playlist-album-artwork, #artist-artwork, #album-artwork {
   min-height: 200px;
   min-width: 200px;
   margin: 10px;

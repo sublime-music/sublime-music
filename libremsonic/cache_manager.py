@@ -19,6 +19,7 @@ from libremsonic.server.api_objects import (
     Child,
     ArtistID3,
     ArtistWithAlbumsID3,
+    AlbumWithSongsID3,
 )
 
 
@@ -61,13 +62,19 @@ class CacheManager(metaclass=Singleton):
     class __CacheManagerInternal:
         # NOTE: you need to add custom load/store logic for everything you add
         # here!
-        server: Server
         playlists: Optional[List[Playlist]] = None
         artists: Optional[List[ArtistID3]] = None
+        albums: Optional[List[Child]] = None
+
         playlist_details: Dict[int, PlaylistWithSongs] = {}
-        arist_details: Dict[int, ArtistWithAlbumsID3] = {}
-        permanently_cached_paths: Set[str] = set()
+        artist_details: Dict[int, ArtistWithAlbumsID3] = {}
+        album_details: Dict[int, AlbumWithSongsID3]
         song_details: Dict[int, Child] = {}
+
+        permanently_cached_paths: Set[str] = set()
+
+        # The server instance.
+        server: Server
 
         # Thread lock for preventing threads from overriding the state while
         # it's being saved.
@@ -113,6 +120,9 @@ class CacheManager(metaclass=Singleton):
             self.artists = [
                 ArtistID3.from_json(a) for a in meta_json.get('artists') or []
             ]
+            self.albums = [
+                Child.from_json(a) for a in meta_json.get('albums') or []
+            ]
             self.playlist_details = {
                 id: PlaylistWithSongs.from_json(v)
                 for id, v in (meta_json.get('playlist_details') or {}).items()
@@ -120,6 +130,10 @@ class CacheManager(metaclass=Singleton):
             self.artist_details = {
                 id: ArtistWithAlbumsID3.from_json(a)
                 for id, a in (meta_json.get('artist_details') or {}).items()
+            }
+            self.album_details = {
+                id: AlbumWithSongsID3.from_json(a)
+                for id, a in (meta_json.get('album_details') or {}).items()
             }
             self.song_details = {
                 id: Child.from_json(v)
@@ -136,8 +150,10 @@ class CacheManager(metaclass=Singleton):
                 cache_info = dict(
                     playlists=self.playlists,
                     artists=self.artists,
+                    albums=self.albums,
                     playlist_details=self.playlist_details,
                     artist_details=self.artist_details,
+                    album_details=self.album_details,
                     song_details=self.song_details,
                     permanently_cached_paths=list(
                         self.permanently_cached_paths),
@@ -187,7 +203,7 @@ class CacheManager(metaclass=Singleton):
                 shutil.move(download_path, abs_path)
 
                 with self.download_set_lock:
-                    self.current_downloads.remove(abs_path)
+                    self.current_downloads.discard(abs_path)
 
             return str(abs_path)
 
@@ -270,6 +286,26 @@ class CacheManager(metaclass=Singleton):
                 return self.artists
 
             return CacheManager.executor.submit(do_get_artists)
+
+        def get_albums(
+                self,
+                type_: str,
+                before_download: Callable[[], None] = lambda: None,
+                force: bool = False,
+        ) -> Future:
+            def do_get_albums() -> List[Child]:
+                if not self.albums or force:
+                    before_download()
+                    albums = self.server.get_album_list(type_)
+
+                    with self.cache_lock:
+                        self.albums = albums.album
+
+                    self.save_cache_info()
+
+                return self.albums
+
+            return CacheManager.executor.submit(do_get_albums)
 
         def batch_download_songs(
                 self,

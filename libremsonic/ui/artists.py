@@ -45,8 +45,8 @@ class ArtistsGrid(Gtk.FlowBox):
             self,
             vexpand=True,
             hexpand=True,
-            row_spacing=10,
-            column_spacing=10,
+            row_spacing=12,
+            column_spacing=12,
             margin_top=12,
             margin_bottom=12,
             homogeneous=True,
@@ -55,9 +55,8 @@ class ArtistsGrid(Gtk.FlowBox):
             selection_mode=Gtk.SelectionMode.BROWSE,
         )
 
-        self.artist_model = Gio.ListStore()
-
-        self.bind_model(self.artist_model, self.create_artist_widget)
+        self.artists_model = Gio.ListStore()
+        self.bind_model(self.artists_model, self.create_artist_widget)
 
     def update(self, state: ApplicationState):
         self.update_grid()
@@ -69,9 +68,10 @@ class ArtistsGrid(Gtk.FlowBox):
     )
     def update_grid(self, artists: List[ArtistID3]):
         # TODO do the diff thing eventually?
-        self.artist_model.remove_all()
+        self.artists_model.remove_all()
         for artist in artists:
-            self.artist_model.append(ArtistModel(artist.name, artist.coverArt))
+            self.artists_model.append(ArtistModel(artist.name,
+                                                  artist.coverArt))
 
     def create_artist_widget(self, item):
         artist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -100,7 +100,6 @@ class ArtistsGrid(Gtk.FlowBox):
         cover_art_filename_future.add_done_callback(artwork_downloaded)
 
         name_label = Gtk.Label(
-            name='artist-name-label',
             label=item.name,
             ellipsize=Pango.EllipsizeMode.END,
             max_width_chars=20,
