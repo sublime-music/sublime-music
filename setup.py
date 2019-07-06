@@ -54,6 +54,9 @@ setup(
         'PyGObject',
         'Deprecated',
         'jsonpickle',
+        'jsonpickle',
+        'fuzzywuzzy',
+        'python-Levenshtein',
     ],
 
     # To provide executable scripts, use entry points in preference to the

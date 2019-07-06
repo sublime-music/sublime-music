@@ -80,6 +80,16 @@ def show_song_popover(
             break
 
     menu_items = [
+        (Gtk.ModelButton(text='Add to up next'), None),
+        (Gtk.ModelButton(text='Add to queue'), None),
+
+        (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
+
+        (Gtk.ModelButton(text='Go to album'), None),
+        (Gtk.ModelButton(text='Go to artist'), None),
+
+        (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
+
         (
             Gtk.ModelButton(
                 text=(f"Download {pluralize('song', song_count)}"
@@ -88,6 +98,9 @@ def show_song_popover(
             ),
             on_download_songs_click,
         ),
+
+        (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
+
         (
             Gtk.ModelButton(
                 text=f"Add {pluralize('song', song_count)} to playlist",
@@ -98,11 +111,12 @@ def show_song_popover(
         *extra_menu_items,
     ]
 
-    for button, action in menu_items:
+    for item, action in menu_items:
         if action:
-            button.connect('clicked', action)
-        button.get_style_context().add_class('menu-button')
-        vbox.pack_start(button, False, True, 0)
+            item.connect('clicked', action)
+        if type(item) == Gtk.ModelButton:
+            item.get_style_context().add_class('menu-button')
+        vbox.pack_start(item, False, True, 0)
 
     popover.add(vbox)
 

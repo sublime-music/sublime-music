@@ -236,7 +236,24 @@ class LibremsonicApp(Gtk.Application):
     def on_song_clicked(self, win, song_id, song_queue):
         # Need to reset this here to prevent it from going to the next song.
         self.had_progress_value = False
-        self.play_song(song_id, reset=True, play_queue=song_queue)
+
+        # Reset the play queue so that we don't ever revert back to the
+        # previous one.
+        old_play_queue = song_queue.copy()
+
+        # If shuffle is enabled, then shuffle the playlist.
+        # TODO refactor to make a function.
+        if self.state.shuffle_on:
+            song_queue.remove(song_id)
+            random.shuffle(song_queue)
+            song_queue = [song_id] + song_queue
+
+        self.play_song(
+            song_id,
+            reset=True,
+            old_play_queue=old_play_queue,
+            play_queue=song_queue,
+        )
 
     def on_song_scrub(self, _, scrub_value):
         if not hasattr(self.state, 'current_song'):
@@ -307,7 +324,13 @@ class LibremsonicApp(Gtk.Application):
 
         self.update_window()
 
-    def play_song(self, song: Child, reset=False, play_queue=None):
+    def play_song(
+            self,
+            song: Child,
+            reset=False,
+            old_play_queue=None,
+            play_queue=None,
+    ):
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.
         def do_play_song(song: Child):
@@ -327,6 +350,9 @@ class LibremsonicApp(Gtk.Application):
                 self.player.command('loadfile', song_file, 'replace',
                                     f'start={self.state.song_progress}')
                 self.player.pause = False
+
+                if old_play_queue:
+                    self.state.old_play_queue = old_play_queue
 
                 if play_queue:
                     self.state.play_queue = play_queue
