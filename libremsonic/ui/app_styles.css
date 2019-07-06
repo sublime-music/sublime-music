@@ -27,12 +27,12 @@
   margin: 5px 10px 10px 0;
 }
 
-#playlist-artwork-spinner {
+#playlist-artwork-spinner, #artist-artwork-spinner {
   min-height: 35px;
   min-width: 35px;
 }
 
-#playlist-album-artwork {
+#playlist-album-artwork, #artist-artwork {
   min-height: 200px;
   min-width: 200px;
   margin: 10px;
@@ -97,6 +97,13 @@
   margin: 10px;
 }
 
+/* General */
 .menu-button {
   padding: 5px;
+}
+
+/* ********** Artists ********** */
+.artist-box {
+  min-width: 200px;
+  min-height: 230px;
 }

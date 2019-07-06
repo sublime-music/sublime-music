@@ -146,6 +146,8 @@ class LibremsonicApp(Gtk.Application):
                 or self.state.config.current_server < 0):
             self.show_configure_servers_dialog()
 
+        self.update_window()
+
     # ########## ACTION HANDLERS ########## #
     def on_configure_servers(self, action, param):
         self.show_configure_servers_dialog()
