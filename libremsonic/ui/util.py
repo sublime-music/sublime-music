@@ -36,8 +36,36 @@ def pluralize(string: str, number: int, pluralized_form=None):
     return string
 
 
+def format_sequence_duration(duration_secs) -> str:
+    duration_mins = (duration_secs // 60) % 60
+    duration_hrs = duration_secs // 60 // 60
+    duration_secs = duration_secs % 60
+
+    format_components = []
+    if duration_hrs > 0:
+        hrs = '{} {}'.format(duration_hrs, pluralize('hour', duration_hrs))
+        format_components.append(hrs)
+
+    if duration_mins > 0:
+        mins = '{} {}'.format(duration_mins, pluralize('minute',
+                                                       duration_mins))
+        format_components.append(mins)
+
+    # Show seconds if there are no hours.
+    if duration_hrs == 0:
+        secs = '{} {}'.format(duration_secs, pluralize('second',
+                                                       duration_secs))
+        format_components.append(secs)
+
+    return ', '.join(format_components)
+
+
 def esc(string):
-    return string.replace('&', '&amp;')
+    return string.replace('&', '&amp;').replace(" target='_blank'", '')
+
+
+def dot_join(*items):
+    return '  •  '.join(map(str, items))
 
 
 def show_song_popover(
@@ -82,14 +110,10 @@ def show_song_popover(
     menu_items = [
         (Gtk.ModelButton(text='Add to up next'), None),
         (Gtk.ModelButton(text='Add to queue'), None),
-
         (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
-
         (Gtk.ModelButton(text='Go to album'), None),
         (Gtk.ModelButton(text='Go to artist'), None),
-
         (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
-
         (
             Gtk.ModelButton(
                 text=(f"Download {pluralize('song', song_count)}"
@@ -98,9 +122,7 @@ def show_song_popover(
             ),
             on_download_songs_click,
         ),
-
         (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
-
         (
             Gtk.ModelButton(
                 text=f"Add {pluralize('song', song_count)} to playlist",

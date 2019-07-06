@@ -97,6 +97,7 @@ class PlayerControls(Gtk.ActionBar):
         self.volume_slider.set_value(state.volume)
 
         # Update the current song information.
+        # TODO add popup to something here
         if has_current_song:
             # TODO should probably clear out the cover art display if no song??
             self.update_cover_art(state.current_song.coverArt, size='70')

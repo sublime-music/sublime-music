@@ -50,7 +50,7 @@ class PlaylistsPanel(Gtk.Paned):
     reordering_playlist_song_list: bool = False
 
     def __init__(self):
-        Gtk.FlowBox.__init__(
+        Gtk.Paned.__init__(
             self,
             orientation=Gtk.Orientation.HORIZONTAL,
         )
@@ -455,6 +455,7 @@ class PlaylistsPanel(Gtk.Paned):
         )
 
     def update(self, state: ApplicationState):
+        self.new_playlist_row.hide()
         self.set_playlist_view_loading(False)
         self.set_playlist_art_loading(False)
         self.update_playlist_list()
@@ -625,38 +626,14 @@ class PlaylistsPanel(Gtk.Paned):
     def format_stats(self, playlist):
         created_date = playlist.created.strftime('%B %d, %Y')
         lines = [
-            '  •  '.join([
+            util.dot_join(
                 f'Created by {playlist.owner} on {created_date}',
                 f"{'Not v' if not playlist.public else 'V'}isible to others",
-            ]),
-            '  •  '.join([
+            ),
+            util.dot_join(
                 '{} {}'.format(playlist.songCount,
                                util.pluralize("song", playlist.songCount)),
-                self.format_playlist_duration(playlist.duration)
-            ]),
+                util.format_sequence_duration(playlist.duration),
+            ),
         ]
         return '\n'.join(lines)
-
-    def format_playlist_duration(self, duration_secs) -> str:
-        duration_mins = (duration_secs // 60) % 60
-        duration_hrs = duration_secs // 60 // 60
-        duration_secs = duration_secs % 60
-
-        format_components = []
-        if duration_hrs > 0:
-            hrs = '{} {}'.format(duration_hrs,
-                                 util.pluralize('hour', duration_hrs))
-            format_components.append(hrs)
-
-        if duration_mins > 0:
-            mins = '{} {}'.format(duration_mins,
-                                  util.pluralize('minute', duration_mins))
-            format_components.append(mins)
-
-        # Show seconds if there are no hours.
-        if duration_hrs == 0:
-            secs = '{} {}'.format(duration_secs,
-                                  util.pluralize('second', duration_secs))
-            format_components.append(secs)
-
-        return ', '.join(format_components)

@@ -43,12 +43,12 @@
   min-width: 40px;
 }
 
-#playlist-name {
+#playlist-name, #artist-detail-panel #artist-name {
   font-size: 40px;
   margin-bottom: 10px;
 }
 
-#playlist-comment, #playlist-stats {
+#playlist-comment, #playlist-stats, #artist-bio, #artist-stats {
   margin-bottom: 10px;
 }
 
@@ -102,8 +102,22 @@
   padding: 5px;
 }
 
-/* ********** Artists ********** */
-.artist-box {
-  min-width: 200px;
-  min-height: 230px;
+/* ********** Artists & Albums ********** */
+#artist-name-label, #album-title-label {
+  margin-left: 10px;
+  margin-right: 10px;
+  margin-bottom: 3px;
+  font-weight: bold;
+}
+
+#artist-album-artwork {
+  margin: 10px;
+  min-width: 300px;
+  min-height: 300px;
+}
+
+#artist-info-label, #album-info-label {
+  margin-left: 10px;
+  margin-right: 10px;
+  margin-bottom: 10px;
 }

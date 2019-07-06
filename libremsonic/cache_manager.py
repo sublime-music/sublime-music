@@ -3,12 +3,15 @@ import glob
 import threading
 import shutil
 import json
+import hashlib
 
 from concurrent.futures import ThreadPoolExecutor, Future
 from enum import EnumMeta, Enum
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Callable, Set
+
+import requests
 
 from libremsonic.config import AppConfiguration, ServerConfiguration
 from libremsonic.server import Server
@@ -18,6 +21,7 @@ from libremsonic.server.api_objects import (
     PlaylistWithSongs,
     Child,
     ArtistID3,
+    ArtistInfo2,
     ArtistWithAlbumsID3,
     AlbumWithSongsID3,
 )
@@ -68,8 +72,10 @@ class CacheManager(metaclass=Singleton):
 
         playlist_details: Dict[int, PlaylistWithSongs] = {}
         artist_details: Dict[int, ArtistWithAlbumsID3] = {}
-        album_details: Dict[int, AlbumWithSongsID3]
+        album_details: Dict[int, AlbumWithSongsID3] = {}
         song_details: Dict[int, Child] = {}
+
+        artist_infos: Dict[int, ArtistInfo2] = {}
 
         permanently_cached_paths: Set[str] = set()
 
@@ -128,8 +134,8 @@ class CacheManager(metaclass=Singleton):
                 for id, v in (meta_json.get('playlist_details') or {}).items()
             }
             self.artist_details = {
-                id: ArtistWithAlbumsID3.from_json(a)
-                for id, a in (meta_json.get('artist_details') or {}).items()
+                id: ArtistWithAlbumsID3.from_json(v)
+                for id, v in (meta_json.get('artist_details') or {}).items()
             }
             self.album_details = {
                 id: AlbumWithSongsID3.from_json(a)
@@ -138,6 +144,10 @@ class CacheManager(metaclass=Singleton):
             self.song_details = {
                 id: Child.from_json(v)
                 for id, v in (meta_json.get('song_details') or {}).items()
+            }
+            self.artist_infos = {
+                id: ArtistInfo2.from_json(a)
+                for id, a in (meta_json.get('artist_infos') or {}).items()
             }
             self.permanently_cached_paths = set(
                 meta_json.get('permanently_cached_paths') or [])
@@ -155,6 +165,7 @@ class CacheManager(metaclass=Singleton):
                     artist_details=self.artist_details,
                     album_details=self.album_details,
                     song_details=self.song_details,
+                    artist_infos=self.artist_infos,
                     permanently_cached_paths=list(
                         self.permanently_cached_paths),
                 )
@@ -287,6 +298,63 @@ class CacheManager(metaclass=Singleton):
 
             return CacheManager.executor.submit(do_get_artists)
 
+        def get_artist(
+                self,
+                artist_id,
+                before_download: Callable[[], None] = lambda: None,
+                force: bool = False,
+        ) -> Future:
+            def do_get_artist() -> ArtistWithAlbumsID3:
+                if artist_id not in self.artist_details or force:
+                    before_download()
+                    artist = self.server.get_artist(artist_id)
+
+                    with self.cache_lock:
+                        self.artist_details[artist_id] = artist
+
+                    self.save_cache_info()
+
+                return self.artist_details[artist_id]
+
+            return CacheManager.executor.submit(do_get_artist)
+
+        def get_artist_info2(
+                self,
+                artist_id,
+                before_download: Callable[[], None] = lambda: None,
+                force: bool = False,
+        ) -> Future:
+            def do_get_artist_info() -> ArtistInfo2:
+                if artist_id not in self.artist_infos or force:
+                    before_download()
+                    artist_info = self.server.get_artist_info2(id=artist_id)
+
+                    with self.cache_lock:
+                        self.artist_infos[artist_id] = artist_info
+
+                    self.save_cache_info()
+
+                return self.artist_infos[artist_id]
+
+            return CacheManager.executor.submit(do_get_artist_info)
+
+        def get_artist_artwork(
+                self,
+                artist: ArtistID3,
+                before_download: Callable[[], None] = lambda: None,
+                force: bool = False,
+        ) -> Future:
+            def do_get_artist_artwork_filename() -> str:
+                hash = hashlib.md5(artwork_url.encode('utf-8')).hexdigest()
+                return self.return_cache_or_download(
+                    f'cover_art/artist.{hash}',
+                    lambda: requests.get(artwork_url).content,
+                    before_download=before_download,
+                    force=force,
+                )
+
+            return CacheManager.executor.submit(do_get_artist_artwork_filename)
+
         def get_albums(
                 self,
                 type_: str,
@@ -378,7 +446,7 @@ class CacheManager(metaclass=Singleton):
             def do_get_song_filename() -> str:
                 song_filename = self.return_cache_or_download(
                     song.path,
-                    lambda: self.server.download(song.id),
+                    lambda: self.server.do_download(song.id),
                     before_download=before_download,
                     force=force,
                 )

@@ -30,13 +30,17 @@ class AlbumsPanel(Gtk.ScrolledWindow):
 
 
 class AlbumModel(GObject.Object):
-    def __init__(self, title, cover_art):
+    def __init__(self, title, cover_art, artist, year):
         self.title = title
         self.cover_art = cover_art
+        self.artist = artist
+        self.year = year
         super().__init__()
 
 
 class AlbumsGrid(Gtk.FlowBox):
+    # TODO: probably create a sub-class of this for use in both artists and
+    # albums. There is honestly not a lot of difference.
     """Defines the albums panel."""
 
     def __init__(self):
@@ -44,8 +48,8 @@ class AlbumsGrid(Gtk.FlowBox):
             self,
             vexpand=True,
             hexpand=True,
-            row_spacing=12,
-            column_spacing=12,
+            row_spacing=5,
+            column_spacing=5,
             margin_top=12,
             margin_bottom=12,
             homogeneous=True,
@@ -58,19 +62,25 @@ class AlbumsGrid(Gtk.FlowBox):
         self.bind_model(self.albums_model, self.create_album_widget)
 
     def update(self, state: ApplicationState):
+        # TODO force at an interval
         self.update_grid('random')
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_albums(*a, **k),
-        before_download=lambda self: print('ohea'),
+        before_download=lambda self: print('set loading'),
         on_failure=lambda self, e: print('fail', e),
     )
     def update_grid(self, albums: List[Child]):
         # TODO do the diff thing eventually?
         self.albums_model.remove_all()
         for album in albums:
-            self.albums_model.append(AlbumModel(album.title, album.coverArt))
-
+            self.albums_model.append(
+                AlbumModel(
+                    album.title,
+                    album.coverArt,
+                    album.artist,
+                    album.year,
+                ))
 
     def create_album_widget(self, item):
         album_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -99,11 +109,24 @@ class AlbumsGrid(Gtk.FlowBox):
         cover_art_filename_future.add_done_callback(artwork_downloaded)
 
         title_label = Gtk.Label(
+            name='album-title-label',
             label=item.title,
+            tooltip_text=item.title,
             ellipsize=Pango.EllipsizeMode.END,
             max_width_chars=20,
+            halign=Gtk.Align.START,
         )
+        album_box.pack_start(title_label, False, False, 0)
 
-        album_box.pack_end(title_label, False, False, 0)
+        info_label = Gtk.Label(
+            name='album-info-label',
+            label=util.dot_join(item.artist, item.year),
+            tooltip_text=util.dot_join(item.artist, item.year),
+            ellipsize=Pango.EllipsizeMode.END,
+            max_width_chars=20,
+            halign=Gtk.Align.START,
+        )
+        album_box.pack_start(info_label, False, False, 0)
+
         album_box.show_all()
         return album_box

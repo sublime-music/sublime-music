@@ -18,17 +18,15 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.set_default_size(1100, 768)
-
-        self.panels = {
-            'Albums': albums.AlbumsPanel(),
-            'Artists': artists.ArtistsPanel(),
-            'Playlists': playlists.PlaylistsPanel(),
-            'More': more.MorePanel(),
-        }
+        self.set_default_size(1150, 768)
 
         # Create the stack
-        self.stack = self.create_stack(**self.panels)
+        self.stack = self.create_stack(
+            Albums=albums.AlbumsPanel(),
+            Artists=artists.ArtistsPanel(),
+            Playlists=playlists.PlaylistsPanel(),
+            More=more.MorePanel(),
+        )
         self.stack.set_transition_type(
             Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
 

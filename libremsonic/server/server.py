@@ -12,6 +12,7 @@ from .api_objects import (
     AlbumList2,
     AlbumWithSongsID3,
     ArtistInfo,
+    ArtistInfo2,
     ArtistsID3,
     ArtistWithAlbumsID3,
     Bookmarks,
@@ -146,7 +147,7 @@ class Server:
         else:
             return result.iter_content(chunk_size=1024)
 
-    def _download(self, url, **params) -> bytes:
+    def do_download(self, url, **params) -> bytes:
         print('download', url)
         return self._post(url, **params).content
 
@@ -294,7 +295,7 @@ class Server:
             id: int,
             count: int = None,
             include_not_present: bool = None,
-    ) -> Optional[ArtistInfo]:
+    ) -> Optional[ArtistInfo2]:
         """
         Similar to getArtistInfo, but organizes music according to ID3 tags.
 
@@ -311,7 +312,7 @@ class Server:
             count=count,
             includeNotPresent=include_not_present,
         )
-        return result.artistInfo
+        return result.artistInfo2
 
     def get_album_info(self, id: int) -> Optional[AlbumInfo]:
         """
@@ -823,7 +824,7 @@ class Server:
         :param id: A string which uniquely identifies the file to stream.
             Obtained by calls to ``getMusicDirectory``.
         """
-        return self._download(self._make_url('download'), id=id)
+        return self.do_download(self._make_url('download'), id=id)
 
     def get_cover_art(self, id: str, size: str = None):
         """
@@ -832,7 +833,7 @@ class Server:
         :param id: The ID of a song, album or artist.
         :param size: If specified, scale image to this size.
         """
-        return self._download(self._make_url('getCoverArt'), id=id, size=size)
+        return self.do_download(self._make_url('getCoverArt'), id=id, size=size)
 
     def get_lyrics(self, artist: str = None, title: str = None) -> Lyrics:
         """
@@ -854,7 +855,7 @@ class Server:
 
         :param username: the user in question.
         """
-        return self._download(self._make_url('getAvatar'), username=username)
+        return self.do_download(self._make_url('getAvatar'), username=username)
 
     def star(
             self,
