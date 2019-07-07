@@ -29,8 +29,11 @@ class ArtistsPanel(Gtk.Box):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, orientation=Gtk.Orientation.VERTICAL, **kwargs)
 
+        self.prev_panel = None
+
         # Create the stack
         self.stack = Gtk.Stack()
+        self.stack.connect('notify::visible-child', self.on_stack_change)
         panels = {
             'grid': ('view-grid-symbolic', ArtistsGrid()),
             'list': ('view-list-symbolic', ArtistList()),
@@ -48,6 +51,10 @@ class ArtistsPanel(Gtk.Box):
 
         actionbar = Gtk.ActionBar()
 
+        self.back_button = util.button_with_icon('go-previous-symbolic')
+        self.back_button.connect('clicked', self.on_back_button_press)
+        actionbar.pack_start(self.back_button)
+
         switcher = Gtk.StackSwitcher(stack=self.stack)
         actionbar.pack_end(switcher)
 
@@ -58,6 +65,14 @@ class ArtistsPanel(Gtk.Box):
         active_panel = self.stack.get_visible_child()
         if hasattr(active_panel, 'update'):
             active_panel.update(state)
+
+        self.update_back_button()
+
+    def update_back_button(self):
+        if self.stack.get_visible_child_name() == 'artist_detail':
+            self.back_button.show()
+        else:
+            self.back_button.hide()
 
     def button_with_icon(
             self,
@@ -75,11 +90,18 @@ class ArtistsPanel(Gtk.Box):
         return button
 
     def on_artist_clicked(self, _, artist_id):
+        self.prev_panel = self.stack.get_visible_child_name()
         self.stack.set_visible_child_name('artist_detail')
         self.stack.get_visible_child().update_artist_view(artist_id)
 
     def on_song_clicked(self, _, song_id, song_queue):
         self.emit('song-clicked', song_id, song_queue)
+
+    def on_stack_change(self, *_):
+        self.update_back_button()
+
+    def on_back_button_press(self, button):
+        self.stack.set_visible_child_name(self.prev_panel or 'grid')
 
 
 class ArtistModel(GObject.Object):
@@ -292,7 +314,7 @@ class ArtistDetailPanel(Gtk.Box):
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist(*a, **k),
-        before_download=lambda self: print('before'),
+        before_download=lambda self: self.set_artwork_loading(True),
         on_failure=lambda self, e: print('fail', e),
     )
     def update_artist_view(self, artist: ArtistWithAlbumsID3):
@@ -301,36 +323,22 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_stats.set_markup(self.format_stats(artist))
 
         self.update_artist_info(artist.id)
+        self.update_artist_artwork(artist)
 
-        def on_cover_art_download(f):
-            GLib.idle_add(self.update_artist_artwork, f.result())
-
-        cover_art_future = CacheManager.get_cover_art_filename(artist.coverArt,
-                                                               size=300)
-        cover_art_future.add_done_callback(on_cover_art_download)
         # self.update_playlist_song_list(playlist.id)
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist_info2(*a, **k),
-        before_download=lambda self: self.set_artwork_loading(True),
-        on_failure=lambda self, e: print('todo fail', e),
     )
     def update_artist_info(self, artist_info: ArtistInfo2):
         self.artist_bio.set_markup(util.esc(''.join(artist_info.biography)))
 
-        # Have to do this because spec is stupid.
-        url = ''.join(artist_info.largeImageUrl)
-        if (url !=
-                'https://lastfm-img2.akamaized.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png'
-            ):
-
-            def on_cover_art_download(f):
-                GLib.idle_add(self.update_artist_artwork, f.result())
-
-            cover_art_future = CacheManager.get_artist_artwork(url)
-            cover_art_future.add_done_callback(on_cover_art_download)
-
     # TODO combine these two sources and prefer artist info version.
+    @util.async_callback(
+        lambda *a, **k: CacheManager.get_artist_artwork(*a, **k),
+        before_download=lambda self: self.set_artwork_loading(True),
+        on_failure=lambda self, e: self.set_artwork_loading(False),
+    )
     def update_artist_artwork(self, cover_art_filename):
         self.artist_artwork.set_from_file(cover_art_filename)
         self.set_artwork_loading(False)

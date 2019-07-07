@@ -345,10 +345,16 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_artist_artwork_filename() -> str:
-                hash = hashlib.md5(artwork_url.encode('utf-8')).hexdigest()
+                artist_info = CacheManager.get_artist_info2(artist.id).result()
+                lastfm_url = ''.join(artist_info.largeImageUrl)
+                if lastfm_url == 'https://lastfm-img2.akamaized.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png':
+                    return CacheManager.get_cover_art_filename(
+                        artist.coverArt, size=300).result()
+
+                url_hash = hashlib.md5(lastfm_url.encode('utf-8')).hexdigest()
                 return self.return_cache_or_download(
-                    f'cover_art/artist.{hash}',
-                    lambda: requests.get(artwork_url).content,
+                    f'cover_art/artist.{url_hash}',
+                    lambda: requests.get(lastfm_url).content,
                     before_download=before_download,
                     force=force,
                 )
