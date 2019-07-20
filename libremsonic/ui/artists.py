@@ -15,6 +15,8 @@ from libremsonic.server.api_objects import (
     ArtistWithAlbumsID3,
 )
 
+from .albums import AlbumsGrid
+
 
 class ArtistsPanel(Gtk.Box):
     """Defines the arist panel."""
@@ -55,8 +57,8 @@ class ArtistsPanel(Gtk.Box):
         self.back_button.connect('clicked', self.on_back_button_press)
         actionbar.pack_start(self.back_button)
 
-        switcher = Gtk.StackSwitcher(stack=self.stack)
-        actionbar.pack_end(switcher)
+        self.switcher = Gtk.StackSwitcher(stack=self.stack)
+        actionbar.pack_end(self.switcher)
 
         self.add(actionbar)
         self.add(self.stack)
@@ -66,13 +68,15 @@ class ArtistsPanel(Gtk.Box):
         if hasattr(active_panel, 'update'):
             active_panel.update(state)
 
-        self.update_back_button()
+        self.update_view_buttons()
 
-    def update_back_button(self):
+    def update_view_buttons(self):
         if self.stack.get_visible_child_name() == 'artist_detail':
             self.back_button.show()
+            self.switcher.hide()
         else:
             self.back_button.hide()
+            self.switcher.show()
 
     def button_with_icon(
             self,
@@ -98,7 +102,7 @@ class ArtistsPanel(Gtk.Box):
         self.emit('song-clicked', song_id, song_queue)
 
     def on_stack_change(self, *_):
-        self.update_back_button()
+        self.update_view_buttons()
 
     def on_back_button_press(self, button):
         self.stack.set_visible_child_name(self.prev_panel or 'grid')
@@ -308,14 +312,17 @@ class ArtistDetailPanel(Gtk.Box):
 
         artist_info_box.pack_start(self.big_info_panel, False, True, 0)
 
-        artist_info_box.pack_start(Gtk.Label('ohea'), True, True, 0)
+        albums_grid = AlbumsGrid()
+        albums_grid_scrolled_window = Gtk.ScrolledWindow()
+        albums_grid_scrolled_window.add(albums_grid)
+        artist_info_box.pack_start(albums_grid_scrolled_window, True, True, 0)
 
         self.add(artist_info_box)
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist(*a, **k),
         before_download=lambda self: self.set_artwork_loading(True),
-        on_failure=lambda self, e: print('fail', e),
+        on_failure=lambda self, e: print('fail a', e),
     )
     def update_artist_view(self, artist: ArtistWithAlbumsID3):
         self.artist_indicator.set_text('ARTIST')
