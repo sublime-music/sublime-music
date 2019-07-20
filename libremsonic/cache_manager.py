@@ -452,7 +452,7 @@ class CacheManager(metaclass=Singleton):
             def do_get_song_filename() -> str:
                 song_filename = self.return_cache_or_download(
                     song.path,
-                    lambda: self.server.do_download(song.id),
+                    lambda: self.server.download(song.id),
                     before_download=before_download,
                     force=force,
                 )

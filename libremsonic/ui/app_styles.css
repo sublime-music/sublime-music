@@ -32,7 +32,7 @@
   min-width: 35px;
 }
 
-#playlist-album-artwork, #artist-artwork, #album-artwork {
+#playlist-album-artwork {
   min-height: 200px;
   min-width: 200px;
   margin: 10px;
@@ -103,21 +103,32 @@
 }
 
 /* ********** Artists & Albums ********** */
-#artist-name-label, #album-title-label {
+#grid-artwork-spinner {
+  min-height: 35px;
+  min-width: 35px;
+}
+
+#grid-artwork {
+  min-height: 200px;
+  min-width: 200px;
+  margin: 10px;
+}
+
+#grid-header-label {
   margin-left: 10px;
   margin-right: 10px;
   margin-bottom: 3px;
   font-weight: bold;
 }
 
+#grid-info-label {
+  margin-left: 10px;
+  margin-right: 10px;
+  margin-bottom: 10px;
+}
+
 #artist-album-artwork {
   margin: 10px;
   min-width: 300px;
   min-height: 300px;
-}
-
-#artist-info-label, #album-info-label {
-  margin-left: 10px;
-  margin-right: 10px;
-  margin-bottom: 10px;
 }

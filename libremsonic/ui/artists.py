@@ -1,4 +1,5 @@
-from typing import List
+from concurrent.futures import Future
+from typing import List, Union
 
 import gi
 
@@ -8,11 +9,14 @@ from gi.repository import Gtk, GObject, Gio, Pango, GLib
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
+from libremsonic.ui.common import CoverArtGrid
 
 from libremsonic.server.api_objects import (
+    AlbumID3,
     ArtistID3,
     ArtistInfo2,
     ArtistWithAlbumsID3,
+    Child,
 )
 
 from .albums import AlbumsGrid
@@ -44,7 +48,7 @@ class ArtistsPanel(Gtk.Box):
 
         for name, (icon, child) in panels.items():
             if icon:
-                child.connect('artist-clicked', self.on_artist_clicked)
+                child.connect('item-clicked', self.on_artist_clicked)
                 self.stack.add_titled(child, name.lower(), name)
                 self.stack.child_set_property(child, 'icon-name', icon)
             else:
@@ -93,10 +97,10 @@ class ArtistsPanel(Gtk.Box):
 
         return button
 
-    def on_artist_clicked(self, _, artist_id):
+    def on_artist_clicked(self, _, artist):
         self.prev_panel = self.stack.get_visible_child_name()
         self.stack.set_visible_child_name('artist_detail')
-        self.stack.get_visible_child().update_artist_view(artist_id)
+        self.stack.get_visible_child().update_artist_view(artist.id)
 
     def on_song_clicked(self, _, song_id, song_queue):
         self.emit('song-clicked', song_id, song_queue)
@@ -109,126 +113,44 @@ class ArtistsPanel(Gtk.Box):
 
 
 class ArtistModel(GObject.Object):
-    def __init__(self, artist_id, name, cover_art, album_count=0):
-        self.artist_id = artist_id
+    def __init__(self, id, name, cover_art, album_count=0):
+        self.id = id
         self.name = name
         self.cover_art = cover_art
         self.album_count = album_count
         super().__init__()
 
 
-class ArtistsGrid(Gtk.ScrolledWindow):
+class ArtistsGrid(CoverArtGrid):
     """Defines the artists grid."""
-    __gsignals__ = {
-        'artist-clicked': (
-            GObject.SIGNAL_RUN_FIRST,
-            GObject.TYPE_NONE,
-            (str, ),
-        ),
-    }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.grid = Gtk.FlowBox(
-            vexpand=True,
-            hexpand=True,
-            row_spacing=5,
-            column_spacing=5,
-            margin_top=12,
-            margin_bottom=12,
-            homogeneous=True,
-            valign=Gtk.Align.START,
-            halign=Gtk.Align.CENTER,
-            selection_mode=Gtk.SelectionMode.BROWSE,
-        )
-        self.grid.connect('child-activated', self.on_child_activated)
-
-        self.artists_model = Gio.ListStore()
-        self.grid.bind_model(self.artists_model, self.create_artist_widget)
-        self.add(self.grid)
-
-    def update(self, state: ApplicationState):
-        self.update_grid()
-
-    @util.async_callback(
-        lambda *a, **k: CacheManager.get_artists(*a, **k),
-        before_download=lambda self: print('set loading'),
-        on_failure=lambda self, e: print('fail', e),
-    )
-    def update_grid(self, artists: List[ArtistID3]):
-        # TODO do the diff thing eventually?
-        self.artists_model.remove_all()
-        for artist in artists:
-            self.artists_model.append(
-                ArtistModel(
-                    artist.id,
-                    artist.name,
-                    artist.coverArt,
-                    artist.albumCount,
-                ))
-
-    # Event Handlers
+    # Override Methods
     # =========================================================================
-    def on_child_activated(self, flowbox, child):
-        self.emit('artist-clicked',
-                  self.artists_model[child.get_index()].artist_id)
+    def get_header_text(self, item) -> str:
+        return item.name
 
-    def create_artist_widget(self, item):
-        artist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    def get_info_text(self, item) -> str:
+        return (str(item.album_count) + ' ' +
+                util.pluralize('album', item.album_count))
 
-        artwork_overlay = Gtk.Overlay()
-        artist_artwork = Gtk.Image(name='artist-artwork')
-        artwork_overlay.add(artist_artwork)
+    def get_model_list_future(self, before_download) -> List[ArtistID3]:
+        return CacheManager.get_artists(before_download=before_download)
 
-        artwork_spinner = Gtk.Spinner(name='artist-artwork-spinner',
-                                      active=False,
-                                      halign=Gtk.Align.CENTER,
-                                      valign=Gtk.Align.CENTER)
-        artwork_overlay.add_overlay(artwork_spinner)
-        artist_box.pack_start(artwork_overlay, False, False, 0)
+    def create_model_from_element(self, el):
+        return ArtistModel(el.id, el.name, el.coverArt, el.albumCount)
 
-        name_label = Gtk.Label(
-            name='artist-name-label',
-            label=item.name,
-            tooltip_text=item.name,
-            ellipsize=Pango.EllipsizeMode.END,
-            max_width_chars=20,
-            halign=Gtk.Align.START,
+    def get_cover_art_filename_future(self, item, before_download) -> Future:
+        # TODO convert to get_artist_artwork
+        return CacheManager.get_cover_art_filename(
+            item.cover_art,
+            before_download=before_download,
         )
-        artist_box.pack_start(name_label, False, False, 0)
-
-        info_text = (str(item.album_count) + ' ' +
-                     util.pluralize('album', item.album_count))
-        info_label = Gtk.Label(
-            name='artist-info-label',
-            label=info_text,
-            tooltip_text=info_text,
-            ellipsize=Pango.EllipsizeMode.END,
-            max_width_chars=20,
-            halign=Gtk.Align.START,
-        )
-        artist_box.pack_start(info_label, False, False, 0)
-
-        def artwork_downloaded(f):
-            filename = f.result()
-            artist_artwork.set_from_file(filename)
-            artwork_spinner.active = False
-
-        def before_download():
-            artwork_spinner.active = True
-
-        cover_art_filename_future = CacheManager.get_cover_art_filename(
-            item.cover_art, before_download=before_download)
-        cover_art_filename_future.add_done_callback(artwork_downloaded)
-
-        artist_box.show_all()
-        return artist_box
 
 
 class ArtistList(Gtk.Paned):
     """Defines the artists list."""
     __gsignals__ = {
-        'artist-clicked': (
+        'item-clicked': (
             GObject.SIGNAL_RUN_FIRST,
             GObject.TYPE_NONE,
             (str, object),
@@ -253,6 +175,8 @@ class ArtistDetailPanel(Gtk.Box):
             name='artist-detail-panel',
             **kwargs,
         )
+        self.albums: Union[List[AlbumID3], List[Child]] = []
+        self.artist_id = None
 
         artist_info_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
@@ -312,12 +236,18 @@ class ArtistDetailPanel(Gtk.Box):
 
         artist_info_box.pack_start(self.big_info_panel, False, True, 0)
 
-        albums_grid = AlbumsGrid()
-        albums_grid_scrolled_window = Gtk.ScrolledWindow()
-        albums_grid_scrolled_window.add(albums_grid)
-        artist_info_box.pack_start(albums_grid_scrolled_window, True, True, 0)
+        self.albums_grid = AlbumsGrid()
+        self.albums_grid.grid.set_halign(Gtk.Align.START)
+        self.albums_grid.get_model_list_future = self.get_model_list_future
+        artist_info_box.pack_start(self.albums_grid, True, True, 0)
 
         self.add(artist_info_box)
+
+    def get_model_list_future(self, before_download):
+        def do_get_model_list() -> List[Child]:
+            return self.albums
+
+        return CacheManager.executor.submit(do_get_model_list)
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist(*a, **k),
@@ -325,6 +255,7 @@ class ArtistDetailPanel(Gtk.Box):
         on_failure=lambda self, e: print('fail a', e),
     )
     def update_artist_view(self, artist: ArtistWithAlbumsID3):
+        self.artist_id = artist.id
         self.artist_indicator.set_text('ARTIST')
         self.artist_name.set_markup(util.esc(f'<b>{artist.name}</b>'))
         self.artist_stats.set_markup(self.format_stats(artist))
@@ -332,7 +263,8 @@ class ArtistDetailPanel(Gtk.Box):
         self.update_artist_info(artist.id)
         self.update_artist_artwork(artist)
 
-        # self.update_playlist_song_list(playlist.id)
+        self.albums = artist.album
+        self.albums_grid.update()
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist_info2(*a, **k),
@@ -353,7 +285,7 @@ class ArtistDetailPanel(Gtk.Box):
     # Event Handlers
     # =========================================================================
     def on_view_refresh_click(self, *args):
-        print('refresh')
+        self.update_artist_view(self.artist_id, force=True)
 
     def on_download_all_click(self, *args):
         print('download all')
