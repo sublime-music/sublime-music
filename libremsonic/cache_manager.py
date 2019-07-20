@@ -396,8 +396,8 @@ class CacheManager(metaclass=Singleton):
                 )
 
                 def filename_future_done(f):
-                    on_song_download_complete(song_id)
                     self.download_limiter_semaphore.release()
+                    on_song_download_complete(song_id)
 
                 song_filename_future.add_done_callback(filename_future_done)
 

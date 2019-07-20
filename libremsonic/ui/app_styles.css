@@ -48,8 +48,13 @@
   margin-bottom: 10px;
 }
 
-#playlist-comment, #playlist-stats, #artist-bio, #artist-stats {
+#playlist-comment, #playlist-stats, #artist-bio, #artist-stats, #similar-artists {
   margin-bottom: 10px;
+}
+
+#similar-artist-button {
+  padding: 0;
+  margin: -10px 0 0 10px;
 }
 
 /* ********** Playback Controls ********** */

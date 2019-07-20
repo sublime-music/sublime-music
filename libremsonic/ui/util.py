@@ -78,6 +78,18 @@ def show_song_popover(
         show_remove_from_playlist_button: bool = False,
         extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = [],
 ):
+    def on_add_to_up_next_click(button):
+        print('up next click')
+
+    def on_add_to_queue_click(button):
+        print('add to queue click')
+
+    def on_go_to_album_click(button):
+        print('go to album click')
+
+    def on_go_to_artist_click(button):
+        print('go to artist click')
+
     def on_download_songs_click(button):
         CacheManager.batch_download_songs(
             song_ids,
@@ -99,26 +111,32 @@ def show_song_popover(
     song_count = len(song_ids)
 
     # Determine if we should enable the download button.
-    sensitive = False
+    download_sensitive = False
     for song_id in song_ids:
         details = CacheManager.get_song_details(song_id)
         status = CacheManager.get_cached_status(details.result())
         if status == SongCacheStatus.NOT_CACHED:
-            sensitive = True
+            download_sensitive = True
             break
 
     menu_items = [
-        (Gtk.ModelButton(text='Add to up next'), None),
-        (Gtk.ModelButton(text='Add to queue'), None),
+        (Gtk.ModelButton(text='Add to up next'), on_add_to_up_next_click),
+        (Gtk.ModelButton(text='Add to queue'), on_add_to_queue_click),
         (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
-        (Gtk.ModelButton(text='Go to album'), None),
-        (Gtk.ModelButton(text='Go to artist'), None),
+        (
+            Gtk.ModelButton(text='Go to album', sensitive=len(song_ids) == 1),
+            on_go_to_album_click,
+        ),
+        (
+            Gtk.ModelButton(text='Go to artist', sensitive=len(song_ids) == 1),
+            on_go_to_artist_click,
+        ),
         (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
         (
             Gtk.ModelButton(
                 text=(f"Download {pluralize('song', song_count)}"
                       if song_count > 1 else 'Download Song'),
-                sensitive=sensitive,
+                sensitive=download_sensitive,
             ),
             on_download_songs_click,
         ),

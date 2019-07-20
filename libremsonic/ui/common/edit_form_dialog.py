@@ -25,13 +25,16 @@ class EditFormDialog(Gtk.Dialog):
         editing = existing_object is not None
         Gtk.Dialog.__init__(
             self,
-            f'Edit {self.get_object_name(existing_object)}'
+            title=f'Edit {self.get_object_name(existing_object)}'
             if editing else f'Create New {self.entity_name}',
-            parent,
-            0,
-            (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-             Gtk.STOCK_EDIT if editing else Gtk.STOCK_ADD,
-             Gtk.ResponseType.OK),
+            transient_for=parent,
+            flags=0,
+        )
+        self.add_buttons(
+            Gtk.STOCK_CANCEL,
+            Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_EDIT if editing else Gtk.STOCK_ADD,
+            Gtk.ResponseType.OK,
         )
 
         if not existing_object:

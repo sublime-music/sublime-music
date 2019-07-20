@@ -229,6 +229,18 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_bio.set_line_wrap(True)
         artist_details_box.add(self.artist_bio)
 
+        self.similar_artists_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL)
+
+        self.similar_artists_label = self.make_label(name='similar-artists')
+        self.similar_artists_box.add(self.similar_artists_label)
+
+        self.similar_artists_button_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL)
+        self.similar_artists_box.add(self.similar_artists_button_box)
+
+        artist_details_box.add(self.similar_artists_box)
+
         self.artist_stats = self.make_label(name='artist-stats')
         artist_details_box.add(self.artist_stats)
 
@@ -272,7 +284,22 @@ class ArtistDetailPanel(Gtk.Box):
     def update_artist_info(self, artist_info: ArtistInfo2):
         self.artist_bio.set_markup(util.esc(''.join(artist_info.biography)))
 
-    # TODO combine these two sources and prefer artist info version.
+        if len(artist_info.similarArtist or []) > 0:
+            self.similar_artists_label.set_markup('<b>Similar Artists:</b> ')
+            for c in self.similar_artists_button_box.get_children():
+                self.similar_artists_button_box.remove(c)
+
+            for artist in artist_info.similarArtist[:5]:
+                self.similar_artists_button_box.add(
+                    Gtk.LinkButton(
+                        uri=f'artist://{artist.id}',
+                        label=artist.name,
+                        name='similar-artist-button',
+                    ))
+            self.similar_artists_box.show_all()
+        else:
+            self.similar_artists_box.hide()
+
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist_artwork(*a, **k),
         before_download=lambda self: self.set_artwork_loading(True),

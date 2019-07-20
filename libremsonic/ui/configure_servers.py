@@ -25,10 +25,10 @@ class EditServerDialog(EditFormDialog):
     ]
 
     def __init__(self, *args, **kwargs):
-        test_server = Gtk.Button('Test Connection to Server')
+        test_server = Gtk.Button(label='Test Connection to Server')
         test_server.connect('clicked', self.on_test_server_clicked)
 
-        open_in_browser = Gtk.Button('Open in Browser')
+        open_in_browser = Gtk.Button(label='Open in Browser')
         open_in_browser.connect('clicked', self.on_open_in_browser_clicked)
 
         self.extra_buttons = [test_server, open_in_browser]
@@ -47,16 +47,22 @@ class EditServerDialog(EditFormDialog):
         # Try to ping, and show a message box with whether or not it worked.
         try:
             server.ping()
-            dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
-                                       Gtk.ButtonsType.OK,
-                                       'Connection to server successful.')
+            dialog = Gtk.MessageDialog(
+                transient_for=self,
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK,
+                text='Connection to server successful.',
+            )
             dialog.format_secondary_markup(
                 f"Connection to {self.data['Server address'].get_text()} successful."
             )
         except Exception as err:
-            dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.ERROR,
-                                       Gtk.ButtonsType.OK,
-                                       'Connection to server unsuccessful.')
+            dialog = Gtk.MessageDialog(
+                transient_for=self,
+                message_type=Gtk.MessageType.ERROR,
+                buttons=Gtk.ButtonsType.OK,
+                text='Connection to server unsuccessful.',
+            )
             dialog.format_secondary_markup(
                 f"Connection to {self.data['Server address'].get_text()} resulted in the following error:\n\n{err}"
             )
@@ -77,7 +83,13 @@ class ConfigureServersDialog(Gtk.Dialog):
     }
 
     def __init__(self, parent, config):
-        Gtk.Dialog.__init__(self, 'Connect to Server', parent, 0, ())
+        Gtk.Dialog.__init__(
+            self,
+            title='Connect to Server',
+            transient_for=parent,
+            flags=0,
+            add_buttons=(),
+        )
 
         self.server_configs = config.servers
         self.selected_server_index = config.current_server
