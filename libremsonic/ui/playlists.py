@@ -13,9 +13,10 @@ from libremsonic.server.api_objects import Child, PlaylistWithSongs
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager, SongCacheStatus
 from libremsonic.ui import util
+from libremsonic.ui.common import EditFormDialog
 
 
-class EditPlaylistDialog(util.EditFormDialog):
+class EditPlaylistDialog(EditFormDialog):
     __gsignals__ = {
         'delete-playlist': (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE,
                             ()),

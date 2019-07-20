@@ -5,10 +5,10 @@ from gi.repository import Gtk, GObject
 
 from libremsonic.server import Server
 from libremsonic.config import ServerConfiguration
-from libremsonic.ui import util
+from libremsonic.ui.common import EditFormDialog
 
 
-class EditServerDialog(util.EditFormDialog):
+class EditServerDialog(EditFormDialog):
     entity_name: str = 'Server'
     initial_size = (450, 250)
     text_fields = [
@@ -97,13 +97,15 @@ class ConfigureServersDialog(Gtk.Dialog):
         # Add all of the buttons to the button box.
         self.buttons = [
             # TODO get good icons for these
-            (Gtk.Button('Edit...'), lambda e: self.on_edit_clicked(e, False),
-             'start', True),
-            (Gtk.Button('Add...'), lambda e: self.on_edit_clicked(e, True),
-             'start', False),
-            (Gtk.Button('Remove'), self.on_remove_clicked, 'start', True),
-            (Gtk.Button('Close'), lambda _: self.close(), 'end', False),
-            (Gtk.Button('Connect'), self.on_connect_clicked, 'end', True),
+            (Gtk.Button(label='Edit...'),
+             lambda e: self.on_edit_clicked(e, False), 'start', True),
+            (Gtk.Button(label='Add...'),
+             lambda e: self.on_edit_clicked(e, True), 'start', False),
+            (Gtk.Button(label='Remove'), self.on_remove_clicked, 'start',
+             True),
+            (Gtk.Button(label='Close'), lambda _: self.close(), 'end', False),
+            (Gtk.Button(label='Connect'), self.on_connect_clicked, 'end',
+             True),
         ]
         for button_cfg in self.buttons:
             btn, action, pack_end, requires_selection = button_cfg
@@ -133,7 +135,7 @@ class ConfigureServersDialog(Gtk.Dialog):
         # Add all of the rows for each of the servers.
         for config in self.server_configs:
             row = Gtk.ListBoxRow()
-            server_name_label = Gtk.Label(config.name)
+            server_name_label = Gtk.Label(label=config.name)
             server_name_label.set_halign(Gtk.Align.START)
             row.add(server_name_label)
             self.server_list.add(row)
