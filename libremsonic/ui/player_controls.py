@@ -294,6 +294,7 @@ class PlayerControls(Gtk.ActionBar):
             label='<b>Up Next</b>',
             use_markup=True,
             halign=Gtk.Align.START,
+            margin=10,
         )
         popover_box_header.add(self.popover_label)
 
