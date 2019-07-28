@@ -24,6 +24,7 @@ from .albums import AlbumsGrid
 
 class ArtistsPanel(Gtk.Box):
     """Defines the arist panel."""
+
     __gsignals__ = {
         'song-clicked': (
             GObject.SIGNAL_RUN_FIRST,
@@ -130,8 +131,8 @@ class ArtistsGrid(CoverArtGrid):
         return item.name
 
     def get_info_text(self, item) -> str:
-        return (str(item.album_count) + ' ' +
-                util.pluralize('album', item.album_count))
+        return (str(item.album_count) + ' '
+                + util.pluralize('album', item.album_count))
 
     def get_model_list_future(self, before_download) -> List[ArtistID3]:
         return CacheManager.get_artists(before_download=before_download)
@@ -149,6 +150,7 @@ class ArtistsGrid(CoverArtGrid):
 
 class ArtistList(Gtk.Paned):
     """Defines the artists list."""
+
     __gsignals__ = {
         'item-clicked': (
             GObject.SIGNAL_RUN_FIRST,
@@ -160,6 +162,7 @@ class ArtistList(Gtk.Paned):
 
 class ArtistDetailPanel(Gtk.Box):
     """Defines the artists list."""
+
     __gsignals__ = {
         'song-clicked': (
             GObject.SIGNAL_RUN_FIRST,
