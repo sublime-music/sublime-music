@@ -4,12 +4,13 @@ import threading
 import shutil
 import json
 import hashlib
+from collections import defaultdict
 
 from concurrent.futures import ThreadPoolExecutor, Future
 from enum import EnumMeta, Enum
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Union, Callable, Set
+from typing import Any, Dict, List, Optional, Union, Callable, Set, DefaultDict
 
 import requests
 
@@ -20,6 +21,11 @@ from libremsonic.server.api_objects import (
     Playlist,
     PlaylistWithSongs,
     Child,
+
+    # Non-ID3 versions
+    Artist,
+
+    # ID3 versions
     ArtistID3,
     ArtistInfo2,
     ArtistWithAlbumsID3,
@@ -56,6 +62,9 @@ class CacheManager(metaclass=Singleton):
         def default(self, obj):
             if type(obj) == datetime:
                 return int(obj.timestamp() * 1000)
+            elif type(obj) == set:
+                print('set', obj)
+                return list(obj)
             elif isinstance(obj, APIObject):
                 return {k: v for k, v in obj.__dict__.items() if v is not None}
             elif isinstance(obj, EnumMeta):
@@ -64,27 +73,16 @@ class CacheManager(metaclass=Singleton):
             return json.JSONEncoder.default(self, obj)
 
     class __CacheManagerInternal:
-        # NOTE: you need to add custom load/store logic for everything you add
-        # here!
-        playlists: Optional[List[Playlist]] = None
-        artists: Optional[List[ArtistID3]] = None
-        albums: Optional[List[Child]] = None
+        # Thread lock for preventing threads from overriding the state while
+        # it's being saved.
+        cache_lock = threading.Lock()
 
-        playlist_details: Dict[int, PlaylistWithSongs] = {}
-        artist_details: Dict[int, ArtistWithAlbumsID3] = {}
-        album_details: Dict[int, AlbumWithSongsID3] = {}
-        song_details: Dict[int, Child] = {}
-
-        artist_infos: Dict[int, ArtistInfo2] = {}
-
+        cache: DefaultDict[str, Any] = defaultdict(dict)
         permanently_cached_paths: Set[str] = set()
 
         # The server instance.
         server: Server
-
-        # Thread lock for preventing threads from overriding the state while
-        # it's being saved.
-        cache_lock = threading.Lock()
+        browse_by_tags: bool
 
         download_set_lock = threading.Lock()
         current_downloads: Set[Path] = set()
@@ -98,6 +96,8 @@ class CacheManager(metaclass=Singleton):
                 server_config: ServerConfiguration,
         ):
             self.app_config = app_config
+            self.browse_by_tags = self.app_config.servers[
+                self.app_config.current_server].browse_by_tags
             self.server = Server(
                 name=server_config.name,
                 hostname=server_config.server_address,
@@ -119,58 +119,38 @@ class CacheManager(metaclass=Singleton):
                 except json.decoder.JSONDecodeError:
                     return
 
-            self.playlists = [
-                Playlist.from_json(p)
-                for p in meta_json.get('playlists') or []
+            cache_configs = [
+                # Playlists
+                ('playlists', Playlist, list),
+                ('playlist_details', PlaylistWithSongs, dict),
+                ('songs', Child, dict),
+
+                # Non-ID3 caches
+                ('albums', Child, list),
+                ('artists', Child, list),
+
+                # ID3 caches
+                ('artists_id3', ArtistID3, list),
             ]
-            self.artists = [
-                ArtistID3.from_json(a) for a in meta_json.get('artists') or []
-            ]
-            self.albums = [
-                Child.from_json(a) for a in meta_json.get('albums') or []
-            ]
-            self.playlist_details = {
-                id: PlaylistWithSongs.from_json(v)
-                for id, v in (meta_json.get('playlist_details') or {}).items()
-            }
-            self.artist_details = {
-                id: ArtistWithAlbumsID3.from_json(v)
-                for id, v in (meta_json.get('artist_details') or {}).items()
-            }
-            self.album_details = {
-                id: AlbumWithSongsID3.from_json(a)
-                for id, a in (meta_json.get('album_details') or {}).items()
-            }
-            self.song_details = {
-                id: Child.from_json(v)
-                for id, v in (meta_json.get('song_details') or {}).items()
-            }
-            self.artist_infos = {
-                id: ArtistInfo2.from_json(a)
-                for id, a in (meta_json.get('artist_infos') or {}).items()
-            }
-            self.permanently_cached_paths = set(
-                meta_json.get('permanently_cached_paths') or [])
+            for name, type_name, default in cache_configs:
+                if default == list:
+                    self.cache[name] = [
+                        type_name.from_json(x)
+                        for x in meta_json.get(name, [])
+                    ]
+                elif default == dict:
+                    self.cache[name] = {
+                        id: type_name.from_json(x)
+                        for id, x in meta_json.get(name, {}).items()
+                    }
 
         def save_cache_info(self):
             os.makedirs(self.app_config.cache_location, exist_ok=True)
 
             cache_meta_file = self.calculate_abs_path('.cache_meta')
             with open(cache_meta_file, 'w+') as f, self.cache_lock:
-                cache_info = dict(
-                    playlists=self.playlists,
-                    artists=self.artists,
-                    albums=self.albums,
-                    playlist_details=self.playlist_details,
-                    artist_details=self.artist_details,
-                    album_details=self.album_details,
-                    song_details=self.song_details,
-                    artist_infos=self.artist_infos,
-                    permanently_cached_paths=list(
-                        self.permanently_cached_paths),
-                )
                 f.write(
-                    json.dumps(cache_info,
+                    json.dumps(self.cache,
                                indent=2,
                                cls=CacheManager.CacheEncoder))
 
@@ -236,13 +216,13 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_playlists() -> List[Playlist]:
-                if not self.playlists or force:
+                if not self.cache.get('playlists') or force:
                     before_download()
                     playlists = self.server.get_playlists().playlist
                     with self.cache_lock:
-                        self.playlists = playlists
+                        self.cache['playlists'] = playlists
                     self.save_cache_info()
-                return self.playlists
+                return self.cache['playlists']
 
             return CacheManager.executor.submit(do_get_playlists)
 
@@ -253,20 +233,21 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_playlist() -> PlaylistWithSongs:
-                if not self.playlist_details.get(playlist_id) or force:
+                if not self.cache.get('playlist_details',
+                                      {}).get(playlist_id) or force:
                     before_download()
                     playlist = self.server.get_playlist(playlist_id)
                     with self.cache_lock:
-                        self.playlist_details[playlist_id] = playlist
+                        self.cache['playlist_details'][playlist_id] = playlist
 
                         # Playlists also have the song details, so save those
                         # as well.
                         for song in (playlist.entry or []):
-                            self.song_details[song.id] = song
+                            self.cache['songs'][song.id] = song
 
                     self.save_cache_info()
 
-                playlist_details = self.playlist_details[playlist_id]
+                playlist_details = self.cache['playlist_details'][playlist_id]
 
                 # Invalidate the cached photo if we are forcing a retrieval
                 # from the server.
@@ -283,21 +264,29 @@ class CacheManager(metaclass=Singleton):
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
         ) -> Future:
-            def do_get_artists() -> List[ArtistID3]:
-                if not self.artists or force:
-                    before_download()
-                    raw_artists = self.server.get_artists()
+            def do_get_artists() -> List[Union[Artist, ArtistID3]]:
+                server_fn: Callable[[], Any]
+                if self.browse_by_tags:
+                    cache_name = 'artists_id3'
+                    server_fn = self.server.get_artists
+                else:
+                    cache_name = 'artists'
+                    server_fn = self.server.get_indexes
 
-                    artists = []
+                if not self.cache.get(cache_name) or force:
+                    before_download()
+                    raw_artists = server_fn()
+
+                    artists: List[Union[Artist, ArtistID3]] = []
                     for index in raw_artists.index:
                         artists.extend(index.artist)
 
                     with self.cache_lock:
-                        self.artists = artists
+                        self.cache[cache_name] = artists
 
                     self.save_cache_info()
 
-                return self.artists
+                return self.cache[cache_name]
 
             return CacheManager.executor.submit(do_get_artists)
 
@@ -372,16 +361,16 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_albums() -> List[Child]:
-                if not self.albums or force:
+                if not self.cache.get('albums') or force:
                     before_download()
                     albums = self.server.get_album_list(type_)
 
                     with self.cache_lock:
-                        self.albums = albums.album
+                        self.cache['albums'] = albums.album
 
                     self.save_cache_info()
 
-                return self.albums
+                return self.cache['albums']
 
             return CacheManager.executor.submit(do_get_albums)
 

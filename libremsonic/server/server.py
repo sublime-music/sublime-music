@@ -55,7 +55,6 @@ class Server:
     * The ``jukeboxControl`` endpoint is not supported.
     * None of the chat message endpoints are supported.
     """
-
     def __init__(self, name: str, hostname: str, username: str, password: str):
         self.name: str = name
         self.hostname: str = hostname
@@ -587,8 +586,8 @@ class Server:
             any=any,
             count=count,
             offset=offset,
-            newerThan=math.floor(newer_than.timestamp() *
-                                 1000) if newer_than else None,
+            newerThan=math.floor(newer_than.timestamp()
+                                 * 1000) if newer_than else None,
         )
         return result.searchResult
 
@@ -834,7 +833,9 @@ class Server:
         :param id: The ID of a song, album or artist.
         :param size: If specified, scale image to this size.
         """
-        return self.do_download(self._make_url('getCoverArt'), id=id, size=size)
+        return self.do_download(self._make_url('getCoverArt'),
+                                id=id,
+                                size=size)
 
     def get_lyrics(self, artist: str = None, title: str = None) -> Lyrics:
         """
