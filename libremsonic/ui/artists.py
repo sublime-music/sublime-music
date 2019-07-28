@@ -4,7 +4,7 @@ from typing import List, Union
 import gi
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GObject, Gio, Pango, GLib
+from gi.repository import Gtk, GObject, Gio
 
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
@@ -53,7 +53,6 @@ class ArtistsPanel(Gtk.Box):
                 self.stack.add_titled(child, name.lower(), name)
                 self.stack.child_set_property(child, 'icon-name', icon)
             else:
-                print('ohea')
                 self.stack.add_named(child, name)
                 child.connect('song-clicked', self.on_song_clicked)
 
@@ -283,7 +282,7 @@ class ArtistDetailPanel(Gtk.Box):
         self.albums_grid.update()
 
     @util.async_callback(
-        lambda *a, **k: CacheManager.get_artist_info2(*a, **k),
+        lambda *a, **k: CacheManager.get_artist_info(*a, **k),
     )
     def update_artist_info(self, artist_info: ArtistInfo2):
         self.artist_bio.set_markup(util.esc(''.join(artist_info.biography)))

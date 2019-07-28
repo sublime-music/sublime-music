@@ -51,10 +51,11 @@ class ApplicationState:
     song_progress: float = 0
 
     def to_json(self):
+        current_song = (self.current_song.id if
+                        (hasattr(self, 'current_song')
+                         and self.current_song is not None) else None)
         return {
-            'current_song': (self.current_song.id if
-                             (hasattr(self, 'current_song')
-                              and self.current_song is not None) else None),
+            'current_song': current_song,
             'play_queue': getattr(self, 'play_queue', None),
             'old_play_queue': getattr(self, 'old_play_queue', None),
             'volume': getattr(self, 'volume', None),
@@ -67,7 +68,8 @@ class ApplicationState:
     def load_from_json(self, json_object):
         current_song_id = json_object.get('current_song') or None
         if current_song_id:
-            self.current_song = CacheManager.song_details.get(current_song_id)
+            self.current_song = CacheManager.cache['song_details'].get(
+                current_song_id)
         else:
             self.current_song = None
 

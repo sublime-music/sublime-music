@@ -122,6 +122,7 @@ class PlayerControls(Gtk.ActionBar):
             for s in state.play_queue:
                 self.popover_list.add(
                     Gtk.Label(
+                        label='\n',
                         halign=Gtk.Align.START,
                         use_markup=True,
                         margin=5,

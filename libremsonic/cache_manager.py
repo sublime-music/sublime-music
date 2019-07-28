@@ -24,6 +24,7 @@ from libremsonic.server.api_objects import (
 
     # Non-ID3 versions
     Artist,
+    ArtistInfo,
 
     # ID3 versions
     ArtistID3,
@@ -63,7 +64,6 @@ class CacheManager(metaclass=Singleton):
             if type(obj) == datetime:
                 return int(obj.timestamp() * 1000)
             elif type(obj) == set:
-                print('set', obj)
                 return list(obj)
             elif isinstance(obj, APIObject):
                 return {k: v for k, v in obj.__dict__.items() if v is not None}
@@ -123,14 +123,19 @@ class CacheManager(metaclass=Singleton):
                 # Playlists
                 ('playlists', Playlist, list),
                 ('playlist_details', PlaylistWithSongs, dict),
-                ('songs', Child, dict),
+                ('song_details', Child, dict),
 
                 # Non-ID3 caches
                 ('albums', Child, list),
                 ('artists', Child, list),
+                # ('artist_details', None, dict), TODO
+                ('artist_infos', ArtistInfo, dict),
 
                 # ID3 caches
+                ('albums_id3', AlbumWithSongsID3, list),
                 ('artists_id3', ArtistID3, list),
+                ('artist_details_id3', ArtistWithAlbumsID3, dict),
+                ('artist_infos_id3', ArtistInfo2, dict),
             ]
             for name, type_name, default in cache_configs:
                 if default == list:
@@ -233,17 +238,17 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_playlist() -> PlaylistWithSongs:
-                if not self.cache.get('playlist_details',
-                                      {}).get(playlist_id) or force:
+                cache_name = "playlist_details"
+
+                if playlist_id not in self.cache.get(cache_name) or force:
                     before_download()
                     playlist = self.server.get_playlist(playlist_id)
                     with self.cache_lock:
                         self.cache['playlist_details'][playlist_id] = playlist
 
-                        # Playlists also have the song details, so save those
-                        # as well.
+                        # Playlists have the song details, so save those too.
                         for song in (playlist.entry or []):
-                            self.cache['songs'][song.id] = song
+                            self.cache['song_details'][song.id] = song
 
                     self.save_cache_info()
 
@@ -252,8 +257,8 @@ class CacheManager(metaclass=Singleton):
                 # Invalidate the cached photo if we are forcing a retrieval
                 # from the server.
                 if force:
-                    cover_art_filename = f'cover_art/{playlist_details.coverArt}_*'
-                    self.delete_cache(cover_art_filename)
+                    self.delete_cache(
+                        f'cover_art/{playlist_details.coverArt}_*')
 
                 return playlist_details
 
@@ -265,13 +270,10 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_artists() -> List[Union[Artist, ArtistID3]]:
-                server_fn: Callable[[], Any]
-                if self.browse_by_tags:
-                    cache_name = 'artists_id3'
-                    server_fn = self.server.get_artists
-                else:
-                    cache_name = 'artists'
-                    server_fn = self.server.get_indexes
+                cache_name = 'artists' + ('_id3'
+                                          if self.browse_by_tags else '')
+                server_fn = (self.server.get_artists if self.browse_by_tags
+                             else self.server.get_indexes)
 
                 if not self.cache.get(cache_name) or force:
                     before_download()
@@ -296,38 +298,48 @@ class CacheManager(metaclass=Singleton):
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
         ) -> Future:
-            def do_get_artist() -> ArtistWithAlbumsID3:
-                if artist_id not in self.artist_details or force:
+            def do_get_artist() -> Union[ArtistWithAlbumsID3, Child]:
+                # TODO: implement the non-ID3 version
+                cache_name = f"artist_details{'_id3' if self.browse_by_tags else ''}"
+                server_fn = (self.server.get_artist if self.browse_by_tags else
+                             lambda: 'not implemented')
+
+                if artist_id not in self.cache.get(cache_name, {}) or force:
                     before_download()
-                    artist = self.server.get_artist(artist_id)
+                    artist = server_fn(artist_id)
 
                     with self.cache_lock:
-                        self.artist_details[artist_id] = artist
+                        self.cache[cache_name][artist_id] = artist
 
                     self.save_cache_info()
 
-                return self.artist_details[artist_id]
+                return self.cache[cache_name][artist_id]
 
             return CacheManager.executor.submit(do_get_artist)
 
-        def get_artist_info2(
+        def get_artist_info(
                 self,
                 artist_id,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
         ) -> Future:
-            def do_get_artist_info() -> ArtistInfo2:
-                if artist_id not in self.artist_infos or force:
+            def do_get_artist_info() -> Union[ArtistInfo, ArtistInfo2]:
+                cache_name = f"artist_infos{'_id3' if self.browse_by_tags else ''}"
+                server_fn = (self.server.get_artist_info2
+                             if self.browse_by_tags else
+                             self.server.get_artist_info)
+
+                if artist_id not in self.cache.get(cache_name, {}) or force:
                     before_download()
-                    artist_info = self.server.get_artist_info2(id=artist_id)
+                    artist_info = server_fn(id=artist_id)
 
                     if artist_info:
                         with self.cache_lock:
-                            self.artist_infos[artist_id] = artist_info
+                            self.cache[cache_name][artist_id] = artist_info
 
                         self.save_cache_info()
 
-                return self.artist_infos[artist_id]
+                return self.cache[cache_name][artist_id]
 
             return CacheManager.executor.submit(do_get_artist_info)
 
@@ -338,8 +350,11 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_artist_artwork_filename() -> str:
-                artist_info = CacheManager.get_artist_info2(artist.id).result()
+                artist_info = CacheManager.get_artist_info(artist.id).result()
                 lastfm_url = ''.join(artist_info.largeImageUrl)
+
+                # If it is the placeholder LastFM URL, then just use the cover
+                # art filename given by the server.
                 if lastfm_url == 'https://lastfm-img2.akamaized.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png':
                     return CacheManager.get_cover_art_filename(
                         artist.coverArt, size=300).result()
@@ -361,16 +376,20 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_albums() -> List[Child]:
-                if not self.cache.get('albums') or force:
+                cache_name = f"albums{'_id3' if self.browse_by_tags else ''}"
+                server_fn = (self.server.get_album_list2 if self.browse_by_tags
+                             else self.server.get_album_list)
+
+                if not self.cache.get(cache_name) or force:
                     before_download()
-                    albums = self.server.get_album_list(type_)
+                    albums = server_fn(type_)
 
                     with self.cache_lock:
-                        self.cache['albums'] = albums.album
+                        self.cache[cache_name] = albums.album
 
                     self.save_cache_info()
 
-                return self.cache['albums']
+                return self.cache[cache_name]
 
             return CacheManager.executor.submit(do_get_albums)
 
@@ -402,6 +421,8 @@ class CacheManager(metaclass=Singleton):
                 before_download: Callable[[], None],
                 on_song_download_complete: Callable[[int], None],
         ) -> Future:
+            # TODO handle application close somehow. I think we will need to
+            # raise some sort of an exception, not sure.
             def do_download_song(song_id):
                 # Do the actual download.
                 song_details_future = CacheManager.get_song_details(song_id)
@@ -449,14 +470,14 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_song_details() -> Child:
-                if not self.song_details.get(song_id) or force:
+                if not self.cache['song_details'].get(song_id) or force:
                     before_download()
                     song_details = self.server.get_song(song_id)
                     with self.cache_lock:
-                        self.song_details[song_id] = song_details
+                        self.cache['song_details'][song_id] = song_details
                     self.save_cache_info()
 
-                return self.song_details[song_id]
+                return self.cache['song_details'][song_id]
 
             return CacheManager.executor.submit(do_get_song_details)
 
