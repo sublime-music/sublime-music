@@ -149,6 +149,7 @@ class Server:
 
     def do_download(self, url, **params) -> bytes:
         print('download', url)
+        sleep(10)
         return self._post(url, **params).content
 
     def ping(self) -> Response:

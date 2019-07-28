@@ -1,5 +1,4 @@
 import math
-import concurrent
 
 import gi
 
@@ -16,8 +15,8 @@ class PlayerControls(Gtk.ActionBar):
     Defines the player controls panel that appears at the bottom of the window.
     """
     __gsignals__ = {
-        'song-scrub': (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE,
-                       (float, )),
+        'song-scrub':
+        (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (float, )),
     }
     editing: bool = False
 
@@ -66,8 +65,8 @@ class PlayerControls(Gtk.ActionBar):
         # TODO: it's not correct to use symboloc vs. not symbolic icons for
         # lighter/darker versions of the icon. Fix this by using FG color I
         # think? But then we have to deal with styling, which sucks.
-        icon = Gio.ThemedIcon(name='media-playlist-shuffle' +
-                              ('-symbolic' if state.shuffle_on else ''))
+        icon = Gio.ThemedIcon(name='media-playlist-shuffle'
+                              + ('-symbolic' if state.shuffle_on else ''))
         image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
         self.shuffle_button.remove(self.shuffle_button.get_child())
         self.shuffle_button.add(image)

@@ -78,8 +78,8 @@ def show_song_popover(
         show_remove_from_playlist_button: bool = False,
         extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = [],
 ):
-    def on_add_to_up_next_click(button):
-        print('up next click')
+    def on_play_next_click(button):
+        print('play next click')
 
     def on_add_to_queue_click(button):
         print('add to queue click')
@@ -130,7 +130,7 @@ def show_song_popover(
             remove_download_sensitive = True
 
     menu_items = [
-        (Gtk.ModelButton(text='Add to up next'), on_add_to_up_next_click),
+        (Gtk.ModelButton(text='Play next'), on_play_next_click),
         (Gtk.ModelButton(text='Add to queue'), on_add_to_queue_click),
         (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
         (

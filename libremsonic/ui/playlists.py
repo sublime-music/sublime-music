@@ -18,8 +18,8 @@ from libremsonic.ui.common import EditFormDialog
 
 class EditPlaylistDialog(EditFormDialog):
     __gsignals__ = {
-        'delete-playlist': (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE,
-                            ()),
+        'delete-playlist':
+        (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, ()),
     }
 
     entity_name: str = 'Playlist'
@@ -40,8 +40,8 @@ class EditPlaylistDialog(EditFormDialog):
 class PlaylistsPanel(Gtk.Paned):
     """Defines the playlists panel."""
     __gsignals__ = {
-        'song-clicked': (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE,
-                         (str, object)),
+        'song-clicked':
+        (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str, object)),
     }
 
     playlist_map: OrderedDict[int, PlaylistWithSongs] = {}
@@ -411,10 +411,10 @@ class PlaylistsPanel(Gtk.Paned):
                 event.y + abs(bin_coords.by - widget_coords.wy),
                 tree,
                 on_download_state_change=on_download_state_change,
-                extra_menu_items=[(
-                    Gtk.ModelButton(text=remove_text),
-                    on_remove_songs_click,
-                )])
+                extra_menu_items=[
+                    (Gtk.ModelButton(text=remove_text), on_remove_songs_click),
+                ],
+            )
 
             # If the click was on a selected row, don't deselect anything.
             if not allow_deselect:

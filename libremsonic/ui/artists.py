@@ -53,6 +53,7 @@ class ArtistsPanel(Gtk.Box):
                 self.stack.add_titled(child, name.lower(), name)
                 self.stack.child_set_property(child, 'icon-name', icon)
             else:
+                print('ohea')
                 self.stack.add_named(child, name)
                 child.connect('song-clicked', self.on_song_clicked)
 
@@ -317,8 +318,11 @@ class ArtistDetailPanel(Gtk.Box):
     def on_view_refresh_click(self, *args):
         self.update_artist_view(self.artist_id, force=True)
 
-    def on_download_all_click(self, *args):
+    def on_download_all_click(self, btn):
         print('download all')
+        artist = CacheManager.get_artist(self.artist_id).result()
+        for album in artist.album:
+            print(album)
 
     # Helper Methods
     # =========================================================================

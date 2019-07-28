@@ -332,10 +332,11 @@ class CacheManager(metaclass=Singleton):
                     before_download()
                     artist_info = self.server.get_artist_info2(id=artist_id)
 
-                    with self.cache_lock:
-                        self.artist_infos[artist_id] = artist_info
+                    if artist_info:
+                        with self.cache_lock:
+                            self.artist_infos[artist_id] = artist_info
 
-                    self.save_cache_info()
+                        self.save_cache_info()
 
                 return self.artist_infos[artist_id]
 
@@ -427,6 +428,8 @@ class CacheManager(metaclass=Singleton):
                 song_filename_future.add_done_callback(filename_future_done)
 
             def do_batch_download_songs():
+                self.current_downloads = self.current_downloads.union(
+                    set(song_ids))
                 for song_id in song_ids:
                     self.download_limiter_semaphore.acquire()
                     CacheManager.executor.submit(do_download_song, song_id)
