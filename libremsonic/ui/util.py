@@ -97,6 +97,12 @@ def show_song_popover(
             on_song_download_complete=on_download_state_change,
         )
 
+    def on_remove_downloads_click(button):
+        CacheManager.batch_delete_cached_songs(
+            song_ids,
+            on_song_delete=on_download_state_change,
+        )
+
     def on_add_to_playlist_click(button, playlist):
         CacheManager.executor.submit(
             CacheManager.update_playlist,
@@ -111,13 +117,17 @@ def show_song_popover(
     song_count = len(song_ids)
 
     # Determine if we should enable the download button.
-    download_sensitive = False
+    download_sensitive, remove_download_sensitive = False, False
     for song_id in song_ids:
         details = CacheManager.get_song_details(song_id)
         status = CacheManager.get_cached_status(details.result())
-        if status == SongCacheStatus.NOT_CACHED:
+        if download_sensitive or status == SongCacheStatus.NOT_CACHED:
             download_sensitive = True
-            break
+
+        if (remove_download_sensitive
+                or status in (SongCacheStatus.CACHED,
+                              SongCacheStatus.PERMANENTLY_CACHED)):
+            remove_download_sensitive = True
 
     menu_items = [
         (Gtk.ModelButton(text='Add to up next'), on_add_to_up_next_click),
@@ -134,11 +144,17 @@ def show_song_popover(
         (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
         (
             Gtk.ModelButton(
-                text=(f"Download {pluralize('song', song_count)}"
-                      if song_count > 1 else 'Download Song'),
+                text=f"Download {pluralize('song', song_count)}",
                 sensitive=download_sensitive,
             ),
             on_download_songs_click,
+        ),
+        (
+            Gtk.ModelButton(
+                text=f"Demove {pluralize('download', song_count)}",
+                sensitive=remove_download_sensitive,
+            ),
+            on_remove_downloads_click,
         ),
         (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
         (

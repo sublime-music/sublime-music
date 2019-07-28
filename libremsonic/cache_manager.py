@@ -185,6 +185,9 @@ class CacheManager(metaclass=Singleton):
                 self.app_config.cache_location).joinpath(*relative_paths)
 
         def calculate_download_path(self, *relative_paths):
+            """
+            Determine where to temporarily put the file as it is downloading.
+            """
             xdg_cache_home = (os.environ.get('XDG_CACHE_HOME')
                               or os.path.expanduser('~/.cache'))
             return Path(xdg_cache_home).joinpath('libremsonic',
@@ -380,6 +383,28 @@ class CacheManager(metaclass=Singleton):
                 return self.albums
 
             return CacheManager.executor.submit(do_get_albums)
+
+        def batch_delete_cached_songs(
+                self,
+                song_ids: List[int],
+                on_song_delete: Callable[[], None],
+        ) -> Future:
+            def do_delete_cached_songs():
+                # Do the actual download.
+                for song_id in song_ids:
+                    song_details_future = CacheManager.get_song_details(
+                        song_id)
+
+                    def filename_future_done(f):
+                        relative_path = f.result().path
+                        abs_path = self.calculate_abs_path(relative_path)
+                        if abs_path.exists():
+                            abs_path.unlink()
+                        on_song_delete()
+
+                    song_details_future.add_done_callback(filename_future_done)
+
+            return CacheManager.executor.submit(do_delete_cached_songs)
 
         def batch_download_songs(
                 self,
