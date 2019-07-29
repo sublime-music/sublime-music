@@ -25,6 +25,7 @@ from libremsonic.server.api_objects import (
     # Non-ID3 versions
     Artist,
     ArtistInfo,
+    Directory,
 
     # ID3 versions
     ArtistID3,
@@ -127,8 +128,8 @@ class CacheManager(metaclass=Singleton):
 
                 # Non-ID3 caches
                 ('albums', Child, list),
-                ('artists', Child, list),
-                # ('artist_details', None, dict), TODO
+                ('artists', Artist, list),
+                ('artist_details', Directory, dict),
                 ('artist_infos', ArtistInfo, dict),
 
                 # ID3 caches
@@ -302,7 +303,7 @@ class CacheManager(metaclass=Singleton):
                 # TODO: implement the non-ID3 version
                 cache_name = f"artist_details{'_id3' if self.browse_by_tags else ''}"
                 server_fn = (self.server.get_artist if self.browse_by_tags else
-                             lambda: 'not implemented')
+                             self.server.get_music_directory)
 
                 if artist_id not in self.cache.get(cache_name, {}) or force:
                     before_download()
@@ -345,7 +346,7 @@ class CacheManager(metaclass=Singleton):
 
         def get_artist_artwork(
                 self,
-                artist: ArtistID3,
+                artist: Union[Artist, ArtistID3],
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
         ) -> Future:
@@ -356,8 +357,14 @@ class CacheManager(metaclass=Singleton):
                 # If it is the placeholder LastFM URL, then just use the cover
                 # art filename given by the server.
                 if lastfm_url == 'https://lastfm-img2.akamaized.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png':
-                    return CacheManager.get_cover_art_filename(
-                        artist.coverArt, size=300).result()
+                    if isinstance(artist, ArtistWithAlbumsID3):
+                        return CacheManager.get_cover_art_filename(
+                            artist.coverArt, size=300).result()
+                    elif (isinstance(artist, Directory)
+                          and len(artist.child) > 0):
+                        # Retrieve the first album's cover art
+                        return CacheManager.get_cover_art_filename(
+                            artist.child[0].coverArt, size=300).result()
 
                 url_hash = hashlib.md5(lastfm_url.encode('utf-8')).hexdigest()
                 return self.return_cache_or_download(

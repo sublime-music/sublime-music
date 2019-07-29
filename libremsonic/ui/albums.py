@@ -1,5 +1,5 @@
 import gi
-from typing import List
+from typing import Optional
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, GObject, Pango
@@ -47,7 +47,7 @@ class AlbumsGrid(CoverArtGrid):
     def get_header_text(self, item: AlbumModel) -> str:
         return item.title
 
-    def get_info_text(self, item: AlbumModel) -> str:
+    def get_info_text(self, item: AlbumModel) -> Optional[str]:
         return util.dot_join(item.artist, item.year)
 
     def get_model_list_future(self, before_download):

@@ -1,5 +1,5 @@
 from concurrent.futures import Future
-from typing import List, Union
+from typing import List, Union, Optional
 
 import gi
 
@@ -130,15 +130,22 @@ class ArtistsGrid(CoverArtGrid):
     def get_header_text(self, item) -> str:
         return item.name
 
-    def get_info_text(self, item) -> str:
-        return (str(item.album_count) + ' '
-                + util.pluralize('album', item.album_count))
+    def get_info_text(self, item) -> Optional[str]:
+        if item.album_count:
+            return (str(item.album_count) + ' '
+                    + util.pluralize('album', item.album_count))
+        return None
 
     def get_model_list_future(self, before_download) -> List[ArtistID3]:
         return CacheManager.get_artists(before_download=before_download)
 
     def create_model_from_element(self, el):
-        return ArtistModel(el.id, el.name, el.coverArt, el.albumCount)
+        return ArtistModel(
+            el.id,
+            el.name,
+            getattr(el, 'coverArt', None),
+            getattr(el, 'albumCount', None),
+        )
 
     def get_cover_art_filename_future(self, item, before_download) -> Future:
         # TODO convert to get_artist_artwork
@@ -190,10 +197,12 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_artwork = Gtk.Image(name='artist-album-artwork')
         artwork_overlay.add(self.artist_artwork)
 
-        self.artwork_spinner = Gtk.Spinner(name='artist-artwork-spinner',
-                                           active=True,
-                                           halign=Gtk.Align.CENTER,
-                                           valign=Gtk.Align.CENTER)
+        self.artwork_spinner = Gtk.Spinner(
+            name='artist-artwork-spinner',
+            active=True,
+            halign=Gtk.Align.CENTER,
+            valign=Gtk.Align.CENTER,
+        )
         artwork_overlay.add_overlay(self.artwork_spinner)
         self.big_info_panel.pack_start(artwork_overlay, False, False, 0)
 
@@ -210,10 +219,9 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_action_buttons.pack_end(view_refresh_button, False, False,
                                             5)
 
-        download_all_button = util.button_with_icon('folder-download-symbolic')
-        download_all_button.connect('clicked', self.on_download_all_click)
-        self.artist_action_buttons.pack_end(download_all_button, False, False,
-                                            5)
+        download_all_btn = util.button_with_icon('folder-download-symbolic')
+        download_all_btn.connect('clicked', self.on_download_all_click)
+        self.artist_action_buttons.pack_end(download_all_btn, False, False, 5)
 
         artist_details_box.pack_start(self.artist_action_buttons, False, False,
                                       5)
@@ -278,7 +286,7 @@ class ArtistDetailPanel(Gtk.Box):
         self.update_artist_info(artist.id)
         self.update_artist_artwork(artist)
 
-        self.albums = artist.album
+        self.albums = artist.get('album', artist.get('child', []))
         self.albums_grid.update()
 
     @util.async_callback(
@@ -340,11 +348,22 @@ class ArtistDetailPanel(Gtk.Box):
             self.artwork_spinner.hide()
 
     def format_stats(self, artist):
-        song_count = sum(a.songCount for a in artist.album)
-        duration = sum(a.duration for a in artist.album)
-        return util.dot_join(
-            '{} {}'.format(artist.albumCount,
-                           util.pluralize('album', artist.albumCount)),
-            '{} {}'.format(song_count, util.pluralize('song', song_count)),
-            util.format_sequence_duration(duration),
-        )
+        album_count = artist.get('albumCount', len(artist.get('child', [])))
+        components = [
+            '{} {}'.format(album_count, util.pluralize('album', album_count)),
+        ]
+
+        if artist.get('album'):
+            song_count = sum(a.songCount for a in artist.album)
+            duration = sum(a.duration for a in artist.album)
+            components += [
+                '{} {}'.format(song_count, util.pluralize('song', song_count)),
+                util.format_sequence_duration(duration),
+            ]
+        elif artist.get('child'):
+            plays = sum(c.playCount for c in artist.child)
+            components += [
+                '{} {}'.format(plays, util.pluralize('play', plays)),
+            ]
+
+        return util.dot_join(*components)

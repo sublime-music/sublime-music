@@ -1,4 +1,5 @@
 from concurrent.futures import Future
+from typing import Optional
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -97,8 +98,9 @@ class CoverArtGrid(Gtk.ScrolledWindow):
 
         # Extra info for the widget
         info_text = self.get_info_text(item)
-        info_label = make_label(info_text, 'grid-info-label')
-        widget_box.pack_start(info_label, False, False, 0)
+        if info_text:
+            info_label = make_label(info_text, 'grid-info-label')
+            widget_box.pack_start(info_label, False, False, 0)
 
         # Download the cover art.
         def on_artwork_downloaded(f):
@@ -122,7 +124,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             'get_header_text must be implemented by the inheritor of CoverArtGrid.'
         )
 
-    def get_info_text(self, item) -> str:
+    def get_info_text(self, item) -> Optional[str]:
         raise NotImplementedError(
             'get_info_text must be implemented by the inheritor of CoverArtGrid.'
         )
