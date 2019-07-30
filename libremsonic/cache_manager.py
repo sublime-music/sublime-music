@@ -128,12 +128,16 @@ class CacheManager(metaclass=Singleton):
 
                 # Non-ID3 caches
                 ('albums', Child, list),
+                ('album_details', Child, dict),
+
                 ('artists', Artist, list),
                 ('artist_details', Directory, dict),
                 ('artist_infos', ArtistInfo, dict),
 
                 # ID3 caches
                 ('albums_id3', AlbumWithSongsID3, list),
+                ('album_details_id3', AlbumWithSongsID3, dict),
+
                 ('artists_id3', ArtistID3, list),
                 ('artist_details_id3', ArtistWithAlbumsID3, dict),
                 ('artist_infos_id3', ArtistInfo2, dict),
