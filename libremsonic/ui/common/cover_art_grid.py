@@ -121,27 +121,32 @@ class CoverArtGrid(Gtk.ScrolledWindow):
     # =========================================================================
     def get_header_text(self, item) -> str:
         raise NotImplementedError(
-            'get_header_text must be implemented by the inheritor of CoverArtGrid.'
+            'get_header_text must be implemented by the inheritor of '
+            'CoverArtGrid.'
         )
 
     def get_info_text(self, item) -> Optional[str]:
         raise NotImplementedError(
-            'get_info_text must be implemented by the inheritor of CoverArtGrid.'
+            'get_info_text must be implemented by the inheritor of '
+            'CoverArtGrid.'
         )
 
     def get_model_list_future(self, before_download):
         raise NotImplementedError(
-            'get_model_list_future must be implemented by the inheritor of CoverArtGrid.'
+            'get_model_list_future must be implemented by the inheritor of '
+            'CoverArtGrid.'
         )
 
     def create_model_from_element(self, el):
         raise NotImplementedError(
-            'create_model_from_element must be implemented by the inheritor of CoverArtGrid.'
+            'create_model_from_element must be implemented by the inheritor '
+            'of CoverArtGrid.'
         )
 
     def get_cover_art_filename_future(self, item, before_download) -> Future:
         raise NotImplementedError(
-            'get_cover_art_filename_future must be implemented by the inheritor of CoverArtGrid.'
+            'get_cover_art_filename_future must be implemented by the '
+            'inheritor of CoverArtGrid.'
         )
 
     # Event Handlers
