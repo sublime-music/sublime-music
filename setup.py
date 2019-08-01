@@ -49,7 +49,6 @@ setup(
         'Deprecated',
         'fuzzywuzzy',
         'gobject',
-        'jsonpickle',
         'pychromecast',
         'PyGObject',
         'python-dateutil',
