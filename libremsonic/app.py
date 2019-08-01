@@ -351,6 +351,9 @@ class LibremsonicApp(Gtk.Application):
 
                 self.player.command('loadfile', song_file, 'replace',
                                     f'start={self.state.song_progress}')
+                # TODO refactor to use record-file if necessary. This will
+                # require changes in the way that the get song filename future
+                # works.
                 self.player.pause = False
 
                 if old_play_queue:
