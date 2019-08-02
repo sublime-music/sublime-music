@@ -499,11 +499,12 @@ class PlaylistsPanel(Gtk.Paned):
         selected_idx = None
         for i, playlist in enumerate(playlists):
             # Use i+1 due to loading indicator
-            if playlist == selected_playlist:
+            if selected_playlist and playlist.id == selected_playlist.id:
                 selected_idx = i + 1
             self.playlist_map[i + 1] = playlist
             self.playlist_list.insert(self.create_playlist_label(playlist),
                                       i + 1)
+
         if selected_idx:
             row = self.playlist_list.get_row_at_index(selected_idx)
             self.playlist_list.select_row(row)

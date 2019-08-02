@@ -10,7 +10,8 @@
   padding: 0;
 }
 
-#playlist-list-spinner:checked {
+#playlist-list-spinner:checked,
+#artist-list-spinner:checked {
   margin: 10px;
   padding: 0px;
 }
