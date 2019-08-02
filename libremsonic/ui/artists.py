@@ -85,7 +85,7 @@ class ArtistList(Gtk.Box):
 
         self.add(list_actions)
 
-        list_scroll_window = Gtk.ScrolledWindow(min_content_width=220)
+        list_scroll_window = Gtk.ScrolledWindow(min_content_width=250)
         self.list = Gtk.ListBox(name='artist-list-listbox')
 
         self.loading_indicator = Gtk.ListBoxRow(

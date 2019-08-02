@@ -336,44 +336,42 @@ class LibremsonicApp(Gtk.Application):
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.
         def do_play_song(song: Child):
-            # Do this the old fashioned way so that we can have access to
-            # ``song`` in the callback.
-            def filename_future_done(song_file):
-                self.state.current_song = song
-                self.state.playing = True
-                self.update_window()
+            uri, stream = CacheManager.get_song_filename_or_stream(song)
 
-                # Prevent it from doing the thing where it continually loads
-                # songs when it has to download.
-                if reset:
-                    self.had_progress_value = False
-                    self.state.song_progress = 0
+            self.state.current_song = song
+            self.state.playing = True
+            self.update_window()
 
-                self.player.command('loadfile', song_file, 'replace',
-                                    f'start={self.state.song_progress}')
-                # TODO refactor to use record-file if necessary. This will
-                # require changes in the way that the get song filename future
-                # works.
-                self.player.pause = False
+            # Prevent it from doing the thing where it continually loads
+            # songs when it has to download.
+            if reset:
+                self.had_progress_value = False
+                self.state.song_progress = 0
 
-                if old_play_queue:
-                    self.state.old_play_queue = old_play_queue
+            # If streaming, also download the song.
+            # TODO: make it configurable if we do this download
+            if stream:
+                CacheManager.batch_download_songs(
+                    [song.id],
+                    before_download=lambda: self.update_window(),
+                    on_song_download_complete=lambda _: self.update_window(),
+                )
 
-                if play_queue:
-                    self.state.play_queue = play_queue
-                    self.save_play_queue()
+            self.player.command(
+                'loadfile',
+                uri,
+                'replace',
+                f'start={self.state.song_progress}',
+            )
 
-            def before_song_download():
-                # Pause the currently playing song. This prevents anything from
-                # playing while a download occurs.
-                self.player.pause = True
-                self.state.playing = False
-                self.update_window()
+            self.player.pause = False
 
-            song_filename_future = CacheManager.get_song_filename(
-                song, before_download=before_song_download)
-            song_filename_future.add_done_callback(
-                lambda f: GLib.idle_add(filename_future_done, f.result()), )
+            if old_play_queue:
+                self.state.old_play_queue = old_play_queue
+
+            if play_queue:
+                self.state.play_queue = play_queue
+                self.save_play_queue()
 
         song_details_future = CacheManager.get_song_details(song)
         song_details_future.add_done_callback(

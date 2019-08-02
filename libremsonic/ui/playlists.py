@@ -327,7 +327,7 @@ class PlaylistsPanel(Gtk.Paned):
             )
 
             cover_art_filename = f'cover_art/{playlist.coverArt}_*'
-            CacheManager.delete_cache(cover_art_filename)
+            CacheManager.delete_cached(cover_art_filename)
 
             self.update_playlist_list(force=True)
             self.update_playlist_view(playlist.id, force=True)

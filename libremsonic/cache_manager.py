@@ -4,13 +4,22 @@ import threading
 import shutil
 import json
 import hashlib
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 from concurrent.futures import ThreadPoolExecutor, Future
 from enum import EnumMeta, Enum
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Callable, Set, DefaultDict
+from typing import (
+    Any,
+    List,
+    Optional,
+    Union,
+    Callable,
+    Set,
+    DefaultDict,
+    Tuple,
+)
 
 import requests
 
@@ -85,6 +94,7 @@ class CacheManager(metaclass=Singleton):
         server: Server
         browse_by_tags: bool
 
+        download_move_lock = threading.Lock()
         download_set_lock = threading.Lock()
         current_downloads: Set[Path] = set()
 
@@ -129,7 +139,6 @@ class CacheManager(metaclass=Singleton):
                 # Non-ID3 caches
                 ('albums', Child, list),
                 ('album_details', Child, dict),
-
                 ('artists', Artist, list),
                 ('artist_details', Directory, dict),
                 ('artist_infos', ArtistInfo, dict),
@@ -137,7 +146,6 @@ class CacheManager(metaclass=Singleton):
                 # ID3 caches
                 ('albums_id3', AlbumWithSongsID3, list),
                 ('album_details_id3', AlbumWithSongsID3, dict),
-
                 ('artists_id3', ArtistID3, list),
                 ('artist_details_id3', ArtistWithAlbumsID3, dict),
                 ('artist_infos_id3', ArtistInfo2, dict),
@@ -183,7 +191,7 @@ class CacheManager(metaclass=Singleton):
             return Path(xdg_cache_home).joinpath('libremsonic',
                                                  *relative_paths)
 
-        def return_cache_or_download(
+        def return_cached_or_download(
                 self,
                 relative_path: Union[Path, str],
                 download_fn: Callable[[], bytes],
@@ -202,16 +210,20 @@ class CacheManager(metaclass=Singleton):
                 before_download()
                 self.save_file(download_path, download_fn())
 
-                # Move the file to its cache download location.
-                os.makedirs(abs_path.parent, exist_ok=True)
-                shutil.move(download_path, abs_path)
+                # Move the file to its cache download location. We need a lock
+                # here just in case we fired two downloads of the same asset
+                # for some reason.
+                with self.download_move_lock:
+                    os.makedirs(abs_path.parent, exist_ok=True)
+                    if download_path.exists():
+                        shutil.move(download_path, abs_path)
 
                 with self.download_set_lock:
                     self.current_downloads.discard(abs_path)
 
             return str(abs_path)
 
-        def delete_cache(self, relative_path: Union[Path, str]):
+        def delete_cached(self, relative_path: Union[Path, str]):
             """
             :param relative_path: The path to the cached element to delete.
                 Note that this can be a globed path.
@@ -262,7 +274,7 @@ class CacheManager(metaclass=Singleton):
                 # Invalidate the cached photo if we are forcing a retrieval
                 # from the server.
                 if force:
-                    self.delete_cache(
+                    self.delete_cached(
                         f'cover_art/{playlist_details.coverArt}_*')
 
                 return playlist_details
@@ -371,7 +383,7 @@ class CacheManager(metaclass=Singleton):
                             artist.child[0].coverArt, size=300).result()
 
                 url_hash = hashlib.md5(lastfm_url.encode('utf-8')).hexdigest()
-                return self.return_cache_or_download(
+                return self.return_cached_or_download(
                     f'cover_art/artist.{url_hash}',
                     lambda: requests.get(lastfm_url).content,
                     before_download=before_download,
@@ -437,21 +449,21 @@ class CacheManager(metaclass=Singleton):
             def do_download_song(song_id):
                 # Do the actual download.
                 song_details_future = CacheManager.get_song_details(song_id)
-                song_filename_future = CacheManager.get_song_filename(
-                    song_details_future.result(),
+                song = song_details_future.result()
+                self.return_cached_or_download(
+                    song.path,
+                    lambda: self.server.download(song.id),
                     before_download=before_download,
                 )
 
-                def filename_future_done(f):
-                    self.download_limiter_semaphore.release()
-                    on_song_download_complete(song_id)
-
-                song_filename_future.add_done_callback(filename_future_done)
+                self.download_limiter_semaphore.release()
+                on_song_download_complete(song_id)
 
             def do_batch_download_songs():
                 self.current_downloads = self.current_downloads.union(
                     set(song_ids))
                 for song_id in song_ids:
+                    print(song_id)
                     self.download_limiter_semaphore.acquire()
                     CacheManager.executor.submit(do_download_song, song_id)
 
@@ -465,7 +477,7 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_cover_art_filename() -> str:
-                return self.return_cache_or_download(
+                return self.return_cached_or_download(
                     f'cover_art/{id}_{size}',
                     lambda: self.server.get_cover_art(id, str(size)),
                     before_download=before_download,
@@ -492,22 +504,15 @@ class CacheManager(metaclass=Singleton):
 
             return CacheManager.executor.submit(do_get_song_details)
 
-        def get_song_filename(
+        def get_song_filename_or_stream(
                 self,
                 song: Child,
-                before_download: Callable[[], None] = lambda: None,
-                force: bool = False,
-        ) -> Future:
-            def do_get_song_filename() -> str:
-                song_filename = self.return_cache_or_download(
-                    song.path,
-                    lambda: self.server.download(song.id),
-                    before_download=before_download,
-                    force=force,
-                )
-                return song_filename
+        ) -> Tuple[str, bool]:
+            abs_path = self.calculate_abs_path(song.path)
+            if not abs_path.exists():
+                return (self.server.get_stream_url(song.id), True)
 
-            return CacheManager.executor.submit(do_get_song_filename)
+            return (str(abs_path), False)
 
         def get_cached_status(self, song: Child) -> SongCacheStatus:
             cache_path = self.calculate_abs_path(song.path)
