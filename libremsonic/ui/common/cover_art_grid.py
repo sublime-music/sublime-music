@@ -6,6 +6,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, Gtk, GObject, Gio, Pango
 
 from libremsonic.state_manager import ApplicationState
+from .spinner_image import SpinnerImage
 
 
 class CoverArtGrid(Gtk.ScrolledWindow):
@@ -68,18 +69,11 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         widget_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Cover art image
-        artwork_overlay = Gtk.Overlay()
-        artwork_image = Gtk.Image(name='grid-artwork')
-        artwork_overlay.add(artwork_image)
-
-        artwork_spinner = Gtk.Spinner(
-            name='grid-artwork-spinner',
-            active=False,
-            halign=Gtk.Align.CENTER,
-            valign=Gtk.Align.CENTER,
+        artwork = SpinnerImage(
+            image_name='grid-artwork',
+            spinner_name='grid-artwork-spinner',
         )
-        artwork_overlay.add_overlay(artwork_spinner)
-        widget_box.pack_start(artwork_overlay, False, False, 0)
+        widget_box.pack_start(artwork, False, False, 0)
 
         def make_label(text, name):
             return Gtk.Label(
@@ -104,11 +98,11 @@ class CoverArtGrid(Gtk.ScrolledWindow):
 
         # Download the cover art.
         def on_artwork_downloaded(f):
-            artwork_image.set_from_file(f.result())
-            artwork_spinner.active = False
+            artwork.set_from_file(f.result())
+            artwork.set_loading(False)
 
         def start_loading():
-            artwork_spinner.active = True
+            artwork.set_loading(True)
 
         cover_art_filename_future = self.get_cover_art_filename_future(
             item, before_download=start_loading)
@@ -122,32 +116,27 @@ class CoverArtGrid(Gtk.ScrolledWindow):
     def get_header_text(self, item) -> str:
         raise NotImplementedError(
             'get_header_text must be implemented by the inheritor of '
-            'CoverArtGrid.'
-        )
+            'CoverArtGrid.')
 
     def get_info_text(self, item) -> Optional[str]:
         raise NotImplementedError(
             'get_info_text must be implemented by the inheritor of '
-            'CoverArtGrid.'
-        )
+            'CoverArtGrid.')
 
     def get_model_list_future(self, before_download):
         raise NotImplementedError(
             'get_model_list_future must be implemented by the inheritor of '
-            'CoverArtGrid.'
-        )
+            'CoverArtGrid.')
 
     def create_model_from_element(self, el):
         raise NotImplementedError(
             'create_model_from_element must be implemented by the inheritor '
-            'of CoverArtGrid.'
-        )
+            'of CoverArtGrid.')
 
     def get_cover_art_filename_future(self, item, before_download) -> Future:
         raise NotImplementedError(
             'get_cover_art_filename_future must be implemented by the '
-            'inheritor of CoverArtGrid.'
-        )
+            'inheritor of CoverArtGrid.')
 
     # Event Handlers
     # =========================================================================

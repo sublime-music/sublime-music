@@ -13,7 +13,7 @@ from libremsonic.server.api_objects import Child, PlaylistWithSongs
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager, SongCacheStatus
 from libremsonic.ui import util
-from libremsonic.ui.common import EditFormDialog
+from libremsonic.ui.common import EditFormDialog, SpinnerImage
 
 
 class EditPlaylistDialog(EditFormDialog):
@@ -51,10 +51,7 @@ class PlaylistsPanel(Gtk.Paned):
     reordering_playlist_song_list: bool = False
 
     def __init__(self):
-        Gtk.Paned.__init__(
-            self,
-            orientation=Gtk.Orientation.HORIZONTAL,
-        )
+        Gtk.Paned.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
 
         # The playlist list on the left side
         # =====================================================================
@@ -127,8 +124,6 @@ class PlaylistsPanel(Gtk.Paned):
         list_scroll_window.add(self.playlist_list)
         playlist_list_vbox.pack_start(list_scroll_window, True, True, 0)
 
-        # Add playlist button
-
         self.pack1(playlist_list_vbox, False, False)
 
         # The playlist view on the right side
@@ -143,16 +138,11 @@ class PlaylistsPanel(Gtk.Paned):
             orientation=Gtk.Orientation.HORIZONTAL,
         )
 
-        artwork_overlay = Gtk.Overlay()
-        self.playlist_artwork = Gtk.Image(name='playlist-album-artwork')
-        artwork_overlay.add(self.playlist_artwork)
-
-        self.artwork_spinner = Gtk.Spinner(name='playlist-artwork-spinner',
-                                           active=True,
-                                           halign=Gtk.Align.CENTER,
-                                           valign=Gtk.Align.CENTER)
-        artwork_overlay.add_overlay(self.artwork_spinner)
-        self.big_info_panel.pack_start(artwork_overlay, False, False, 0)
+        self.playlist_artwork = SpinnerImage(
+            image_name='playlist-album-artwork',
+            spinner_name='playlist-artwork-spinner',
+        )
+        self.big_info_panel.pack_start(self.playlist_artwork, False, False, 0)
 
         # Action buttons, name, comment, number of songs, etc.
         playlist_details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -458,7 +448,7 @@ class PlaylistsPanel(Gtk.Paned):
     def update(self, state: ApplicationState):
         self.new_playlist_row.hide()
         self.set_playlist_view_loading(False)
-        self.set_playlist_art_loading(False)
+        self.playlist_artwork.set_loading(False)
         self.update_playlist_list()
         selected = self.playlist_list.get_selected_row()
         if selected:
@@ -477,15 +467,9 @@ class PlaylistsPanel(Gtk.Paned):
     def set_playlist_view_loading(self, loading_status):
         if loading_status:
             self.playlist_view_loading_box.show()
-            self.artwork_spinner.show()
+            self.playlist_artwork.set_loading(True)
         else:
             self.playlist_view_loading_box.hide()
-
-    def set_playlist_art_loading(self, loading_status):
-        if loading_status:
-            self.artwork_spinner.show()
-        else:
-            self.artwork_spinner.hide()
 
     def create_playlist(self, playlist_name):
         try:
@@ -532,7 +516,7 @@ class PlaylistsPanel(Gtk.Paned):
         lambda *a, **k: CacheManager.get_playlist(*a, **k),
         before_download=lambda self: self.set_playlist_view_loading(True),
         on_failure=lambda self, e: (self.set_playlist_view_loading(False) or
-                                    self.set_playlist_art_loading(False)),
+                                    self.playlist_artwork.set_loading(False)),
     )
     def update_playlist_view(self, playlist):
         # Update the Playlist Info panel
@@ -600,12 +584,12 @@ class PlaylistsPanel(Gtk.Paned):
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_cover_art_filename(*a, **k),
-        before_download=lambda self: self.set_playlist_art_loading(True),
-        on_failure=lambda self, e: self.set_playlist_art_loading(False),
+        before_download=lambda self: self.playlist_artwork.set_loading(True),
+        on_failure=lambda self, e: self.playlist_artwork.set_loading(False),
     )
     def update_playlist_artwork(self, cover_art_filename):
         self.playlist_artwork.set_from_file(cover_art_filename)
-        self.set_playlist_art_loading(False)
+        self.playlist_artwork.set_loading(False)
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_playlist(*a, **k),

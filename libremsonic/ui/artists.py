@@ -9,7 +9,7 @@ from gi.repository import Gtk, GObject, Gio
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
-from libremsonic.ui.common import CoverArtGrid
+from libremsonic.ui.common import CoverArtGrid, SpinnerImage
 
 from libremsonic.server.api_objects import (
     AlbumID3,
@@ -22,7 +22,7 @@ from libremsonic.server.api_objects import (
 from .albums import AlbumsGrid
 
 
-class ArtistsPanel(Gtk.Box):
+class ArtistsPanel(Gtk.Paned):
     """Defines the arist panel."""
 
     __gsignals__ = {
@@ -34,83 +34,13 @@ class ArtistsPanel(Gtk.Box):
     }
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, orientation=Gtk.Orientation.VERTICAL, **kwargs)
+        Gtk.Paned.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
 
-        self.prev_panel = None
-
-        # Create the stack
-        self.stack = Gtk.Stack()
-        self.stack.connect('notify::visible-child', self.on_stack_change)
-        panels = {
-            'grid': ('view-grid-symbolic', ArtistsGrid()),
-            'list': ('view-list-symbolic', ArtistList()),
-            'artist_detail': (None, ArtistDetailPanel()),
-        }
-
-        for name, (icon, child) in panels.items():
-            if icon:
-                child.connect('item-clicked', self.on_artist_clicked)
-                self.stack.add_titled(child, name.lower(), name)
-                self.stack.child_set_property(child, 'icon-name', icon)
-            else:
-                self.stack.add_named(child, name)
-                child.connect('song-clicked', self.on_song_clicked)
-
-        actionbar = Gtk.ActionBar()
-
-        self.back_button = util.button_with_icon('go-previous-symbolic')
-        self.back_button.connect('clicked', self.on_back_button_press)
-        actionbar.pack_start(self.back_button)
-
-        self.switcher = Gtk.StackSwitcher(stack=self.stack)
-        actionbar.pack_end(self.switcher)
-
-        self.add(actionbar)
-        self.add(self.stack)
+        # self.pack1(playlist_list_vbox, False, False)
+        self.pack2(ArtistDetailPanel(), True, False)
 
     def update(self, state: ApplicationState):
-        active_panel = self.stack.get_visible_child()
-        if hasattr(active_panel, 'update'):
-            active_panel.update(state)
-
-        self.update_view_buttons()
-
-    def update_view_buttons(self):
-        if self.stack.get_visible_child_name() == 'artist_detail':
-            self.back_button.show()
-            self.switcher.hide()
-        else:
-            self.back_button.hide()
-            self.switcher.show()
-
-    def button_with_icon(
-            self,
-            icon_name,
-            icon_size=Gtk.IconSize.BUTTON,
-            group_with=None,
-    ) -> Gtk.RadioButton:
-        button = Gtk.RadioButton.new_from_widget(group_with)
-        button.set_mode(True)
-
-        icon = Gio.ThemedIcon(name=icon_name)
-        image = Gtk.Image.new_from_gicon(icon, icon_size)
-        button.add(image)
-
-        return button
-
-    def on_artist_clicked(self, _, artist):
-        self.prev_panel = self.stack.get_visible_child_name()
-        self.stack.set_visible_child_name('artist_detail')
-        self.stack.get_visible_child().update_artist_view(artist.id)
-
-    def on_song_clicked(self, _, song_id, song_queue):
-        self.emit('song-clicked', song_id, song_queue)
-
-    def on_stack_change(self, *_):
-        self.update_view_buttons()
-
-    def on_back_button_press(self, button):
-        self.stack.set_visible_child_name(self.prev_panel or 'grid')
+        pass
 
 
 class ArtistModel(GObject.Object):
@@ -120,51 +50,6 @@ class ArtistModel(GObject.Object):
         self.cover_art = cover_art
         self.album_count = album_count
         super().__init__()
-
-
-class ArtistsGrid(CoverArtGrid):
-    """Defines the artists grid."""
-
-    # Override Methods
-    # =========================================================================
-    def get_header_text(self, item) -> str:
-        return item.name
-
-    def get_info_text(self, item) -> Optional[str]:
-        if item.album_count:
-            return (str(item.album_count) + ' '
-                    + util.pluralize('album', item.album_count))
-        return None
-
-    def get_model_list_future(self, before_download) -> List[ArtistID3]:
-        return CacheManager.get_artists(before_download=before_download)
-
-    def create_model_from_element(self, el):
-        return ArtistModel(
-            el.id,
-            el.name,
-            getattr(el, 'coverArt', None),
-            getattr(el, 'albumCount', None),
-        )
-
-    def get_cover_art_filename_future(self, item, before_download) -> Future:
-        # TODO convert to get_artist_artwork
-        return CacheManager.get_cover_art_filename(
-            item.cover_art,
-            before_download=before_download,
-        )
-
-
-class ArtistList(Gtk.Paned):
-    """Defines the artists list."""
-
-    __gsignals__ = {
-        'item-clicked': (
-            GObject.SIGNAL_RUN_FIRST,
-            GObject.TYPE_NONE,
-            (str, object),
-        ),
-    }
 
 
 class ArtistDetailPanel(Gtk.Box):
@@ -193,18 +78,12 @@ class ArtistDetailPanel(Gtk.Box):
         # Artist info panel
         self.big_info_panel = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
-        artwork_overlay = Gtk.Overlay()
-        self.artist_artwork = Gtk.Image(name='artist-album-artwork')
-        artwork_overlay.add(self.artist_artwork)
-
-        self.artwork_spinner = Gtk.Spinner(
-            name='artist-artwork-spinner',
-            active=True,
-            halign=Gtk.Align.CENTER,
-            valign=Gtk.Align.CENTER,
+        self.artist_artwork = SpinnerImage(
+            loading=False,
+            image_name='artist-album-artwork',
+            spinner_name='artist-artwork-spinner',
         )
-        artwork_overlay.add_overlay(self.artwork_spinner)
-        self.big_info_panel.pack_start(artwork_overlay, False, False, 0)
+        self.big_info_panel.pack_start(self.artist_artwork, False, False, 0)
 
         # Action buttons, name, comment, number of songs, etc.
         artist_details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -274,7 +153,7 @@ class ArtistDetailPanel(Gtk.Box):
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist(*a, **k),
-        before_download=lambda self: self.set_artwork_loading(True),
+        before_download=lambda self: self.artist_artwork.set_loading(True),
         on_failure=lambda self, e: print('fail a', e),
     )
     def update_artist_view(self, artist: ArtistWithAlbumsID3):
@@ -313,12 +192,12 @@ class ArtistDetailPanel(Gtk.Box):
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist_artwork(*a, **k),
-        before_download=lambda self: self.set_artwork_loading(True),
-        on_failure=lambda self, e: self.set_artwork_loading(False),
+        before_download=lambda self: self.artist_artwork.set_loading(True),
+        on_failure=lambda self, e: self.artist_artwork.set_loading(False),
     )
     def update_artist_artwork(self, cover_art_filename):
         self.artist_artwork.set_from_file(cover_art_filename)
-        self.set_artwork_loading(False)
+        self.artist_artwork.set_loading(False)
 
     # Event Handlers
     # =========================================================================
@@ -340,12 +219,6 @@ class ArtistDetailPanel(Gtk.Box):
             halign=Gtk.Align.START,
             **params,
         )
-
-    def set_artwork_loading(self, loading_status):
-        if loading_status:
-            self.artwork_spinner.show()
-        else:
-            self.artwork_spinner.hide()
 
     def format_stats(self, artist):
         album_count = artist.get('albumCount', len(artist.get('child', [])))
