@@ -7,9 +7,9 @@ from fuzzywuzzy import process
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, Pango, GObject, GLib, Gdk
+from gi.repository import Gio, Gtk, Pango, GObject, GLib
 
-from libremsonic.server.api_objects import Child, PlaylistWithSongs
+from libremsonic.server.api_objects import PlaylistWithSongs
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager, SongCacheStatus
 from libremsonic.ui import util

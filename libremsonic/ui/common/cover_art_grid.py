@@ -70,6 +70,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
 
         # Cover art image
         artwork = SpinnerImage(
+            loading=False,
             image_name='grid-artwork',
             spinner_name='grid-artwork-spinner',
         )

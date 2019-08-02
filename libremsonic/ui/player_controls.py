@@ -8,6 +8,7 @@ from gi.repository import Gtk, Pango, GObject, Gio, GLib
 from libremsonic.state_manager import ApplicationState, RepeatType
 from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
+from libremsonic.ui.common import SpinnerImage
 
 
 class PlayerControls(Gtk.ActionBar):
@@ -151,11 +152,12 @@ class PlayerControls(Gtk.ActionBar):
 
     @util.async_callback(
         lambda *k, **v: CacheManager.get_cover_art_filename(*k, **v),
-        before_download=lambda self: print('set loading here'),
-        on_failure=lambda self, e: print('stop loading here'),
+        before_download=lambda self: self.album_art.set_loading(True),
+        on_failure=lambda self, e: self.album_art.set_loading(False),
     )
     def update_cover_art(self, cover_art_filename):
         self.album_art.set_from_file(cover_art_filename)
+        self.album_art.set_loading(False)
 
     def update_scrubber(self, current, duration):
         current = current or 0
@@ -178,10 +180,14 @@ class PlayerControls(Gtk.ActionBar):
         self.up_next_popover.popup()
         self.up_next_popover.show_all()
 
+    def on_device_click(self, button):
+        print('device click')
+
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
-        self.album_art = Gtk.Image(name="player-controls-album-artwork")
+        self.album_art = SpinnerImage(
+            image_name='player-controls-album-artwork')
         box.pack_start(self.album_art, False, False, 5)
 
         details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -278,6 +284,12 @@ class PlayerControls(Gtk.ActionBar):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.pack_start(Gtk.Box(), True, True, 0)
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+
+        # Device button (for chromecast)
+        up_next_button = util.button_with_icon(
+            'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        up_next_button.connect('clicked', self.on_device_click)
+        box.pack_start(up_next_button, False, True, 5)
 
         # Up Next button
         up_next_button = util.button_with_icon(
