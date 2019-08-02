@@ -88,8 +88,10 @@ class ArtistList(Gtk.Box):
         list_scroll_window = Gtk.ScrolledWindow(min_content_width=220)
         self.list = Gtk.ListBox(name='artist-list-listbox')
 
-        self.loading_indicator = Gtk.ListBoxRow(activatable=False,
-                                                selectable=False)
+        self.loading_indicator = Gtk.ListBoxRow(
+            activatable=False,
+            selectable=False,
+        )
         loading_spinner = Gtk.Spinner(name='artist-list-spinner', active=True)
         self.loading_indicator.add(loading_spinner)
         self.list.add(self.loading_indicator)
@@ -123,9 +125,18 @@ class ArtistList(Gtk.Box):
             if selected_artist and artist.id == selected_artist.id:
                 selected_idx = i + 1
             self.artist_map[i + 1] = artist
+
+            label_text = [f'<b>{util.esc(artist.name)}</b>']
+
+            album_count = artist.get('albumCount')
+            if album_count:
+                label_text.append('{} {}'.format(
+                    album_count, util.pluralize('album', album_count)))
+
             self.list.add(
                 Gtk.Label(
-                    label=artist.name,
+                    label='\n'.join(label_text),
+                    use_markup=True,
                     margin=12,
                     halign=Gtk.Align.START,
                     ellipsize=Pango.EllipsizeMode.END,

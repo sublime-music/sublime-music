@@ -21,6 +21,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        overlay = Gtk.Overlay()
         self.grid = Gtk.FlowBox(
             vexpand=True,
             hexpand=True,
@@ -37,17 +38,28 @@ class CoverArtGrid(Gtk.ScrolledWindow):
 
         self.model = Gio.ListStore()
         self.grid.bind_model(self.model, self.create_widget)
-        self.add(self.grid)
+
+        overlay.add(self.grid)
+
+        self.spinner = Gtk.Spinner(
+            name='',
+            active=True,
+            halign=Gtk.Align.CENTER,
+            valign=Gtk.Align.CENTER,
+        )
+        overlay.add_overlay(self.spinner)
+
+        self.add(overlay)
 
     def update(self, state: ApplicationState = None):
         self.update_grid()
 
     def update_grid(self):
         def start_loading():
-            print('set loading')
+            self.spinner.show()
 
         def stop_loading():
-            print('stop loading')
+            self.spinner.hide()
 
         def future_done(f):
             try:
