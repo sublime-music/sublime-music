@@ -181,8 +181,13 @@ class ChromecastPlayer(Player):
         ChromecastPlayer.media_status_listener.on_new_media_status = self.on_new_media_status
 
     def on_new_cast_status(self, status):
+        print('new cast status')
+        print(status)
         self.on_player_event(
-            PlayerEvent('volume_change', status.volume_level * 100))
+            PlayerEvent(
+                'volume_change',
+                status.volume_level * 100 if not status.volume_muted else 0,
+            ))
 
     def on_new_media_status(self, status):
         # Detect the end of a track and go to the next one.
@@ -276,10 +281,16 @@ class ChromecastPlayer(Player):
     def _set_volume(self, value):
         # Chromecast volume is in the range [0, 1], not [0, 100].
         if self.chromecast:
-            self.chromecast.set_volume(value / 100)
+            if value == 0:
+                self.chromecast.set_volume_muted(True)
+            else:
+                self.chromecast.set_volume_muted(False)
+                self.chromecast.set_volume(value / 100)
 
     def _get_volume(self, value):
         if self.chromecast:
+            if self.chromecast.status.volume_muted:
+                return 0
             return self.chromecast.status.volume_level * 100
         else:
             return 100

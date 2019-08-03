@@ -55,6 +55,7 @@ class LibremsonicApp(Gtk.Application):
             if event.name == 'play_state_change':
                 self.state.playing = event.value
             elif event.name == 'volume_change':
+                self.state.old_volume = self.state.volume
                 self.state.volume = event.value
 
             GLib.idle_add(self.update_window)
