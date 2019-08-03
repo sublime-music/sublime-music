@@ -80,7 +80,7 @@ class Server:
 
     def _get(self, url, **params):
         params = {**self._get_params(), **params}
-        print(f'[START] post: {url}')
+        print(f'[START] get: {url}')
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():
@@ -92,7 +92,7 @@ class Server:
         if result.status_code != 200:
             raise Exception(f'Fail! {result.status_code}')
 
-        print(f'[FINISH] post: {url}')
+        print(f'[FINISH] get: {url}')
         return result
 
     def _get_json(
@@ -101,8 +101,8 @@ class Server:
             **params: Union[None, str, datetime, int, List[int]],
     ) -> Response:
         """
-        Make a post to a *Sonic REST API. Handle all types of errors including
-        *Sonic ``<error>`` responses.
+        Make a get request to a *Sonic REST API. Handle all types of errors
+        including *Sonic ``<error>`` responses.
 
         :returns: a Response containing all of the data of the
             response, deserialized

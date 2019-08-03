@@ -10,16 +10,20 @@ from concurrent.futures import ThreadPoolExecutor, Future
 import pychromecast
 import mpv
 
+from libremsonic.config import AppConfiguration
+
 
 class Player:
     def __init__(
             self,
             on_timepos_change: Callable[[float], None],
             on_track_end: Callable[[], None],
+            config: AppConfiguration,
     ):
         self.on_timepos_change = on_timepos_change
         self.on_track_end = on_track_end
         self._song_loaded = False
+        self.config = config
 
     @property
     def playing(self):
@@ -146,8 +150,9 @@ class ChromecastPlayer(Player):
     media_status_listener = MediaStatusListener()
 
     class ServerThread(threading.Thread):
-        def __init__(self, port, directory):
+        def __init__(self, host, port, directory):
             super().__init__()
+            self.host = host
             self.port = port
             self.directory = directory
 
@@ -160,7 +165,7 @@ class ChromecastPlayer(Player):
 
         def run(self):
             self.server = HTTPServer(
-                ('0.0.0.0', self.port),
+                (self.host, self.port),
                 self.generate_handler(self.directory),
             )
             # TODO figure out how to make this stop when the app closes.
@@ -190,14 +195,15 @@ class ChromecastPlayer(Player):
 
         # Set host_ip
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
+        s.connect(('8.8.8.8', 80))
         self.host_ip = s.getsockname()[0]
         s.close()
 
-        # TODO make this come from the app config
+        # TODO make the port come from the app config
         self.server_thread = ChromecastPlayer.ServerThread(
+            '0.0.0.0',
             8080,
-            '/home/sumner/.local/share/libremsonic',
+            self.config.cache_location,
         )
         self.server_thread.daemon = True
         self.server_thread.start()

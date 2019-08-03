@@ -34,27 +34,6 @@ class LibremsonicApp(Gtk.Application):
 
         self.connect('shutdown', self.on_app_shutdown)
 
-        self.last_play_queue_update = 0
-
-        def time_observer(value):
-            self.state.song_progress = value
-            GLib.idle_add(
-                self.window.player_controls.update_scrubber,
-                self.state.song_progress,
-                self.state.current_song.duration,
-            )
-            if not value:
-                self.last_play_queue_update = 0
-            elif self.last_play_queue_update + 15 <= value:
-                self.save_play_queue()
-
-        def on_track_end():
-            GLib.idle_add(self.on_next_track)
-
-        self.mpv_player = MPVPlayer(time_observer, on_track_end)
-        self.chromecast_player = ChromecastPlayer(time_observer, on_track_end)
-        self.player = self.mpv_player
-
     # Handle command line option parsing.
     def do_command_line(self, command_line):
         options = command_line.get_options_dict()
@@ -134,6 +113,35 @@ class LibremsonicApp(Gtk.Application):
         # Load the configuration and update the UI with the curent server, if
         # it exists.
         self.state.load()
+
+        self.last_play_queue_update = 0
+
+        def time_observer(value):
+            self.state.song_progress = value
+            GLib.idle_add(
+                self.window.player_controls.update_scrubber,
+                self.state.song_progress,
+                self.state.current_song.duration,
+            )
+            if not value:
+                self.last_play_queue_update = 0
+            elif self.last_play_queue_update + 15 <= value:
+                self.save_play_queue()
+
+        def on_track_end():
+            GLib.idle_add(self.on_next_track)
+
+        self.mpv_player = MPVPlayer(
+            time_observer,
+            on_track_end,
+            self.state.config,
+        )
+        self.chromecast_player = ChromecastPlayer(
+            time_observer,
+            on_track_end,
+            self.state.config,
+        )
+        self.player = self.mpv_player
 
         # If there is no current server, show the dialog to select a server.
         if (self.state.config.current_server is None
@@ -288,6 +296,7 @@ class LibremsonicApp(Gtk.Application):
             return True
 
     def on_app_shutdown(self, app):
+        CacheManager.should_exit = True
         self.player.pause()
         self.state.save()
         self.save_play_queue()
