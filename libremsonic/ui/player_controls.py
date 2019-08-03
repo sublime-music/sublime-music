@@ -9,6 +9,7 @@ from libremsonic.state_manager import ApplicationState, RepeatType
 from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
 from libremsonic.ui.common import SpinnerImage
+from libremsonic.ui.common.players import ChromecastPlayer
 
 
 class PlayerControls(Gtk.ActionBar):
@@ -182,6 +183,14 @@ class PlayerControls(Gtk.ActionBar):
 
     def on_device_click(self, button):
         print('device click')
+
+        def chromecast_callback(f):
+            cast = next(cc for cc in f.result()
+                        if cc.device.friendly_name == "Sumner's Bedroom")
+            ChromecastPlayer.set_playing_chromecast(cast)
+
+        future = ChromecastPlayer.get_chromecasts()
+        future.add_done_callback(chromecast_callback)
 
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)

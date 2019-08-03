@@ -2,8 +2,6 @@ import os
 import math
 import random
 
-import mpv
-
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gdk, Gio, GLib, Gtk
@@ -14,6 +12,7 @@ from .ui.configure_servers import ConfigureServersDialog
 from .state_manager import ApplicationState, RepeatType
 from .cache_manager import CacheManager
 from .server.api_objects import Child
+from .ui.common.players import MPVPlayer, ChromecastPlayer
 
 
 class LibremsonicApp(Gtk.Application):
@@ -35,16 +34,13 @@ class LibremsonicApp(Gtk.Application):
 
         self.connect('shutdown', self.on_app_shutdown)
 
-        self.player = mpv.MPV()
-
         self.last_play_queue_update = 0
 
         # Need to do this for determining if we are at the end of the song.
         # It's dumb, but whatever.
         self.had_progress_value = False
 
-        @self.player.property_observer('time-pos')
-        def time_observer(_name, value):
+        def time_observer(value):
             self.state.song_progress = value
             GLib.idle_add(
                 self.window.player_controls.update_scrubber,
@@ -60,6 +56,10 @@ class LibremsonicApp(Gtk.Application):
             elif self.last_play_queue_update + 15 <= value:
                 self.save_play_queue()
                 self.had_progress_value = True
+
+        self.mpv_player = MPVPlayer(time_observer)
+        self.chromecast_player = ChromecastPlayer(time_observer)
+        self.player = self.chromecast_player
 
     # Handle command line option parsing.
     def do_command_line(self, command_line):
@@ -157,7 +157,7 @@ class LibremsonicApp(Gtk.Application):
             # This is from a restart, start playing the file.
             self.play_song(self.state.current_song.id)
         else:
-            self.player.cycle('pause')
+            self.player.toggle_play()
             self.save_play_queue()
 
         self.state.playing = not self.state.playing
@@ -244,7 +244,6 @@ class LibremsonicApp(Gtk.Application):
         old_play_queue = song_queue.copy()
 
         # If shuffle is enabled, then shuffle the playlist.
-        # TODO refactor to make a function.
         if self.state.shuffle_on:
             song_queue.remove(song_id)
             random.shuffle(song_queue)
@@ -270,7 +269,7 @@ class LibremsonicApp(Gtk.Application):
             self.window.player_controls.update_scrubber(
                 self.state.song_progress, self.state.current_song.duration)
         else:
-            self.player.seek(str(new_time), 'absolute')
+            self.player.seek(new_time)
 
         self.save_play_queue()
 
@@ -297,7 +296,7 @@ class LibremsonicApp(Gtk.Application):
             return True
 
     def on_app_shutdown(self, app):
-        self.player.pause = True
+        self.player.pause()
         self.state.save()
         self.save_play_queue()
 
@@ -357,14 +356,7 @@ class LibremsonicApp(Gtk.Application):
                     on_song_download_complete=lambda _: self.update_window(),
                 )
 
-            self.player.command(
-                'loadfile',
-                uri,
-                'replace',
-                f'start={self.state.song_progress}',
-            )
-
-            self.player.pause = False
+            self.player.play(uri, self.state.song_progress)
 
             if old_play_queue:
                 self.state.old_play_queue = old_play_queue

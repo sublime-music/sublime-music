@@ -88,12 +88,11 @@ class Server:
                 params[k] = int(cast(datetime, v).timestamp() * 1000)
 
         result = requests.get(url, params=params)
-        print(result.url)
         # TODO make better
         if result.status_code != 200:
             raise Exception(f'Fail! {result.status_code}')
 
-        print(f'[FINISH] post: {result.url}')
+        print(f'[FINISH] post: {url}')
         return result
 
     def _get_json(

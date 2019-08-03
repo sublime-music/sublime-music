@@ -23,6 +23,8 @@ class SpinnerImage(Gtk.Overlay):
 
     def set_loading(self, loading_status):
         if loading_status:
+            self.spinner.start()
             self.spinner.show()
         else:
+            self.spinner.stop()
             self.spinner.hide()
