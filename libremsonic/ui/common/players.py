@@ -138,6 +138,13 @@ class ChromecastPlayer(Player):
     chromecast = None
     executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=50)
 
+    class CastStatusListener:
+        on_new_cast_status = None
+
+        def new_cast_status(self, status):
+            if self.on_new_cast_status:
+                self.on_new_cast_status(status)
+
     class MediaStatusListener:
         on_new_media_status = None
 
@@ -145,6 +152,7 @@ class ChromecastPlayer(Player):
             if self.on_new_media_status:
                 self.on_new_media_status(status)
 
+    cast_status_listener = CastStatusListener()
     media_status_listener = MediaStatusListener()
 
     @classmethod
@@ -160,6 +168,8 @@ class ChromecastPlayer(Player):
         self.chromecast = chromecast
         self.chromecast.media_controller.register_status_listener(
             ChromecastPlayer.media_status_listener)
+        self.chromecast.register_status_listener(
+            ChromecastPlayer.cast_status_listener)
         self.chromecast.wait()
         print(f'Using: {chromecast.device.friendly_name}')
 
@@ -167,7 +177,12 @@ class ChromecastPlayer(Player):
         super().__init__(*args)
         self._timepos = None
         self.time_incrementor_running = False
+        ChromecastPlayer.cast_status_listener.on_new_cast_status = self.on_new_cast_status
         ChromecastPlayer.media_status_listener.on_new_media_status = self.on_new_media_status
+
+    def on_new_cast_status(self, status):
+        self.on_player_event(
+            PlayerEvent('volume_change', status.volume_level * 100))
 
     def on_new_media_status(self, status):
         # Detect the end of a track and go to the next one.

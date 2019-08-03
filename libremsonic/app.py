@@ -54,11 +54,15 @@ class LibremsonicApp(Gtk.Application):
         def on_player_event(event: PlayerEvent):
             if event.name == 'play_state_change':
                 self.state.playing = event.value
+            elif event.name == 'volume_change':
+                self.state.volume = event.value
 
             GLib.idle_add(self.update_window)
 
-        self.mpv_player = MPVPlayer(time_observer, on_track_end, on_player_event)
-        self.chromecast_player = ChromecastPlayer(time_observer, on_track_end, on_player_event)
+        self.mpv_player = MPVPlayer(time_observer, on_track_end,
+                                    on_player_event)
+        self.chromecast_player = ChromecastPlayer(time_observer, on_track_end,
+                                                  on_player_event)
         self.player = self.chromecast_player
 
     # Handle command line option parsing.
