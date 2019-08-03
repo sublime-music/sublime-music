@@ -507,10 +507,15 @@ class CacheManager(metaclass=Singleton):
         def get_song_filename_or_stream(
                 self,
                 song: Child,
+                format=None,
+                force_stream: bool = False,
         ) -> Tuple[str, bool]:
             abs_path = self.calculate_abs_path(song.path)
-            if not abs_path.exists():
-                return (self.server.get_stream_url(song.id), True)
+            if not abs_path.exists() or force_stream:
+                return (
+                    self.server.get_stream_url(song.id, format=format),
+                    True,
+                )
 
             return (str(abs_path), False)
 

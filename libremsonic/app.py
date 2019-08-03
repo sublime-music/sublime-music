@@ -36,10 +36,6 @@ class LibremsonicApp(Gtk.Application):
 
         self.last_play_queue_update = 0
 
-        # Need to do this for determining if we are at the end of the song.
-        # It's dumb, but whatever.
-        self.had_progress_value = False
-
         def time_observer(value):
             self.state.song_progress = value
             GLib.idle_add(
@@ -47,18 +43,16 @@ class LibremsonicApp(Gtk.Application):
                 self.state.song_progress,
                 self.state.current_song.duration,
             )
-            if value is None and self.had_progress_value:
-                GLib.idle_add(self.on_next_track, None, None)
-                self.had_progress_value = False
-
             if not value:
                 self.last_play_queue_update = 0
             elif self.last_play_queue_update + 15 <= value:
                 self.save_play_queue()
-                self.had_progress_value = True
 
-        self.mpv_player = MPVPlayer(time_observer)
-        self.chromecast_player = ChromecastPlayer(time_observer)
+        def on_track_end():
+            GLib.idle_add(self.on_next_track)
+
+        self.mpv_player = MPVPlayer(time_observer, on_track_end)
+        self.chromecast_player = ChromecastPlayer(time_observer, on_track_end)
         self.player = self.chromecast_player
 
     # Handle command line option parsing.
@@ -152,8 +146,8 @@ class LibremsonicApp(Gtk.Application):
     def on_configure_servers(self, action, param):
         self.show_configure_servers_dialog()
 
-    def on_play_pause(self, action=None, param=None):
-        if self.player.time_pos is None:
+    def on_play_pause(self, *args):
+        if not self.player.song_loaded:
             # This is from a restart, start playing the file.
             self.play_song(self.state.current_song.id)
         else:
@@ -163,7 +157,7 @@ class LibremsonicApp(Gtk.Application):
         self.state.playing = not self.state.playing
         self.update_window()
 
-    def on_next_track(self, action, params):
+    def on_next_track(self, *args):
         current_idx = self.state.play_queue.index(self.state.current_song.id)
 
         # Handle song repeating
@@ -236,9 +230,6 @@ class LibremsonicApp(Gtk.Application):
         self.update_window()
 
     def on_song_clicked(self, win, song_id, song_queue):
-        # Need to reset this here to prevent it from going to the next song.
-        self.had_progress_value = False
-
         # Reset the play queue so that we don't ever revert back to the
         # previous one.
         old_play_queue = song_queue.copy()
@@ -262,7 +253,7 @@ class LibremsonicApp(Gtk.Application):
 
         new_time = self.state.current_song.duration * (scrub_value / 100)
 
-        if not self.player.time_pos:
+        if not self.player.song_loaded:
             # This is from a restart. Just change the song_progress and when
             # they click play it will seek to that location.
             self.state.song_progress = new_time
@@ -335,7 +326,12 @@ class LibremsonicApp(Gtk.Application):
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.
         def do_play_song(song: Child):
-            uri, stream = CacheManager.get_song_filename_or_stream(song)
+            # TODO force stream for now and force mp3 while getting chromecast working.
+            uri, stream = CacheManager.get_song_filename_or_stream(
+                song,
+                force_stream=True,
+                format='mp3',
+            )
 
             self.state.current_song = song
             self.state.playing = True
@@ -344,7 +340,6 @@ class LibremsonicApp(Gtk.Application):
             # Prevent it from doing the thing where it continually loads
             # songs when it has to download.
             if reset:
-                self.had_progress_value = False
                 self.state.song_progress = 0
 
             # If streaming, also download the song.
@@ -356,7 +351,7 @@ class LibremsonicApp(Gtk.Application):
                     on_song_download_complete=lambda _: self.update_window(),
                 )
 
-            self.player.play(uri, self.state.song_progress)
+            self.player.play_media(uri, self.state.song_progress)
 
             if old_play_queue:
                 self.state.old_play_queue = old_play_queue
