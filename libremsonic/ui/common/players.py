@@ -37,6 +37,10 @@ class Player:
     def volume(self, value):
         return self._set_volume(value)
 
+    def reset(self):
+        raise NotImplementedError(
+            'reset must be implemented by implementor of Player')
+
     def play_media(self, file_or_url=None, progress=None):
         raise NotImplementedError(
             'play_media must be implemented by implementor of Player')
@@ -75,23 +79,33 @@ class MPVPlayer(Player):
         super().__init__(*args)
 
         self.mpv = mpv.MPV()
-        self.had_progress_value = False
+        self.progress_value_lock = threading.Lock()
+        self.progress_value_count = 0
 
         @self.mpv.property_observer('time-pos')
         def time_observer(_name, value):
             self.on_timepos_change(value)
-            if value is None and self.had_progress_value:
+            if value is None and self.progress_value_count > 1:
                 self.on_track_end()
-                self.had_progress_value = False
+                with self.progress_value_lock:
+                    self.progress_value_count = 0
 
             if value:
-                self.had_progress_value = True
+                with self.progress_value_lock:
+                    self.progress_value_count += 1
 
     def _is_playing(self):
         return not self.mpv.pause
 
+    def reset(self):
+        self._song_loaded = False
+        with self.progress_value_lock:
+            self.progress_value_count = 0
+
     def play_media(self, file_or_url, progress=None):
-        self.had_progress_value = False
+        with self.progress_value_lock:
+            self.progress_value_count = 0
+
         self.mpv.pause = False
         self.mpv.command(
             'loadfile',
@@ -226,6 +240,9 @@ class ChromecastPlayer(Player):
     def _is_playing(self):
         return self.chromecast.media_controller.status.player_is_playing
 
+    def reset(self):
+        self._song_loaded = False
+
     def play_media(self, file_or_url=None, progress=None):
         stream_scheme = urlparse(file_or_url).scheme
         if not stream_scheme:
@@ -234,16 +251,7 @@ class ChromecastPlayer(Player):
             file_or_url = file_or_url[strlen:]
             file_or_url = f'http://{self.host_ip}:8080/{quote(file_or_url)}'
 
-        print(
-            file_or_url,
-            'audio/mp3'
-            if stream_scheme else mimetypes.guess_type(file_or_url)[0],
-        )
-
-        self.chromecast.media_controller.play_media(
-            file_or_url,
-            'audio/m4a'
-        )
+        self.chromecast.media_controller.play_media(file_or_url, 'audio/mp3')
 
         def on_play_begin():
             self._song_loaded = True
