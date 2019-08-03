@@ -1,3 +1,8 @@
+import threading
+import mimetypes
+from urllib.parse import urlparse, quote
+import socket
+from http.server import HTTPServer, SimpleHTTPRequestHandler
 from typing import Callable, List, Any
 from time import sleep
 from concurrent.futures import ThreadPoolExecutor, Future
@@ -126,6 +131,27 @@ class ChromecastPlayer(Player):
 
     media_status_listener = MediaStatusListener()
 
+    class ServerThread(threading.Thread):
+        def __init__(self, port, directory):
+            super().__init__()
+            self.port = port
+            self.directory = directory
+
+        def generate_handler(self, directory):
+            class ServerHandler(SimpleHTTPRequestHandler):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, directory=directory, **kwargs)
+
+            return ServerHandler
+
+        def run(self):
+            self.server = HTTPServer(
+                ('0.0.0.0', self.port),
+                self.generate_handler(self.directory),
+            )
+            # TODO figure out how to make this stop when the app closes.
+            self.server.serve_forever()
+
     @classmethod
     def get_chromecasts(self) -> Future:
         def do_get_chromecasts():
@@ -147,6 +173,20 @@ class ChromecastPlayer(Player):
         self._timepos = None
         self.time_incrementor_running = False
         ChromecastPlayer.media_status_listener.on_new_media_status = self.on_new_media_status
+
+        # Set host_ip
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        self.host_ip = s.getsockname()[0]
+        s.close()
+
+        # TODO make this come from the app config
+        self.server_thread = ChromecastPlayer.ServerThread(
+            8080,
+            '/home/sumner/.local/share/libremsonic',
+        )
+        self.server_thread.daemon = True
+        self.server_thread.start()
 
     def on_new_media_status(self, status):
         # Detect the end of a track and go to the next one.
@@ -187,8 +227,23 @@ class ChromecastPlayer(Player):
         return self.chromecast.media_controller.status.player_is_playing
 
     def play_media(self, file_or_url=None, progress=None):
-        self.chromecast.media_controller.play_media(file_or_url, 'audio/mp3')
-        self._timepos = 0
+        stream_scheme = urlparse(file_or_url).scheme
+        if not stream_scheme:
+            # TODO make this come from the app config
+            strlen = len('/home/sumner/.local/share/libremsonic/')
+            file_or_url = file_or_url[strlen:]
+            file_or_url = f'http://{self.host_ip}:8080/{quote(file_or_url)}'
+
+        print(
+            file_or_url,
+            'audio/mp3'
+            if stream_scheme else mimetypes.guess_type(file_or_url)[0],
+        )
+
+        self.chromecast.media_controller.play_media(
+            file_or_url,
+            'audio/m4a'
+        )
 
         def on_play_begin():
             self._song_loaded = True

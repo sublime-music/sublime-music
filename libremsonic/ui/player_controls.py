@@ -182,8 +182,6 @@ class PlayerControls(Gtk.ActionBar):
         self.up_next_popover.show_all()
 
     def on_device_click(self, button):
-        print('device click')
-
         def chromecast_callback(f):
             cast = next(cc for cc in f.result()
                         if cc.device.friendly_name == "Sumner's Bedroom")
