@@ -117,10 +117,14 @@ class ChromecastPlayer(Player):
     chromecast = None
     executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=50)
 
-    def __init__(self, *args):
-        super().__init__(*args)
+    class MediaStatusListener:
+        on_new_media_status = None
 
-        self._timepos = None
+        def new_media_status(self, status):
+            if self.on_new_media_status:
+                self.on_new_media_status(status)
+
+    media_status_listener = MediaStatusListener()
 
     @classmethod
     def get_chromecasts(self) -> Future:
@@ -133,12 +137,32 @@ class ChromecastPlayer(Player):
     @classmethod
     def set_playing_chromecast(self, chromecast):
         self.chromecast = chromecast
+        self.chromecast.media_controller.register_status_listener(
+            ChromecastPlayer.media_status_listener)
         self.chromecast.wait()
         print(f'Using: {chromecast.device.friendly_name}')
 
+    def __init__(self, *args):
+        super().__init__(*args)
+        self._timepos = None
+        self.time_incrementor_running = False
+        ChromecastPlayer.media_status_listener.on_new_media_status = self.on_new_media_status
+
+    def on_new_media_status(self, status):
+        # Detect the end of a track and go to the next one.
+        if (status.idle_reason == 'FINISHED' and status.player_state == 'IDLE'
+                and self._timepos > 0):
+            self.on_track_end()
+        self._timepos = status.current_time
+
     def time_incrementor(self):
+        if self.time_incrementor_running:
+            return
+
+        self.time_incrementor_running = True
         while True:
             if not self.playing:
+                self.time_incrementor_running = False
                 raise Exception()
 
             self._timepos += 0.5
@@ -146,28 +170,33 @@ class ChromecastPlayer(Player):
             sleep(0.5)
 
     def start_time_incrementor(self):
-        def wait_for_playing():
-            while not self.playing:
-                print('waiting for playing')
+        ChromecastPlayer.executor.submit(self.time_incrementor)
+
+    def wait_for_playing(self, callback, url=None):
+        def do_wait_for_playing():
+            while (not self.playing
+                   or (url is not None and url !=
+                       self.chromecast.media_controller.status.content_id)):
                 sleep(0.1)
 
-            ChromecastPlayer.executor.submit(self.time_incrementor)
+            callback()
 
-        ChromecastPlayer.executor.submit(wait_for_playing)
+        ChromecastPlayer.executor.submit(do_wait_for_playing)
 
     def _is_playing(self):
-        print('_is_playing',
-              self.chromecast.media_controller.status.player_is_playing)
         return self.chromecast.media_controller.status.player_is_playing
 
     def play_media(self, file_or_url=None, progress=None):
         self.chromecast.media_controller.play_media(file_or_url, 'audio/mp3')
-        self.chromecast.media_controller.block_until_active()
         self._timepos = 0
-        self.start_time_incrementor()
-        self._song_loaded = True
-        if progress:
-            self.seek(progress)
+
+        def on_play_begin():
+            self._song_loaded = True
+            if progress:
+                self.seek(progress)
+            self.start_time_incrementor()
+
+        self.wait_for_playing(on_play_begin, url=file_or_url)
 
     def pause(self):
         self.chromecast.media_controller.pause()
@@ -177,10 +206,13 @@ class ChromecastPlayer(Player):
             self.chromecast.media_controller.pause()
         else:
             self.chromecast.media_controller.play()
+            self.wait_for_playing(self.start_time_incrementor)
 
     def seek(self, value):
+        do_pause = not self.playing
         self.chromecast.media_controller.seek(value)
-        self._timepos = value
+        if do_pause:
+            self.pause()
 
     def _set_volume(self, value):
         # Chromecast volume is in the range [0, 1], not [0, 100].

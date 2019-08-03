@@ -463,7 +463,6 @@ class CacheManager(metaclass=Singleton):
                 self.current_downloads = self.current_downloads.union(
                     set(song_ids))
                 for song_id in song_ids:
-                    print(song_id)
                     self.download_limiter_semaphore.acquire()
                     CacheManager.executor.submit(do_download_song, song_id)
 
