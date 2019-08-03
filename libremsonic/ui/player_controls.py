@@ -182,11 +182,9 @@ class PlayerControls(Gtk.ActionBar):
         self.up_next_popover.show_all()
 
     def on_device_click(self, button):
-        print('device click')
-
         def chromecast_callback(f):
             cast = next(cc for cc in f.result()
-                        if cc.device.friendly_name == "Sumner's Bedroom")
+                        if cc.device.friendly_name == "Sumner's Chromecast")
             ChromecastPlayer.set_playing_chromecast(cast)
 
         future = ChromecastPlayer.get_chromecasts()
@@ -299,6 +297,8 @@ class PlayerControls(Gtk.ActionBar):
             'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         up_next_button.connect('clicked', self.on_device_click)
         box.pack_start(up_next_button, False, True, 5)
+
+        self.device_popover = Gtk.PopoverMenu(name='device-popover')
 
         # Up Next button
         up_next_button = util.button_with_icon(

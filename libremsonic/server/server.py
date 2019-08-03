@@ -818,6 +818,17 @@ class Server:
                                 id=id,
                                 size=size)
 
+    def get_cover_art_url(self, id: str, size: str = None):
+        """
+        Returns the cover art image in binary form.
+
+        :param id: The ID of a song, album or artist.
+        :param size: If specified, scale image to this size.
+        """
+        params = dict(**self._get_params(), id=id, size=size)
+        params = {k: v for k, v in params.items() if v}
+        return self._make_url('getCoverArt') + '?' + urlencode(params)
+
     def get_lyrics(self, artist: str = None, title: str = None) -> Lyrics:
         """
         Searches for and returns lyrics for a given song.

@@ -12,7 +12,7 @@ from .ui.configure_servers import ConfigureServersDialog
 from .state_manager import ApplicationState, RepeatType
 from .cache_manager import CacheManager
 from .server.api_objects import Child
-from .ui.common.players import MPVPlayer, ChromecastPlayer
+from .ui.common.players import PlayerEvent, MPVPlayer, ChromecastPlayer
 
 
 class LibremsonicApp(Gtk.Application):
@@ -51,8 +51,14 @@ class LibremsonicApp(Gtk.Application):
         def on_track_end():
             GLib.idle_add(self.on_next_track)
 
-        self.mpv_player = MPVPlayer(time_observer, on_track_end)
-        self.chromecast_player = ChromecastPlayer(time_observer, on_track_end)
+        def on_player_event(event: PlayerEvent):
+            if event.name == 'play_state_change':
+                self.state.playing = event.value
+
+            GLib.idle_add(self.update_window)
+
+        self.mpv_player = MPVPlayer(time_observer, on_track_end, on_player_event)
+        self.chromecast_player = ChromecastPlayer(time_observer, on_track_end, on_player_event)
         self.player = self.chromecast_player
 
     # Handle command line option parsing.
@@ -253,13 +259,12 @@ class LibremsonicApp(Gtk.Application):
 
         new_time = self.state.current_song.duration * (scrub_value / 100)
 
-        if not self.player.song_loaded:
-            # This is from a restart. Just change the song_progress and when
-            # they click play it will seek to that location.
-            self.state.song_progress = new_time
-            self.window.player_controls.update_scrubber(
-                self.state.song_progress, self.state.current_song.duration)
-        else:
+        self.state.song_progress = new_time
+        self.window.player_controls.update_scrubber(
+            self.state.song_progress, self.state.current_song.duration)
+
+        # If already playing, then make the player itself seek.
+        if self.player.song_loaded:
             self.player.seek(new_time)
 
         self.save_play_queue()
@@ -288,6 +293,9 @@ class LibremsonicApp(Gtk.Application):
 
     def on_app_shutdown(self, app):
         self.player.pause()
+        self.chromecast_player.shutdown()
+        self.mpv_player.shutdown()
+
         self.state.save()
         self.save_play_queue()
 
@@ -351,7 +359,7 @@ class LibremsonicApp(Gtk.Application):
                     on_song_download_complete=lambda _: self.update_window(),
                 )
 
-            self.player.play_media(uri, self.state.song_progress)
+            self.player.play_media(uri, self.state.song_progress, song)
 
             if old_play_queue:
                 self.state.old_play_queue = old_play_queue

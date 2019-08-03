@@ -5,15 +5,29 @@ from concurrent.futures import ThreadPoolExecutor, Future
 import pychromecast
 import mpv
 
+from libremsonic.cache_manager import CacheManager
+from libremsonic.server.api_objects import Child
+
+
+class PlayerEvent:
+    name: str
+    value: Any
+
+    def __init__(self, name: str, value: Any):
+        self.name = name
+        self.value = value
+
 
 class Player:
     def __init__(
             self,
             on_timepos_change: Callable[[float], None],
             on_track_end: Callable[[], None],
+            on_player_event: Callable[[PlayerEvent], None],
     ):
         self.on_timepos_change = on_timepos_change
         self.on_track_end = on_track_end
+        self.on_player_event = on_player_event
         self._song_loaded = False
 
     @property
@@ -32,7 +46,7 @@ class Player:
     def volume(self, value):
         return self._set_volume(value)
 
-    def play_media(self, file_or_url=None, progress=None):
+    def play_media(self, file_or_url, progress, song):
         raise NotImplementedError(
             'play_media must be implemented by implementor of Player')
 
@@ -64,6 +78,10 @@ class Player:
         raise NotImplementedError(
             '_set_volume must be implemented by implementor of Player')
 
+    def shutdown(self):
+        raise NotImplementedError(
+            'shutdown must be implemented by implementor of Player')
+
 
 class MPVPlayer(Player):
     def __init__(self, *args):
@@ -85,7 +103,7 @@ class MPVPlayer(Player):
     def _is_playing(self):
         return not self.mpv.pause
 
-    def play_media(self, file_or_url, progress=None):
+    def play_media(self, file_or_url, progress, song):
         self.had_progress_value = False
         self.mpv.pause = False
         self.mpv.command(
@@ -110,6 +128,9 @@ class MPVPlayer(Player):
 
     def _get_volume(self):
         return self.mpv.volume
+
+    def shutdown(self):
+        pass
 
 
 class ChromecastPlayer(Player):
@@ -155,6 +176,18 @@ class ChromecastPlayer(Player):
             self.on_track_end()
         self._timepos = status.current_time
 
+        print('new status')
+        print(status)
+
+        self.on_player_event(
+            PlayerEvent(
+                'play_state_change',
+                status.player_state in ('PLAYING', 'BUFFERING'),
+            ))
+
+        # Start the time incrementor just in case this was a play notification.
+        self.start_time_incrementor()
+
     def time_incrementor(self):
         if self.time_incrementor_running:
             return
@@ -186,14 +219,25 @@ class ChromecastPlayer(Player):
     def _is_playing(self):
         return self.chromecast.media_controller.status.player_is_playing
 
-    def play_media(self, file_or_url=None, progress=None):
-        self.chromecast.media_controller.play_media(file_or_url, 'audio/mp3')
-        self._timepos = 0
+    def play_media(self, file_or_url: str, progress: float, song: Child):
+        cover_art_url = CacheManager.get_cover_art_url(song.id, 1000)
+        self.chromecast.media_controller.play_media(
+            file_or_url,
+            'audio/mp3',
+            current_time=progress,
+            title=song.title,
+            thumb=cover_art_url,
+            metadata=dict(
+                metadataType=3,
+                albumName=song.album,
+                artist=song.artist,
+                trackNumber=song.track,
+            ),
+        )
+        self._timepos = progress
 
         def on_play_begin():
             self._song_loaded = True
-            if progress:
-                self.seek(progress)
             self.start_time_incrementor()
 
         self.wait_for_playing(on_play_begin, url=file_or_url)
@@ -224,3 +268,6 @@ class ChromecastPlayer(Player):
             return self.chromecast.status.volume_level * 100
         else:
             return 100
+
+    def shutdown(self):
+        self.chromecast.disconnect(blocking=True)
