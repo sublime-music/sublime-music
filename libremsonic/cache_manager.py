@@ -4,7 +4,8 @@ import threading
 import shutil
 import json
 import hashlib
-from collections import defaultdict, namedtuple
+from collections import defaultdict
+from time import sleep
 
 from concurrent.futures import ThreadPoolExecutor, Future
 from enum import EnumMeta, Enum
@@ -68,6 +69,7 @@ class SongCacheStatus(Enum):
 
 class CacheManager(metaclass=Singleton):
     executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=50)
+    should_exit: bool = False
 
     class CacheEncoder(json.JSONEncoder):
         def default(self, obj):
@@ -94,7 +96,6 @@ class CacheManager(metaclass=Singleton):
         server: Server
         browse_by_tags: bool
 
-        download_move_lock = threading.Lock()
         download_set_lock = threading.Lock()
         current_downloads: Set[Path] = set()
 
@@ -201,25 +202,39 @@ class CacheManager(metaclass=Singleton):
             abs_path = self.calculate_abs_path(relative_path)
             download_path = self.calculate_download_path(relative_path)
             if not abs_path.exists() or force:
-                print(abs_path, 'not found. Downloading...')
-
+                resource_downloading = False
                 with self.download_set_lock:
+                    if abs_path in self.current_downloads:
+                        resource_downloading = True
+
                     self.current_downloads.add(abs_path)
 
-                os.makedirs(download_path.parent, exist_ok=True)
-                before_download()
-                self.save_file(download_path, download_fn())
+                if resource_downloading:
+                    print(abs_path, 'already being downloaded.')
+                    # The resource is already being downloaded. Busy loop until
+                    # it has completed. Then, just return the path to the
+                    # resource.
+                    while abs_path in self.current_downloads:
+                        sleep(0.5)
 
-                # Move the file to its cache download location. We need a lock
-                # here just in case we fired two downloads of the same asset
-                # for some reason.
-                with self.download_move_lock:
+                    return str(abs_path)
+
+                else:
+                    print(abs_path, 'not found. Downloading...')
+
+                    os.makedirs(download_path.parent, exist_ok=True)
+                    before_download()
+                    self.save_file(download_path, download_fn())
+
+                    # Move the file to its cache download location.
                     os.makedirs(abs_path.parent, exist_ok=True)
                     if download_path.exists():
                         shutil.move(download_path, abs_path)
 
-                with self.download_set_lock:
-                    self.current_downloads.discard(abs_path)
+                    with self.download_set_lock:
+                        self.current_downloads.discard(abs_path)
+
+                print(abs_path, 'downloaded. Returning.')
 
             return str(abs_path)
 
@@ -447,6 +462,9 @@ class CacheManager(metaclass=Singleton):
             # TODO handle application close somehow. I think we will need to
             # raise some sort of an exception, not sure.
             def do_download_song(song_id):
+                if CacheManager.should_exit:
+                    return
+
                 # Do the actual download.
                 song_details_future = CacheManager.get_song_details(song_id)
                 song = song_details_future.result()

@@ -1,3 +1,7 @@
+import threading
+from urllib.parse import urlparse, quote
+import socket
+from http.server import HTTPServer, SimpleHTTPRequestHandler
 from typing import Callable, List, Any
 from time import sleep
 from concurrent.futures import ThreadPoolExecutor, Future
@@ -5,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, Future
 import pychromecast
 import mpv
 
+from libremsonic.config import AppConfiguration
 from libremsonic.cache_manager import CacheManager
 from libremsonic.server.api_objects import Child
 
@@ -24,10 +29,12 @@ class Player:
             on_timepos_change: Callable[[float], None],
             on_track_end: Callable[[], None],
             on_player_event: Callable[[PlayerEvent], None],
+            config: AppConfiguration,
     ):
         self.on_timepos_change = on_timepos_change
         self.on_track_end = on_track_end
         self.on_player_event = on_player_event
+        self.config = config
         self._song_loaded = False
 
     @property
@@ -45,6 +52,10 @@ class Player:
     @volume.setter
     def volume(self, value):
         return self._set_volume(value)
+
+    def reset(self):
+        raise NotImplementedError(
+            'reset must be implemented by implementor of Player')
 
     def play_media(self, file_or_url, progress, song):
         raise NotImplementedError(
@@ -88,23 +99,34 @@ class MPVPlayer(Player):
         super().__init__(*args)
 
         self.mpv = mpv.MPV()
-        self.had_progress_value = False
+        self.progress_value_lock = threading.Lock()
+        self.progress_value_count = 0
 
         @self.mpv.property_observer('time-pos')
         def time_observer(_name, value):
             self.on_timepos_change(value)
-            if value is None and self.had_progress_value:
+            if value is None and self.progress_value_count > 1:
                 self.on_track_end()
-                self.had_progress_value = False
+                with self.progress_value_lock:
+                    self.progress_value_count = 0
 
             if value:
-                self.had_progress_value = True
+                with self.progress_value_lock:
+                    self.progress_value_count += 1
 
     def _is_playing(self):
         return not self.mpv.pause
 
+    def reset(self):
+        self._song_loaded = False
+        with self.progress_value_lock:
+            self.progress_value_count = 0
+
     def play_media(self, file_or_url, progress, song):
         self.had_progress_value = False
+        with self.progress_value_lock:
+            self.progress_value_count = 0
+
         self.mpv.pause = False
         self.mpv.command(
             'loadfile',
@@ -155,6 +177,28 @@ class ChromecastPlayer(Player):
     cast_status_listener = CastStatusListener()
     media_status_listener = MediaStatusListener()
 
+    class ServerThread(threading.Thread):
+        def __init__(self, host, port, directory):
+            super().__init__()
+            self.host = host
+            self.port = port
+            self.directory = directory
+
+        def generate_handler(self, directory):
+            class ServerHandler(SimpleHTTPRequestHandler):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, directory=directory, **kwargs)
+
+            return ServerHandler
+
+        def run(self):
+            self.server = HTTPServer(
+                (self.host, self.port),
+                self.generate_handler(self.directory),
+            )
+            # TODO figure out how to make this stop when the app closes.
+            self.server.serve_forever()
+
     @classmethod
     def get_chromecasts(self) -> Future:
         def do_get_chromecasts():
@@ -179,6 +223,21 @@ class ChromecastPlayer(Player):
         self.time_incrementor_running = False
         ChromecastPlayer.cast_status_listener.on_new_cast_status = self.on_new_cast_status
         ChromecastPlayer.media_status_listener.on_new_media_status = self.on_new_media_status
+
+        # Set host_ip
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        self.host_ip = s.getsockname()[0]
+        s.close()
+
+        # TODO make the port come from the app config
+        self.server_thread = ChromecastPlayer.ServerThread(
+            '0.0.0.0',
+            8080,
+            self.config.cache_location,
+        )
+        self.server_thread.daemon = True
+        self.server_thread.start()
 
     def on_new_cast_status(self, status):
         print('new cast status')
@@ -239,7 +298,17 @@ class ChromecastPlayer(Player):
     def _is_playing(self):
         return self.chromecast.media_controller.status.player_is_playing
 
+    def reset(self):
+        self._song_loaded = False
+
     def play_media(self, file_or_url: str, progress: float, song: Child):
+        stream_scheme = urlparse(file_or_url).scheme
+        if not stream_scheme:
+            # TODO make this come from the app config
+            strlen = len('/home/sumner/.local/share/libremsonic/')
+            file_or_url = file_or_url[strlen:]
+            file_or_url = f'http://{self.host_ip}:8080/{quote(file_or_url)}'
+
         cover_art_url = CacheManager.get_cover_art_url(song.id, 1000)
         self.chromecast.media_controller.play_media(
             file_or_url,

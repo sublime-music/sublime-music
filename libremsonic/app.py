@@ -146,6 +146,35 @@ class LibremsonicApp(Gtk.Application):
         # it exists.
         self.state.load()
 
+        self.last_play_queue_update = 0
+
+        def time_observer(value):
+            self.state.song_progress = value
+            GLib.idle_add(
+                self.window.player_controls.update_scrubber,
+                self.state.song_progress,
+                self.state.current_song.duration,
+            )
+            if not value:
+                self.last_play_queue_update = 0
+            elif self.last_play_queue_update + 15 <= value:
+                self.save_play_queue()
+
+        def on_track_end():
+            GLib.idle_add(self.on_next_track)
+
+        self.mpv_player = MPVPlayer(
+            time_observer,
+            on_track_end,
+            self.state.config,
+        )
+        self.chromecast_player = ChromecastPlayer(
+            time_observer,
+            on_track_end,
+            self.state.config,
+        )
+        self.player = self.mpv_player
+
         # If there is no current server, show the dialog to select a server.
         if (self.state.config.current_server is None
                 or self.state.config.current_server < 0):
@@ -181,6 +210,7 @@ class LibremsonicApp(Gtk.Application):
         self.play_song(self.state.play_queue[current_idx + 1], reset=True)
 
     def on_prev_track(self, action, params):
+        # TODO there is a bug where you can't go back multiple songs fast
         current_idx = self.state.play_queue.index(self.state.current_song.id)
         # Go back to the beginning of the song if we are past 5 seconds.
         # Otherwise, go to the previous song.
@@ -297,6 +327,7 @@ class LibremsonicApp(Gtk.Application):
             return True
 
     def on_app_shutdown(self, app):
+        CacheManager.should_exit = True
         self.player.pause()
         self.chromecast_player.shutdown()
         self.mpv_player.shutdown()
@@ -320,12 +351,17 @@ class LibremsonicApp(Gtk.Application):
     def update_play_state_from_server(self):
         # TODO make this non-blocking eventually (need to make everything in
         # loading state)
+        self.player.pause()
+        self.state.playing = False
+
         play_queue = CacheManager.get_play_queue()
         self.state.play_queue = [s.id for s in play_queue.entry]
         self.state.song_progress = play_queue.position / 1000
 
         current_song_idx = self.state.play_queue.index(str(play_queue.current))
         self.state.current_song = play_queue.entry[current_song_idx]
+
+        self.player.reset()
 
         self.update_window()
 
@@ -339,10 +375,10 @@ class LibremsonicApp(Gtk.Application):
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.
         def do_play_song(song: Child):
-            # TODO force stream for now and force mp3 while getting chromecast working.
+            # TODO force mp3 while getting chromecast working.
             uri, stream = CacheManager.get_song_filename_or_stream(
                 song,
-                force_stream=True,
+                force_stream=(self.player == self.chromecast_player),
                 format='mp3',
             )
 
@@ -353,6 +389,7 @@ class LibremsonicApp(Gtk.Application):
             # Prevent it from doing the thing where it continually loads
             # songs when it has to download.
             if reset:
+                self.player.reset()
                 self.state.song_progress = 0
 
             # If streaming, also download the song.
