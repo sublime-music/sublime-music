@@ -1,14 +1,15 @@
 import threading
-from urllib.parse import urlparse, quote
+from urllib.parse import urlparse
+import io
 import socket
-import socketserver
-from http.server import SimpleHTTPRequestHandler
+import mimetypes
 from typing import Callable, List, Any
 from time import sleep
 from concurrent.futures import ThreadPoolExecutor, Future
 
 import pychromecast
 import mpv
+import bottle
 
 from libremsonic.config import AppConfiguration
 from libremsonic.cache_manager import CacheManager
@@ -158,7 +159,7 @@ class MPVPlayer(Player):
 
 class ChromecastPlayer(Player):
     chromecasts: List[Any] = []
-    chromecast = None
+    chromecast: pychromecast.Chromecast = None
     executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=50)
 
     class CastStatusListener:
@@ -179,27 +180,31 @@ class ChromecastPlayer(Player):
     media_status_listener = MediaStatusListener()
 
     class ServerThread(threading.Thread):
-        def __init__(self, host, port, directory):
+        def __init__(self, host, port):
             super().__init__()
+            self.daemon = True
             self.host = host
             self.port = port
-            self.directory = directory
 
-        def generate_handler(self, directory):
-            class ServerHandler(SimpleHTTPRequestHandler):
-                def __init__(self, *args, **kwargs):
-                    super().__init__(*args, directory=directory, **kwargs)
+            self.app = bottle.Bottle()
 
-            return ServerHandler
+            @self.app.route('/song/<id>')
+            def stream_song(id):
+                print(f'stream song {id}')
+                song = CacheManager.get_song_details(id).result()
+                filename = CacheManager.get_song_filename_or_stream(song)[0]
+                with open(filename, 'rb') as fin:
+                    song_buffer = io.BytesIO(fin.read())
+
+                bottle.response.set_header(
+                    'Content-Type',
+                    mimetypes.guess_type(filename)[0],
+                )
+                bottle.response.set_header('Accept-Ranges', 'bytes')
+                return song_buffer.read()
 
         def run(self):
-            # TODO figure out how to support streaming files
-            self.server = socketserver.TCPServer(
-                (self.host, self.port),
-                self.generate_handler(self.directory),
-            )
-            # TODO figure out how to make this stop when the app closes.
-            self.server.serve_forever()
+            bottle.run(self.app, host=self.host, port=self.port)
 
     @classmethod
     def get_chromecasts(self) -> Future:
@@ -233,12 +238,7 @@ class ChromecastPlayer(Player):
         s.close()
 
         # TODO make the port come from the app config
-        self.server_thread = ChromecastPlayer.ServerThread(
-            '0.0.0.0',
-            8080,
-            self.config.cache_location,
-        )
-        self.server_thread.daemon = True
+        self.server_thread = ChromecastPlayer.ServerThread('0.0.0.0', 8080)
         self.server_thread.start()
 
     def on_new_cast_status(self, status):
@@ -250,11 +250,15 @@ class ChromecastPlayer(Player):
                 status.volume_level * 100 if not status.volume_muted else 0,
             ))
 
+        if status.session_id is None:
+            self._song_loaded = False
+
     def on_new_media_status(self, status):
         # Detect the end of a track and go to the next one.
         if (status.idle_reason == 'FINISHED' and status.player_state == 'IDLE'
                 and self._timepos > 0):
             self.on_track_end()
+
         self._timepos = status.current_time
 
         print('new status')
@@ -306,10 +310,7 @@ class ChromecastPlayer(Player):
     def play_media(self, file_or_url: str, progress: float, song: Child):
         stream_scheme = urlparse(file_or_url).scheme
         if not stream_scheme:
-            # TODO make this come from the app config
-            strlen = len('/home/sumner/.local/share/libremsonic/')
-            file_or_url = file_or_url[strlen:]
-            file_or_url = f'http://{self.host_ip}:8080/{quote(file_or_url)}'
+            file_or_url = f'http://{self.host_ip}:8080/song/{song.id}'
 
         cover_art_url = CacheManager.get_cover_art_url(song.id, 1000)
         self.chromecast.media_controller.play_media(
@@ -334,7 +335,8 @@ class ChromecastPlayer(Player):
         self.wait_for_playing(on_play_begin, url=file_or_url)
 
     def pause(self):
-        self.chromecast.media_controller.pause()
+        if self.chromecast and self.chromecast.media_controller:
+            self.chromecast.media_controller.pause()
 
     def toggle_play(self):
         if self.playing:

@@ -45,6 +45,7 @@ setup(
     packages=find_packages(exclude=['tests']),
     package_data={'libremsonic': ['ui/app_styles.css']},
     install_requires=[
+        'bottle',
         'deepdiff',
         'Deprecated',
         'fuzzywuzzy',

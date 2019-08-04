@@ -186,7 +186,7 @@ class PlayerControls(Gtk.ActionBar):
     def on_device_click(self, button):
         def chromecast_callback(f):
             cast = next(cc for cc in f.result()
-                        if cc.device.friendly_name == "Sumner's Chromecast")
+                        if cc.device.friendly_name == "Sumner's Bedroom")
             ChromecastPlayer.set_playing_chromecast(cast)
 
         future = ChromecastPlayer.get_chromecasts()

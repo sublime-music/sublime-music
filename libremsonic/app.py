@@ -357,7 +357,6 @@ class LibremsonicApp(Gtk.Application):
             # TODO force mp3 while getting chromecast working.
             uri, stream = CacheManager.get_song_filename_or_stream(
                 song,
-                force_stream=(self.player == self.chromecast_player),
                 format='mp3',
             )
 
