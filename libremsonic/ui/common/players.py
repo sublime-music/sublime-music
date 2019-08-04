@@ -1,7 +1,8 @@
 import threading
 from urllib.parse import urlparse, quote
 import socket
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+import socketserver
+from http.server import SimpleHTTPRequestHandler
 from typing import Callable, List, Any
 from time import sleep
 from concurrent.futures import ThreadPoolExecutor, Future
@@ -192,7 +193,8 @@ class ChromecastPlayer(Player):
             return ServerHandler
 
         def run(self):
-            self.server = HTTPServer(
+            # TODO figure out how to support streaming files
+            self.server = socketserver.TCPServer(
                 (self.host, self.port),
                 self.generate_handler(self.directory),
             )
