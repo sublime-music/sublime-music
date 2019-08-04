@@ -1,4 +1,5 @@
 import threading
+from uuid import UUID
 from urllib.parse import urlparse
 import io
 import socket
@@ -190,7 +191,6 @@ class ChromecastPlayer(Player):
 
             @self.app.route('/song/<id>')
             def stream_song(id):
-                print(f'stream song {id}')
                 song = CacheManager.get_song_details(id).result()
                 filename = CacheManager.get_song_filename_or_stream(song)[0]
                 with open(filename, 'rb') as fin:
@@ -207,22 +207,23 @@ class ChromecastPlayer(Player):
             bottle.run(self.app, host=self.host, port=self.port)
 
     @classmethod
-    def get_chromecasts(self) -> Future:
+    def get_chromecasts(cls) -> Future:
         def do_get_chromecasts():
-            self.chromecasts = pychromecast.get_chromecasts()
-            return self.chromecasts
+            ChromecastPlayer.chromecasts = pychromecast.get_chromecasts()
+            return ChromecastPlayer.chromecasts
 
         return ChromecastPlayer.executor.submit(do_get_chromecasts)
 
-    @classmethod
-    def set_playing_chromecast(self, chromecast):
-        self.chromecast = chromecast
+    def set_playing_chromecast(self, uuid):
+        self.chromecast = next(cc for cc in ChromecastPlayer.chromecasts
+                               if cc.device.uuid == UUID(uuid))
+
         self.chromecast.media_controller.register_status_listener(
             ChromecastPlayer.media_status_listener)
         self.chromecast.register_status_listener(
             ChromecastPlayer.cast_status_listener)
         self.chromecast.wait()
-        print(f'Using: {chromecast.device.friendly_name}')
+        print(f'Using: {self.chromecast.device.friendly_name}')
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -242,8 +243,6 @@ class ChromecastPlayer(Player):
         self.server_thread.start()
 
     def on_new_cast_status(self, status):
-        print('new cast status')
-        print(status)
         self.on_player_event(
             PlayerEvent(
                 'volume_change',
@@ -260,9 +259,6 @@ class ChromecastPlayer(Player):
             self.on_track_end()
 
         self._timepos = status.current_time
-
-        print('new status')
-        print(status)
 
         self.on_player_event(
             PlayerEvent(
@@ -302,6 +298,8 @@ class ChromecastPlayer(Player):
         ChromecastPlayer.executor.submit(do_wait_for_playing)
 
     def _is_playing(self):
+        if not self.chromecast or not self.chromecast.media_controller:
+            return False
         return self.chromecast.media_controller.status.player_is_playing
 
     def reset(self):

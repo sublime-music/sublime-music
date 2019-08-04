@@ -72,7 +72,7 @@ class LibremsonicApp(Gtk.Application):
             on_player_event,
             self.state.config,
         )
-        self.player = self.chromecast_player
+        self.player = self.mpv_player
 
     # Handle command line option parsing.
     def do_command_line(self, command_line):
@@ -142,6 +142,8 @@ class LibremsonicApp(Gtk.Application):
                                   self.on_stack_change)
         self.window.connect('song-clicked', self.on_song_clicked)
         self.window.player_controls.connect('song-scrub', self.on_song_scrub)
+        self.window.player_controls.connect('device-update',
+                                            self.on_device_update)
         self.window.player_controls.volume_slider.connect(
             'value-changed', self.on_volume_change)
         self.window.connect('key-press-event', self.on_window_key_press)
@@ -166,12 +168,12 @@ class LibremsonicApp(Gtk.Application):
         self.show_configure_servers_dialog()
 
     def on_play_pause(self, *args):
-        if not self.player.song_loaded:
-            # This is from a restart, start playing the file.
-            self.play_song(self.state.current_song.id)
-        else:
+        if self.player.song_loaded:
             self.player.toggle_play()
             self.save_play_queue()
+        else:
+            # This is from a restart, start playing the file.
+            self.play_song(self.state.current_song.id)
 
         self.state.playing = not self.state.playing
         self.update_window()
@@ -282,6 +284,22 @@ class LibremsonicApp(Gtk.Application):
             self.player.seek(new_time)
 
         self.save_play_queue()
+
+    def on_device_update(self, _, device_uuid):
+        was_playing = self.state.playing
+        self.player.pause()
+        self.player._song_loaded = False
+        self.state.playing = False
+        self.update_window()
+
+        if device_uuid == 'this device':
+            self.player = self.mpv_player
+        else:
+            self.chromecast_player.set_playing_chromecast(device_uuid)
+            self.player = self.chromecast_player
+
+        if was_playing:
+            self.on_play_pause()
 
     def on_mute_toggle(self, action, _):
         if self.state.volume == 0:

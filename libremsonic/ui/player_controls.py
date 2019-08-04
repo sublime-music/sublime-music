@@ -1,12 +1,11 @@
 import math
 
 import gi
-
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Pango, GObject, Gio, GLib
 
-from libremsonic.state_manager import ApplicationState, RepeatType
 from libremsonic.cache_manager import CacheManager
+from libremsonic.state_manager import ApplicationState, RepeatType
 from libremsonic.ui import util
 from libremsonic.ui.common import SpinnerImage
 from libremsonic.ui.common.players import ChromecastPlayer
@@ -19,6 +18,8 @@ class PlayerControls(Gtk.ActionBar):
     __gsignals__ = {
         'song-scrub':
         (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (float, )),
+        'device-update':
+        (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str, )),
     }
     editing: bool = False
 
@@ -120,11 +121,11 @@ class PlayerControls(Gtk.ActionBar):
                 self.popover_label.set_markup(f'<b>Up Next:</b> {song_label}')
 
             # Remove everything from the play queue.
-            for c in self.popover_list.get_children():
-                self.popover_list.remove(c)
+            for c in self.up_next_list.get_children():
+                self.up_next_list.remove(c)
 
             for s in state.play_queue:
-                self.popover_list.add(
+                self.up_next_list.add(
                     Gtk.Label(
                         label='\n',
                         halign=Gtk.Align.START,
@@ -132,7 +133,7 @@ class PlayerControls(Gtk.ActionBar):
                         margin=5,
                     ))
 
-            self.popover_list.show_all()
+            self.up_next_list.show_all()
 
             # Create a function to capture the value of index for the inner
             # function. This outer function creates the actual callback
@@ -141,7 +142,7 @@ class PlayerControls(Gtk.ActionBar):
                 def do_update_label(result):
                     title = util.esc(result.title)
                     album = util.esc(result.album)
-                    row = self.popover_list.get_row_at_index(index)
+                    row = self.up_next_list.get_row_at_index(index)
                     row.get_child().set_markup(f'<b>{title}</b>\n{album}')
                     row.show_all()
 
@@ -183,14 +184,45 @@ class PlayerControls(Gtk.ActionBar):
         self.up_next_popover.popup()
         self.up_next_popover.show_all()
 
-    def on_device_click(self, button):
+    def update_device_list(self, clear=False):
+        self.device_list_loading.show()
+
+        def clear_list():
+            for c in self.chromecast_device_list.get_children():
+                self.chromecast_device_list.remove(c)
+
         def chromecast_callback(f):
-            cast = next(cc for cc in f.result()
-                        if cc.device.friendly_name == "Sumner's Bedroom")
-            ChromecastPlayer.set_playing_chromecast(cast)
+            clear_list()
+            chromecasts = f.result()
+            chromecasts.sort(key=lambda c: c.device.friendly_name)
+            for cc in chromecasts:
+                btn = Gtk.ModelButton(text=cc.device.friendly_name)
+                btn.get_style_context().add_class('menu-button')
+                btn.connect(
+                    'clicked',
+                    lambda _, uuid: self.emit('device-update', uuid),
+                    cc.device.uuid,
+                )
+                self.chromecast_device_list.add(btn)
+                self.chromecast_device_list.show_all()
+
+            self.device_list_loading.hide()
+
+        if clear:
+            clear_list()
 
         future = ChromecastPlayer.get_chromecasts()
-        future.add_done_callback(chromecast_callback)
+        future.add_done_callback(
+            lambda f: GLib.idle_add(chromecast_callback, f))
+
+    def on_device_click(self, button):
+        self.update_device_list()
+        self.device_popover.set_relative_to(button)
+        self.device_popover.popup()
+        self.device_popover.show_all()
+
+    def on_device_refresh_click(self, button):
+        self.update_device_list(clear=True)
 
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -302,6 +334,45 @@ class PlayerControls(Gtk.ActionBar):
 
         self.device_popover = Gtk.PopoverMenu(name='device-popover')
 
+        device_popover_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        device_popover_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+
+        self.popover_label = Gtk.Label(
+            label='<b>Devices</b>',
+            use_markup=True,
+            halign=Gtk.Align.START,
+            margin=5,
+        )
+        device_popover_header.add(self.popover_label)
+
+        refresh_devices = util.button_with_icon('view-refresh')
+        refresh_devices.connect('clicked', self.on_device_refresh_click)
+        device_popover_header.pack_end(refresh_devices, False, False, 0)
+
+        device_popover_box.add(device_popover_header)
+
+        device_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        this_device = Gtk.ModelButton(text='This Device')
+        this_device.get_style_context().add_class('menu-button')
+        this_device.connect(
+            'clicked', lambda *a: self.emit('device-update', 'this device'))
+        device_list.add(this_device)
+
+        device_list.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
+
+        self.device_list_loading = Gtk.Spinner(active=True)
+        self.device_list_loading.get_style_context().add_class('menu-button')
+        device_list.add(self.device_list_loading)
+
+        self.chromecast_device_list = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL)
+        device_list.add(self.chromecast_device_list)
+
+        device_popover_box.pack_end(device_list, True, True, 0)
+
+        self.device_popover.add(device_popover_box)
+
         # Up Next button
         up_next_button = util.button_with_icon(
             'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
@@ -310,8 +381,9 @@ class PlayerControls(Gtk.ActionBar):
 
         self.up_next_popover = Gtk.PopoverMenu(name='up-next-popover')
 
-        popover_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        popover_box_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        up_next_popover_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        up_next_popover_header = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL)
 
         self.popover_label = Gtk.Label(
             label='<b>Up Next</b>',
@@ -319,23 +391,23 @@ class PlayerControls(Gtk.ActionBar):
             halign=Gtk.Align.START,
             margin=10,
         )
-        popover_box_header.add(self.popover_label)
+        up_next_popover_header.add(self.popover_label)
 
         load_up_next = Gtk.Button(label='Load Queue from Server', margin=5)
         load_up_next.set_action_name('app.update-play-queue-from-server')
-        popover_box_header.pack_end(load_up_next, False, False, 0)
+        up_next_popover_header.pack_end(load_up_next, False, False, 0)
 
-        popover_box.add(popover_box_header)
+        up_next_popover_box.add(up_next_popover_header)
 
-        popover_scroll_box = Gtk.ScrolledWindow(
+        up_next_scrollbox = Gtk.ScrolledWindow(
             min_content_height=600,
             min_content_width=400,
         )
-        self.popover_list = Gtk.ListBox()
-        popover_scroll_box.add(self.popover_list)
-        popover_box.pack_end(popover_scroll_box, True, True, 0)
+        self.up_next_list = Gtk.ListBox()
+        up_next_scrollbox.add(self.up_next_list)
+        up_next_popover_box.pack_end(up_next_scrollbox, True, True, 0)
 
-        self.up_next_popover.add(popover_box)
+        self.up_next_popover.add(up_next_popover_box)
 
         # Volume mute toggle
         self.volume_mute_toggle = util.button_with_icon('audio-volume-high')
