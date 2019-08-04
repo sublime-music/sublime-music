@@ -98,14 +98,16 @@ class PlayerControls(Gtk.ActionBar):
         self.volume_slider.set_value(state.volume)
 
         # Update the current song information.
-        # TODO add popup to something here
+        # TODO add popup of bigger cover art photo here
         if has_current_song:
-            # TODO should probably clear out the cover art display if no song??
             self.update_cover_art(state.current_song.coverArt, size='70')
 
             self.song_title.set_text(util.esc(state.current_song.title))
             self.album_name.set_text(util.esc(state.current_song.album))
             self.artist_name.set_text(util.esc(state.current_song.artist))
+        else:
+            # TODO should probably clear out the cover art display if no song??
+            self.album_art.set_loading(False)
 
         # Set the Up Next button popup.
         if hasattr(state, 'play_queue'):
@@ -132,23 +134,23 @@ class PlayerControls(Gtk.ActionBar):
 
             self.popover_list.show_all()
 
-            # These are normally already have been retrieved, so should be no
-            # cost for doing the ``get_song_details`` call.
+            # Create a function to capture the value of index for the inner
+            # function. This outer function creates the actual callback
+            # function.
+            def update_fn_generator(index):
+                def do_update_label(result):
+                    title = util.esc(result.title)
+                    album = util.esc(result.album)
+                    row = self.popover_list.get_row_at_index(index)
+                    row.get_child().set_markup(f'<b>{title}</b>\n{album}')
+                    row.show_all()
+
+                return lambda f: GLib.idle_add(do_update_label, f.result())
+
+            # These normally already have been retrieved, so should be no cost
+            # for doing the ``get_song_details`` call.
             for i, song_id in enumerate(state.play_queue):
-                # Create a function to capture the value of i for the inner
-                # function. This outer function creates the actual callback
-                # function.
-                def update_fn_generator(i):
-                    def do_update_label(result):
-                        title = util.esc(result.title)
-                        album = util.esc(result.album)
-                        row = self.popover_list.get_row_at_index(i)
-                        row.get_child().set_markup(f'<b>{title}</b>\n{album}')
-                        row.show_all()
-
-                    return lambda f: GLib.idle_add(do_update_label, f.result())
-
-                future = CacheManager.get_song_details(song_id, lambda: None)
+                future = CacheManager.get_song_details(song_id)
                 future.add_done_callback(update_fn_generator(i))
 
     @util.async_callback(
