@@ -49,6 +49,7 @@ class ApplicationState:
     repeat_type: RepeatType = RepeatType.NO_REPEAT
     shuffle_on: bool = False
     song_progress: float = 0
+    current_device: str = 'this device'
 
     def to_json(self):
         current_song = (self.current_song.id if
@@ -63,6 +64,7 @@ class ApplicationState:
                                    RepeatType.NO_REPEAT).value,
             'shuffle_on': getattr(self, 'shuffle_on', None),
             'song_progress': getattr(self, 'song_progress', None),
+            'current_device': getattr(self, 'current_device', 'this device'),
         }
 
     def load_from_json(self, json_object):
@@ -80,6 +82,7 @@ class ApplicationState:
                             or RepeatType.NO_REPEAT)
         self.shuffle_on = json_object.get('shuffle_on', False)
         self.song_progress = json_object.get('song_progress', 0.0)
+        self.current_device = json_object.get('current_device', 'this device')
 
     def load(self):
         self.config = self.get_config(self.config_file)

@@ -521,6 +521,9 @@ class CacheManager(metaclass=Singleton):
 
             return CacheManager.executor.submit(do_get_song_details)
 
+        def get_play_queue(self) -> Future:
+            return CacheManager.executor.submit(self.server.get_play_queue)
+
         def get_song_filename_or_stream(
                 self,
                 song: Child,

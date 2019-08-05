@@ -73,7 +73,14 @@ class LibremsonicApp(Gtk.Application):
             self.state.config,
         )
         self.player = self.mpv_player
-        self.current_device = 'this device'
+
+        if self.state.current_device != 'this device':
+            # TODO figure out how to activate the chromecast if possible
+            # without blocking the main thread. Also, need to make it obvious
+            # that we are trying to connect.
+            pass
+
+        self.state.current_device = 'this device'
 
     # Handle command line option parsing.
     def do_command_line(self, command_line):
@@ -287,9 +294,9 @@ class LibremsonicApp(Gtk.Application):
         self.save_play_queue()
 
     def on_device_update(self, _, device_uuid):
-        if device_uuid == self.current_device:
+        if device_uuid == self.state.current_device:
             return
-        self.current_device = device_uuid
+        self.state.current_device = device_uuid
 
         was_playing = self.state.playing
         self.player.pause()
@@ -357,21 +364,30 @@ class LibremsonicApp(Gtk.Application):
         GLib.idle_add(self.window.update, self.state)
 
     def update_play_state_from_server(self):
-        # TODO make this non-blocking eventually (need to make everything in
-        # loading state)
+        # TODO need to make the up next list loading for the duration here
+        was_playing = self.state.playing
         self.player.pause()
         self.state.playing = False
-
-        play_queue = CacheManager.get_play_queue()
-        self.state.play_queue = [s.id for s in play_queue.entry]
-        self.state.song_progress = play_queue.position / 1000
-
-        current_song_idx = self.state.play_queue.index(str(play_queue.current))
-        self.state.current_song = play_queue.entry[current_song_idx]
-
-        self.player.reset()
-
         self.update_window()
+
+        def do_update(f):
+            play_queue = f.result()
+            self.state.play_queue = [s.id for s in play_queue.entry]
+            self.state.song_progress = play_queue.position / 1000
+
+            current_song_idx = self.state.play_queue.index(
+                str(play_queue.current))
+            self.state.current_song = play_queue.entry[current_song_idx]
+
+            self.player.reset()
+            self.update_window()
+
+            if was_playing:
+                self.on_play_pause()
+
+        play_queue_future = CacheManager.get_play_queue()
+        play_queue_future.add_done_callback(
+            lambda f: GLib.idle_add(do_update, f))
 
     def play_song(
             self,
