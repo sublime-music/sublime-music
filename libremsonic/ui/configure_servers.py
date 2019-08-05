@@ -37,9 +37,10 @@ class EditServerDialog(EditFormDialog):
 
     def on_test_server_clicked(self, event):
         # Instantiate the server.
+        server_address = self.data['Server address'].get_text()
         server = Server(
             self.data['Name'].get_text(),
-            self.data['Server address'].get_text(),
+            server_address,
             self.data['Username'].get_text(),
             self.data['Password'].get_text(),
         )
@@ -54,8 +55,7 @@ class EditServerDialog(EditFormDialog):
                 text='Connection to server successful.',
             )
             dialog.format_secondary_markup(
-                f"Connection to {self.data['Server address'].get_text()} successful."
-            )
+                f'Connection to {server_address} successful.')
         except Exception as err:
             dialog = Gtk.MessageDialog(
                 transient_for=self,
@@ -64,8 +64,8 @@ class EditServerDialog(EditFormDialog):
                 text='Connection to server unsuccessful.',
             )
             dialog.format_secondary_markup(
-                f"Connection to {self.data['Server address'].get_text()} resulted in the following error:\n\n{err}"
-            )
+                f'Connection to {server_address} resulted in the following '
+                'error:\n\n{err}')
 
         dialog.run()
         dialog.destroy()
@@ -76,10 +76,10 @@ class EditServerDialog(EditFormDialog):
 
 class ConfigureServersDialog(Gtk.Dialog):
     __gsignals__ = {
-        'server-list-changed': (GObject.SignalFlags.RUN_FIRST,
-                                GObject.TYPE_NONE, (object, )),
-        'connected-server-changed': (GObject.SignalFlags.RUN_FIRST,
-                                     GObject.TYPE_NONE, (object, )),
+        'server-list-changed':
+        (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (object, )),
+        'connected-server-changed':
+        (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (object, )),
     }
 
     def __init__(self, parent, config):
@@ -179,8 +179,8 @@ class ConfigureServersDialog(Gtk.Dialog):
             new_config = ServerConfiguration(
                 name=dialog.data['Name'].get_text(),
                 server_address=dialog.data['Server address'].get_text(),
-                local_network_address=dialog.data['Local network address'].
-                get_text(),
+                local_network_address=dialog.data['Local network address']
+                .get_text(),
                 local_network_ssid=dialog.data['Local network SSID'].get_text(
                 ),
                 username=dialog.data['Username'].get_text(),

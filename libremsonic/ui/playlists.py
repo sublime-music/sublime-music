@@ -394,7 +394,8 @@ class PlaylistsPanel(Gtk.Paned):
                 )
                 self.update_playlist_song_list(playlist.id, force=True)
 
-            remove_text = f"Remove {util.pluralize('song', len(song_ids))} from playlist"
+            remove_text = ('Remove ' + util.pluralize('song', len(song_ids))
+                           + ' from playlist')
             util.show_song_popover(
                 song_ids,
                 event.x,

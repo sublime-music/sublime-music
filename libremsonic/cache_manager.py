@@ -302,8 +302,7 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_artists() -> List[Union[Artist, ArtistID3]]:
-                cache_name = 'artists' + ('_id3'
-                                          if self.browse_by_tags else '')
+                cache_name = self.id3ify('artists')
                 server_fn = (self.server.get_artists if self.browse_by_tags
                              else self.server.get_indexes)
 
@@ -332,7 +331,7 @@ class CacheManager(metaclass=Singleton):
         ) -> Future:
             def do_get_artist() -> Union[ArtistWithAlbumsID3, Child]:
                 # TODO: implement the non-ID3 version
-                cache_name = f"artist_details{'_id3' if self.browse_by_tags else ''}"
+                cache_name = self.id3ify('artist_details')
                 server_fn = (self.server.get_artist if self.browse_by_tags else
                              self.server.get_music_directory)
 
@@ -356,7 +355,7 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_artist_info() -> Union[ArtistInfo, ArtistInfo2]:
-                cache_name = f"artist_infos{'_id3' if self.browse_by_tags else ''}"
+                cache_name = self.id3ify('artist_infos')
                 server_fn = (self.server.get_artist_info2
                              if self.browse_by_tags else
                              self.server.get_artist_info)
@@ -384,10 +383,12 @@ class CacheManager(metaclass=Singleton):
             def do_get_artist_artwork_filename() -> str:
                 artist_info = CacheManager.get_artist_info(artist.id).result()
                 lastfm_url = ''.join(artist_info.largeImageUrl)
+                placeholder_image_url = 'https://lastfm-img2.akamaized.net' \
+                    '/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png'
 
                 # If it is the placeholder LastFM URL, then just use the cover
                 # art filename given by the server.
-                if lastfm_url == 'https://lastfm-img2.akamaized.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png':
+                if lastfm_url == placeholder_image_url:
                     if isinstance(artist, ArtistWithAlbumsID3):
                         return CacheManager.get_cover_art_filename(
                             artist.coverArt, size=300).result()
@@ -414,7 +415,7 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_albums() -> List[Child]:
-                cache_name = f"albums{'_id3' if self.browse_by_tags else ''}"
+                cache_name = self.id3ify('albums')
                 server_fn = (self.server.get_album_list2 if self.browse_by_tags
                              else self.server.get_album_list)
 
@@ -550,6 +551,9 @@ class CacheManager(metaclass=Singleton):
                 return SongCacheStatus.DOWNLOADING
             else:
                 return SongCacheStatus.NOT_CACHED
+
+        def id3ify(self, cache_type):
+            return cache_type + ('_id3' if self.browse_by_tags else '')
 
     _instance: Optional[__CacheManagerInternal] = None
 

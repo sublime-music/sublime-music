@@ -28,9 +28,14 @@ class LibremsonicApp(Gtk.Application):
 
         # Specify Command Line Options
         self.add_main_option(
-            'config', ord('c'), GLib.OptionFlags.NONE, GLib.OptionArg.FILENAME,
-            'Specify a configuration file. Defaults to ~/.config/libremsonic/config.json',
-            None)
+            'config',
+            ord('c'),
+            GLib.OptionFlags.NONE,
+            GLib.OptionArg.FILENAME,
+            'Specify a configuration file. Defaults to '
+            '~/.config/libremsonic/config.json',
+            None,
+        )
 
         self.connect('shutdown', self.on_app_shutdown)
 
