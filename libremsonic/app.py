@@ -73,6 +73,7 @@ class LibremsonicApp(Gtk.Application):
             self.state.config,
         )
         self.player = self.mpv_player
+        self.current_device = 'this device'
 
     # Handle command line option parsing.
     def do_command_line(self, command_line):
@@ -190,7 +191,7 @@ class LibremsonicApp(Gtk.Application):
 
         self.play_song(self.state.play_queue[current_idx + 1], reset=True)
 
-    def on_prev_track(self, action, params):
+    def on_prev_track(self, *args):
         # TODO there is a bug where you can't go back multiple songs fast
         current_idx = self.state.play_queue.index(self.state.current_song.id)
         # Go back to the beginning of the song if we are past 5 seconds.
@@ -286,6 +287,10 @@ class LibremsonicApp(Gtk.Application):
         self.save_play_queue()
 
     def on_device_update(self, _, device_uuid):
+        if device_uuid == self.current_device:
+            return
+        self.current_device = device_uuid
+
         was_playing = self.state.playing
         self.player.pause()
         self.player._song_loaded = False
@@ -318,9 +323,15 @@ class LibremsonicApp(Gtk.Application):
         self.update_window()
 
     def on_window_key_press(self, window, event):
-        # Returning True prevents further propagation of the event.
-        if event.keyval == 32:
-            self.on_play_pause()
+        keymap = {
+            32: self.on_play_pause,
+            65360: self.on_prev_track,
+            65367: self.on_next_track,
+        }
+
+        action = keymap.get(event.keyval)
+        if action:
+            action()
             return True
 
     def on_app_shutdown(self, app):
