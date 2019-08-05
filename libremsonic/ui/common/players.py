@@ -233,10 +233,15 @@ class ChromecastPlayer(Player):
         ChromecastPlayer.media_status_listener.on_new_media_status = self.on_new_media_status
 
         # Set host_ip
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('8.8.8.8', 80))
-        self.host_ip = s.getsockname()[0]
-        s.close()
+        # TODO should have a mechanism to update this. Maybe it should be
+        # determined every time we try and play a song.
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(('8.8.8.8', 80))
+            self.host_ip = s.getsockname()[0]
+            s.close()
+        except OSError:
+            self.host_ip = None
 
         # TODO make the port come from the app config
         self.server_thread = ChromecastPlayer.ServerThread('0.0.0.0', 8080)
