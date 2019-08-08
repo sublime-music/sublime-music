@@ -347,10 +347,10 @@ class LibremsonicApp(Gtk.Application):
             return True
 
     def on_app_shutdown(self, app):
-        CacheManager.should_exit = True
         self.player.pause()
         self.chromecast_player.shutdown()
         self.mpv_player.shutdown()
+        CacheManager.should_exit = True
 
         self.state.save()
         self.save_play_queue()

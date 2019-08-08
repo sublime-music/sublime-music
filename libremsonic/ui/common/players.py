@@ -372,4 +372,5 @@ class ChromecastPlayer(Player):
             return 100
 
     def shutdown(self):
-        self.chromecast.disconnect(blocking=True)
+        if self.chromecast:
+            self.chromecast.disconnect(blocking=True)
