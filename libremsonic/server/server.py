@@ -90,7 +90,7 @@ class Server:
         result = requests.get(url, params=params)
         # TODO make better
         if result.status_code != 200:
-            raise Exception(f'Fail! {result.status_code}')
+            raise Exception(f'[FAIL] get: {url} status={result.status_code}')
 
         print(f'[FINISH] get: {url}')
         return result

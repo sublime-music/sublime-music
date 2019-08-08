@@ -399,7 +399,6 @@ class LibremsonicApp(Gtk.Application):
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.
         def do_play_song(song: Child):
-            # TODO force mp3 while getting chromecast working.
             uri, stream = CacheManager.get_song_filename_or_stream(
                 song,
                 format='mp3',
