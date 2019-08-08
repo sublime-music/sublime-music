@@ -13,7 +13,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
     """Defines a grid with cover art."""
     __gsignals__ = {
         'item-clicked': (
-            GObject.SIGNAL_RUN_FIRST,
+            GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (object, ),
         )

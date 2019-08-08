@@ -15,7 +15,7 @@ from libremsonic.server.api_objects import Child
 class AlbumsPanel(Gtk.ScrolledWindow):
     __gsignals__ = {
         'song-clicked': (
-            GObject.SIGNAL_RUN_FIRST,
+            GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (str, object),
         ),

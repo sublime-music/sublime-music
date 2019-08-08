@@ -26,7 +26,7 @@ class ArtistsPanel(Gtk.Paned):
 
     __gsignals__ = {
         'song-clicked': (
-            GObject.SIGNAL_RUN_FIRST,
+            GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (str, object),
         ),
@@ -65,7 +65,7 @@ class ArtistsPanel(Gtk.Paned):
 class ArtistList(Gtk.Box):
     __gsignals__ = {
         'selection-changed': (
-            GObject.SIGNAL_RUN_FIRST,
+            GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (object, ),
         ),
@@ -157,7 +157,7 @@ class ArtistDetailPanel(Gtk.Box):
 
     __gsignals__ = {
         'song-clicked': (
-            GObject.SIGNAL_RUN_FIRST,
+            GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (str, object),
         ),
@@ -351,7 +351,7 @@ class ArtistDetailPanel(Gtk.Box):
 class AlbumsListWithSongs(Gtk.Overlay):
     __gsignals__ = {
         'song-clicked': (
-            GObject.SIGNAL_RUN_FIRST,
+            GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (str, object),
         ),
@@ -396,12 +396,12 @@ class AlbumsListWithSongs(Gtk.Overlay):
 class AlbumWithSongs(Gtk.Box):
     __gsignals__ = {
         'song-selected': (
-            GObject.SIGNAL_RUN_FIRST,
+            GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (),
         ),
         'song-clicked': (
-            GObject.SIGNAL_RUN_FIRST,
+            GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (str, object),
         ),
@@ -481,6 +481,7 @@ class AlbumWithSongs(Gtk.Box):
         self.album_songs = Gtk.TreeView(
             model=self.album_songs_model,
             name='album-songs-list',
+            headers_visible=False,
             margin_top=15,
             margin_left=10,
             margin_right=10,

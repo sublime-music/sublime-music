@@ -336,6 +336,7 @@ class PlaylistsPanel(Gtk.Paned):
             self.playlist_list.get_selected_row().get_index()]
 
         def download_state_change(*args):
+            # TODO: Only do this if it's the current playlist.
             GLib.idle_add(self.update_playlist_view, playlist.id)
 
         song_ids = [s[-1] for s in self.playlist_song_model]
@@ -369,6 +370,7 @@ class PlaylistsPanel(Gtk.Paned):
                 self.playlist_list.get_selected_row().get_index()]
 
             def on_download_state_change(song_id=None):
+                # TODO: Only do this if it's the current playlist.
                 GLib.idle_add(self.update_playlist_song_list, playlist.id)
 
             # Use the new selection instead of the old one for calculating what
