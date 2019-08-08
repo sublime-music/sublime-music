@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Optional
 
 import gi
 
@@ -31,6 +31,7 @@ class ArtistsPanel(Gtk.Paned):
             (str, object),
         ),
     }
+    artist_id: Optional[str] = None
 
     def __init__(self, *args, **kwargs):
         Gtk.Paned.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
@@ -53,10 +54,12 @@ class ArtistsPanel(Gtk.Paned):
 
     def update(self, state: ApplicationState):
         self.artist_list.update()
-        # self.artist_detail_panel.update()
+        if self.artist_id:
+            self.artist_detail_panel.update(self.artist_id)
 
     def on_list_selection_changed(self, artist_list, artist):
-        self.artist_detail_panel.update_artist_view(artist.id)
+        self.artist_id = artist.id
+        self.artist_detail_panel.update(self.artist_id)
 
 
 class ArtistList(Gtk.Box):
@@ -242,6 +245,9 @@ class ArtistDetailPanel(Gtk.Box):
         artist_info_box.pack_start(self.albums_list, True, True, 0)
 
         self.add(artist_info_box)
+
+    def update(self, album_id):
+        self.update_artist_view(album_id)
 
     def get_model_list_future(self, before_download):
         def do_get_model_list() -> List[Child]:
