@@ -430,7 +430,8 @@ class AlbumWithSongs(Gtk.Box):
             before_download=lambda: artist_artwork.set_loading(True),
             size=200,
         )
-        cover_art_filename_future.add_done_callback(cover_art_future_done)
+        cover_art_filename_future.add_done_callback(
+            lambda f: GLib.idle_add(cover_art_future_done, f))
 
         album_details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         album_details.add(
