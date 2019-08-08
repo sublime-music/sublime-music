@@ -419,13 +419,21 @@ class LibremsonicApp(Gtk.Application):
                 self.player.reset()
                 self.state.song_progress = 0
 
+            def on_song_download_complete(_):
+                # This will now return the local media.
+                downloaded_filename = CacheManager.get_song_filename_or_stream(
+                    song)[0]
+                self.player.play_media(downloaded_filename,
+                                       self.state.song_progress, song)
+                GLib.idle_add(self.update_window)
+
             # If streaming, also download the song.
             # TODO: make it configurable if we do this download
             if stream:
                 CacheManager.batch_download_songs(
                     [song.id],
                     before_download=lambda: self.update_window(),
-                    on_song_download_complete=lambda _: self.update_window(),
+                    on_song_download_complete=on_song_download_complete,
                 )
 
             self.player.play_media(uri, self.state.song_progress, song)

@@ -485,6 +485,7 @@ class AlbumWithSongs(Gtk.Box):
             margin_top=15,
             margin_left=10,
             margin_right=10,
+            margin_bottom=10,
         )
         self.album_songs.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
 
