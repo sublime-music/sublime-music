@@ -296,6 +296,11 @@ class CacheManager(metaclass=Singleton):
 
             return CacheManager.executor.submit(do_get_playlist)
 
+        def update_playlist(self, playlist_id, *args, **kwargs):
+            self.server.update_playlist(playlist_id, *args, **kwargs)
+            with self.cache_lock:
+                del self.cache['playlist_details'][playlist_id]
+
         def get_artists(
                 self,
                 before_download: Callable[[], None] = lambda: None,

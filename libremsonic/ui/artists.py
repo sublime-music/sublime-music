@@ -1,5 +1,4 @@
-from concurrent.futures import Future
-from typing import List, Union, Optional
+from typing import List, Union
 
 import gi
 
@@ -9,7 +8,7 @@ from gi.repository import Gtk, GObject, Pango, GLib
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
-from libremsonic.ui.common import CoverArtGrid, SpinnerImage
+from libremsonic.ui.common import SpinnerImage
 
 from libremsonic.server.api_objects import (
     AlbumID3,
@@ -20,8 +19,6 @@ from libremsonic.server.api_objects import (
     Child,
     Directory,
 )
-
-from .albums import AlbumsGrid
 
 
 class ArtistsPanel(Gtk.Paned):
@@ -214,7 +211,6 @@ class ArtistDetailPanel(Gtk.Box):
         artist_details_box.add(self.artist_name)
 
         self.artist_bio = self.make_label(name='artist-bio',
-                                          max_width_chars=80,
                                           justify=Gtk.Justification.LEFT)
         self.artist_bio.set_line_wrap(True)
         artist_details_box.add(self.artist_bio)
@@ -378,15 +374,26 @@ class AlbumsListWithSongs(Gtk.Overlay):
             album_with_songs = AlbumWithSongs(album)
             album_with_songs.connect(
                 'song-clicked',
-                lambda _, song, queue: self.emit('song-clicked', song, queue),
+                lambda _, song, queue: self.emit(song, queue),
             )
+            album_with_songs.connect('song-selected', self.on_song_selected)
             self.box.add(album_with_songs)
 
         self.scrolled_window.show_all()
 
+    def on_song_selected(self, album_component):
+        for child in self.box.get_children():
+            if album_component != child:
+                child.deselect_all()
+
 
 class AlbumWithSongs(Gtk.Box):
     __gsignals__ = {
+        'song-selected': (
+            GObject.SIGNAL_RUN_FIRST,
+            GObject.TYPE_NONE,
+            (),
+        ),
         'song-clicked': (
             GObject.SIGNAL_RUN_FIRST,
             GObject.TYPE_NONE,
@@ -458,33 +465,40 @@ class AlbumWithSongs(Gtk.Box):
             column.set_expand(not width)
             return column
 
-        album_songs = Gtk.TreeView(
+        self.album_songs = Gtk.TreeView(
             model=self.album_songs_model,
             name='album-songs-list',
             margin_top=15,
             margin_left=10,
             margin_right=10,
         )
-        album_songs.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+        self.album_songs.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
 
         # Song status column.
         renderer = Gtk.CellRendererPixbuf()
         renderer.set_fixed_size(30, 35)
         column = Gtk.TreeViewColumn('', renderer, icon_name=0)
         column.set_resizable(True)
-        album_songs.append_column(column)
+        self.album_songs.append_column(column)
 
-        album_songs.append_column(create_column('TITLE', 1, bold=True))
-        album_songs.append_column(
+        self.album_songs.append_column(create_column('TITLE', 1, bold=True))
+        self.album_songs.append_column(
             create_column('DURATION', 2, align=1, width=40))
 
-        album_songs.connect('row-activated', self.on_song_activated)
-        album_songs.connect('button-press-event', self.on_song_button_press)
-        album_details.add(album_songs)
+        self.album_songs.connect('row-activated', self.on_song_activated)
+        self.album_songs.connect('button-press-event',
+                                 self.on_song_button_press)
+        self.album_songs.get_selection().connect('changed',
+                                                 self.on_song_selection_change)
+        album_details.add(self.album_songs)
 
         self.pack_end(album_details, True, True, 0)
 
         self.update_album_songs(album.id)
+
+    def on_song_selection_change(self, event):
+        if not self.album_songs.has_focus():
+            self.emit('song-selected')
 
     def on_song_activated(self, treeview, idx, column):
         # The song ID is in the last column of the model.
@@ -529,6 +543,9 @@ class AlbumWithSongs(Gtk.Box):
             # If the click was on a selected row, don't deselect anything.
             if not allow_deselect:
                 return True
+
+    def deselect_all(self):
+        self.album_songs.get_selection().unselect_all()
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_album(*a, **k),
