@@ -139,7 +139,7 @@ class CacheManager(metaclass=Singleton):
 
                 # Non-ID3 caches
                 ('albums', Child, list),
-                ('album_details', Child, dict),
+                ('album_details', Directory, dict),
                 ('artists', Artist, list),
                 ('artist_details', Directory, dict),
                 ('artist_infos', ArtistInfo, dict),
@@ -431,6 +431,31 @@ class CacheManager(metaclass=Singleton):
                 return self.cache[cache_name]
 
             return CacheManager.executor.submit(do_get_albums)
+
+        def get_album(
+                self,
+                album_id,
+                before_download: Callable[[], None] = lambda: None,
+                force: bool = False,
+        ) -> Future:
+            def do_get_album() -> Union[AlbumWithSongsID3, Child]:
+                # TODO: implement the non-ID3 version
+                cache_name = self.id3ify('album_details')
+                server_fn = (self.server.get_album if self.browse_by_tags else
+                             self.server.get_music_directory)
+
+                if album_id not in self.cache.get(cache_name, {}) or force:
+                    before_download()
+                    album = server_fn(album_id)
+
+                    with self.cache_lock:
+                        self.cache[cache_name][album_id] = album
+
+                    self.save_cache_info()
+
+                return self.cache[cache_name][album_id]
+
+            return CacheManager.executor.submit(do_get_album)
 
         def batch_delete_cached_songs(
                 self,

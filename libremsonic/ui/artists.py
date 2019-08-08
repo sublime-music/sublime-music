@@ -4,7 +4,7 @@ from typing import List, Union, Optional
 import gi
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GObject, Pango
+from gi.repository import Gtk, GObject, Pango, GLib
 
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
@@ -16,19 +16,12 @@ from libremsonic.server.api_objects import (
     ArtistID3,
     ArtistInfo2,
     ArtistWithAlbumsID3,
+    AlbumWithSongsID3,
     Child,
+    Directory,
 )
 
 from .albums import AlbumsGrid
-
-
-class ArtistModel(GObject.Object):
-    def __init__(self, id, name, cover_art, album_count=0):
-        self.id = id
-        self.name = name
-        self.cover_art = cover_art
-        self.album_count = album_count
-        super().__init__()
 
 
 class ArtistsPanel(Gtk.Paned):
@@ -48,11 +41,17 @@ class ArtistsPanel(Gtk.Paned):
         self.selected_artist = None
 
         self.artist_list = ArtistList()
-        self.artist_list.connect('selection-changed',
-                                 self.on_list_selection_changed)
+        self.artist_list.connect(
+            'selection-changed',
+            self.on_list_selection_changed,
+        )
         self.pack1(self.artist_list, False, False)
 
         self.artist_detail_panel = ArtistDetailPanel()
+        self.artist_detail_panel.connect(
+            'song-clicked',
+            lambda _, song, queue: self.emit('song-clicked', song, queue),
+        )
         self.pack2(self.artist_detail_panel, True, False)
 
     def update(self, state: ApplicationState):
@@ -239,10 +238,12 @@ class ArtistDetailPanel(Gtk.Box):
 
         artist_info_box.pack_start(self.big_info_panel, False, True, 0)
 
-        self.albums_grid = AlbumsGrid()
-        self.albums_grid.grid.set_halign(Gtk.Align.START)
-        self.albums_grid.get_model_list_future = self.get_model_list_future
-        artist_info_box.pack_start(self.albums_grid, True, True, 0)
+        self.albums_list = AlbumsListWithSongs()
+        self.albums_list.connect(
+            'song-clicked',
+            lambda _, song, queue: self.emit('song-clicked', song, queue),
+        )
+        artist_info_box.pack_start(self.albums_list, True, True, 0)
 
         self.add(artist_info_box)
 
@@ -252,6 +253,8 @@ class ArtistDetailPanel(Gtk.Box):
 
         return CacheManager.executor.submit(do_get_model_list)
 
+    # TODO need to handle when this is force updated. Need to delete a bunch of
+    # stuff and un-cache things.
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist(*a, **k),
         before_download=lambda self: self.artist_artwork.set_loading(True),
@@ -267,7 +270,7 @@ class ArtistDetailPanel(Gtk.Box):
         self.update_artist_artwork(artist)
 
         self.albums = artist.get('album', artist.get('child', []))
-        self.albums_grid.update()
+        self.albums_list.update(artist)
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist_info(*a, **k),
@@ -341,3 +344,206 @@ class ArtistDetailPanel(Gtk.Box):
             ]
 
         return util.dot_join(*components)
+
+
+class AlbumsListWithSongs(Gtk.Overlay):
+    __gsignals__ = {
+        'song-clicked': (
+            GObject.SIGNAL_RUN_FIRST,
+            GObject.TYPE_NONE,
+            (str, object),
+        ),
+    }
+
+    def __init__(self):
+        Gtk.Overlay.__init__(self)
+        self.scrolled_window = Gtk.ScrolledWindow(vexpand=True)
+        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.scrolled_window.add(self.box)
+        self.add(self.scrolled_window)
+
+        self.spinner = Gtk.Spinner(
+            name='albumslist-with-songs-spinner',
+            active=False,
+            halign=Gtk.Align.CENTER,
+            valign=Gtk.Align.CENTER,
+        )
+        self.add_overlay(self.spinner)
+
+    def update(self, artist):
+        for c in self.box.get_children():
+            self.box.remove(c)
+
+        for album in artist.get('album', artist.get('child', [])):
+            album_with_songs = AlbumWithSongs(album)
+            album_with_songs.connect(
+                'song-clicked',
+                lambda _, song, queue: self.emit('song-clicked', song, queue),
+            )
+            self.box.add(album_with_songs)
+
+        self.scrolled_window.show_all()
+
+
+class AlbumWithSongs(Gtk.Box):
+    __gsignals__ = {
+        'song-clicked': (
+            GObject.SIGNAL_RUN_FIRST,
+            GObject.TYPE_NONE,
+            (str, object),
+        ),
+    }
+
+    def __init__(self, album):
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
+        self.album = album
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        artist_artwork = SpinnerImage(
+            loading=False,
+            image_name='artist-album-list-artwork',
+            spinner_name='artist-artwork-spinner',
+        )
+        box.pack_start(artist_artwork, False, False, 0)
+        box.pack_start(Gtk.Box(), True, True, 0)
+        self.pack_start(box, False, False, 0)
+
+        def cover_art_future_done(f):
+            artist_artwork.set_from_file(f.result())
+            artist_artwork.set_loading(False)
+
+        cover_art_filename_future = CacheManager.get_cover_art_filename(
+            album.coverArt,
+            before_download=lambda: artist_artwork.set_loading(True),
+            size=200,
+        )
+        cover_art_filename_future.add_done_callback(cover_art_future_done)
+
+        album_details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        album_details.add(
+            Gtk.Label(
+                label=album.get('name', album.get('title')),
+                name='artist-album-list-album-name',
+                halign=Gtk.Align.START,
+            ))
+
+        stats = [album.year, album.genre]
+        if album.get('duration'):
+            stats.append(util.format_sequence_duration(album.duration))
+
+        album_details.add(
+            Gtk.Label(
+                label=util.dot_join(*stats),
+                halign=Gtk.Align.START,
+                margin_left=10,
+            ))
+
+        self.album_songs_model = Gtk.ListStore(
+            str,  # cache status
+            str,  # title
+            str,  # duration
+            str,  # song ID
+        )
+
+        def create_column(header, text_idx, bold=False, align=0, width=None):
+            renderer = Gtk.CellRendererText(
+                xalign=align,
+                weight=Pango.Weight.BOLD if bold else Pango.Weight.NORMAL,
+                ellipsize=Pango.EllipsizeMode.END,
+            )
+            renderer.set_fixed_size(width or -1, 35)
+
+            column = Gtk.TreeViewColumn(header, renderer, text=text_idx)
+            column.set_resizable(True)
+            column.set_expand(not width)
+            return column
+
+        album_songs = Gtk.TreeView(
+            model=self.album_songs_model,
+            name='album-songs-list',
+            margin_top=15,
+            margin_left=10,
+            margin_right=10,
+        )
+        album_songs.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+
+        # Song status column.
+        renderer = Gtk.CellRendererPixbuf()
+        renderer.set_fixed_size(30, 35)
+        column = Gtk.TreeViewColumn('', renderer, icon_name=0)
+        column.set_resizable(True)
+        album_songs.append_column(column)
+
+        album_songs.append_column(create_column('TITLE', 1, bold=True))
+        album_songs.append_column(
+            create_column('DURATION', 2, align=1, width=40))
+
+        album_songs.connect('row-activated', self.on_song_activated)
+        album_songs.connect('button-press-event', self.on_song_button_press)
+        album_details.add(album_songs)
+
+        self.pack_end(album_details, True, True, 0)
+
+        self.update_album_songs(album.id)
+
+    def on_song_activated(self, treeview, idx, column):
+        # The song ID is in the last column of the model.
+        song_id = self.album_songs_model[idx][-1]
+        self.emit('song-clicked', song_id,
+                  [m[-1] for m in self.album_songs_model])
+
+    def on_song_button_press(self, tree, event):
+        if event.button == 3:  # Right click
+            clicked_path = tree.get_path_at_pos(event.x, event.y)
+            if not clicked_path:
+                return False
+
+            store, paths = tree.get_selection().get_selected_rows()
+            allow_deselect = False
+
+            def on_download_state_change(song_id=None):
+                GLib.idle_add(self.update_album_songs, self.album.id)
+
+            # Use the new selection instead of the old one for calculating what
+            # to do the right click on.
+            if clicked_path[0] not in paths:
+                paths = [clicked_path[0]]
+                allow_deselect = True
+
+            song_ids = [self.album_songs_model[p][-1] for p in paths]
+
+            # Used to adjust for the header row.
+            bin_coords = tree.convert_tree_to_bin_window_coords(
+                event.x, event.y)
+            widget_coords = tree.convert_tree_to_widget_coords(
+                event.x, event.y)
+
+            util.show_song_popover(
+                song_ids,
+                event.x,
+                event.y + abs(bin_coords.by - widget_coords.wy),
+                tree,
+                on_download_state_change=on_download_state_change,
+            )
+
+            # If the click was on a selected row, don't deselect anything.
+            if not allow_deselect:
+                return True
+
+    @util.async_callback(
+        lambda *a, **k: CacheManager.get_album(*a, **k),
+        before_download=lambda *a: print('before'),
+        on_failure=lambda *a: print('failure', *a),
+    )
+    def update_album_songs(
+            self,
+            album: Union[AlbumWithSongsID3, Child, Directory],
+    ):
+        new_model = [[
+            util.get_cached_status_icon(CacheManager.get_cached_status(song)),
+            util.esc(song.title),
+            util.format_song_duration(song.duration),
+            song.id,
+        ] for song in album.get('child', album.get('song', []))]
+
+        util.diff_model(self.album_songs_model, new_model)

@@ -1,8 +1,6 @@
-import re
 from functools import lru_cache
 from typing import List, OrderedDict
 
-from deepdiff import DeepDiff
 from fuzzywuzzy import process
 
 import gi
@@ -542,16 +540,9 @@ class PlaylistsPanel(Gtk.Paned):
         # Update the song list model. This requires some fancy diffing to
         # update the list.
         self.editing_playlist_song_list = True
-        old_model = [row[:] for row in self.playlist_song_model]
 
-        cache_icon = {
-            SongCacheStatus.NOT_CACHED: '',
-            SongCacheStatus.CACHED: 'folder-download-symbolic',
-            SongCacheStatus.PERMANENTLY_CACHED: 'view-pin-symbolic',
-            SongCacheStatus.DOWNLOADING: 'emblem-synchronizing-symbolic',
-        }
         new_model = [[
-            cache_icon[CacheManager.get_cached_status(song)],
+            util.get_cached_status_icon(CacheManager.get_cached_status(song)),
             song.title,
             song.album,
             song.artist,
@@ -559,27 +550,7 @@ class PlaylistsPanel(Gtk.Paned):
             song.id,
         ] for song in (playlist.entry or [])]
 
-        # Diff the lists to determine what needs to be changed.
-        diff = DeepDiff(old_model, new_model)
-        changed = diff.get('values_changed', {})
-        added = diff.get('iterable_item_added', {})
-        removed = diff.get('iterable_item_removed', {})
-
-        def parse_location(location):
-            match = re.match(r'root\[(\d*)\](?:\[(\d*)\])?', location)
-            return tuple(map(int,
-                             (g for g in match.groups() if g is not None)))
-
-        for edit_location, diff in changed.items():
-            idx, field = parse_location(edit_location)
-            self.playlist_song_model[idx][field] = diff['new_value']
-
-        for add_location, value in added.items():
-            self.playlist_song_model.append(value)
-
-        for remove_location, value in reversed(list(removed.items())):
-            remove_at = parse_location(remove_location)[0]
-            del self.playlist_song_model[remove_at]
+        util.diff_model(self.playlist_song_model, new_model)
 
         self.editing_playlist_song_list = False
         self.set_playlist_view_loading(False)

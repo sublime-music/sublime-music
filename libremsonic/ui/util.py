@@ -1,7 +1,10 @@
 import functools
 from typing import Callable, List, Tuple, Any
+import re
 
 from concurrent.futures import Future
+
+from deepdiff import DeepDiff
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -66,6 +69,41 @@ def esc(string):
 
 def dot_join(*items):
     return '  •  '.join(map(str, items))
+
+
+def get_cached_status_icon(cache_status: SongCacheStatus):
+    cache_icon = {
+        SongCacheStatus.NOT_CACHED: '',
+        SongCacheStatus.CACHED: 'folder-download-symbolic',
+        SongCacheStatus.PERMANENTLY_CACHED: 'view-pin-symbolic',
+        SongCacheStatus.DOWNLOADING: 'emblem-synchronizing-symbolic',
+    }
+    return cache_icon[cache_status]
+
+
+def diff_model(model_to_edit, new_model):
+    old_model = [row[:] for row in model_to_edit]
+
+    # Diff the lists to determine what needs to be changed.
+    diff = DeepDiff(old_model, new_model)
+    changed = diff.get('values_changed', {})
+    added = diff.get('iterable_item_added', {})
+    removed = diff.get('iterable_item_removed', {})
+
+    def parse_location(location):
+        match = re.match(r'root\[(\d*)\](?:\[(\d*)\])?', location)
+        return tuple(map(int, (g for g in match.groups() if g is not None)))
+
+    for edit_location, diff in changed.items():
+        idx, field = parse_location(edit_location)
+        model_to_edit[idx][field] = diff['new_value']
+
+    for add_location, value in added.items():
+        model_to_edit.append(value)
+
+    for remove_location, value in reversed(list(removed.items())):
+        remove_at = parse_location(remove_location)[0]
+        del model_to_edit[remove_at]
 
 
 def show_song_popover(
@@ -151,7 +189,7 @@ def show_song_popover(
         ),
         (
             Gtk.ModelButton(
-                text=f"Demove {pluralize('download', song_count)}",
+                text=f"Remove {pluralize('download', song_count)}",
                 sensitive=remove_download_sensitive,
             ),
             on_remove_downloads_click,

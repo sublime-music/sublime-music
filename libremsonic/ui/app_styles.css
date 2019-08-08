@@ -143,3 +143,14 @@
   min-width: 300px;
   min-height: 300px;
 }
+
+#artist-album-list-artwork {
+  margin: 10px;
+  min-width: 200px;
+  min-height: 200px;
+}
+
+#artist-album-list-album-name {
+  margin: 10px 10px 5px 10px;
+  font-size: 25px;
+}
