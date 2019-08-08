@@ -202,6 +202,7 @@ class CacheManager(metaclass=Singleton):
             abs_path = self.calculate_abs_path(relative_path)
             download_path = self.calculate_download_path(relative_path)
             if not abs_path.exists() or force:
+                before_download()
                 resource_downloading = False
                 with self.download_set_lock:
                     if abs_path in self.current_downloads:
@@ -223,7 +224,6 @@ class CacheManager(metaclass=Singleton):
                     print(abs_path, 'not found. Downloading...')
 
                     os.makedirs(download_path.parent, exist_ok=True)
-                    before_download()
                     self.save_file(download_path, download_fn())
 
                     # Move the file to its cache download location.

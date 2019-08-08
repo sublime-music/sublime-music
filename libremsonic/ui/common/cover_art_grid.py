@@ -42,7 +42,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         overlay.add(self.grid)
 
         self.spinner = Gtk.Spinner(
-            name='',
+            name='grid-spinner',
             active=True,
             halign=Gtk.Align.CENTER,
             valign=Gtk.Align.CENTER,
@@ -118,8 +118,9 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             artwork.set_loading(True)
 
         cover_art_filename_future = self.get_cover_art_filename_future(
-            item, before_download=start_loading)
-        cover_art_filename_future.add_done_callback(on_artwork_downloaded)
+            item, before_download=lambda: GLib.idle_add(start_loading))
+        cover_art_filename_future.add_done_callback(
+            lambda f: GLib.idle_add(on_artwork_downloaded, f))
 
         widget_box.show_all()
         return widget_box

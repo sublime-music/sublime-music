@@ -109,7 +109,7 @@
 }
 
 /* ********** Artists & Albums ********** */
-#grid-artwork-spinner {
+#grid-artwork-spinner, #album-list-song-list-spinner {
   min-height: 35px;
   min-width: 35px;
 }
@@ -153,4 +153,8 @@
 #artist-album-list-album-name {
   margin: 10px 10px 5px 10px;
   font-size: 25px;
+}
+
+#album-list-song-list-spinner {
+  margin: 15px;
 }

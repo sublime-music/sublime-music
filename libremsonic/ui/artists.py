@@ -374,7 +374,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
             album_with_songs = AlbumWithSongs(album)
             album_with_songs.connect(
                 'song-clicked',
-                lambda _, song, queue: self.emit(song, queue),
+                lambda _, song, queue: self.emit('song-clicked', song, queue),
             )
             album_with_songs.connect('song-selected', self.on_song_selected)
             self.box.add(album_with_songs)
@@ -465,6 +465,12 @@ class AlbumWithSongs(Gtk.Box):
             column.set_expand(not width)
             return column
 
+        self.loading_indicator = Gtk.Spinner(
+            name='album-list-song-list-spinner',
+            active=True,
+        )
+        album_details.add(self.loading_indicator)
+
         self.album_songs = Gtk.TreeView(
             model=self.album_songs_model,
             name='album-songs-list',
@@ -549,8 +555,8 @@ class AlbumWithSongs(Gtk.Box):
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_album(*a, **k),
-        before_download=lambda *a: print('before'),
-        on_failure=lambda *a: print('failure', *a),
+        before_download=lambda self: self.loading_indicator.show(),
+        on_failure=lambda self, e: self.loading_indicator.hide(),
     )
     def update_album_songs(
             self,
@@ -564,3 +570,4 @@ class AlbumWithSongs(Gtk.Box):
         ] for song in album.get('child', album.get('song', []))]
 
         util.diff_model(self.album_songs_model, new_model)
+        self.loading_indicator.hide()
