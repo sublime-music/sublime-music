@@ -49,6 +49,10 @@ class Player:
         return self._song_loaded
 
     @property
+    def can_hotswap_source(self):
+        return self._can_hotswap_source
+
+    @property
     def volume(self):
         return self._get_volume()
 
@@ -104,6 +108,7 @@ class MPVPlayer(Player):
         self.mpv = mpv.MPV()
         self.progress_value_lock = threading.Lock()
         self.progress_value_count = 0
+        self._can_hotswap_source = True
 
         @self.mpv.property_observer('time-pos')
         def time_observer(_name, value):
@@ -229,6 +234,8 @@ class ChromecastPlayer(Player):
         super().__init__(*args)
         self._timepos = None
         self.time_incrementor_running = False
+        self._can_hotswap_source = False
+
         ChromecastPlayer.cast_status_listener.on_new_cast_status = self.on_new_cast_status
         ChromecastPlayer.media_status_listener.on_new_media_status = self.on_new_media_status
 

@@ -444,11 +444,13 @@ class LibremsonicApp(Gtk.Application):
                 self.state.song_progress = 0
 
             def on_song_download_complete(_):
-                # This will now return the local media.
-                downloaded_filename = CacheManager.get_song_filename_or_stream(
-                    song)[0]
-                self.player.play_media(downloaded_filename,
-                                       self.state.song_progress, song)
+                # Switch to the local media if the player can hotswap (MPV can,
+                # Chromecast cannot hotswap without lag).
+                if self.player.can_hotswap_source:
+                    downloaded_filename = (
+                        CacheManager.get_song_filename_or_stream(song)[0])
+                    self.player.play_media(downloaded_filename,
+                                           self.state.song_progress, song)
                 GLib.idle_add(self.update_window)
 
             # If streaming, also download the song, unless configured not to,
@@ -469,6 +471,23 @@ class LibremsonicApp(Gtk.Application):
             if play_queue:
                 self.state.play_queue = play_queue
                 self.save_play_queue()
+
+            # Prefetch songs
+            if self.state.repeat_type != RepeatType.REPEAT_SONG:
+                song_idx = self.state.play_queue.index(song.id)
+                prefetch_idxs = []
+                for i in range(self.state.config.prefetch_amount):
+                    prefetch_idx = song_idx + 1 + i
+                    play_queue_len = len(self.state.play_queue)
+                    if (prefetch_idx < play_queue_len or
+                            self.state.repeat_type == RepeatType.REPEAT_QUEUE):
+                        prefetch_idxs.append(prefetch_idx % play_queue_len)
+                CacheManager.batch_download_songs(
+                    [self.state.play_queue[i] for i in prefetch_idxs],
+                    before_download=lambda: GLib.idle_add(self.update_window),
+                    on_song_download_complete=lambda _: GLib.idle_add(
+                        self.update_window),
+                )
 
         song_details_future = CacheManager.get_song_details(song)
         song_details_future.add_done_callback(

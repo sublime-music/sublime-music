@@ -234,7 +234,6 @@ class PlaylistsPanel(Gtk.Paned):
 
         self.playlist_songs = Gtk.TreeView(
             model=self.playlist_song_model,
-            headers_visible=False,  # TODO use the config value for this
             reorderable=True,
             margin_top=15,
             enable_search=True,
@@ -459,6 +458,8 @@ class PlaylistsPanel(Gtk.Paned):
             self.playlist_action_buttons.show()
         else:
             self.playlist_action_buttons.hide()
+
+        self.playlist_songs.set_headers_visible(state.config.show_headers)
 
     def set_playlist_list_loading(self, loading_status):
         if loading_status:

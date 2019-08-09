@@ -53,7 +53,7 @@ class ArtistsPanel(Gtk.Paned):
         self.pack2(self.artist_detail_panel, True, False)
 
     def update(self, state: ApplicationState):
-        self.artist_list.update()
+        self.artist_list.update(state)
         if self.artist_id:
             self.artist_detail_panel.update(self.artist_id)
 
@@ -99,7 +99,7 @@ class ArtistList(Gtk.Box):
         list_scroll_window.add(self.list)
         self.pack_start(list_scroll_window, True, True, 0)
 
-    def update(self, force=False):
+    def update(self, state=None, force=False):
         self.update_list(force=force)
 
     @util.async_callback(
