@@ -195,7 +195,10 @@ class LibremsonicApp(Gtk.Application):
                 'download_on_stream'].get_active()
             self.state.config.prefetch_amount = dialog.data[
                 'prefetch_amount'].get_value_as_int()
+            self.state.config.concurrent_download_limit = dialog.data[
+                'concurrent_download_limit'].get_value_as_int()
             self.state.save()
+            self.reset_cache_manager()
         dialog.destroy()
 
     def on_play_pause(self, *args):
@@ -269,11 +272,13 @@ class LibremsonicApp(Gtk.Application):
         self.state.config.current_server = current_server
         self.state.save()
 
-        # Reset the CacheManager.
+        self.reset_cache_manager()
+
+    def reset_cache_manager(self):
         CacheManager.reset(
             self.state.config,
-            self.state.config.servers[current_server]
-            if current_server >= 0 else None,
+            self.state.config.servers[self.state.config.current_server]
+            if self.state.config.current_server >= 0 else None,
         )
 
         # Update the window according to the new server configuration.

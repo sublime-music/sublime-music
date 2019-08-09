@@ -94,14 +94,14 @@ class EditFormDialog(Gtk.Dialog):
             i += 1
 
         # Add the spin button entries to the content area.
-        for label, value_field_name, default_value in self.numeric_fields:
+        for label, value_field_name, range_config, default_value in self.numeric_fields:
             entry_label = Gtk.Label(label=label + ':')
             entry_label.set_halign(Gtk.Align.START)
             content_grid.attach(entry_label, 0, i, 1, 1)
 
             # Put the checkbox in the right box. Note we have to pad here
             # since the checkboxes are smaller than the text fields.
-            spin_button = Gtk.SpinButton.new_with_range(0, 10, 1)
+            spin_button = Gtk.SpinButton.new_with_range(*range_config)
             spin_button.set_value(
                 getattr(existing_object, value_field_name, default_value))
             self.data[value_field_name] = spin_button

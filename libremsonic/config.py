@@ -43,8 +43,10 @@ class AppConfiguration:
     always_stream: bool = False  # always stream instead of downloading songs
     download_on_stream: bool = True  # also download when streaming a song
     prefetch_amount: int = 3
+    concurrent_download_limit: int = 5
 
     def to_json(self):
+        # TODO can we simplify?
         return {
             'servers': [s.__dict__ for s in self.servers],
             'current_server': self.current_server,
@@ -54,6 +56,7 @@ class AppConfiguration:
             'always_stream': self.always_stream,
             'download_on_stream': self.download_on_stream,
             'prefetch_amount': self.prefetch_amount,
+            'concurrent_download_limit': self.concurrent_download_limit,
         }
 
     @property

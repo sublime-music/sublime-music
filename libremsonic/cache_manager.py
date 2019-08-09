@@ -85,6 +85,9 @@ class CacheManager(metaclass=Singleton):
             return json.JSONEncoder.default(self, obj)
 
     class __CacheManagerInternal:
+        # TODO don't blow all of this away when the new cache manager is
+        # created on reset.
+
         # Thread lock for preventing threads from overriding the state while
         # it's being saved.
         cache_lock = threading.Lock()
@@ -98,9 +101,6 @@ class CacheManager(metaclass=Singleton):
 
         download_set_lock = threading.Lock()
         current_downloads: Set[Path] = set()
-
-        # TODO make this configurable.
-        download_limiter_semaphore = threading.Semaphore(5)
 
         def __init__(
                 self,
@@ -116,6 +116,8 @@ class CacheManager(metaclass=Singleton):
                 username=server_config.username,
                 password=server_config.password,
             )
+            self.download_limiter_semaphore = threading.Semaphore(
+                self.app_config.concurrent_download_limit)
 
             self.load_cache_info()
 

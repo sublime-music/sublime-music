@@ -234,6 +234,7 @@ class PlaylistsPanel(Gtk.Paned):
 
         self.playlist_songs = Gtk.TreeView(
             model=self.playlist_song_model,
+            headers_visible=False,  # TODO use the config value for this
             reorderable=True,
             margin_top=15,
             enable_search=True,
