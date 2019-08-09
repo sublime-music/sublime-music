@@ -29,11 +29,11 @@ class PlayerControls(Gtk.ActionBar):
 
         song_display = self.create_song_display()
         playback_controls = self.create_playback_controls()
-        up_next_volume = self.create_up_next_volume()
+        play_queue_volume = self.create_play_queue_volume()
 
         self.pack_start(song_display)
         self.set_center_widget(playback_controls)
-        self.pack_end(up_next_volume)
+        self.pack_end(play_queue_volume)
 
     def update(self, state: ApplicationState):
         if hasattr(state, 'current_song') and state.current_song is not None:
@@ -121,11 +121,11 @@ class PlayerControls(Gtk.ActionBar):
                 self.popover_label.set_markup(f'<b>Up Next:</b> {song_label}')
 
             # Remove everything from the play queue.
-            for c in self.up_next_list.get_children():
-                self.up_next_list.remove(c)
+            for c in self.play_queue_list.get_children():
+                self.play_queue_list.remove(c)
 
             for s in state.play_queue:
-                self.up_next_list.add(
+                self.play_queue_list.add(
                     Gtk.Label(
                         label='\n',
                         halign=Gtk.Align.START,
@@ -133,7 +133,7 @@ class PlayerControls(Gtk.ActionBar):
                         margin=5,
                     ))
 
-            self.up_next_list.show_all()
+            self.play_queue_list.show_all()
 
             # Create a function to capture the value of index for the inner
             # function. This outer function creates the actual callback
@@ -142,7 +142,7 @@ class PlayerControls(Gtk.ActionBar):
                 def do_update_label(result):
                     title = util.esc(result.title)
                     album = util.esc(result.album)
-                    row = self.up_next_list.get_row_at_index(index)
+                    row = self.play_queue_list.get_row_at_index(index)
                     row.get_child().set_markup(f'<b>{title}</b>\n{album}')
                     row.show_all()
 
@@ -179,10 +179,10 @@ class PlayerControls(Gtk.ActionBar):
         if not self.editing:
             self.emit('song-scrub', self.song_scrubber.get_value())
 
-    def on_up_next_click(self, button):
-        self.up_next_popover.set_relative_to(button)
-        self.up_next_popover.popup()
-        self.up_next_popover.show_all()
+    def on_play_queue_click(self, button):
+        self.play_queue_popover.set_relative_to(button)
+        self.play_queue_popover.popup()
+        self.play_queue_popover.show_all()
 
     def update_device_list(self, clear=False):
         self.device_list_loading.show()
@@ -321,16 +321,16 @@ class PlayerControls(Gtk.ActionBar):
 
         return box
 
-    def create_up_next_volume(self):
+    def create_play_queue_volume(self):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.pack_start(Gtk.Box(), True, True, 0)
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         # Device button (for chromecast)
-        up_next_button = util.button_with_icon(
+        play_queue_button = util.button_with_icon(
             'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
-        up_next_button.connect('clicked', self.on_device_click)
-        box.pack_start(up_next_button, False, True, 5)
+        play_queue_button.connect('clicked', self.on_device_click)
+        box.pack_start(play_queue_button, False, True, 5)
 
         self.device_popover = Gtk.PopoverMenu(name='device-popover')
 
@@ -373,41 +373,41 @@ class PlayerControls(Gtk.ActionBar):
 
         self.device_popover.add(device_popover_box)
 
-        # Up Next button
-        up_next_button = util.button_with_icon(
+        # Play Queue button
+        play_queue_button = util.button_with_icon(
             'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
-        up_next_button.connect('clicked', self.on_up_next_click)
-        box.pack_start(up_next_button, False, True, 5)
+        play_queue_button.connect('clicked', self.on_play_queue_click)
+        box.pack_start(play_queue_button, False, True, 5)
 
-        self.up_next_popover = Gtk.PopoverMenu(name='up-next-popover')
+        self.play_queue_popover = Gtk.PopoverMenu(name='up-next-popover')
 
-        up_next_popover_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        up_next_popover_header = Gtk.Box(
+        play_queue_popover_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        play_queue_popover_header = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL)
 
         self.popover_label = Gtk.Label(
-            label='<b>Up Next</b>',
+            label='<b>Play Queue</b>',
             use_markup=True,
             halign=Gtk.Align.START,
             margin=10,
         )
-        up_next_popover_header.add(self.popover_label)
+        play_queue_popover_header.add(self.popover_label)
 
-        load_up_next = Gtk.Button(label='Load Queue from Server', margin=5)
-        load_up_next.set_action_name('app.update-play-queue-from-server')
-        up_next_popover_header.pack_end(load_up_next, False, False, 0)
+        load_play_queue = Gtk.Button(label='Load Queue from Server', margin=5)
+        load_play_queue.set_action_name('app.update-play-queue-from-server')
+        play_queue_popover_header.pack_end(load_play_queue, False, False, 0)
 
-        up_next_popover_box.add(up_next_popover_header)
+        play_queue_popover_box.add(play_queue_popover_header)
 
-        up_next_scrollbox = Gtk.ScrolledWindow(
+        play_queue_scrollbox = Gtk.ScrolledWindow(
             min_content_height=600,
             min_content_width=400,
         )
-        self.up_next_list = Gtk.ListBox()
-        up_next_scrollbox.add(self.up_next_list)
-        up_next_popover_box.pack_end(up_next_scrollbox, True, True, 0)
+        self.play_queue_list = Gtk.ListBox()
+        play_queue_scrollbox.add(self.play_queue_list)
+        play_queue_popover_box.pack_end(play_queue_scrollbox, True, True, 0)
 
-        self.up_next_popover.add(up_next_popover_box)
+        self.play_queue_popover.add(play_queue_popover_box)
 
         # Volume mute toggle
         self.volume_mute_toggle = util.button_with_icon('audio-volume-high')
