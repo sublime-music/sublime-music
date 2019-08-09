@@ -38,7 +38,7 @@ class ApplicationState:
     functions define what part of the state will be saved across application
     loads.
     """
-    config: AppConfiguration = AppConfiguration.get_default_configuration()
+    config: AppConfiguration = AppConfiguration()
     current_song: Child
     config_file: str
     playing: bool = False
@@ -119,13 +119,13 @@ class ApplicationState:
 
     def get_config(self, filename: str) -> AppConfiguration:
         if not os.path.exists(filename):
-            return AppConfiguration.get_default_configuration()
+            return AppConfiguration()
 
         with open(filename, 'r') as f:
             try:
                 return from_json(AppConfiguration, json.load(f))
             except json.decoder.JSONDecodeError:
-                return AppConfiguration.get_default_configuration()
+                return AppConfiguration()
 
     @property
     def state_filename(self):

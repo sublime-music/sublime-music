@@ -319,9 +319,9 @@ class PlaylistsPanel(Gtk.Paned):
         if result == Gtk.ResponseType.OK:
             CacheManager.update_playlist(
                 playlist.id,
-                name=dialog.data['Name'].get_text(),
-                comment=dialog.data['Comment'].get_text(),
-                public=dialog.data['Public'].get_active(),
+                name=dialog.data['name'].get_text(),
+                comment=dialog.data['comment'].get_text(),
+                public=dialog.data['public'].get_active(),
             )
 
             cover_art_filename = f'cover_art/{playlist.coverArt}_*'

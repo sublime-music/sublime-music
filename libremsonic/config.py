@@ -35,10 +35,14 @@ class ServerConfiguration:
 
 
 class AppConfiguration:
-    servers: List[ServerConfiguration]
+    servers: List[ServerConfiguration] = []
     current_server: int = -1
     _cache_location: str = ''
-    max_cache_size_mb: int  # -1 means unlimited
+    max_cache_size_mb: int = -1  # -1 means unlimited
+    show_headers: bool = True  # show the headers on song lists
+    always_stream: bool = False  # always stream instead of downloading songs
+    download_on_stream: bool = True  # also download when streaming a song
+    prefetch_amount: int = 3
 
     def to_json(self):
         return {
@@ -46,15 +50,11 @@ class AppConfiguration:
             'current_server': self.current_server,
             '_cache_location': getattr(self, '_cache_location', None),
             'max_cache_size_mb': self.max_cache_size_mb,
+            'show_headers': self.show_headers,
+            'always_stream': self.always_stream,
+            'download_on_stream': self.download_on_stream,
+            'prefetch_amount': self.prefetch_amount,
         }
-
-    @classmethod
-    def get_default_configuration(cls):
-        config = AppConfiguration()
-        config.servers = []
-        config.current_server = -1
-        config.max_cache_size_mb = -1
-        return config
 
     @property
     def cache_location(self):

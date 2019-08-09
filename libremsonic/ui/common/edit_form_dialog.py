@@ -7,9 +7,11 @@ from gi.repository import Gtk
 
 class EditFormDialog(Gtk.Dialog):
     entity_name: str
+    title: str
     initial_size: Tuple[int, int]
     text_fields: List[Tuple[str, str, bool]] = []
     boolean_fields: List[Tuple[str, str]] = []
+    numeric_fields: List[Tuple[str, str]] = []
     extra_buttons: List[Gtk.Button] = []
 
     def get_object_name(self, obj):
@@ -23,10 +25,16 @@ class EditFormDialog(Gtk.Dialog):
 
     def __init__(self, parent, existing_object=None):
         editing = existing_object is not None
+        title = getattr(self, 'title', lambda: None)
+        if not title:
+            if editing:
+                title = f'Edit {self.get_object_name(existing_object)}'
+            else:
+                title = f'Create New {self.entity_name}'
+
         Gtk.Dialog.__init__(
             self,
-            title=f'Edit {self.get_object_name(existing_object)}'
-            if editing else f'Create New {self.entity_name}',
+            title=title,
             transient_for=parent,
             flags=0,
         )
@@ -67,7 +75,7 @@ class EditFormDialog(Gtk.Dialog):
             if is_password:
                 entry.set_visibility(False)
             content_grid.attach(entry, 1, i, 1, 1)
-            self.data[label] = entry
+            self.data[value_field_name] = entry
 
             i += 1
 
@@ -81,8 +89,23 @@ class EditFormDialog(Gtk.Dialog):
             # since the checkboxes are smaller than the text fields.
             checkbox = Gtk.CheckButton(
                 active=getattr(existing_object, value_field_name, False))
-            self.data[label] = checkbox
+            self.data[value_field_name] = checkbox
             content_grid.attach(checkbox, 1, i, 1, 1)
+            i += 1
+
+        # Add the spin button entries to the content area.
+        for label, value_field_name, default_value in self.numeric_fields:
+            entry_label = Gtk.Label(label=label + ':')
+            entry_label.set_halign(Gtk.Align.START)
+            content_grid.attach(entry_label, 0, i, 1, 1)
+
+            # Put the checkbox in the right box. Note we have to pad here
+            # since the checkboxes are smaller than the text fields.
+            spin_button = Gtk.SpinButton.new_with_range(0, 10, 1)
+            spin_button.set_value(
+                getattr(existing_object, value_field_name, default_value))
+            self.data[value_field_name] = spin_button
+            content_grid.attach(spin_button, 1, i, 1, 1)
             i += 1
 
         content_area.pack_start(content_grid, True, True, 10)

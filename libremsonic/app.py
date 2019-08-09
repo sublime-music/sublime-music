@@ -8,6 +8,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk
 
 from .ui.main import MainWindow
 from .ui.configure_servers import ConfigureServersDialog
+from .ui.settings import SettingsDialog
 
 from .state_manager import ApplicationState, RepeatType
 from .cache_manager import CacheManager
@@ -120,6 +121,7 @@ class LibremsonicApp(Gtk.Application):
 
         # Add action for menu items.
         add_action('configure-servers', self.on_configure_servers)
+        add_action('settings', self.on_settings)
 
         # Add actions for player controls
         add_action('play-pause', self.on_play_pause)
@@ -179,6 +181,22 @@ class LibremsonicApp(Gtk.Application):
     # ########## ACTION HANDLERS ########## #
     def on_configure_servers(self, action, param):
         self.show_configure_servers_dialog()
+
+    def on_settings(self, action, param):
+        """Show the Settings dialog."""
+        dialog = SettingsDialog(self.window, self.state.config)
+        result = dialog.run()
+        if result == Gtk.ResponseType.OK:
+            self.state.config.show_headers = dialog.data[
+                'show_headers'].get_active()
+            self.state.config.always_stream = dialog.data[
+                'always_stream'].get_active()
+            self.state.config.download_on_stream = dialog.data[
+                'download_on_stream'].get_active()
+            self.state.config.prefetch_amount = dialog.data[
+                'prefetch_amount'].get_value_as_int()
+            self.state.save()
+        dialog.destroy()
 
     def on_play_pause(self, *args):
         if self.player.song_loaded:
@@ -406,6 +424,7 @@ class LibremsonicApp(Gtk.Application):
         def do_play_song(song: Child):
             uri, stream = CacheManager.get_song_filename_or_stream(
                 song,
+                force_stream=self.state.config.always_stream,
                 format='mp3',
             )
 
@@ -427,9 +446,10 @@ class LibremsonicApp(Gtk.Application):
                                        self.state.song_progress, song)
                 GLib.idle_add(self.update_window)
 
-            # If streaming, also download the song.
-            # TODO: make it configurable if we do this download
-            if stream:
+            # If streaming, also download the song, unless configured not to,
+            # or configured to always stream.
+            if (stream and self.state.config.download_on_stream
+                    and not self.state.config.always_stream):
                 CacheManager.batch_download_songs(
                     [song.id],
                     before_download=lambda: self.update_window(),

@@ -1,5 +1,6 @@
-import gi
 import subprocess
+
+import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GObject
 
@@ -37,12 +38,12 @@ class EditServerDialog(EditFormDialog):
 
     def on_test_server_clicked(self, event):
         # Instantiate the server.
-        server_address = self.data['Server address'].get_text()
+        server_address = self.data['server_address'].get_text()
         server = Server(
-            self.data['Name'].get_text(),
+            self.data['name'].get_text(),
             server_address,
-            self.data['Username'].get_text(),
-            self.data['Password'].get_text(),
+            self.data['username'].get_text(),
+            self.data['password'].get_text(),
         )
 
         # Try to ping, and show a message box with whether or not it worked.
@@ -71,7 +72,7 @@ class EditServerDialog(EditFormDialog):
         dialog.destroy()
 
     def on_open_in_browser_clicked(self, event):
-        subprocess.call(['xdg-open', self.data['Server address'].get_text()])
+        subprocess.call(['xdg-open', self.data['server_address'].get_text()])
 
 
 class ConfigureServersDialog(Gtk.Dialog):
@@ -177,16 +178,16 @@ class ConfigureServersDialog(Gtk.Dialog):
         if result == Gtk.ResponseType.OK:
             # Create a new server configuration to use.
             new_config = ServerConfiguration(
-                name=dialog.data['Name'].get_text(),
-                server_address=dialog.data['Server address'].get_text(),
-                local_network_address=dialog.data['Local network address']
+                name=dialog.data['name'].get_text(),
+                server_address=dialog.data['server_address'].get_text(),
+                local_network_address=dialog.data['local_network_address']
                 .get_text(),
-                local_network_ssid=dialog.data['Local network SSID'].get_text(
+                local_network_ssid=dialog.data['local_network_ssid'].get_text(
                 ),
-                username=dialog.data['Username'].get_text(),
-                password=dialog.data['Password'].get_text(),
-                browse_by_tags=dialog.data['Browse by tags'].get_active(),
-                sync_enabled=dialog.data['Sync enabled'].get_active(),
+                username=dialog.data['username'].get_text(),
+                password=dialog.data['password'].get_text(),
+                browse_by_tags=dialog.data['browse_by_tags'].get_active(),
+                sync_enabled=dialog.data['sync_enabled'].get_active(),
             )
 
             if add:
