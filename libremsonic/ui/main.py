@@ -12,8 +12,8 @@ from libremsonic.state_manager import ApplicationState
 class MainWindow(Gtk.ApplicationWindow):
     """Defines the main window for LibremSonic."""
     __gsignals__ = {
-        'song-clicked': (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE,
-                         (str, object)),
+        'song-clicked':
+        (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str, object)),
     }
 
     def __init__(self, *args, **kwargs):
@@ -107,7 +107,7 @@ class MainWindow(Gtk.ApplicationWindow):
         menu_items = [
             (None, self.connected_to_label),
             ('app.configure-servers',
-             Gtk.ModelButton(text='Connect to Server')),
+             Gtk.ModelButton(text='Configure Servers')),
         ]
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
