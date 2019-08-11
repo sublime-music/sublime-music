@@ -40,54 +40,6 @@ class LibremsonicApp(Gtk.Application):
 
         self.connect('shutdown', self.on_app_shutdown)
 
-        self.last_play_queue_update = 0
-
-        def time_observer(value):
-            self.state.song_progress = value
-            GLib.idle_add(
-                self.window.player_controls.update_scrubber,
-                self.state.song_progress,
-                self.state.current_song.duration,
-            )
-            if not value:
-                self.last_play_queue_update = 0
-            elif self.last_play_queue_update + 15 <= value:
-                self.save_play_queue()
-
-        def on_track_end():
-            GLib.idle_add(self.on_next_track)
-
-        def on_player_event(event: PlayerEvent):
-            if event.name == 'play_state_change':
-                self.state.playing = event.value
-            elif event.name == 'volume_change':
-                self.state.old_volume = self.state.volume
-                self.state.volume = event.value
-
-            GLib.idle_add(self.update_window)
-
-        self.mpv_player = MPVPlayer(
-            time_observer,
-            on_track_end,
-            on_player_event,
-            self.state.config,
-        )
-        self.chromecast_player = ChromecastPlayer(
-            time_observer,
-            on_track_end,
-            on_player_event,
-            self.state.config,
-        )
-        self.player = self.mpv_player
-
-        if self.state.current_device != 'this device':
-            # TODO figure out how to activate the chromecast if possible
-            # without blocking the main thread. Also, need to make it obvious
-            # that we are trying to connect.
-            pass
-
-        self.state.current_device = 'this device'
-
     # Handle command line option parsing.
     def do_command_line(self, command_line):
         options = command_line.get_options_dict()
@@ -138,20 +90,24 @@ class LibremsonicApp(Gtk.Application):
 
     def do_activate(self):
         # We only allow a single window and raise any existing ones
-        if not self.window:
-            # Windows are associated with the application when the last one is
-            # closed the application shuts down.
-            self.window = MainWindow(application=self, title="LibremSonic")
+        if self.window:
+            self.window.show_all()
+            self.window.present()
+            return
 
-            # Configure the CSS provider so that we can style elements on the
-            # window.
-            css_provider = Gtk.CssProvider()
-            css_provider.load_from_path(
-                os.path.join(os.path.dirname(__file__), 'ui/app_styles.css'))
-            context = Gtk.StyleContext()
-            screen = Gdk.Screen.get_default()
-            context.add_provider_for_screen(screen, css_provider,
-                                            Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        # Windows are associated with the application when the last one is
+        # closed the application shuts down.
+        self.window = MainWindow(application=self, title="LibremSonic")
+
+        # Configure the CSS provider so that we can style elements on the
+        # window.
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_path(
+            os.path.join(os.path.dirname(__file__), 'ui/app_styles.css'))
+        context = Gtk.StyleContext()
+        screen = Gdk.Screen.get_default()
+        context.add_provider_for_screen(screen, css_provider,
+                                        Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
         self.window.stack.connect('notify::visible-child',
                                   self.on_stack_change)
@@ -163,10 +119,6 @@ class LibremsonicApp(Gtk.Application):
             'value-changed', self.on_volume_change)
         self.window.connect('key-press-event', self.on_window_key_press)
 
-        # Display the window.
-        self.window.show_all()
-        self.window.present()
-
         # Load the configuration and update the UI with the curent server, if
         # it exists.
         self.state.load()
@@ -177,6 +129,54 @@ class LibremsonicApp(Gtk.Application):
             self.show_configure_servers_dialog()
 
         self.update_window()
+
+        self.last_play_queue_update = 0
+
+        def time_observer(value):
+            self.state.song_progress = value
+            GLib.idle_add(
+                self.window.player_controls.update_scrubber,
+                self.state.song_progress,
+                self.state.current_song.duration,
+            )
+            if not value:
+                self.last_play_queue_update = 0
+            elif self.last_play_queue_update + 15 <= value:
+                self.save_play_queue()
+
+        def on_track_end():
+            GLib.idle_add(self.on_next_track)
+
+        def on_player_event(event: PlayerEvent):
+            if event.name == 'play_state_change':
+                self.state.playing = event.value
+            elif event.name == 'volume_change':
+                self.state.old_volume = self.state.volume
+                self.state.volume = event.value
+
+            GLib.idle_add(self.update_window)
+
+        self.mpv_player = MPVPlayer(
+            time_observer,
+            on_track_end,
+            on_player_event,
+            self.state.config,
+        )
+        self.chromecast_player = ChromecastPlayer(
+            time_observer,
+            on_track_end,
+            on_player_event,
+            self.state.config,
+        )
+        self.player = self.mpv_player
+
+        if self.state.current_device != 'this device':
+            # TODO figure out how to activate the chromecast if possible
+            # without blocking the main thread. Also, need to make it obvious
+            # that we are trying to connect.
+            pass
+
+        self.state.current_device = 'this device'
 
     # ########## ACTION HANDLERS ########## #
     def on_configure_servers(self, action, param):
