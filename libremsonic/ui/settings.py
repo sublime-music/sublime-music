@@ -8,7 +8,9 @@ from .common.edit_form_dialog import EditFormDialog
 class SettingsDialog(EditFormDialog):
     title: str = 'Settings'
     initial_size = (450, 250)
-    text_fields = []
+    text_fields = [
+        ('Port Number (will take effect on restart)', 'port_number', False),
+    ]
     boolean_fields = [
         ('Show headers on song lists', 'show_headers'),
         ('Always stream songs', 'always_stream'),

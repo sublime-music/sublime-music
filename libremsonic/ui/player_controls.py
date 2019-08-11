@@ -327,10 +327,11 @@ class PlayerControls(Gtk.ActionBar):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         # Device button (for chromecast)
-        play_queue_button = util.button_with_icon(
+        # TODO need icon
+        device_button = util.button_with_icon(
             'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
-        play_queue_button.connect('clicked', self.on_device_click)
-        box.pack_start(play_queue_button, False, True, 5)
+        device_button.connect('clicked', self.on_device_click)
+        box.pack_start(device_button, False, True, 5)
 
         self.device_popover = Gtk.PopoverMenu(name='device-popover')
 

@@ -44,6 +44,7 @@ class AppConfiguration:
     download_on_stream: bool = True  # also download when streaming a song
     prefetch_amount: int = 3
     concurrent_download_limit: int = 5
+    port_number: int = 8080
 
     def to_json(self):
         # TODO can we simplify?
@@ -57,6 +58,7 @@ class AppConfiguration:
             'download_on_stream': self.download_on_stream,
             'prefetch_amount': self.prefetch_amount,
             'concurrent_download_limit': self.concurrent_download_limit,
+            'port_number': self.port_number,
         }
 
     @property

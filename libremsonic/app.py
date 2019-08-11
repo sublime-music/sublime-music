@@ -119,6 +119,9 @@ class LibremsonicApp(Gtk.Application):
             'value-changed', self.on_volume_change)
         self.window.connect('key-press-event', self.on_window_key_press)
 
+        self.window.show_all()
+        self.window.present()
+
         # Load the configuration and update the UI with the curent server, if
         # it exists.
         self.state.load()
@@ -505,5 +508,5 @@ class LibremsonicApp(Gtk.Application):
                 CacheManager.save_play_queue,
                 id=self.state.play_queue,
                 current=self.state.current_song.id,
-                position=math.floor(position * 1000),
+                position=math.floor(position * 1000) if position else None,
             )

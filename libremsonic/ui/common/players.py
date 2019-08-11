@@ -230,8 +230,19 @@ class ChromecastPlayer(Player):
         self.chromecast.wait()
         print(f'Using: {self.chromecast.device.friendly_name}')
 
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(
+            self,
+            on_timepos_change: Callable[[float], None],
+            on_track_end: Callable[[], None],
+            on_player_event: Callable[[PlayerEvent], None],
+            config: AppConfiguration,
+    ):
+        super().__init__(
+            on_timepos_change,
+            on_track_end,
+            on_player_event,
+            config,
+        )
         self._timepos = None
         self.time_incrementor_running = False
         self._can_hotswap_source = False
@@ -250,8 +261,9 @@ class ChromecastPlayer(Player):
         except OSError:
             self.host_ip = None
 
-        # TODO make the port come from the app config
-        self.server_thread = ChromecastPlayer.ServerThread('0.0.0.0', 8080)
+        self.port = config.port_number
+        self.server_thread = ChromecastPlayer.ServerThread(
+            '0.0.0.0', self.port)
         self.server_thread.start()
 
     def on_new_cast_status(self, status):
@@ -289,7 +301,7 @@ class ChromecastPlayer(Player):
         while True:
             if not self.playing:
                 self.time_incrementor_running = False
-                raise Exception()
+                return
 
             self._timepos += 0.5
             self.on_timepos_change(self._timepos)
@@ -320,7 +332,7 @@ class ChromecastPlayer(Player):
     def play_media(self, file_or_url: str, progress: float, song: Child):
         stream_scheme = urlparse(file_or_url).scheme
         if not stream_scheme:
-            file_or_url = f'http://{self.host_ip}:8080/song/{song.id}'
+            file_or_url = f'http://{self.host_ip}:{self.port}/song/{song.id}'
 
         cover_art_url = CacheManager.get_cover_art_url(song.id, 1000)
         self.chromecast.media_controller.play_media(

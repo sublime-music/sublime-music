@@ -337,7 +337,6 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_artist() -> Union[ArtistWithAlbumsID3, Child]:
-                # TODO: implement the non-ID3 version
                 cache_name = self.id3ify('artist_details')
                 server_fn = (self.server.get_artist if self.browse_by_tags else
                              self.server.get_music_directory)
@@ -446,7 +445,6 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_album() -> Union[AlbumWithSongsID3, Child]:
-                # TODO: implement the non-ID3 version
                 cache_name = self.id3ify('album_details')
                 server_fn = (self.server.get_album if self.browse_by_tags else
                              self.server.get_music_directory)
@@ -492,9 +490,8 @@ class CacheManager(metaclass=Singleton):
                 before_download: Callable[[], None],
                 on_song_download_complete: Callable[[int], None],
         ) -> Future:
-            # TODO handle application close somehow. I think we will need to
-            # raise some sort of an exception, not sure.
             def do_download_song(song_id):
+                # Prevents further songs from being downloaded.
                 if CacheManager.should_exit:
                     return
 
