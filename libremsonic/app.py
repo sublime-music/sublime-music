@@ -53,7 +53,7 @@ class LibremsonicApp(Gtk.Application):
             config_folder = (os.environ.get('XDG_CONFIG_HOME')
                              or os.path.expanduser('~/.config'))
             config_folder = os.path.join(config_folder, 'libremsonic')
-            config_file = os.path.join(config_folder, 'config.yaml')
+            config_file = os.path.join(config_folder, 'config.json')
 
         self.state.config_file = config_file
 
