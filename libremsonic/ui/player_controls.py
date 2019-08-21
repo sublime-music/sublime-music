@@ -110,15 +110,15 @@ class PlayerControls(Gtk.ActionBar):
             # TODO should probably clear out the cover art display if no song??
             self.album_art.set_loading(False)
 
-        # Set the Up Next button popup.
+        # Set the Play Queue button popup.
         if hasattr(state, 'play_queue'):
             play_queue_len = len(state.play_queue)
             if play_queue_len == 0:
-                self.popover_label.set_markup('<b>Up Next</b>')
+                self.popover_label.set_markup('<b>Play Queue</b>')
             else:
                 song_label = str(play_queue_len) + ' ' + util.pluralize(
                     'song', play_queue_len)
-                self.popover_label.set_markup(f'<b>Up Next:</b> {song_label}')
+                self.popover_label.set_markup(f'<b>Play Queue:</b> {song_label}')
 
             # Remove everything from the play queue.
             for c in self.play_queue_list.get_children():
