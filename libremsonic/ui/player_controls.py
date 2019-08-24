@@ -238,6 +238,7 @@ class PlayerControls(Gtk.ActionBar):
             return Gtk.Label(
                 name=name,
                 halign=Gtk.Align.START,
+                xalign=0,
                 use_markup=True,
                 ellipsize=Pango.EllipsizeMode.END,
             )

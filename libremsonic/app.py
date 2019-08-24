@@ -1,4 +1,5 @@
 import os
+from os import environ
 import math
 import random
 
@@ -50,8 +51,9 @@ class LibremsonicApp(Gtk.Application):
             config_file = config_file.get_bytestring().decode('utf-8')
         else:
             # Default to ~/.config/libremsonic.
-            config_folder = (os.environ.get('XDG_CONFIG_HOME')
-                             or os.path.expanduser('~/.config'))
+            config_folder = (environ.get('XDG_CONFIG_HOME')
+                             or environ.get('APPDATA')
+                             or os.path.join(environ.get('HOME'), '.config'))
             config_folder = os.path.join(config_folder, 'libremsonic')
             config_file = os.path.join(config_folder, 'config.json')
 
@@ -376,10 +378,10 @@ class LibremsonicApp(Gtk.Application):
         self.player.pause()
         self.chromecast_player.shutdown()
         self.mpv_player.shutdown()
-        CacheManager.should_exit = True
 
         self.state.save()
         self.save_play_queue()
+        CacheManager.shutdown()
 
     # ########## HELPER METHODS ########## #
     def show_configure_servers_dialog(self):

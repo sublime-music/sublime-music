@@ -71,6 +71,14 @@ class CacheManager(metaclass=Singleton):
     executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=50)
     should_exit: bool = False
 
+    @staticmethod
+    def shutdown():
+        # TODO fix this shutdown
+        CacheManager.should_exit = True
+        print('Shutdown start')
+        CacheManager.executor.shutdown()
+        print('Shutdown complete')
+
     class CacheEncoder(json.JSONEncoder):
         def default(self, obj):
             if type(obj) == datetime:

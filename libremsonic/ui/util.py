@@ -157,8 +157,8 @@ def show_song_popover(
     # Determine if we should enable the download button.
     download_sensitive, remove_download_sensitive = False, False
     for song_id in song_ids:
-        details = CacheManager.get_song_details(song_id)
-        status = CacheManager.get_cached_status(details.result())
+        details = CacheManager.get_song_details(song_id).result()
+        status = CacheManager.get_cached_status(details)
         if download_sensitive or status == SongCacheStatus.NOT_CACHED:
             download_sensitive = True
 

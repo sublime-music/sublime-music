@@ -323,6 +323,7 @@ class ArtistDetailPanel(Gtk.Box):
             label=text,
             name=name,
             halign=Gtk.Align.START,
+            xalign=0,
             **params,
         )
 
@@ -531,7 +532,7 @@ class AlbumWithSongs(Gtk.Box):
             allow_deselect = False
 
             def on_download_state_change(song_id=None):
-                GLib.idle_add(self.update_album_songs, self.album.id)
+                self.update_album_songs(self.album.id)
 
             # Use the new selection instead of the old one for calculating what
             # to do the right click on.
