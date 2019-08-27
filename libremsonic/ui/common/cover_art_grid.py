@@ -1,10 +1,12 @@
 from concurrent.futures import Future
+import math
 from typing import Optional
 
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, Gtk, GObject, Gio, Pango
 
+from libremsonic.ui import util
 from libremsonic.state_manager import ApplicationState
 from .spinner_image import SpinnerImage
 
@@ -12,7 +14,7 @@ from .spinner_image import SpinnerImage
 class CoverArtGrid(Gtk.ScrolledWindow):
     """Defines a grid with cover art."""
     __gsignals__ = {
-        'item-clicked': (
+        'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (object, ),
@@ -21,8 +23,15 @@ class CoverArtGrid(Gtk.ScrolledWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # This is the root model. It stores the master list.
+        self.list_store = Gio.ListStore()
+        self.selected_list_store_index = None
+
         overlay = Gtk.Overlay()
-        self.grid = Gtk.FlowBox(
+        grid_detail_grid_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        self.grid_top = Gtk.FlowBox(
             vexpand=True,
             hexpand=True,
             row_spacing=5,
@@ -32,14 +41,37 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             homogeneous=True,
             valign=Gtk.Align.START,
             halign=Gtk.Align.CENTER,
-            selection_mode=Gtk.SelectionMode.BROWSE,
+            selection_mode=Gtk.SelectionMode.SINGLE,
         )
-        self.grid.connect('child-activated', self.on_child_activated)
+        self.grid_top.connect('child-activated', self.on_child_activated)
 
-        self.model = Gio.ListStore()
-        self.grid.bind_model(self.model, self.create_widget)
+        self.list_store_top = Gio.ListStore()
+        self.grid_top.bind_model(self.list_store_top, self.create_widget)
 
-        overlay.add(self.grid)
+        grid_detail_grid_box.add(self.grid_top)
+
+        grid_detail_grid_box.add(Gtk.Label('foo'))
+
+        self.grid_bottom = Gtk.FlowBox(
+            vexpand=True,
+            hexpand=True,
+            row_spacing=5,
+            column_spacing=5,
+            margin_top=12,
+            margin_bottom=12,
+            homogeneous=True,
+            valign=Gtk.Align.START,
+            halign=Gtk.Align.CENTER,
+            selection_mode=Gtk.SelectionMode.SINGLE,
+        )
+        self.grid_bottom.connect('child-activated', self.on_child_activated)
+
+        self.list_store_bottom = Gio.ListStore()
+        self.grid_bottom.bind_model(self.list_store_bottom, self.create_widget)
+
+        grid_detail_grid_box.add(self.grid_bottom)
+
+        overlay.add(grid_detail_grid_box)
 
         self.spinner = Gtk.Spinner(
             name='grid-spinner',
@@ -68,10 +100,13 @@ class CoverArtGrid(Gtk.ScrolledWindow):
                 print('fail', e)
                 return
 
-            self.model.remove_all()
-            for el in result:
-                self.model.append(self.create_model_from_element(el))
+            currently_selected = self.grid_top.get_selected_children()
 
+            self.list_store.remove_all()
+            for el in result:
+                self.list_store.append(self.create_model_from_element(el))
+
+            self.reflow_grids()
             stop_loading()
 
         future = self.get_model_list_future(before_download=start_loading)
@@ -125,6 +160,25 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         widget_box.show_all()
         return widget_box
 
+    def reflow_grids(self):
+        # TODO calculate this somehow
+        covers_per_row = 4
+
+        # Determine where the cuttoff is between the top and bottom grids.
+        entries_before_fold = len(self.list_store)
+        if self.selected_list_store_index is not None:
+            entries_before_fold = ((
+                (self.selected_list_store_index // covers_per_row) + 1)
+                                   * covers_per_row)
+            print(entries_before_fold)
+
+        # TODO should do diffing on the actual updates here:
+        # Split the list_store into top and bottom.
+        util.diff_model(self.list_store_top,
+                        self.list_store[:entries_before_fold])
+        util.diff_model(self.list_store_bottom,
+                        self.list_store[entries_before_fold:])
+
     # Virtual Methods
     # =========================================================================
     def get_header_text(self, item) -> str:
@@ -155,4 +209,9 @@ class CoverArtGrid(Gtk.ScrolledWindow):
     # Event Handlers
     # =========================================================================
     def on_child_activated(self, flowbox, child):
-        self.emit('item-clicked', self.model[child.get_index()])
+        click_top = flowbox == self.grid_top
+        self.selected_list_store_index = (
+            child.get_index() + (0 if click_top else len(self.list_store_top)))
+
+        print('item clicked', self.list_store[self.selected_list_store_index])
+        self.reflow_grids()

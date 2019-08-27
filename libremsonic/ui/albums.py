@@ -24,10 +24,14 @@ class AlbumsPanel(Gtk.ScrolledWindow):
     def __init__(self):
         Gtk.ScrolledWindow.__init__(self)
         self.child = AlbumsGrid()
+        self.child.connect('song-clicked', self.on_song_clicked)
         self.add(self.child)
 
     def update(self, state: ApplicationState):
         self.child.update(state)
+
+    def on_song_clicked(self, *args):
+        print(args)
 
 
 class AlbumModel(GObject.Object):
@@ -37,6 +41,9 @@ class AlbumModel(GObject.Object):
         self.artist = artist
         self.year = year
         super().__init__()
+
+    def __repr__(self):
+        return f'<AlbumModel title={self.title} cover_art={self.cover_art} artist={self.artist} year={self.year}>'
 
 
 class AlbumsGrid(CoverArtGrid):
