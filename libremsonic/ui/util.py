@@ -81,11 +81,12 @@ def get_cached_status_icon(cache_status: SongCacheStatus):
     return cache_icon[cache_status]
 
 
-def diff_model(model_to_edit, new_model):
-    old_model = [row[:] for row in model_to_edit]
+def diff_store(store_to_edit, new_store):
+    # old_store = [row[:] for row in store_to_edit]
+    old_store = [row for row in store_to_edit]
 
     # Diff the lists to determine what needs to be changed.
-    diff = DeepDiff(old_model, new_model)
+    diff = DeepDiff(old_store, new_store)
     changed = diff.get('values_changed', {})
     added = diff.get('iterable_item_added', {})
     removed = diff.get('iterable_item_removed', {})
@@ -96,14 +97,14 @@ def diff_model(model_to_edit, new_model):
 
     for edit_location, diff in changed.items():
         idx, field = parse_location(edit_location)
-        model_to_edit[idx][field] = diff['new_value']
+        store_to_edit[idx][field] = diff['new_value']
 
     for add_location, value in added.items():
-        model_to_edit.append(value)
+        store_to_edit.append(value)
 
     for remove_location, value in reversed(list(removed.items())):
         remove_at = parse_location(remove_location)[0]
-        del model_to_edit[remove_at]
+        del store_to_edit[remove_at]
 
 
 def show_song_popover(

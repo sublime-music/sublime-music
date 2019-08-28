@@ -453,7 +453,7 @@ class AlbumWithSongs(Gtk.Box):
                 margin_left=10,
             ))
 
-        self.album_songs_model = Gtk.ListStore(
+        self.album_song_store = Gtk.ListStore(
             str,  # cache status
             str,  # title
             str,  # duration
@@ -480,7 +480,7 @@ class AlbumWithSongs(Gtk.Box):
         album_details.add(self.loading_indicator)
 
         self.album_songs = Gtk.TreeView(
-            model=self.album_songs_model,
+            model=self.album_song_store,
             name='album-songs-list',
             headers_visible=False,  # TODO use the config value for this
             margin_top=15,
@@ -518,9 +518,9 @@ class AlbumWithSongs(Gtk.Box):
 
     def on_song_activated(self, treeview, idx, column):
         # The song ID is in the last column of the model.
-        song_id = self.album_songs_model[idx][-1]
+        song_id = self.album_song_store[idx][-1]
         self.emit('song-clicked', song_id,
-                  [m[-1] for m in self.album_songs_model])
+                  [m[-1] for m in self.album_song_store])
 
     def on_song_button_press(self, tree, event):
         if event.button == 3:  # Right click
@@ -540,7 +540,7 @@ class AlbumWithSongs(Gtk.Box):
                 paths = [clicked_path[0]]
                 allow_deselect = True
 
-            song_ids = [self.album_songs_model[p][-1] for p in paths]
+            song_ids = [self.album_song_store[p][-1] for p in paths]
 
             # Used to adjust for the header row.
             bin_coords = tree.convert_tree_to_bin_window_coords(
@@ -572,12 +572,12 @@ class AlbumWithSongs(Gtk.Box):
             self,
             album: Union[AlbumWithSongsID3, Child, Directory],
     ):
-        new_model = [[
+        new_store = [[
             util.get_cached_status_icon(CacheManager.get_cached_status(song)),
             util.esc(song.title),
             util.format_song_duration(song.duration),
             song.id,
         ] for song in album.get('child', album.get('song', []))]
 
-        util.diff_model(self.album_songs_model, new_model)
+        util.diff_store(self.album_song_store, new_store)
         self.loading_indicator.hide()

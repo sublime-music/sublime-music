@@ -24,7 +24,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # This is the root model. It stores the master list.
+        # This is the master list.
         self.list_store = Gio.ListStore()
         self.selected_list_store_index = None
 
@@ -100,7 +100,9 @@ class CoverArtGrid(Gtk.ScrolledWindow):
                 print('fail', e)
                 return
 
-            currently_selected = self.grid_top.get_selected_children()
+            selection = self.grid_top.get_selected_children()
+            if selection:
+                self.selected_list_store_index = selection[0].get_index()
 
             self.list_store.remove_all()
             for el in result:
@@ -170,14 +172,17 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             entries_before_fold = ((
                 (self.selected_list_store_index // covers_per_row) + 1)
                                    * covers_per_row)
-            print(entries_before_fold)
 
         # TODO should do diffing on the actual updates here:
         # Split the list_store into top and bottom.
-        util.diff_model(self.list_store_top,
-                        self.list_store[:entries_before_fold])
-        util.diff_model(self.list_store_bottom,
-                        self.list_store[entries_before_fold:])
+        util.diff_store(
+            self.list_store_top,
+            self.list_store[:entries_before_fold],
+        )
+        util.diff_store(
+            self.list_store_bottom,
+            self.list_store[entries_before_fold:],
+        )
 
     # Virtual Methods
     # =========================================================================
@@ -213,5 +218,4 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         self.selected_list_store_index = (
             child.get_index() + (0 if click_top else len(self.list_store_top)))
 
-        print('item clicked', self.list_store[self.selected_list_store_index])
         self.reflow_grids()

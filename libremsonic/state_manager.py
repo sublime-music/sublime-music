@@ -69,7 +69,7 @@ class ApplicationState:
 
     def load_from_json(self, json_object):
         current_song_id = json_object.get('current_song') or None
-        if current_song_id:
+        if current_song_id and CacheManager.cache:
             self.current_song = CacheManager.cache['song_details'].get(
                 current_song_id)
         else:

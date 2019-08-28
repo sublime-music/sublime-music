@@ -204,7 +204,7 @@ class PlaylistsPanel(Gtk.Paned):
             column.set_expand(not width)
             return column
 
-        self.playlist_song_model = Gtk.ListStore(
+        self.playlist_song_store = Gtk.ListStore(
             str,  # cache status
             str,  # title
             str,  # album
@@ -233,7 +233,7 @@ class PlaylistsPanel(Gtk.Paned):
             return True
 
         self.playlist_songs = Gtk.TreeView(
-            model=self.playlist_song_model,
+            model=self.playlist_song_store,
             reorderable=True,
             margin_top=15,
             enable_search=True,
@@ -264,9 +264,9 @@ class PlaylistsPanel(Gtk.Paned):
 
         # Set up drag-and-drop on the song list for editing the order of the
         # playlist.
-        self.playlist_song_model.connect('row-inserted',
+        self.playlist_song_store.connect('row-inserted',
                                          self.playlist_model_row_move)
-        self.playlist_song_model.connect('row-deleted',
+        self.playlist_song_store.connect('row-deleted',
                                          self.playlist_model_row_move)
 
         playlist_view_scroll_window.add(self.playlist_songs)
@@ -339,7 +339,7 @@ class PlaylistsPanel(Gtk.Paned):
             # TODO: Only do this if it's the current playlist.
             GLib.idle_add(self.update_playlist_view, playlist.id)
 
-        song_ids = [s[-1] for s in self.playlist_song_model]
+        song_ids = [s[-1] for s in self.playlist_song_store]
         CacheManager.batch_download_songs(
             song_ids,
             before_download=download_state_change,
@@ -353,9 +353,9 @@ class PlaylistsPanel(Gtk.Paned):
 
     def on_song_activated(self, treeview, idx, column):
         # The song ID is in the last column of the model.
-        song_id = self.playlist_song_model[idx][-1]
+        song_id = self.playlist_song_store[idx][-1]
         self.emit('song-clicked', song_id,
-                  [m[-1] for m in self.playlist_song_model])
+                  [m[-1] for m in self.playlist_song_store])
 
     def on_song_button_press(self, tree, event):
         if event.button == 3:  # Right click
@@ -379,7 +379,7 @@ class PlaylistsPanel(Gtk.Paned):
                 paths = [clicked_path[0]]
                 allow_deselect = True
 
-            song_ids = [self.playlist_song_model[p][-1] for p in paths]
+            song_ids = [self.playlist_song_store[p][-1] for p in paths]
 
             # Used to adjust for the header row.
             bin_coords = tree.convert_tree_to_bin_window_coords(
@@ -545,7 +545,7 @@ class PlaylistsPanel(Gtk.Paned):
         # update the list.
         self.editing_playlist_song_list = True
 
-        new_model = [[
+        new_store = [[
             util.get_cached_status_icon(CacheManager.get_cached_status(song)),
             song.title,
             song.album,
@@ -554,7 +554,7 @@ class PlaylistsPanel(Gtk.Paned):
             song.id,
         ] for song in (playlist.entry or [])]
 
-        util.diff_model(self.playlist_song_model, new_model)
+        util.diff_store(self.playlist_song_store, new_store)
 
         self.editing_playlist_song_list = False
         self.set_playlist_view_loading(False)
@@ -576,7 +576,7 @@ class PlaylistsPanel(Gtk.Paned):
         CacheManager.update_playlist(
             playlist_id=playlist.id,
             song_index_to_remove=list(range(playlist.songCount)),
-            song_id_to_add=[s[-1] for s in self.playlist_song_model],
+            song_id_to_add=[s[-1] for s in self.playlist_song_store],
         )
         self.update_playlist_song_list(playlist.id, force=True)
 
