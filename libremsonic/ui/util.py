@@ -68,7 +68,10 @@ def esc(string):
 
 
 def dot_join(*items):
-    return '  •  '.join(map(str, items))
+    """
+    Joins the given strings with a dot character. Filters out None values.
+    """
+    return '  •  '.join(map(str, filter(lambda x: x is not None, items)))
 
 
 def get_cached_status_icon(cache_status: SongCacheStatus):
@@ -82,8 +85,7 @@ def get_cached_status_icon(cache_status: SongCacheStatus):
 
 
 def diff_store(store_to_edit, new_store):
-    # old_store = [row[:] for row in store_to_edit]
-    old_store = [row for row in store_to_edit]
+    old_store = [row[:] for row in store_to_edit]
 
     # Diff the lists to determine what needs to be changed.
     diff = DeepDiff(old_store, new_store)

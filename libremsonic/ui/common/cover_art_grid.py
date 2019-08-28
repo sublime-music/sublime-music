@@ -104,11 +104,15 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             if selection:
                 self.selected_list_store_index = selection[0].get_index()
 
+            old_len = len(self.list_store)
             self.list_store.remove_all()
             for el in result:
                 self.list_store.append(self.create_model_from_element(el))
+            new_len = len(self.list_store)
 
-            self.reflow_grids()
+            # Only force if there's a length change.
+            # TODO, this doesn't handle when something is edited.
+            self.reflow_grids(force_reload_from_master=old_len != new_len)
             stop_loading()
 
         future = self.get_model_list_future(before_download=start_loading)
@@ -162,7 +166,8 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         widget_box.show_all()
         return widget_box
 
-    def reflow_grids(self):
+    def reflow_grids(self, force_reload_from_master=False):
+        print(self.grid_top.get_width())
         # TODO calculate this somehow
         covers_per_row = 4
 
@@ -173,16 +178,35 @@ class CoverArtGrid(Gtk.ScrolledWindow):
                 (self.selected_list_store_index // covers_per_row) + 1)
                                    * covers_per_row)
 
-        # TODO should do diffing on the actual updates here:
-        # Split the list_store into top and bottom.
-        util.diff_store(
-            self.list_store_top,
-            self.list_store[:entries_before_fold],
-        )
-        util.diff_store(
-            self.list_store_bottom,
-            self.list_store[entries_before_fold:],
-        )
+        if force_reload_from_master:
+            # Just remove everything and re-add all of the items.
+            self.list_store_top.remove_all()
+            self.list_store_bottom.remove_all()
+
+            for e in self.list_store[:entries_before_fold]:
+                self.list_store_top.append(e)
+
+            for e in self.list_store[entries_before_fold:]:
+                self.list_store_bottom.append(e)
+        else:
+            top_diff = len(self.list_store_top) - entries_before_fold
+
+            if top_diff == 0:
+                return
+            elif top_diff < 0:
+                # Move entries from the bottom store.
+                for e in self.list_store_bottom[:-top_diff]:
+                    self.list_store_top.append(e)
+                for _ in range(-top_diff):
+                    if len(self.list_store_bottom) == 0:
+                        break
+                    del self.list_store_bottom[0]
+            else:
+                # Move entries to the bottom store.
+                for e in self.list_store_top[entries_before_fold:]:
+                    self.list_store_bottom.append(e)
+                for _ in range(top_diff):
+                    del self.list_store_top[-1]
 
     # Virtual Methods
     # =========================================================================
