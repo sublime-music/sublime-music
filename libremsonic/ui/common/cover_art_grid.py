@@ -27,6 +27,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         # This is the master list.
         self.list_store = Gio.ListStore()
         self.selected_list_store_index = None
+
         self.items_per_row = 4
 
         overlay = Gtk.Overlay()
@@ -205,6 +206,11 @@ class CoverArtGrid(Gtk.ScrolledWindow):
                     self.list_store_bottom.append(e)
                 for _ in range(top_diff):
                     del self.list_store_top[-1]
+
+        if self.selected_list_store_index:
+            self.grid_top.select_child(
+                self.grid_top.get_child_at_index(
+                    self.selected_list_store_index))
 
     # Virtual Methods
     # =========================================================================
