@@ -193,9 +193,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         else:
             top_diff = len(self.list_store_top) - entries_before_fold
 
-            if top_diff == 0:
-                return
-            elif top_diff < 0:
+            if top_diff < 0:
                 # Move entries from the bottom store.
                 for e in self.list_store_bottom[:-top_diff]:
                     self.list_store_top.append(e)
@@ -210,10 +208,14 @@ class CoverArtGrid(Gtk.ScrolledWindow):
                 for _ in range(top_diff):
                     del self.list_store_top[-1]
 
-        if self.selected_list_store_index:
+        if self.selected_list_store_index is not None:
             self.grid_top.select_child(
                 self.grid_top.get_child_at_index(
                     self.selected_list_store_index))
+            self.detail_box.show_all()
+        else:
+            self.grid_top.unselect_all()
+            self.detail_box.hide()
 
     # Virtual Methods
     # =========================================================================
@@ -246,8 +248,13 @@ class CoverArtGrid(Gtk.ScrolledWindow):
     # =========================================================================
     def on_child_activated(self, flowbox, child):
         click_top = flowbox == self.grid_top
-        self.selected_list_store_index = (
-            child.get_index() + (0 if click_top else len(self.list_store_top)))
+        selected = (child.get_index() +
+                    (0 if click_top else len(self.list_store_top)))
+
+        if selected == self.selected_list_store_index:
+            self.selected_list_store_index = None
+        else:
+            self.selected_list_store_index = selected
 
         self.reflow_grids()
 
