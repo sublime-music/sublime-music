@@ -27,6 +27,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         # This is the master list.
         self.list_store = Gio.ListStore()
         self.selected_list_store_index = None
+        self.items_per_row = 4
 
         overlay = Gtk.Overlay()
         grid_detail_grid_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -44,6 +45,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             selection_mode=Gtk.SelectionMode.SINGLE,
         )
         self.grid_top.connect('child-activated', self.on_child_activated)
+        self.grid_top.connect('size-allocate', self.on_grid_resize)
 
         self.list_store_top = Gio.ListStore()
         self.grid_top.bind_model(self.list_store_top, self.create_widget)
@@ -167,16 +169,12 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         return widget_box
 
     def reflow_grids(self, force_reload_from_master=False):
-        print(self.grid_top.get_width())
-        # TODO calculate this somehow
-        covers_per_row = 4
-
         # Determine where the cuttoff is between the top and bottom grids.
         entries_before_fold = len(self.list_store)
         if self.selected_list_store_index is not None:
             entries_before_fold = ((
-                (self.selected_list_store_index // covers_per_row) + 1)
-                                   * covers_per_row)
+                (self.selected_list_store_index // self.items_per_row) + 1)
+                                   * self.items_per_row)
 
         if force_reload_from_master:
             # Just remove everything and re-add all of the items.
@@ -242,4 +240,10 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         self.selected_list_store_index = (
             child.get_index() + (0 if click_top else len(self.list_store_top)))
 
+        self.reflow_grids()
+
+    def on_grid_resize(self, flowbox, rect):
+        # 200     + (10      * 2) + (5      * 2)
+        # picture + (padding * 2) + (margin * 2)
+        self.items_per_row = min((rect.width // 230), 7)
         self.reflow_grids()

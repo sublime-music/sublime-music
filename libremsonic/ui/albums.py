@@ -31,6 +31,7 @@ class AlbumsPanel(Gtk.ScrolledWindow):
         self.child.update(state)
 
     def on_song_clicked(self, *args):
+        print('song clicked')
         print(args)
 
 
