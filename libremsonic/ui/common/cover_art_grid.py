@@ -53,7 +53,10 @@ class CoverArtGrid(Gtk.ScrolledWindow):
 
         grid_detail_grid_box.add(self.grid_top)
 
-        grid_detail_grid_box.add(Gtk.Label('foo'))
+        self.detail_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.detail_box.add(Gtk.Label('foo'))
+        self.detail_box.add(Gtk.Label('bar'))
+        grid_detail_grid_box.add(self.detail_box)
 
         self.grid_bottom = Gtk.FlowBox(
             vexpand=True,
