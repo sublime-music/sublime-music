@@ -4,7 +4,7 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, GObject
 
-from . import albums, artists, playlists, more, player_controls
+from . import albums, artists, playlists, player_controls
 from libremsonic.server import Server
 from libremsonic.state_manager import ApplicationState
 
@@ -25,7 +25,6 @@ class MainWindow(Gtk.ApplicationWindow):
             Albums=albums.AlbumsPanel(),
             Artists=artists.ArtistsPanel(),
             Playlists=playlists.PlaylistsPanel(),
-            More=more.MorePanel(),
         )
         self.stack.set_transition_type(
             Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
