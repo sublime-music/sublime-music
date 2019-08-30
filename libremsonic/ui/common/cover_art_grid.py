@@ -90,14 +90,15 @@ class CoverArtGrid(Gtk.ScrolledWindow):
 
         self.add(overlay)
 
-    def update(self, state: ApplicationState = None):
-        self.update_grid()
+    def update(self, state: ApplicationState = None, force: bool = False):
+        self.update_grid(force=force)
 
+        # Update the detail panel.
         children = self.detail_box_inner.get_children()
         if len(children) > 0 and hasattr(children[0], 'update'):
-            children[0].update()
+            children[0].update(force=force)
 
-    def update_grid(self):
+    def update_grid(self, force=False):
         def start_loading():
             self.spinner.show()
 
@@ -115,18 +116,26 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             if selection:
                 self.selected_list_store_index = selection[0].get_index()
 
+            if force:
+                self.selected_list_store_index = None
+
             old_len = len(self.list_store)
             self.list_store.remove_all()
-            for el in result:
+            for el in (result or []):
                 self.list_store.append(self.create_model_from_element(el))
             new_len = len(self.list_store)
 
             # Only force if there's a length change.
             # TODO, this doesn't handle when something is edited.
-            self.reflow_grids(force_reload_from_master=old_len != new_len)
+            self.reflow_grids(
+                force_reload_from_master=(old_len != new_len or force))
             stop_loading()
 
-        future = self.get_model_list_future(before_download=start_loading)
+        print('update grid')
+        future = self.get_model_list_future(
+            before_download=start_loading,
+            force=force,
+        )
         future.add_done_callback(lambda f: GLib.idle_add(future_done, f))
 
     def create_widget(self, item):
@@ -234,7 +243,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             'get_info_text must be implemented by the inheritor of '
             'CoverArtGrid.')
 
-    def get_model_list_future(self, before_download):
+    def get_model_list_future(self, before_download, force=False):
         raise NotImplementedError(
             'get_model_list_future must be implemented by the inheritor of '
             'CoverArtGrid.')

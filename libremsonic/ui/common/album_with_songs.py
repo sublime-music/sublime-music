@@ -195,7 +195,7 @@ class AlbumWithSongs(Gtk.Box):
     def deselect_all(self):
         self.album_songs.get_selection().unselect_all()
 
-    def update(self):
+    def update(self, force=False):
         self.update_album_songs(self.album.id)
 
     @util.async_callback(

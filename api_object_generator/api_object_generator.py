@@ -100,6 +100,9 @@ def get_dependencies(xs_el) -> Tuple[Set[str], Dict[str, str]]:
         # <complexType>s depend on all of the types that their children have.
         for el in xs_el.getchildren():
             deps, fields = get_dependencies(el)
+
+            # Genres has this.
+            fields['value'] = 'str'
             depends_on |= deps
             type_fields.update(fields)
 

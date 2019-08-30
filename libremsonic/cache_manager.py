@@ -31,6 +31,7 @@ from libremsonic.server.api_objects import (
     Playlist,
     PlaylistWithSongs,
     Child,
+    Genre,
 
     # Non-ID3 versions
     Artist,
@@ -146,6 +147,7 @@ class CacheManager(metaclass=Singleton):
                 ('playlists', Playlist, list),
                 ('playlist_details', PlaylistWithSongs, dict),
                 ('song_details', Child, dict),
+                ('genres', Genre, list),
 
                 # Non-ID3 caches
                 ('albums', Child, list),
@@ -425,17 +427,22 @@ class CacheManager(metaclass=Singleton):
         def get_albums(
                 self,
                 type_: str,
+                size: int = 30,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
+                # Look at documentation for get_album_list in server.py:
+                **params,
         ) -> Future:
             def do_get_albums() -> List[Child]:
                 cache_name = self.id3ify('albums')
                 server_fn = (self.server.get_album_list2 if self.browse_by_tags
                              else self.server.get_album_list)
 
+                # TODO cache per type.
+                # TODO handle random.
                 if not self.cache.get(cache_name) or force:
                     before_download()
-                    albums = server_fn(type_)
+                    albums = server_fn(type_, size=size, **params)
 
                     with self.cache_lock:
                         self.cache[cache_name] = albums.album
@@ -577,6 +584,22 @@ class CacheManager(metaclass=Singleton):
                 )
 
             return (str(abs_path), False)
+
+        def get_genres(self,
+                before_download: Callable[[], None] = lambda: None,
+                force: bool = False,
+                       ) -> Future:
+            def do_get_genres() -> List[Genre]:
+                if not self.cache['genres'] or force:
+                    before_download()
+                    genres = self.server.get_genres().genre
+                    with self.cache_lock:
+                        self.cache['genres'] = genres
+                    self.save_cache_info()
+
+                return self.cache['genres']
+
+            return CacheManager.executor.submit(do_get_genres)
 
         def get_cached_status(self, song: Child) -> SongCacheStatus:
             cache_path = self.calculate_abs_path(song.path)
