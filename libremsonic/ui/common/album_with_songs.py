@@ -30,7 +30,7 @@ class AlbumWithSongs(Gtk.Box):
         ),
     }
 
-    def __init__(self, album):
+    def __init__(self, album, cover_art_size=200, show_artist_name=True):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
         self.album = album
 
@@ -40,6 +40,9 @@ class AlbumWithSongs(Gtk.Box):
             image_name='artist-album-list-artwork',
             spinner_name='artist-artwork-spinner',
         )
+        # Account for 10px margin on all sides with "+ 20".
+        artist_artwork.set_size_request(cover_art_size + 20,
+                                        cover_art_size + 20)
         box.pack_start(artist_artwork, False, False, 0)
         box.pack_start(Gtk.Box(), True, True, 0)
         self.pack_start(box, False, False, 0)
@@ -51,7 +54,7 @@ class AlbumWithSongs(Gtk.Box):
         cover_art_filename_future = CacheManager.get_cover_art_filename(
             album.coverArt,
             before_download=lambda: artist_artwork.set_loading(True),
-            size=200,
+            size=cover_art_size,
         )
         cover_art_filename_future.add_done_callback(
             lambda f: GLib.idle_add(cover_art_future_done, f))
@@ -64,9 +67,16 @@ class AlbumWithSongs(Gtk.Box):
                 halign=Gtk.Align.START,
             ))
 
-        stats = [album.year, album.genre]
-        if album.get('duration'):
-            stats.append(util.format_sequence_duration(album.duration))
+        stats = [
+            album.artist if show_artist_name else None,
+            album.year,
+            album.genre,
+
+            # TODO when not available (not browse by tags), calculate after the
+            # list loads and update the stats label.
+            util.format_sequence_duration(album.duration)
+            if album.get('duration') else None,
+        ]
 
         album_details.add(
             Gtk.Label(

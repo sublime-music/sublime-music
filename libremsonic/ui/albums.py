@@ -67,7 +67,7 @@ class AlbumsGrid(CoverArtGrid):
         return AlbumModel(album)
 
     def create_detail_element_from_model(self, album: AlbumModel):
-        return AlbumWithSongs(album.album)
+        return AlbumWithSongs(album.album, cover_art_size=300)
 
     def get_cover_art_filename_future(self, item, before_download):
         return CacheManager.get_cover_art_filename(

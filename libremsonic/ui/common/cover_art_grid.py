@@ -208,8 +208,8 @@ class CoverArtGrid(Gtk.ScrolledWindow):
                     del self.list_store_bottom[0]
             else:
                 # Move entries to the bottom store.
-                for e in self.list_store_top[entries_before_fold:]:
-                    self.list_store_bottom.append(e)
+                for e in reversed(self.list_store_top[entries_before_fold:]):
+                    self.list_store_bottom.insert(0, e)
                 for _ in range(top_diff):
                     del self.list_store_top[-1]
 

@@ -378,7 +378,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
             self.box.remove(c)
 
         for album in artist.get('album', artist.get('child', [])):
-            album_with_songs = AlbumWithSongs(album)
+            album_with_songs = AlbumWithSongs(album, show_artist_name=False)
             album_with_songs.connect(
                 'song-clicked',
                 lambda _, song, queue: self.emit('song-clicked', song, queue),
