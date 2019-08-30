@@ -9,7 +9,7 @@ from gi.repository import Gio, Gtk, Pango, GObject, GLib
 
 from libremsonic.server.api_objects import PlaylistWithSongs
 from libremsonic.state_manager import ApplicationState
-from libremsonic.cache_manager import CacheManager, SongCacheStatus
+from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
 from libremsonic.ui.common import EditFormDialog, SpinnerImage
 

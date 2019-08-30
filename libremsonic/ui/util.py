@@ -8,7 +8,7 @@ from deepdiff import DeepDiff
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, GObject, GLib, Gdk
+from gi.repository import Gio, Gtk, GLib, Gdk
 
 from libremsonic.cache_manager import CacheManager, SongCacheStatus
 

@@ -3,7 +3,7 @@ from typing import List, Union, Optional
 import gi
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GObject, Pango, GLib
+from gi.repository import Gtk, GObject, Pango
 
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
@@ -370,7 +370,10 @@ class AlbumsListWithSongs(Gtk.Overlay):
         )
         self.add_overlay(self.spinner)
 
+        self.albums = []
+
     def update(self, artist):
+        # TODO this introduces a flicker. Fix this. Need to do some diffing.
         for c in self.box.get_children():
             self.box.remove(c)
 
@@ -381,9 +384,8 @@ class AlbumsListWithSongs(Gtk.Overlay):
                 lambda _, song, queue: self.emit('song-clicked', song, queue),
             )
             album_with_songs.connect('song-selected', self.on_song_selected)
+            album_with_songs.show_all()
             self.box.add(album_with_songs)
-
-        self.scrolled_window.show_all()
 
     def on_song_selected(self, album_component):
         for child in self.box.get_children():

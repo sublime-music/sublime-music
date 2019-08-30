@@ -2,7 +2,7 @@ import gi
 from typing import Optional, Union
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, GObject, Pango
+from gi.repository import Gio, Gtk, GObject
 
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
@@ -26,15 +26,14 @@ class AlbumsPanel(Gtk.ScrolledWindow):
     def __init__(self):
         Gtk.ScrolledWindow.__init__(self)
         self.child = AlbumsGrid()
-        self.child.connect('song-clicked', self.on_song_clicked)
+        self.child.connect(
+            'song-clicked',
+            lambda _, song, queue: self.emit('song-clicked', song, queue),
+        )
         self.add(self.child)
 
     def update(self, state: ApplicationState):
         self.child.update(state)
-
-    def on_song_clicked(self, *args):
-        print('song clicked')
-        print(args)
 
 
 class AlbumModel(GObject.Object):

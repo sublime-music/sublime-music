@@ -1,12 +1,10 @@
 from concurrent.futures import Future
-import math
 from typing import Optional
 
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, Gtk, GObject, Gio, Pango
 
-from libremsonic.ui import util
 from libremsonic.state_manager import ApplicationState
 from .spinner_image import SpinnerImage
 
@@ -17,7 +15,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (object, ),
+            (str, object),
         )
     }
 
@@ -53,6 +51,12 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         grid_detail_grid_box.add(self.grid_top)
 
         self.detail_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.detail_box.pack_start(Gtk.Box(), True, True, 0)
+
+        self.detail_box_inner = Gtk.Box()
+        self.detail_box.pack_start(self.detail_box_inner, False, False, 0)
+
+        self.detail_box.pack_start(Gtk.Box(), True, True, 0)
         grid_detail_grid_box.add(self.detail_box)
 
         self.grid_bottom = Gtk.FlowBox(
@@ -88,6 +92,10 @@ class CoverArtGrid(Gtk.ScrolledWindow):
 
     def update(self, state: ApplicationState = None):
         self.update_grid()
+
+        children = self.detail_box_inner.get_children()
+        if len(children) > 0 and hasattr(children[0], 'update'):
+            children[0].update()
 
     def update_grid(self):
         def start_loading():
@@ -209,7 +217,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             self.grid_top.select_child(
                 self.grid_top.get_child_at_index(
                     self.selected_list_store_index))
-            self.detail_box.show_all()
+            self.detail_box.show()
         else:
             self.grid_top.unselect_all()
             self.detail_box.hide()
@@ -258,16 +266,29 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         else:
             self.selected_list_store_index = selected
 
-            for c in self.detail_box.get_children():
-                self.detail_box.remove(c)
+            for c in self.detail_box_inner.get_children():
+                self.detail_box_inner.remove(c)
+
             model = self.list_store[self.selected_list_store_index]
-            self.detail_box.pack_start(
-                self.create_detail_element_from_model(model), True, True, 5)
+            detail_element = self.create_detail_element_from_model(model)
+            detail_element.connect(
+                'song-clicked',
+                lambda _, song, queue: self.emit('song-clicked', song, queue),
+            )
+            detail_element.connect('song-selected', lambda *a: None)
+
+            self.detail_box_inner.pack_start(detail_element, True, True, 0)
+            self.detail_box_inner.show_all()
 
         self.reflow_grids()
 
     def on_grid_resize(self, flowbox, rect):
-        # 200     + (10      * 2) + (5      * 2)
+        # 200     + (10      * 2) + (5      * 2) = 230
         # picture + (padding * 2) + (margin * 2)
         self.items_per_row = min((rect.width // 230), 7)
+        self.detail_box_inner.set_size_request(
+            self.items_per_row * 230 - 10,
+            -1,
+        )
+
         self.reflow_grids()
