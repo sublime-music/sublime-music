@@ -1,4 +1,5 @@
 import gi
+import threading
 from typing import Optional, Union
 
 gi.require_version('Gtk', '3.0')
@@ -28,6 +29,8 @@ class AlbumsPanel(Gtk.Box):
     currently_active_genre: str = 'Rock'
     currently_active_from_year: int = 2010
     currently_active_to_year: int = 2020
+
+    populating_genre_combo = False
 
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
@@ -115,13 +118,12 @@ class AlbumsPanel(Gtk.Box):
         def get_genres_done(f):
             model = self.genre_combo.get_model()
 
-            # TODO enabling this infinite loops the program, I think due to the
-            # fact that it triggers a genre change event. Fix this with some
-            # locks.
-            # model.clear()
+            self.populating_genre_combo = True
+            model.clear()
             for genre in (f.result() or []):
                 model.append((genre.value, genre.value))
 
+            self.populating_genre_combo = False
             self.genre_combo.set_active_id(self.currently_active_genre)
 
         genres_future = CacheManager.get_genres()
@@ -172,6 +174,8 @@ class AlbumsPanel(Gtk.Box):
             self.update(force=True)
 
     def on_genre_change(self, combo):
+        if self.populating_genre_combo:
+            return
         self.currently_active_genre = self.get_id(combo)
         if self.grid.genre != self.currently_active_genre:
             self.grid.update_params(genre=self.currently_active_genre)
