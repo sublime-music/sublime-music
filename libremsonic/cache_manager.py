@@ -532,8 +532,9 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> Future:
             def do_get_cover_art_filename() -> str:
+                tag = 'tag_' if self.browse_by_tags else ''
                 return self.return_cached_or_download(
-                    f'cover_art/{id}_{size}',
+                    f'cover_art/{tag}{id}_{size}',
                     lambda: self.server.get_cover_art(id, str(size)),
                     before_download=before_download,
                     force=force,
