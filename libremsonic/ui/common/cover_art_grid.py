@@ -34,7 +34,6 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         grid_detail_grid_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         self.grid_top = Gtk.FlowBox(
-            vexpand=True,
             hexpand=True,
             row_spacing=5,
             column_spacing=5,
@@ -54,8 +53,6 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         grid_detail_grid_box.add(self.grid_top)
 
         self.detail_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        self.detail_box.add(Gtk.Label('foo'))
-        self.detail_box.add(Gtk.Label('bar'))
         grid_detail_grid_box.add(self.detail_box)
 
         self.grid_bottom = Gtk.FlowBox(
@@ -239,6 +236,11 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             'create_model_from_element must be implemented by the inheritor '
             'of CoverArtGrid.')
 
+    def create_detail_element_from_model(self, model):
+        raise NotImplementedError(
+            'create_detail_element_from_model must be implemented by the '
+            'inheritor of CoverArtGrid.')
+
     def get_cover_art_filename_future(self, item, before_download) -> Future:
         raise NotImplementedError(
             'get_cover_art_filename_future must be implemented by the '
@@ -255,6 +257,12 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             self.selected_list_store_index = None
         else:
             self.selected_list_store_index = selected
+
+            for c in self.detail_box.get_children():
+                self.detail_box.remove(c)
+            model = self.list_store[self.selected_list_store_index]
+            self.detail_box.pack_start(
+                self.create_detail_element_from_model(model), True, True, 5)
 
         self.reflow_grids()
 

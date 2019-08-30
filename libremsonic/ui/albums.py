@@ -1,5 +1,5 @@
 import gi
-from typing import Optional
+from typing import Optional, Union
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, GObject, Pango
@@ -7,9 +7,11 @@ from gi.repository import Gio, Gtk, GObject, Pango
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
-from libremsonic.ui.common import CoverArtGrid
+from libremsonic.ui.common import AlbumWithSongs, CoverArtGrid
 
-from libremsonic.server.api_objects import Child
+from libremsonic.server.api_objects import Child, AlbumWithSongsID3
+
+Album = Union[Child, AlbumWithSongsID3]
 
 
 class AlbumsPanel(Gtk.ScrolledWindow):
@@ -36,15 +38,12 @@ class AlbumsPanel(Gtk.ScrolledWindow):
 
 
 class AlbumModel(GObject.Object):
-    def __init__(self, title, cover_art, artist, year):
-        self.title = title
-        self.cover_art = cover_art
-        self.artist = artist
-        self.year = year
+    def __init__(self, album: Album):
+        self.album: Album = album
         super().__init__()
 
     def __repr__(self):
-        return f'<AlbumModel title={self.title} cover_art={self.cover_art} artist={self.artist} year={self.year}>'
+        return f'<AlbumModel {self.album}>'
 
 
 class AlbumsGrid(CoverArtGrid):
@@ -53,10 +52,11 @@ class AlbumsGrid(CoverArtGrid):
     # Override Methods
     # =========================================================================
     def get_header_text(self, item: AlbumModel) -> str:
-        return item.title
+        return (item.album.title
+                if type(item.album) == Child else item.album.name)
 
     def get_info_text(self, item: AlbumModel) -> Optional[str]:
-        return util.dot_join(item.artist, item.year)
+        return util.dot_join(item.album.artist, item.album.year)
 
     def get_model_list_future(self, before_download):
         return CacheManager.get_albums(
@@ -65,15 +65,13 @@ class AlbumsGrid(CoverArtGrid):
         )
 
     def create_model_from_element(self, album):
-        return AlbumModel(
-            album.title if type(album) == Child else album.name,
-            album.coverArt,
-            album.artist,
-            album.year,
-        )
+        return AlbumModel(album)
+
+    def create_detail_element_from_model(self, album: AlbumModel):
+        return AlbumWithSongs(album.album)
 
     def get_cover_art_filename_future(self, item, before_download):
         return CacheManager.get_cover_art_filename(
-            item.cover_art,
+            item.album.coverArt,
             before_download=before_download,
         )
