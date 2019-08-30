@@ -114,6 +114,11 @@ class AlbumsPanel(Gtk.Box):
     def populate_genre_combo(self):
         def get_genres_done(f):
             model = self.genre_combo.get_model()
+
+            # TODO enabling this infinite loops the program, I think due to the
+            # fact that it triggers a genre change event. Fix this with some
+            # locks.
+            # model.clear()
             for genre in (f.result() or []):
                 model.append((genre.value, genre.value))
 

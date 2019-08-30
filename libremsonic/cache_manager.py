@@ -585,10 +585,11 @@ class CacheManager(metaclass=Singleton):
 
             return (str(abs_path), False)
 
-        def get_genres(self,
+        def get_genres(
+                self,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
-                       ) -> Future:
+        ) -> Future:
             def do_get_genres() -> List[Genre]:
                 if not self.cache['genres'] or force:
                     before_download()
