@@ -35,18 +35,18 @@ class AlbumsPanel(Gtk.Box):
         actionbar = Gtk.ActionBar()
 
         # Sort by
-        actionbar.add(Gtk.Label(label='Sort by:'))
+        actionbar.add(Gtk.Label(label='Sort'))
         self.sort_type_combo = self.make_combobox(
             (
-                ('random', 'Random'),
-                ('newest', 'Most recently added'),
-                ('highest', 'Highest rated'),
-                ('frequent', 'Most played'),
-                ('recent', 'Most recently played'),
-                ('alphabetical', 'Alphabetically'),
-                ('starred', 'Starred only'),
-                ('byYear', 'Year'),
-                ('byGenre', 'Genre'),
+                ('random', 'randomly'),
+                ('byGenre', 'by genre'),
+                ('newest', 'by most recently added'),
+                ('highest', 'by highest rated'),
+                ('frequent', 'by most played'),
+                ('recent', 'by most recently played'),
+                ('alphabetical', 'alphabetically'),
+                ('starred', 'by starred only'),
+                ('byYear', 'by year'),
             ),
             self.on_type_combo_changed,
         )
