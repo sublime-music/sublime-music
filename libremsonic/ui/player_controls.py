@@ -7,7 +7,7 @@ from gi.repository import Gtk, Pango, GObject, Gio, GLib
 from libremsonic.cache_manager import CacheManager
 from libremsonic.state_manager import ApplicationState, RepeatType
 from libremsonic.ui import util
-from libremsonic.ui.common import SpinnerImage
+from libremsonic.ui.common import IconButton, SpinnerImage
 from libremsonic.ui.common.players import ChromecastPlayer
 
 
@@ -41,8 +41,7 @@ class PlayerControls(Gtk.ActionBar):
                                  state.current_song.duration)
 
         icon = 'pause' if state.playing else 'start'
-        self.play_button.get_child().set_from_icon_name(
-            f"media-playback-{icon}-symbolic", Gtk.IconSize.LARGE_TOOLBAR)
+        self.play_button.set_icon(f"media-playback-{icon}-symbolic")
 
         has_current_song = (hasattr(state, 'current_song')
                             and state.current_song is not None)
@@ -118,7 +117,8 @@ class PlayerControls(Gtk.ActionBar):
             else:
                 song_label = str(play_queue_len) + ' ' + util.pluralize(
                     'song', play_queue_len)
-                self.popover_label.set_markup(f'<b>Play Queue:</b> {song_label}')
+                self.popover_label.set_markup(
+                    f'<b>Play Queue:</b> {song_label}')
 
             # Remove everything from the play queue.
             for c in self.play_queue_list.get_children():
@@ -285,35 +285,32 @@ class PlayerControls(Gtk.ActionBar):
         buttons.pack_start(Gtk.Box(), True, True, 0)
 
         # Repeat button
-        self.repeat_button = util.button_with_icon('media-playlist-repeat')
+        self.repeat_button = IconButton('media-playlist-repeat')
         self.repeat_button.set_action_name('app.repeat-press')
         buttons.pack_start(self.repeat_button, False, False, 5)
 
         # Previous button
-        self.prev_button = util.button_with_icon(
-            'media-skip-backward-symbolic',
-            icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        self.prev_button = IconButton('media-skip-backward-symbolic',
+                                      icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         self.prev_button.set_action_name('app.prev-track')
         buttons.pack_start(self.prev_button, False, False, 5)
 
         # Play button
-        self.play_button = util.button_with_icon(
-            'media-playback-start-symbolic',
-            relief=True,
-            icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        self.play_button = IconButton('media-playback-start-symbolic',
+                                      relief=True,
+                                      icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         self.play_button.set_name('play-button')
         self.play_button.set_action_name('app.play-pause')
         buttons.pack_start(self.play_button, False, False, 0)
 
         # Next button
-        self.next_button = util.button_with_icon(
-            'media-skip-forward-symbolic',
-            icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        self.next_button = IconButton('media-skip-forward-symbolic',
+                                      icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         self.next_button.set_action_name('app.next-track')
         buttons.pack_start(self.next_button, False, False, 5)
 
         # Shuffle button
-        self.shuffle_button = util.button_with_icon('media-playlist-shuffle')
+        self.shuffle_button = IconButton('media-playlist-shuffle')
         self.shuffle_button.set_action_name('app.shuffle-press')
         buttons.pack_start(self.shuffle_button, False, False, 5)
 
@@ -329,8 +326,8 @@ class PlayerControls(Gtk.ActionBar):
 
         # Device button (for chromecast)
         # TODO need icon
-        device_button = util.button_with_icon(
-            'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        device_button = IconButton('view-list-symbolic',
+                                   icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         device_button.connect('clicked', self.on_device_click)
         box.pack_start(device_button, False, True, 5)
 
@@ -347,7 +344,7 @@ class PlayerControls(Gtk.ActionBar):
         )
         device_popover_header.add(self.popover_label)
 
-        refresh_devices = util.button_with_icon('view-refresh')
+        refresh_devices = IconButton('view-refresh')
         refresh_devices.connect('clicked', self.on_device_refresh_click)
         device_popover_header.pack_end(refresh_devices, False, False, 0)
 
@@ -376,8 +373,8 @@ class PlayerControls(Gtk.ActionBar):
         self.device_popover.add(device_popover_box)
 
         # Play Queue button
-        play_queue_button = util.button_with_icon(
-            'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        play_queue_button = IconButton('view-list-symbolic',
+                                       icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         play_queue_button.connect('clicked', self.on_play_queue_click)
         box.pack_start(play_queue_button, False, True, 5)
 
@@ -412,7 +409,7 @@ class PlayerControls(Gtk.ActionBar):
         self.play_queue_popover.add(play_queue_popover_box)
 
         # Volume mute toggle
-        self.volume_mute_toggle = util.button_with_icon('audio-volume-high')
+        self.volume_mute_toggle = IconButton('audio-volume-high')
         self.volume_mute_toggle.set_action_name('app.mute-toggle')
         box.pack_start(self.volume_mute_toggle, False, True, 0)
 

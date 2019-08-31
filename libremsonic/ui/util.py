@@ -8,25 +8,9 @@ from deepdiff import DeepDiff
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, GLib, Gdk
+from gi.repository import Gtk, GLib, Gdk
 
 from libremsonic.cache_manager import CacheManager, SongCacheStatus
-
-
-def button_with_icon(
-        icon_name,
-        relief=False,
-        icon_size=Gtk.IconSize.BUTTON,
-) -> Gtk.Button:
-    button = Gtk.Button()
-    icon = Gio.ThemedIcon(name=icon_name)
-    image = Gtk.Image.new_from_gicon(icon, icon_size)
-    button.add(image)
-
-    if not relief:
-        button.props.relief = Gtk.ReliefStyle.NONE
-
-    return button
 
 
 def format_song_duration(duration_secs) -> str:
@@ -120,15 +104,19 @@ def show_song_popover(
         extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = [],
 ):
     def on_play_next_click(button):
+        # TODO
         print('play next click')
 
     def on_add_to_queue_click(button):
+        # TODO
         print('add to queue click')
 
     def on_go_to_album_click(button):
+        # TODO
         print('go to album click')
 
     def on_go_to_artist_click(button):
+        # TODO
         print('go to artist click')
 
     def on_download_songs_click(button):

@@ -8,7 +8,7 @@ from gi.repository import Gtk, GObject, Pango
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
-from libremsonic.ui.common import AlbumWithSongs, SpinnerImage
+from libremsonic.ui.common import AlbumWithSongs, IconButton, SpinnerImage
 
 from libremsonic.server.api_objects import (
     AlbumID3,
@@ -25,7 +25,7 @@ class ArtistsPanel(Gtk.Paned):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object),
+            (str, object, object),
         ),
     }
     artist_id: Optional[str] = None
@@ -45,7 +45,8 @@ class ArtistsPanel(Gtk.Paned):
         self.artist_detail_panel = ArtistDetailPanel()
         self.artist_detail_panel.connect(
             'song-clicked',
-            lambda _, song, queue: self.emit('song-clicked', song, queue),
+            lambda _, song, queue, metadata: self.emit('song-clicked', song,
+                                                       queue, metadata),
         )
         self.pack2(self.artist_detail_panel, True, False)
 
@@ -75,7 +76,7 @@ class ArtistList(Gtk.Box):
 
         list_actions = Gtk.ActionBar()
 
-        refresh = util.button_with_icon('view-refresh')
+        refresh = IconButton('view-refresh')
         refresh.connect('clicked', lambda *a: self.update(force=True))
         list_actions.pack_end(refresh)
 
@@ -156,7 +157,7 @@ class ArtistDetailPanel(Gtk.Box):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object),
+            (str, object, object),
         ),
     }
 
@@ -190,12 +191,12 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_action_buttons = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL)
 
-        view_refresh_button = util.button_with_icon('view-refresh-symbolic')
+        view_refresh_button = IconButton('view-refresh-symbolic')
         view_refresh_button.connect('clicked', self.on_view_refresh_click)
         self.artist_action_buttons.pack_end(view_refresh_button, False, False,
                                             5)
 
-        download_all_btn = util.button_with_icon('folder-download-symbolic')
+        download_all_btn = IconButton('folder-download-symbolic')
         download_all_btn.connect('clicked', self.on_download_all_click)
         self.artist_action_buttons.pack_end(download_all_btn, False, False, 5)
 
@@ -237,7 +238,8 @@ class ArtistDetailPanel(Gtk.Box):
         self.albums_list = AlbumsListWithSongs()
         self.albums_list.connect(
             'song-clicked',
-            lambda _, song, queue: self.emit('song-clicked', song, queue),
+            lambda _, song, queue, metadata: self.emit(
+                'song-clicked', song, queue, metadata),
         )
         artist_info_box.pack_start(self.albums_list, True, True, 0)
 
@@ -361,7 +363,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object),
+            (str, object, object),
         ),
     }
 
@@ -391,7 +393,8 @@ class AlbumsListWithSongs(Gtk.Overlay):
             album_with_songs = AlbumWithSongs(album, show_artist_name=False)
             album_with_songs.connect(
                 'song-clicked',
-                lambda _, song, queue: self.emit('song-clicked', song, queue),
+                lambda _, song, queue, metadata: self.emit(
+                    'song-clicked', song, queue, metadata),
             )
             album_with_songs.connect('song-selected', self.on_song_selected)
             album_with_songs.show_all()

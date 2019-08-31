@@ -15,7 +15,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object),
+            (str, object, object),
         )
     }
 
@@ -281,7 +281,8 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             detail_element = self.create_detail_element_from_model(model)
             detail_element.connect(
                 'song-clicked',
-                lambda _, song, queue: self.emit('song-clicked', song, queue),
+                lambda _, song, queue, metadata: self.emit(
+                    'song-clicked', song, queue, metadata),
             )
             detail_element.connect('song-selected', lambda *a: None)
 

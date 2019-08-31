@@ -293,10 +293,13 @@ class LibremsonicApp(Gtk.Application):
     def on_stack_change(self, stack, child):
         self.update_window()
 
-    def on_song_clicked(self, win, song_id, song_queue):
+    def on_song_clicked(self, win, song_id, song_queue, metadata):
         # Reset the play queue so that we don't ever revert back to the
         # previous one.
         old_play_queue = song_queue.copy()
+
+        if metadata.get('force_shuffle_state') is not None:
+            self.state.shuffle_on = metadata['force_shuffle_state']
 
         # If shuffle is enabled, then shuffle the playlist.
         if self.state.shuffle_on:
@@ -449,7 +452,10 @@ class LibremsonicApp(Gtk.Application):
                 self.player.reset()
                 self.state.song_progress = 0
 
-            def on_song_download_complete(_):
+            def on_song_download_complete(song_id):
+                if self.state.current_song != song.id:
+                    return
+
                 # Switch to the local media if the player can hotswap (MPV can,
                 # Chromecast cannot hotswap without lag).
                 if self.player.can_hotswap_source:
