@@ -278,6 +278,7 @@ class LibremsonicApp(Gtk.Application):
         self.state.save()
 
         self.reset_cache_manager()
+        self.update_window()
 
     def reset_cache_manager(self):
         CacheManager.reset(

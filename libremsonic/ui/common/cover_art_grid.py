@@ -131,7 +131,6 @@ class CoverArtGrid(Gtk.ScrolledWindow):
                 force_reload_from_master=(old_len != new_len or force))
             stop_loading()
 
-        print('update grid')
         future = self.get_model_list_future(
             before_download=start_loading,
             force=force,

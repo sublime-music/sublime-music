@@ -212,7 +212,7 @@ class AlbumWithSongs(Gtk.Box):
             util.esc(song.title),
             util.format_song_duration(song.duration),
             song.id,
-        ] for song in album.get('child', album.get('song', []))]
+        ] for song in (album.get('child') or album.get('song') or [])]
 
         util.diff_store(self.album_song_store, new_store)
         self.loading_indicator.hide()

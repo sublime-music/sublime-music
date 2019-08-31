@@ -308,10 +308,20 @@ class ArtistDetailPanel(Gtk.Box):
         self.update_artist_view(self.artist_id, force=True)
 
     def on_download_all_click(self, btn):
-        print('download all')
+        songs_for_download = []
         artist = CacheManager.get_artist(self.artist_id).result()
-        for album in artist.album:
-            print(album)
+        for album in (artist.get('album', artist.get('child', []))):
+            album_songs = CacheManager.get_album(album.id).result()
+            album_songs = album_songs.get('child', album_songs.get('song', []))
+            for song in album_songs:
+                songs_for_download.append(song.id)
+
+        CacheManager.batch_download_songs(
+            songs_for_download,
+            before_download=lambda: self.update_artist_view(self.artist_id),
+            on_song_download_complete=lambda i: self.update_artist_view(
+                self.artist_id),
+        )
 
     # Helper Methods
     # =========================================================================
