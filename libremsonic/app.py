@@ -135,6 +135,7 @@ class LibremsonicApp(Gtk.Application):
 
         self.update_window()
 
+        # Configure the players
         self.last_play_queue_update = 0
 
         def time_observer(value):
