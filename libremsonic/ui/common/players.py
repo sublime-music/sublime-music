@@ -253,6 +253,8 @@ class ChromecastPlayer(Player):
         # Set host_ip
         # TODO should have a mechanism to update this. Maybe it should be
         # determined every time we try and play a song.
+        # TODO does not work properyfly when on VPNs when the DNS is piped over
+        # the VPN tunnel.
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(('8.8.8.8', 80))
