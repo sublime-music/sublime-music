@@ -282,12 +282,22 @@ class LibremsonicApp(Gtk.Application):
         self.update_window()
 
     def on_play_next(self, action, song_ids):
-        # TODO
-        print(song_ids)
+        if self.state.current_song is None:
+            insert_at = 0
+        else:
+            insert_at = (
+                self.state.play_queue.index(self.state.current_song.id) + 1)
+
+        self.state.play_queue = (self.state.play_queue[:insert_at]
+                                 + list(song_ids)
+                                 + self.state.play_queue[insert_at:])
+        self.state.old_play_queue.extend(song_ids)
+        self.update_window()
 
     def on_add_to_queue(self, action, song_ids):
-        # TODO
-        print(song_ids)
+        self.state.play_queue.extend(song_ids)
+        self.state.old_play_queue.extend(song_ids)
+        self.update_window()
 
     def on_go_to_album(self, action, album_id):
         # TODO

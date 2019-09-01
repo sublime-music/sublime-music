@@ -124,6 +124,7 @@ class AlbumsPanel(Gtk.Box):
                 model.append((genre.value, genre.value))
 
             self.populating_genre_combo = False
+            # TODO Get this from state
             self.genre_combo.set_active_id(self.currently_active_genre)
 
         genres_future = CacheManager.get_genres()

@@ -10,8 +10,9 @@ class IconButton(Gtk.Button):
             relief=False,
             icon_size=Gtk.IconSize.BUTTON,
             label=None,
+            **kwargs
     ):
-        Gtk.Button.__init__(self)
+        Gtk.Button.__init__(self, **kwargs)
         self.icon_size = icon_size
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,
                       name='icon-button-box')
