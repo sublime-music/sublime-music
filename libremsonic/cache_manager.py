@@ -570,6 +570,12 @@ class CacheManager(metaclass=Singleton):
         def get_play_queue(self) -> Future:
             return CacheManager.executor.submit(self.server.get_play_queue)
 
+        def scrobble(self, song_id: int) -> Future:
+            def do_scrobble():
+                self.server.scrobble(song_id)
+
+            return CacheManager.executor.submit(do_scrobble)
+
         def get_song_filename_or_stream(
                 self,
                 song: Child,

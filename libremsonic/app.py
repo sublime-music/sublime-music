@@ -283,7 +283,7 @@ class LibremsonicApp(Gtk.Application):
     def reset_cache_manager(self):
         CacheManager.reset(
             self.state.config,
-            self.state.config.servers[self.state.config.current_server]
+            self.current_server
             if self.state.config.current_server >= 0 else None,
         )
 
@@ -386,6 +386,11 @@ class LibremsonicApp(Gtk.Application):
         self.state.save()
         self.save_play_queue()
         CacheManager.shutdown()
+
+    # ########## PROPERTIES ########## #
+    @property
+    def current_server(self):
+        return self.state.config.servers[self.state.config.current_server]
 
     # ########## HELPER METHODS ########## #
     def show_configure_servers_dialog(self):
@@ -501,6 +506,9 @@ class LibremsonicApp(Gtk.Application):
                         self.update_window),
                 )
 
+            if self.current_server.sync_enabled:
+                CacheManager.scrobble(song.id)
+
         song_details_future = CacheManager.get_song_details(song)
         song_details_future.add_done_callback(
             lambda f: GLib.idle_add(do_play_song, f.result()), )
@@ -509,10 +517,7 @@ class LibremsonicApp(Gtk.Application):
         position = self.state.song_progress
         self.last_play_queue_update = position
 
-        current_server = self.state.config.current_server
-        current_server = self.state.config.servers[current_server]
-
-        if current_server.sync_enabled:
+        if self.current_server.sync_enabled:
             CacheManager.executor.submit(
                 CacheManager.save_play_queue,
                 id=self.state.play_queue,

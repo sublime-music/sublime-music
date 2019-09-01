@@ -66,7 +66,7 @@ class EditServerDialog(EditFormDialog):
             )
             dialog.format_secondary_markup(
                 f'Connection to {server_address} resulted in the following '
-                'error:\n\n{err}')
+                f'error:\n\n{err}')
 
         dialog.run()
         dialog.destroy()
