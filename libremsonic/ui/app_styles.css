@@ -5,8 +5,7 @@
 }
 
 #icon-button-box image {
-  margin-left: 2px;
-  margin-right: 2px;
+  margin: 5px 2px;
 }
 
 #icon-button-box label {
@@ -90,6 +89,7 @@
   margin-left: 5px;
   margin-right: 5px;
   margin-top: 1px;
+  margin-bottom: 1px;
 }
 
 #player-controls-bar #song-scrubber {

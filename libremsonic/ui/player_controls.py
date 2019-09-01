@@ -57,22 +57,14 @@ class PlayerControls(Gtk.ActionBar):
         # TODO: it's not correct to use symboloc vs. not symbolic icons for
         # lighter/darker versions of the icon. Fix this by using FG color I
         # think? But then we have to deal with styling, which sucks.
-        icon = Gio.ThemedIcon(name=state.repeat_type.icon)
-        image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
-        self.repeat_button.remove(self.repeat_button.get_child())
-        self.repeat_button.add(image)
-        self.repeat_button.show_all()
+        self.repeat_button.set_icon(state.repeat_type.icon)
 
         # Shuffle button state
         # TODO: it's not correct to use symboloc vs. not symbolic icons for
         # lighter/darker versions of the icon. Fix this by using FG color I
         # think? But then we have to deal with styling, which sucks.
-        icon = Gio.ThemedIcon(name='media-playlist-shuffle'
-                              + ('-symbolic' if state.shuffle_on else ''))
-        image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
-        self.shuffle_button.remove(self.shuffle_button.get_child())
-        self.shuffle_button.add(image)
-        self.shuffle_button.show_all()
+        self.shuffle_button.set_icon('media-playlist-shuffle' +
+                                     ('-symbolic' if state.shuffle_on else ''))
 
         self.song_scrubber.set_sensitive(has_current_song)
         self.prev_button.set_sensitive(has_current_song)
