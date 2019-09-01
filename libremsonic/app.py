@@ -444,7 +444,6 @@ class LibremsonicApp(Gtk.Application):
             uri, stream = CacheManager.get_song_filename_or_stream(
                 song,
                 force_stream=self.state.config.always_stream,
-                format='mp3',
             )
 
             self.state.current_song = song
