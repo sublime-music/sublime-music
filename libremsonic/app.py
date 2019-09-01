@@ -67,9 +67,11 @@ class LibremsonicApp(Gtk.Application):
     def do_startup(self):
         Gtk.Application.do_startup(self)
 
-        def add_action(name: str, fn):
+        def add_action(name: str, fn, parameter_type=None):
             """Registers an action with the application."""
-            action = Gio.SimpleAction.new(name, None)
+            if type(parameter_type) == str:
+                parameter_type = GLib.VariantType(parameter_type)
+            action = Gio.SimpleAction.new(name, parameter_type)
             action.connect('activate', fn)
             self.add_action(action)
 
@@ -83,6 +85,12 @@ class LibremsonicApp(Gtk.Application):
         add_action('prev-track', self.on_prev_track)
         add_action('repeat-press', self.on_repeat_press)
         add_action('shuffle-press', self.on_shuffle_press)
+
+        # Navigation actions.
+        add_action('play-next', self.on_play_next, parameter_type='as')
+        add_action('add-to-queue', self.on_add_to_queue, parameter_type='as')
+        add_action('go-to-album', self.on_go_to_album, parameter_type='s')
+        add_action('go-to-artist', self.on_go_to_artist, parameter_type='s')
 
         add_action('mute-toggle', self.on_mute_toggle)
         add_action(
@@ -208,6 +216,9 @@ class LibremsonicApp(Gtk.Application):
         dialog.destroy()
 
     def on_play_pause(self, *args):
+        if self.state.current_song is None:
+            return
+
         if self.player.song_loaded:
             self.player.toggle_play()
             self.save_play_queue()
@@ -270,6 +281,24 @@ class LibremsonicApp(Gtk.Application):
         self.state.shuffle_on = not self.state.shuffle_on
         self.update_window()
 
+    def on_play_next(self, action, song_ids):
+        # TODO
+        print(song_ids)
+
+    def on_add_to_queue(self, action, song_ids):
+        # TODO
+        print(song_ids)
+
+    def on_go_to_album(self, action, album_id):
+        # TODO
+        self.state.current_tab = 'albums'
+        self.update_window()
+
+    def on_go_to_artist(self, action, artist_id):
+        self.state.current_tab = 'artists'
+        self.state.selected_artist_id = artist_id.get_string()
+        self.update_window()
+
     def on_server_list_changed(self, action, servers):
         self.state.config.servers = servers
         self.state.save()
@@ -292,6 +321,7 @@ class LibremsonicApp(Gtk.Application):
         self.update_window()
 
     def on_stack_change(self, stack, child):
+        self.state.current_tab = stack.get_visible_child_name()
         self.update_window()
 
     def on_song_clicked(self, win, song_id, song_queue, metadata):
@@ -514,6 +544,9 @@ class LibremsonicApp(Gtk.Application):
             lambda f: GLib.idle_add(do_play_song, f.result()), )
 
     def save_play_queue(self):
+        if len(self.state.play_queue) == 0:
+            return
+
         position = self.state.song_progress
         self.last_play_queue_update = position
 

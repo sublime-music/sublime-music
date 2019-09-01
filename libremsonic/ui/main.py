@@ -50,6 +50,8 @@ class MainWindow(Gtk.ApplicationWindow):
             self.connected_to_label.set_markup(
                 f'<span style="italic">Not Connected to a Server</span>')
 
+        self.stack.set_visible_child_name(state.current_tab)
+
         active_panel = self.stack.get_visible_child()
         if hasattr(active_panel, 'update'):
             active_panel.update(state)

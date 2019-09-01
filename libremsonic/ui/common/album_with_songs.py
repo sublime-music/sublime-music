@@ -6,6 +6,7 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GObject, Pango, GLib
 
+from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
 from .icon_button import IconButton
@@ -65,6 +66,7 @@ class AlbumWithSongs(Gtk.Box):
         album_title_and_buttons = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL)
 
+        # TODO: deal with super long-ass titles
         album_title_and_buttons.add(
             Gtk.Label(
                 label=album.get('name', album.get('title')),
@@ -239,7 +241,7 @@ class AlbumWithSongs(Gtk.Box):
         )
 
     def shuffle_btn_clicked(self, btn):
-        rand_idx = randint(0, len(self.album_song_store))
+        rand_idx = randint(0, len(self.album_song_store) - 1)
         song_ids = [x[-1] for x in self.album_song_store]
         self.emit(
             'song-clicked',
@@ -272,6 +274,7 @@ class AlbumWithSongs(Gtk.Box):
     def update_album_songs(
             self,
             album: Union[AlbumWithSongsID3, Child, Directory],
+            state: ApplicationState,
     ):
         new_store = [[
             util.get_cached_status_icon(CacheManager.get_cached_status(song)),

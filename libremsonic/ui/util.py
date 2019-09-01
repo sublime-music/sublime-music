@@ -103,22 +103,6 @@ def show_song_popover(
         show_remove_from_playlist_button: bool = False,
         extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = [],
 ):
-    def on_play_next_click(button):
-        # TODO
-        print('play next click')
-
-    def on_add_to_queue_click(button):
-        # TODO
-        print('add to queue click')
-
-    def on_go_to_album_click(button):
-        # TODO
-        print('go to album click')
-
-    def on_go_to_artist_click(button):
-        # TODO
-        print('go to artist click')
-
     def on_download_songs_click(button):
         CacheManager.batch_download_songs(
             song_ids,
@@ -147,9 +131,13 @@ def show_song_popover(
 
     # Determine if we should enable the download button.
     download_sensitive, remove_download_sensitive = False, False
+    albums, artists = set(), set()
     for song_id in song_ids:
         details = CacheManager.get_song_details(song_id).result()
         status = CacheManager.get_cached_status(details)
+        albums.add(details.albumId)
+        artists.add(details.artistId)
+
         if download_sensitive or status == SongCacheStatus.NOT_CACHED:
             download_sensitive = True
 
@@ -159,18 +147,32 @@ def show_song_popover(
             remove_download_sensitive = True
 
     menu_items = [
-        (Gtk.ModelButton(text='Play next'), on_play_next_click),
-        (Gtk.ModelButton(text='Add to queue'), on_add_to_queue_click),
-        (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
-        (
-            Gtk.ModelButton(text='Go to album', sensitive=len(song_ids) == 1),
-            on_go_to_album_click,
+        Gtk.ModelButton(
+            text='Play next',
+            action_name='app.play-next',
+            action_target=GLib.Variant('as', song_ids),
         ),
-        (
-            Gtk.ModelButton(text='Go to artist', sensitive=len(song_ids) == 1),
-            on_go_to_artist_click,
+        Gtk.ModelButton(
+            text='Add to queue',
+            action_name='app.add-to-queue',
+            action_target=GLib.Variant('as', song_ids),
         ),
-        (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
+        Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
+        Gtk.ModelButton(
+            text='Go to album',
+            action_name='app.go-to-album',
+            action_target=GLib.Variant('s',
+                                       list(albums)[0]),
+            sensitive=len(albums) == 1,
+        ),
+        Gtk.ModelButton(
+            text='Go to artist',
+            action_name='app.go-to-artist',
+            action_target=GLib.Variant('s',
+                                       list(artists)[0]),
+            sensitive=len(artists) == 1,
+        ),
+        Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
         (
             Gtk.ModelButton(
                 text=f"Download {pluralize('song', song_count)}",
@@ -185,23 +187,23 @@ def show_song_popover(
             ),
             on_remove_downloads_click,
         ),
-        (Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), None),
-        (
-            Gtk.ModelButton(
-                text=f"Add {pluralize('song', song_count)} to playlist",
-                menu_name='add-to-playlist',
-            ),
-            None,
+        Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
+        Gtk.ModelButton(
+            text=f"Add {pluralize('song', song_count)} to playlist",
+            menu_name='add-to-playlist',
         ),
         *extra_menu_items,
     ]
 
-    for item, action in menu_items:
-        if action:
-            item.connect('clicked', action)
-        if type(item) == Gtk.ModelButton:
+    for item in menu_items:
+        if type(item) == tuple:
+            el, fn = item
+            el.connect('clicked', fn)
+            el.get_style_context().add_class('menu-button')
+            vbox.pack_start(item[0], False, True, 0)
+        else:
             item.get_style_context().add_class('menu-button')
-        vbox.pack_start(item, False, True, 0)
+            vbox.pack_start(item, False, True, 0)
 
     popover.add(vbox)
 
@@ -237,7 +239,11 @@ def show_song_popover(
     popover.show_all()
 
 
-def async_callback(future_fn, before_download=None, on_failure=None):
+def async_callback(
+        future_fn,
+        before_download=None,
+        on_failure=None,
+):
     """
     Defines the ``async_callback`` decorator.
 
@@ -251,7 +257,7 @@ def async_callback(future_fn, before_download=None, on_failure=None):
     """
     def decorator(callback_fn):
         @functools.wraps(callback_fn)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self, *args, state=None, **kwargs):
             if before_download:
                 on_before_download = (
                     lambda: GLib.idle_add(before_download, self))
@@ -266,7 +272,7 @@ def async_callback(future_fn, before_download=None, on_failure=None):
                         on_failure(self, e)
                     return
 
-                return GLib.idle_add(callback_fn, self, result)
+                return GLib.idle_add(callback_fn, self, result, state)
 
             future: Future = future_fn(
                 *args,

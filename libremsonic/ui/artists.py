@@ -3,7 +3,7 @@ from typing import List, Union, Optional
 import gi
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GObject, Pango
+from gi.repository import Gtk, GObject, Pango, GLib
 
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
@@ -33,13 +33,7 @@ class ArtistsPanel(Gtk.Paned):
     def __init__(self, *args, **kwargs):
         Gtk.Paned.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
 
-        self.selected_artist = None
-
         self.artist_list = ArtistList()
-        self.artist_list.connect(
-            'selection-changed',
-            self.on_list_selection_changed,
-        )
         self.pack1(self.artist_list, False, False)
 
         self.artist_detail_panel = ArtistDetailPanel()
@@ -52,27 +46,13 @@ class ArtistsPanel(Gtk.Paned):
 
     def update(self, state: ApplicationState):
         self.artist_list.update(state)
-        if self.artist_id:
-            self.artist_detail_panel.update(self.artist_id)
-
-    def on_list_selection_changed(self, artist_list, artist):
-        self.artist_id = artist.id
-        self.artist_detail_panel.update(self.artist_id)
+        if state.selected_artist_id:
+            self.artist_detail_panel.update(state.selected_artist_id)
 
 
 class ArtistList(Gtk.Box):
-    __gsignals__ = {
-        'selection-changed': (
-            GObject.SignalFlags.RUN_FIRST,
-            GObject.TYPE_NONE,
-            (object, ),
-        ),
-    }
-
     def __init__(self):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
-
-        self.artist_map = {}
 
         list_actions = Gtk.ActionBar()
 
@@ -93,24 +73,19 @@ class ArtistList(Gtk.Box):
         self.loading_indicator.add(loading_spinner)
         self.list.add(self.loading_indicator)
 
-        self.list.connect('row-activated', self.on_row_activated)
         list_scroll_window.add(self.list)
         self.pack_start(list_scroll_window, True, True, 0)
 
     def update(self, state=None, force=False):
-        self.update_list(force=force)
+        self.update_list(force=force, state=state)
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artists(*a, **k),
         before_download=lambda self: self.loading_indicator.show(),
         on_failure=lambda self, e: self.loading_indicator.hide(),
     )
-    def update_list(self, artists):
-        selected_row = self.list.get_selected_row()
-        selected_artist = None
-        if selected_row:
-            selected_artist = self.artist_map.get(selected_row.get_index())
-
+    def update_list(self, artists, state: ApplicationState):
+        # TODO use a diff here
         # Remove everything
         for row in self.list.get_children()[1:]:
             self.list.remove(row)
@@ -119,9 +94,9 @@ class ArtistList(Gtk.Box):
 
         for i, artist in enumerate(artists):
             # Use i + 1 because of the loading indicator in index 0.
-            if selected_artist and artist.id == selected_artist.id:
+            if (state.selected_artist_id
+                    and artist.id == (state.selected_artist_id or -1)):
                 selected_idx = i + 1
-            self.artist_map[i + 1] = artist
 
             label_text = [f'<b>{util.esc(artist.name)}</b>']
 
@@ -130,7 +105,11 @@ class ArtistList(Gtk.Box):
                 label_text.append('{} {}'.format(
                     album_count, util.pluralize('album', album_count)))
 
-            self.list.add(
+            row = Gtk.ListBoxRow(
+                action_name='app.go-to-artist',
+                action_target=GLib.Variant('s', artist.id),
+            )
+            row.add(
                 Gtk.Label(
                     label='\n'.join(label_text),
                     use_markup=True,
@@ -139,15 +118,15 @@ class ArtistList(Gtk.Box):
                     ellipsize=Pango.EllipsizeMode.END,
                     max_width_chars=30,
                 ))
+            self.list.add(row)
+
         if selected_idx:
             row = self.list.get_row_at_index(selected_idx)
+            # TODO scroll to the row
             self.list.select_row(row)
 
         self.list.show_all()
         self.loading_indicator.hide()
-
-    def on_row_activated(self, listbox, row):
-        self.emit('selection-changed', self.artist_map[row.get_index()])
 
 
 class ArtistDetailPanel(Gtk.Box):
@@ -238,15 +217,15 @@ class ArtistDetailPanel(Gtk.Box):
         self.albums_list = AlbumsListWithSongs()
         self.albums_list.connect(
             'song-clicked',
-            lambda _, song, queue, metadata: self.emit(
-                'song-clicked', song, queue, metadata),
+            lambda _, song, queue, metadata: self.emit('song-clicked', song,
+                                                       queue, metadata),
         )
         artist_info_box.pack_start(self.albums_list, True, True, 0)
 
         self.add(artist_info_box)
 
-    def update(self, album_id):
-        self.update_artist_view(album_id)
+    def update(self, artist_id):
+        self.update_artist_view(artist_id)
 
     def get_model_list_future(self, before_download):
         def do_get_model_list() -> List[Child]:
@@ -261,7 +240,11 @@ class ArtistDetailPanel(Gtk.Box):
         before_download=lambda self: self.artist_artwork.set_loading(True),
         on_failure=lambda self, e: print('fail a', e),
     )
-    def update_artist_view(self, artist: ArtistWithAlbumsID3):
+    def update_artist_view(
+            self,
+            artist: ArtistWithAlbumsID3,
+            state: ApplicationState,
+    ):
         self.artist_id = artist.id
         self.artist_indicator.set_text('ARTIST')
         self.artist_name.set_markup(util.esc(f'<b>{artist.name}</b>'))
@@ -276,7 +259,11 @@ class ArtistDetailPanel(Gtk.Box):
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist_info(*a, **k),
     )
-    def update_artist_info(self, artist_info: ArtistInfo2):
+    def update_artist_info(
+            self,
+            artist_info: ArtistInfo2,
+            state: ApplicationState,
+    ):
         self.artist_bio.set_markup(util.esc(''.join(artist_info.biography)))
 
         if len(artist_info.similarArtist or []) > 0:
@@ -287,9 +274,10 @@ class ArtistDetailPanel(Gtk.Box):
             for artist in artist_info.similarArtist[:5]:
                 self.similar_artists_button_box.add(
                     Gtk.LinkButton(
-                        uri=f'artist://{artist.id}',
                         label=artist.name,
                         name='similar-artist-button',
+                        action_name='app.go-to-artist',
+                        action_target=GLib.Variant('s', artist.id),
                     ))
             self.similar_artists_box.show_all()
         else:
@@ -300,7 +288,11 @@ class ArtistDetailPanel(Gtk.Box):
         before_download=lambda self: self.artist_artwork.set_loading(True),
         on_failure=lambda self, e: self.artist_artwork.set_loading(False),
     )
-    def update_artist_artwork(self, cover_art_filename):
+    def update_artist_artwork(
+            self,
+            cover_art_filename,
+            state: ApplicationState,
+    ):
         self.artist_artwork.set_from_file(cover_art_filename)
         self.artist_artwork.set_loading(False)
 

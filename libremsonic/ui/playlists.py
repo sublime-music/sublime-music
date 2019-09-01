@@ -59,7 +59,6 @@ class PlaylistsPanel(Gtk.Paned):
         playlist_list_actions = Gtk.ActionBar()
 
         self.new_playlist = IconButton(
-            relief=Gtk.ReliefStyle.NONE,
             icon_name='list-add',
             label='New Playlist',
         )
@@ -380,7 +379,7 @@ class PlaylistsPanel(Gtk.Paned):
                   {'force_shuffle_state': False})
 
     def on_shuffle_all_button(self, btn):
-        rand_idx = randint(0, len(self.playlist_song_store))
+        rand_idx = randint(0, len(self.playlist_song_store) - 1)
         self.emit(
             'song-clicked',
             self.playlist_song_store[rand_idx][-1],
@@ -531,7 +530,11 @@ class PlaylistsPanel(Gtk.Paned):
         before_download=lambda self: self.set_playlist_list_loading(True),
         on_failure=lambda self, e: self.set_playlist_list_loading(False),
     )
-    def update_playlist_list(self, playlists: List[PlaylistWithSongs]):
+    def update_playlist_list(
+            self,
+            playlists: List[PlaylistWithSongs],
+            state: ApplicationState,
+    ):
         selected_row = self.playlist_list.get_selected_row()
         selected_playlist = None
         if selected_row:
@@ -564,7 +567,7 @@ class PlaylistsPanel(Gtk.Paned):
         on_failure=lambda self, e: (self.set_playlist_view_loading(False) or
                                     self.playlist_artwork.set_loading(False)),
     )
-    def update_playlist_view(self, playlist):
+    def update_playlist_view(self, playlist, state: ApplicationState):
         # Update the Playlist Info panel
         self.update_playlist_artwork(playlist.coverArt)
         self.playlist_indicator.set_markup('PLAYLIST')
@@ -583,7 +586,7 @@ class PlaylistsPanel(Gtk.Paned):
     @util.async_callback(
         lambda *a, **k: CacheManager.get_playlist(*a, **k),
     )
-    def update_playlist_song_list(self, playlist):
+    def update_playlist_song_list(self, playlist, state: ApplicationState):
         # Update the song list model. This requires some fancy diffing to
         # update the list.
         self.editing_playlist_song_list = True
@@ -607,7 +610,11 @@ class PlaylistsPanel(Gtk.Paned):
         before_download=lambda self: self.playlist_artwork.set_loading(True),
         on_failure=lambda self, e: self.playlist_artwork.set_loading(False),
     )
-    def update_playlist_artwork(self, cover_art_filename):
+    def update_playlist_artwork(
+            self,
+            cover_art_filename,
+            state: ApplicationState,
+    ):
         self.playlist_artwork.set_from_file(cover_art_filename)
         self.playlist_artwork.set_loading(False)
 
@@ -615,7 +622,7 @@ class PlaylistsPanel(Gtk.Paned):
         lambda *a, **k: CacheManager.get_playlist(*a, **k),
         # TODO make loading here
     )
-    def update_playlist_order(self, playlist):
+    def update_playlist_order(self, playlist, state: ApplicationState):
         CacheManager.update_playlist(
             playlist_id=playlist.id,
             song_index_to_remove=list(range(playlist.songCount)),
