@@ -6,7 +6,7 @@ from gi.repository import Gtk, GObject
 
 from libremsonic.server import Server
 from libremsonic.config import ServerConfiguration
-from libremsonic.ui.common import EditFormDialog
+from libremsonic.ui.common import EditFormDialog, IconButton
 
 
 class EditServerDialog(EditFormDialog):
@@ -66,7 +66,7 @@ class EditServerDialog(EditFormDialog):
             )
             dialog.format_secondary_markup(
                 f'Connection to {server_address} resulted in the following '
-                'error:\n\n{err}')
+                f'error:\n\n{err}')
 
         dialog.run()
         dialog.destroy()
@@ -94,7 +94,7 @@ class ConfigureServersDialog(Gtk.Dialog):
 
         self.server_configs = config.servers
         self.selected_server_index = config.current_server
-        self.set_default_size(450, 300)
+        self.set_default_size(500, 300)
 
         # Flow box to hold the server list and the buttons.
         flowbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -110,15 +110,18 @@ class ConfigureServersDialog(Gtk.Dialog):
         # Add all of the buttons to the button box.
         self.buttons = [
             # TODO get good icons for these
-            (Gtk.Button(label='Edit...'),
-             lambda e: self.on_edit_clicked(e, False), 'start', True),
-            (Gtk.Button(label='Add...'),
+            (IconButton('document-edit-symbolic', label='Edit...',
+                        relief=True), lambda e: self.on_edit_clicked(e, False),
+             'start', True),
+            (IconButton('list-add', label='Add...', relief=True),
              lambda e: self.on_edit_clicked(e, True), 'start', False),
-            (Gtk.Button(label='Remove'), self.on_remove_clicked, 'start',
-             True),
-            (Gtk.Button(label='Close'), lambda _: self.close(), 'end', False),
-            (Gtk.Button(label='Connect'), self.on_connect_clicked, 'end',
-             True),
+            (IconButton('list-remove', label='Remove',
+                        relief=True), self.on_remove_clicked, 'start', True),
+            (IconButton('window-close', label='Close',
+                        relief=True), lambda _: self.close(), 'end', False),
+            (IconButton('network-transmit-receive',
+                        label='Connect',
+                        relief=True), self.on_connect_clicked, 'end', True),
         ]
         for button_cfg in self.buttons:
             btn, action, pack_end, requires_selection = button_cfg

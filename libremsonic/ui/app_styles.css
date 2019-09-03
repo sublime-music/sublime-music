@@ -4,6 +4,15 @@
   margin-bottom: 10px;
 }
 
+#icon-button-box image {
+  margin: 5px 2px;
+}
+
+#icon-button-box label {
+  margin-left: 5px;
+  margin-right: 3px;
+}
+
 /* ********** Playlist ********** */
 #playlist-list-listbox row {
   margin: 0;
@@ -58,6 +67,10 @@
   margin: -10px 0 0 10px;
 }
 
+#playlist-play-shuffle-buttons {
+  margin-bottom: 10px;
+}
+
 /* ********** Playback Controls ********** */
 #player-controls-album-artwork {
   min-height: 70px;
@@ -73,8 +86,10 @@
 
 /* Make the play icon look centered. */
 #player-controls-bar #play-button image {
-  margin-left: 1px;
+  margin-left: 5px;
+  margin-right: 5px;
   margin-top: 1px;
+  margin-bottom: 1px;
 }
 
 #player-controls-bar #song-scrubber {

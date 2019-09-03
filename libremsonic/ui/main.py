@@ -12,8 +12,8 @@ from libremsonic.state_manager import ApplicationState
 class MainWindow(Gtk.ApplicationWindow):
     """Defines the main window for LibremSonic."""
     __gsignals__ = {
-        'song-clicked':
-        (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str, object)),
+        'song-clicked': (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE,
+                         (str, object, object)),
     }
 
     def __init__(self, *args, **kwargs):
@@ -50,14 +50,16 @@ class MainWindow(Gtk.ApplicationWindow):
             self.connected_to_label.set_markup(
                 f'<span style="italic">Not Connected to a Server</span>')
 
+        self.stack.set_visible_child_name(state.current_tab)
+
         active_panel = self.stack.get_visible_child()
         if hasattr(active_panel, 'update'):
             active_panel.update(state)
 
         self.player_controls.update(state)
 
-    def on_song_clicked(self, panel, song, queue):
-        self.emit('song-clicked', song, queue)
+    def on_song_clicked(self, panel, song, queue, metadata):
+        self.emit('song-clicked', song, queue, metadata)
 
     def create_stack(self, **kwargs):
         stack = Gtk.Stack()

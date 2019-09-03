@@ -253,6 +253,8 @@ class ChromecastPlayer(Player):
         # Set host_ip
         # TODO should have a mechanism to update this. Maybe it should be
         # determined every time we try and play a song.
+        # TODO does not work properyfly when on VPNs when the DNS is piped over
+        # the VPN tunnel.
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(('8.8.8.8', 80))
@@ -337,6 +339,7 @@ class ChromecastPlayer(Player):
         cover_art_url = CacheManager.get_cover_art_url(song.id, 1000)
         self.chromecast.media_controller.play_media(
             file_or_url,
+            # Just pretend that whatever we send it is mp3, even if it isn't.
             'audio/mp3',
             current_time=progress,
             title=song.title,

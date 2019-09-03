@@ -67,9 +67,11 @@ class LibremsonicApp(Gtk.Application):
     def do_startup(self):
         Gtk.Application.do_startup(self)
 
-        def add_action(name: str, fn):
+        def add_action(name: str, fn, parameter_type=None):
             """Registers an action with the application."""
-            action = Gio.SimpleAction.new(name, None)
+            if type(parameter_type) == str:
+                parameter_type = GLib.VariantType(parameter_type)
+            action = Gio.SimpleAction.new(name, parameter_type)
             action.connect('activate', fn)
             self.add_action(action)
 
@@ -83,6 +85,12 @@ class LibremsonicApp(Gtk.Application):
         add_action('prev-track', self.on_prev_track)
         add_action('repeat-press', self.on_repeat_press)
         add_action('shuffle-press', self.on_shuffle_press)
+
+        # Navigation actions.
+        add_action('play-next', self.on_play_next, parameter_type='as')
+        add_action('add-to-queue', self.on_add_to_queue, parameter_type='as')
+        add_action('go-to-album', self.on_go_to_album, parameter_type='s')
+        add_action('go-to-artist', self.on_go_to_artist, parameter_type='s')
 
         add_action('mute-toggle', self.on_mute_toggle)
         add_action(
@@ -135,6 +143,7 @@ class LibremsonicApp(Gtk.Application):
 
         self.update_window()
 
+        # Configure the players
         self.last_play_queue_update = 0
 
         def time_observer(value):
@@ -207,6 +216,9 @@ class LibremsonicApp(Gtk.Application):
         dialog.destroy()
 
     def on_play_pause(self, *args):
+        if self.state.current_song is None:
+            return
+
         if self.player.song_loaded:
             self.player.toggle_play()
             self.save_play_queue()
@@ -269,6 +281,34 @@ class LibremsonicApp(Gtk.Application):
         self.state.shuffle_on = not self.state.shuffle_on
         self.update_window()
 
+    def on_play_next(self, action, song_ids):
+        if self.state.current_song is None:
+            insert_at = 0
+        else:
+            insert_at = (
+                self.state.play_queue.index(self.state.current_song.id) + 1)
+
+        self.state.play_queue = (self.state.play_queue[:insert_at]
+                                 + list(song_ids)
+                                 + self.state.play_queue[insert_at:])
+        self.state.old_play_queue.extend(song_ids)
+        self.update_window()
+
+    def on_add_to_queue(self, action, song_ids):
+        self.state.play_queue.extend(song_ids)
+        self.state.old_play_queue.extend(song_ids)
+        self.update_window()
+
+    def on_go_to_album(self, action, album_id):
+        # TODO
+        self.state.current_tab = 'albums'
+        self.update_window()
+
+    def on_go_to_artist(self, action, artist_id):
+        self.state.current_tab = 'artists'
+        self.state.selected_artist_id = artist_id.get_string()
+        self.update_window()
+
     def on_server_list_changed(self, action, servers):
         self.state.config.servers = servers
         self.state.save()
@@ -278,11 +318,12 @@ class LibremsonicApp(Gtk.Application):
         self.state.save()
 
         self.reset_cache_manager()
+        self.update_window()
 
     def reset_cache_manager(self):
         CacheManager.reset(
             self.state.config,
-            self.state.config.servers[self.state.config.current_server]
+            self.current_server
             if self.state.config.current_server >= 0 else None,
         )
 
@@ -290,12 +331,16 @@ class LibremsonicApp(Gtk.Application):
         self.update_window()
 
     def on_stack_change(self, stack, child):
+        self.state.current_tab = stack.get_visible_child_name()
         self.update_window()
 
-    def on_song_clicked(self, win, song_id, song_queue):
+    def on_song_clicked(self, win, song_id, song_queue, metadata):
         # Reset the play queue so that we don't ever revert back to the
         # previous one.
         old_play_queue = song_queue.copy()
+
+        if metadata.get('force_shuffle_state') is not None:
+            self.state.shuffle_on = metadata['force_shuffle_state']
 
         # If shuffle is enabled, then shuffle the playlist.
         if self.state.shuffle_on:
@@ -383,6 +428,11 @@ class LibremsonicApp(Gtk.Application):
         self.save_play_queue()
         CacheManager.shutdown()
 
+    # ########## PROPERTIES ########## #
+    @property
+    def current_server(self):
+        return self.state.config.servers[self.state.config.current_server]
+
     # ########## HELPER METHODS ########## #
     def show_configure_servers_dialog(self):
         """Show the Connect to Server dialog."""
@@ -435,7 +485,6 @@ class LibremsonicApp(Gtk.Application):
             uri, stream = CacheManager.get_song_filename_or_stream(
                 song,
                 force_stream=self.state.config.always_stream,
-                format='mp3',
             )
 
             self.state.current_song = song
@@ -448,7 +497,10 @@ class LibremsonicApp(Gtk.Application):
                 self.player.reset()
                 self.state.song_progress = 0
 
-            def on_song_download_complete(_):
+            def on_song_download_complete(song_id):
+                if self.state.current_song != song.id:
+                    return
+
                 # Switch to the local media if the player can hotswap (MPV can,
                 # Chromecast cannot hotswap without lag).
                 if self.player.can_hotswap_source:
@@ -494,18 +546,21 @@ class LibremsonicApp(Gtk.Application):
                         self.update_window),
                 )
 
+            if self.current_server.sync_enabled:
+                CacheManager.scrobble(song.id)
+
         song_details_future = CacheManager.get_song_details(song)
         song_details_future.add_done_callback(
             lambda f: GLib.idle_add(do_play_song, f.result()), )
 
     def save_play_queue(self):
+        if len(self.state.play_queue) == 0:
+            return
+
         position = self.state.song_progress
         self.last_play_queue_update = position
 
-        current_server = self.state.config.current_server
-        current_server = self.state.config.servers[current_server]
-
-        if current_server.sync_enabled:
+        if self.current_server.sync_enabled:
             CacheManager.executor.submit(
                 CacheManager.save_play_queue,
                 id=self.state.play_queue,

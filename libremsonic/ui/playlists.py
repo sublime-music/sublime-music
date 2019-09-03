@@ -1,4 +1,5 @@
 from functools import lru_cache
+from random import randint
 from typing import List, OrderedDict
 
 from fuzzywuzzy import process
@@ -11,7 +12,7 @@ from libremsonic.server.api_objects import PlaylistWithSongs
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
-from libremsonic.ui.common import EditFormDialog, SpinnerImage
+from libremsonic.ui.common import EditFormDialog, IconButton, SpinnerImage
 
 
 class EditPlaylistDialog(EditFormDialog):
@@ -38,8 +39,8 @@ class EditPlaylistDialog(EditFormDialog):
 class PlaylistsPanel(Gtk.Paned):
     """Defines the playlists panel."""
     __gsignals__ = {
-        'song-clicked':
-        (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str, object)),
+        'song-clicked': (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE,
+                         (str, object, object)),
     }
 
     playlist_map: OrderedDict[int, PlaylistWithSongs] = {}
@@ -57,17 +58,14 @@ class PlaylistsPanel(Gtk.Paned):
 
         playlist_list_actions = Gtk.ActionBar()
 
-        self.new_playlist = Gtk.Button(relief=Gtk.ReliefStyle.NONE)
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        add_icon = Gio.ThemedIcon(name='list-add')
-        image = Gtk.Image.new_from_gicon(add_icon, Gtk.IconSize.LARGE_TOOLBAR)
-        box.add(image)
-        box.add(Gtk.Label(label='New Playlist', margin=5))
-        self.new_playlist.add(box)
+        self.new_playlist = IconButton(
+            icon_name='list-add',
+            label='New Playlist',
+        )
         self.new_playlist.connect('clicked', self.on_new_playlist_clicked)
         playlist_list_actions.pack_start(self.new_playlist)
 
-        list_refresh_button = util.button_with_icon('view-refresh')
+        list_refresh_button = IconButton('view-refresh')
         list_refresh_button.connect('clicked', self.on_list_refresh_click)
         playlist_list_actions.pack_end(list_refresh_button)
 
@@ -150,18 +148,18 @@ class PlaylistsPanel(Gtk.Paned):
         self.playlist_action_buttons = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL)
 
-        view_refresh_button = util.button_with_icon('view-refresh-symbolic')
+        view_refresh_button = IconButton('view-refresh-symbolic')
         view_refresh_button.connect('clicked', self.on_view_refresh_click)
         self.playlist_action_buttons.pack_end(view_refresh_button, False,
                                               False, 5)
 
-        playlist_edit_button = util.button_with_icon('document-edit-symbolic')
+        playlist_edit_button = IconButton('document-edit-symbolic')
         playlist_edit_button.connect('clicked',
                                      self.on_playlist_edit_button_click)
         self.playlist_action_buttons.pack_end(playlist_edit_button, False,
                                               False, 5)
 
-        download_all_button = util.button_with_icon('folder-download-symbolic')
+        download_all_button = IconButton('folder-download-symbolic')
         download_all_button.connect(
             'clicked', self.on_playlist_list_download_all_button_click)
         self.playlist_action_buttons.pack_end(download_all_button, False,
@@ -183,6 +181,29 @@ class PlaylistsPanel(Gtk.Paned):
 
         self.playlist_stats = self.make_label(name='playlist-stats')
         playlist_details_box.add(self.playlist_stats)
+
+        self.play_shuffle_buttons = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            name='playlist-play-shuffle-buttons',
+        )
+
+        play_button = IconButton(
+            'media-playback-start-symbolic',
+            label='Play All',
+            relief=True,
+        )
+        play_button.connect('clicked', self.on_play_all_clicked)
+        self.play_shuffle_buttons.pack_start(play_button, False, False, 0)
+
+        shuffle_button = IconButton(
+            'media-playlist-shuffle-symbolic',
+            label='Shuffle All',
+            relief=True,
+        )
+        shuffle_button.connect('clicked', self.on_shuffle_all_button)
+        self.play_shuffle_buttons.pack_start(shuffle_button, False, False, 5)
+
+        playlist_details_box.add(self.play_shuffle_buttons)
 
         self.big_info_panel.pack_start(playlist_details_box, True, True, 10)
 
@@ -351,11 +372,29 @@ class PlaylistsPanel(Gtk.Paned):
             self.playlist_list.get_selected_row().get_index()]
         self.update_playlist_view(playlist.id, force=True)
 
+    def on_play_all_clicked(self, btn):
+        song_id = self.playlist_song_store[0][-1]
+        self.emit('song-clicked', song_id,
+                  [m[-1] for m in self.playlist_song_store],
+                  {'force_shuffle_state': False})
+
+    def on_shuffle_all_button(self, btn):
+        rand_idx = randint(0, len(self.playlist_song_store) - 1)
+        self.emit(
+            'song-clicked',
+            self.playlist_song_store[rand_idx][-1],
+            [m[-1] for m in self.playlist_song_store],
+            {'force_shuffle_state': True},
+        )
+
     def on_song_activated(self, treeview, idx, column):
         # The song ID is in the last column of the model.
-        song_id = self.playlist_song_store[idx][-1]
-        self.emit('song-clicked', song_id,
-                  [m[-1] for m in self.playlist_song_store])
+        self.emit(
+            'song-clicked',
+            self.playlist_song_store[idx][-1],
+            [m[-1] for m in self.playlist_song_store],
+            {},
+        )
 
     def on_song_button_press(self, tree, event):
         if event.button == 3:  # Right click
@@ -456,8 +495,10 @@ class PlaylistsPanel(Gtk.Paned):
             playlist_id = self.playlist_map[selected.get_index()].id
             self.update_playlist_view(playlist_id)
             self.playlist_action_buttons.show()
+            self.play_shuffle_buttons.show()
         else:
             self.playlist_action_buttons.hide()
+            self.play_shuffle_buttons.hide()
 
         self.playlist_songs.set_headers_visible(state.config.show_headers)
 
@@ -489,7 +530,11 @@ class PlaylistsPanel(Gtk.Paned):
         before_download=lambda self: self.set_playlist_list_loading(True),
         on_failure=lambda self, e: self.set_playlist_list_loading(False),
     )
-    def update_playlist_list(self, playlists: List[PlaylistWithSongs]):
+    def update_playlist_list(
+            self,
+            playlists: List[PlaylistWithSongs],
+            state: ApplicationState,
+    ):
         selected_row = self.playlist_list.get_selected_row()
         selected_playlist = None
         if selected_row:
@@ -522,7 +567,7 @@ class PlaylistsPanel(Gtk.Paned):
         on_failure=lambda self, e: (self.set_playlist_view_loading(False) or
                                     self.playlist_artwork.set_loading(False)),
     )
-    def update_playlist_view(self, playlist):
+    def update_playlist_view(self, playlist, state: ApplicationState):
         # Update the Playlist Info panel
         self.update_playlist_artwork(playlist.coverArt)
         self.playlist_indicator.set_markup('PLAYLIST')
@@ -536,11 +581,12 @@ class PlaylistsPanel(Gtk.Paned):
 
         self.update_playlist_song_list(playlist.id)
         self.playlist_action_buttons.show()
+        self.play_shuffle_buttons.show()
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_playlist(*a, **k),
     )
-    def update_playlist_song_list(self, playlist):
+    def update_playlist_song_list(self, playlist, state: ApplicationState):
         # Update the song list model. This requires some fancy diffing to
         # update the list.
         self.editing_playlist_song_list = True
@@ -564,7 +610,11 @@ class PlaylistsPanel(Gtk.Paned):
         before_download=lambda self: self.playlist_artwork.set_loading(True),
         on_failure=lambda self, e: self.playlist_artwork.set_loading(False),
     )
-    def update_playlist_artwork(self, cover_art_filename):
+    def update_playlist_artwork(
+            self,
+            cover_art_filename,
+            state: ApplicationState,
+    ):
         self.playlist_artwork.set_from_file(cover_art_filename)
         self.playlist_artwork.set_loading(False)
 
@@ -572,7 +622,7 @@ class PlaylistsPanel(Gtk.Paned):
         lambda *a, **k: CacheManager.get_playlist(*a, **k),
         # TODO make loading here
     )
-    def update_playlist_order(self, playlist):
+    def update_playlist_order(self, playlist, state: ApplicationState):
         CacheManager.update_playlist(
             playlist_id=playlist.id,
             song_index_to_remove=list(range(playlist.songCount)),

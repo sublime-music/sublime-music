@@ -1,12 +1,15 @@
 from typing import Union
+from random import randint
 
 import gi
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GObject, Pango, GLib
 
+from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
+from .icon_button import IconButton
 from .spinner_image import SpinnerImage
 
 from libremsonic.server.api_objects import (
@@ -26,7 +29,7 @@ class AlbumWithSongs(Gtk.Box):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object),
+            (str, object, object),
         ),
     }
 
@@ -60,12 +63,43 @@ class AlbumWithSongs(Gtk.Box):
             lambda f: GLib.idle_add(cover_art_future_done, f))
 
         album_details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        album_details.add(
+        album_title_and_buttons = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL)
+
+        # TODO: deal with super long-ass titles
+        album_title_and_buttons.add(
             Gtk.Label(
                 label=album.get('name', album.get('title')),
                 name='artist-album-list-album-name',
                 halign=Gtk.Align.START,
             ))
+
+        self.play_btn = IconButton('media-playback-start-symbolic',
+                                   sensitive=False)
+        self.play_btn.connect('clicked', self.play_btn_clicked)
+        album_title_and_buttons.pack_start(self.play_btn, False, False, 5)
+
+        self.shuffle_btn = IconButton('media-playlist-shuffle-symbolic',
+                                      sensitive=False)
+        self.shuffle_btn.connect('clicked', self.shuffle_btn_clicked)
+        album_title_and_buttons.pack_start(self.shuffle_btn, False, False, 5)
+
+        self.play_next_btn = IconButton('go-top-symbolic',
+                                        action_name='app.play-next')
+        album_title_and_buttons.pack_start(self.play_next_btn, False, False, 5)
+
+        self.add_to_queue_btn = IconButton('go-jump-symbolic',
+                                           action_name='app.add-to-queue')
+        album_title_and_buttons.pack_start(self.add_to_queue_btn, False, False,
+                                           5)
+
+        self.download_all_btn = IconButton('folder-download-symbolic',
+                                           sensitive=False)
+        self.download_all_btn.connect('clicked', self.on_download_all_click)
+        album_title_and_buttons.pack_end(self.download_all_btn, False, False,
+                                         5)
+
+        album_details.add(album_title_and_buttons)
 
         stats = [
             album.artist if show_artist_name else None,
@@ -144,6 +178,8 @@ class AlbumWithSongs(Gtk.Box):
 
         self.update_album_songs(album.id)
 
+    # Event Handlers
+    # =========================================================================
     def on_song_selection_change(self, event):
         if not self.album_songs.has_focus():
             self.emit('song-selected')
@@ -152,7 +188,7 @@ class AlbumWithSongs(Gtk.Box):
         # The song ID is in the last column of the model.
         song_id = self.album_song_store[idx][-1]
         self.emit('song-clicked', song_id,
-                  [m[-1] for m in self.album_song_store])
+                  [m[-1] for m in self.album_song_store], {})
 
     def on_song_button_press(self, tree, event):
         if event.button == 3:  # Right click
@@ -192,6 +228,34 @@ class AlbumWithSongs(Gtk.Box):
             if not allow_deselect:
                 return True
 
+    def on_download_all_click(self, btn):
+        CacheManager.batch_download_songs(
+            [x[-1] for x in self.album_song_store],
+            before_download=self.update,
+            on_song_download_complete=lambda x: self.update(),
+        )
+
+    def play_btn_clicked(self, btn):
+        song_ids = [x[-1] for x in self.album_song_store]
+        self.emit(
+            'song-clicked',
+            song_ids[0],
+            song_ids,
+            {'force_shuffle_state': False},
+        )
+
+    def shuffle_btn_clicked(self, btn):
+        rand_idx = randint(0, len(self.album_song_store) - 1)
+        song_ids = [x[-1] for x in self.album_song_store]
+        self.emit(
+            'song-clicked',
+            song_ids[rand_idx],
+            song_ids,
+            {'force_shuffle_state': True},
+        )
+
+    # Helper Methods
+    # =========================================================================
     def deselect_all(self):
         self.album_songs.get_selection().unselect_all()
 
@@ -206,13 +270,24 @@ class AlbumWithSongs(Gtk.Box):
     def update_album_songs(
             self,
             album: Union[AlbumWithSongsID3, Child, Directory],
+            state: ApplicationState,
     ):
         new_store = [[
             util.get_cached_status_icon(CacheManager.get_cached_status(song)),
             util.esc(song.title),
             util.format_song_duration(song.duration),
             song.id,
-        ] for song in album.get('child', album.get('song', []))]
+        ] for song in (album.get('child') or album.get('song') or [])]
+
+        song_ids = [song[-1] for song in new_store]
+
+        self.play_btn.set_sensitive(True)
+        self.shuffle_btn.set_sensitive(True)
+        self.play_next_btn.set_action_target_value(GLib.Variant(
+            'as', song_ids))
+        self.add_to_queue_btn.set_action_target_value(
+            GLib.Variant('as', song_ids))
+        self.download_all_btn.set_sensitive(True)
 
         util.diff_store(self.album_song_store, new_store)
         self.loading_indicator.hide()

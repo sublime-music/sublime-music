@@ -1,5 +1,4 @@
 import gi
-import threading
 from typing import Optional, Union
 
 gi.require_version('Gtk', '3.0')
@@ -8,7 +7,7 @@ from gi.repository import Gtk, GObject, GLib
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
 from libremsonic.ui import util
-from libremsonic.ui.common import AlbumWithSongs, CoverArtGrid
+from libremsonic.ui.common import AlbumWithSongs, IconButton, CoverArtGrid
 
 from libremsonic.server.api_objects import Child, AlbumWithSongsID3
 
@@ -20,7 +19,7 @@ class AlbumsPanel(Gtk.Box):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object),
+            (str, object, object),
         ),
     }
 
@@ -84,7 +83,7 @@ class AlbumsPanel(Gtk.Box):
         self.to_year_entry.connect('changed', self.on_year_changed)
         actionbar.pack_start(self.to_year_entry)
 
-        refresh = util.button_with_icon('view-refresh')
+        refresh = IconButton('view-refresh')
         refresh.connect('clicked', lambda *a: self.update(force=True))
         actionbar.pack_end(refresh)
 
@@ -94,7 +93,8 @@ class AlbumsPanel(Gtk.Box):
         self.grid = AlbumsGrid()
         self.grid.connect(
             'song-clicked',
-            lambda _, song, queue: self.emit('song-clicked', song, queue),
+            lambda _, song, queue, metadata: self.emit('song-clicked', song,
+                                                       queue, metadata),
         )
         scrolled_window.add(self.grid)
         self.add(scrolled_window)
@@ -124,6 +124,7 @@ class AlbumsPanel(Gtk.Box):
                 model.append((genre.value, genre.value))
 
             self.populating_genre_combo = False
+            # TODO Get this from state
             self.genre_combo.set_active_id(self.currently_active_genre)
 
         genres_future = CacheManager.get_genres()
