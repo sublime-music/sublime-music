@@ -227,6 +227,8 @@ class CoverArtGrid(Gtk.ScrolledWindow):
                 self.grid_top.get_child_at_index(
                     self.selected_list_store_index))
             self.detail_box.show()
+            # TODO scroll so that the grid_top is visible, and the detail_box
+            # is visible, with preference to the grid_top.
         else:
             self.grid_top.unselect_all()
             self.detail_box.hide()
