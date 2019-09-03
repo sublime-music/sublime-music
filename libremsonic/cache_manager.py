@@ -308,6 +308,12 @@ class CacheManager(metaclass=Singleton):
 
             return CacheManager.executor.submit(do_get_playlist)
 
+        def create_playlist(self, name: str) -> Future:
+            def do_create_playlist():
+                self.server.create_playlist(name=name)
+
+            return CacheManager.executor.submit(do_create_playlist)
+
         def update_playlist(self, playlist_id, *args, **kwargs):
             self.server.update_playlist(playlist_id, *args, **kwargs)
             with self.cache_lock:

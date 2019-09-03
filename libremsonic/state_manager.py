@@ -51,7 +51,9 @@ class ApplicationState:
     song_progress: float = 0
     current_device: str = 'this device'
     current_tab: str = 'albums'
+    selected_album_id: str = None
     selected_artist_id: str = None
+    selected_playlist_id: str = None
 
     def to_json(self):
         current_song = (self.current_song.id if
@@ -68,7 +70,10 @@ class ApplicationState:
             'song_progress': getattr(self, 'song_progress', None),
             'current_device': getattr(self, 'current_device', 'this device'),
             'current_tab': getattr(self, 'current_tab', 'albums'),
+            'selected_album_id': getattr(self, 'selected_album_id', None),
             'selected_artist_id': getattr(self, 'selected_artist_id', None),
+            'selected_playlist_id': getattr(self, 'selected_playlist_id',
+                                            None),
         }
 
     def load_from_json(self, json_object):
@@ -88,7 +93,10 @@ class ApplicationState:
         self.song_progress = json_object.get('song_progress', 0.0)
         self.current_device = json_object.get('current_device', 'this device')
         self.current_tab = json_object.get('current_tab', 'albums')
+        self.selected_album_id = json_object.get('selected_album_id', None)
         self.selected_artist_id = json_object.get('selected_artist_id', None)
+        self.selected_playlist_id = json_object.get('selected_playlist_id',
+                                                    None)
 
     def load(self):
         self.config = self.get_config(self.config_file)

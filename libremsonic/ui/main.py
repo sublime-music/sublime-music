@@ -1,11 +1,8 @@
-from typing import Optional
-
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, GObject
 
 from . import albums, artists, playlists, player_controls
-from libremsonic.server import Server
 from libremsonic.state_manager import ApplicationState
 
 
@@ -58,13 +55,11 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self.player_controls.update(state)
 
-    def on_song_clicked(self, panel, song, queue, metadata):
-        self.emit('song-clicked', song, queue, metadata)
-
     def create_stack(self, **kwargs):
         stack = Gtk.Stack()
         for name, child in kwargs.items():
-            child.connect('song-clicked', self.on_song_clicked)
+            child.connect('song-clicked',
+                          lambda _, *args: self.emit('song-clicked', *args))
             stack.add_titled(child, name.lower(), name)
         return stack
 
