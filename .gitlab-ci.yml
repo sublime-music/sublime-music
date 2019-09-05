@@ -1,0 +1,5 @@
+build_flatpak:
+    image: registry.gitlab.com/robozman/libremsonic/libremsonic/build:latest
+    script:
+      - cd flatpak
+      - ./flatpak_build.sh
