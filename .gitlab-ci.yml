@@ -1,3 +1,7 @@
+variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+
 build_flatpak:
     image: registry.gitlab.com/robozman/libremsonic/libremsonic/build:latest
     script:
