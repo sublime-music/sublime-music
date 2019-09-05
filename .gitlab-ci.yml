@@ -7,3 +7,7 @@ build_flatpak:
     script:
       - cd flatpak
       - ./flatpak_build.sh
+    artifacts:
+      name: "libremsonic-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
+      paths:
+        - flatpak/libremsonic.flatpak
