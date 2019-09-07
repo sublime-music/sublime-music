@@ -16,24 +16,29 @@ from libremsonic.ui.common import EditFormDialog, IconButton, SpinnerImage
 
 
 class EditPlaylistDialog(EditFormDialog):
-    __gsignals__ = {
-        'delete-playlist':
-        (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, ()),
-    }
-
     entity_name: str = 'Playlist'
     initial_size = (350, 120)
     text_fields = [('Name', 'name', False), ('Comment', 'comment', False)]
     boolean_fields = [('Public', 'public')]
 
-    def __init__(self, *args, **kwargs):
-        delete_playlist = Gtk.Button(label='Delete Playlist')
-        delete_playlist.connect('clicked', self.on_delete_playlist_click)
-        self.extra_buttons = [delete_playlist]
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, playlist_id=None, **kwargs):
+        delete_playlist = Gtk.Button(
+            label='Delete Playlist',
+            action_name='app.delete-playlist',
+            action_target=GLib.Variant('s', playlist_id),
+        )
 
-    def on_delete_playlist_click(self, event):
-        self.emit('delete-playlist')
+        def on_delete_playlist(e):
+            # Delete the playlists and invalidate caches.
+            CacheManager.delete_playlist(playlist_id)
+            CacheManager.delete_cached_cover_art(playlist_id)
+            CacheManager.invalidate_playlists_cache()
+            self.close()
+
+        delete_playlist.connect('clicked', on_delete_playlist)
+
+        self.extra_buttons = [(delete_playlist, Gtk.ResponseType.DELETE_EVENT)]
+        super().__init__(*args, **kwargs)
 
 
 class PlaylistsPanel(Gtk.Paned):
@@ -503,14 +508,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
     def on_playlist_edit_button_click(self, button):
         dialog = EditPlaylistDialog(
             self.get_toplevel(),
-            CacheManager.get_playlist(self.playlist_id).result())
-
-        def on_delete_playlist(e):
-            CacheManager.delete_playlist(self.playlist_id)
-            dialog.destroy()
-            self.update_playlist_view(force=True)
-
-        dialog.connect('delete-playlist', on_delete_playlist)
+            CacheManager.get_playlist(self.playlist_id).result(),
+            playlist_id=self.playlist_id,
+        )
 
         result = dialog.run()
         if result == Gtk.ResponseType.OK:
@@ -521,9 +521,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 public=dialog.data['public'].get_active(),
             )
 
-            # TODO
-            # cover_art_filename = f'cover_art/{playlist.coverArt}_*'
-            # CacheManager.delete_cached(cover_art_filename)
+            # Invalidate the cover art cache.
+            CacheManager.delete_cached_cover_art(playlist.id)
 
             self.update_playlist_view(self.playlist_id, force=True)
         dialog.destroy()

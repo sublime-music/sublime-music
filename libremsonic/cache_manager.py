@@ -250,12 +250,12 @@ class CacheManager(metaclass=Singleton):
 
             return str(abs_path)
 
-        def delete_cached(self, relative_path: Union[Path, str]):
-            """
-            :param relative_path: The path to the cached element to delete.
-                Note that this can be a globed path.
-            """
+        def delete_cached_cover_art(self, id: int):
+            tag = 'tag_' if self.browse_by_tags else ''
+            relative_path = f'cover_art/{tag}{id}_*'
+
             abs_path = self.calculate_abs_path(relative_path)
+
             for path in glob.glob(str(abs_path)):
                 Path(path).unlink()
 
@@ -274,6 +274,14 @@ class CacheManager(metaclass=Singleton):
                 return self.cache['playlists']
 
             return CacheManager.executor.submit(do_get_playlists)
+
+        def invalidate_playlists_cache(self):
+            if not self.cache.get('playlists'):
+                return
+
+            with self.cache_lock:
+                self.cache['playlists'] = []
+            self.save_cache_info()
 
         def get_playlist(
                 self,
@@ -301,8 +309,7 @@ class CacheManager(metaclass=Singleton):
                 # Invalidate the cached photo if we are forcing a retrieval
                 # from the server.
                 if force:
-                    self.delete_cached(
-                        f'cover_art/{playlist_details.coverArt}_*')
+                    self.delete_cached_cover_art(playlist.id)
 
                 return playlist_details
 
