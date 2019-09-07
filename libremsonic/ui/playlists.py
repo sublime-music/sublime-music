@@ -508,7 +508,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         def on_delete_playlist(e):
             CacheManager.delete_playlist(self.playlist_id)
             dialog.destroy()
-            self.update_playlist_list(force=True)
+            self.update_playlist_view(force=True)
 
         dialog.connect('delete-playlist', on_delete_playlist)
 

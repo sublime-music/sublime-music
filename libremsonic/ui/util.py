@@ -74,6 +74,10 @@ def _parse_diff_location(location):
 
 
 def diff_song_store(store_to_edit, new_store):
+    """
+    Diffing song stores is nice, because we can easily make edits by modifying
+    the underlying store.
+    """
     old_store = [row[:] for row in store_to_edit]
 
     # Diff the lists to determine what needs to be changed.
@@ -95,23 +99,19 @@ def diff_song_store(store_to_edit, new_store):
 
 
 def diff_model_store(store_to_edit, new_store):
+    """
+    The diff here is that if there are any differences, then we refresh the
+    entire list. This is because it is too hard to do editing.
+    """
     old_store = store_to_edit[:]
 
     diff = DeepDiff(old_store, new_store)
-    changed = diff.get('values_changed', {})
-    added = diff.get('iterable_item_added', {})
-    removed = diff.get('iterable_item_removed', {})
+    if diff == {}:
+        return
 
-    for edit_location, diff in changed.items():
-        idx, field = _parse_diff_location(edit_location)
-        store_to_edit[int(idx)].set_property(field[17:], diff['new_value'])
-
-    for add_location, value in added.items():
-        store_to_edit.append(value)
-
-    for remove_location, value in reversed(list(removed.items())):
-        remove_at = int(_parse_diff_location(remove_location)[0])
-        del store_to_edit[remove_at]
+    store_to_edit.remove_all()
+    for model in new_store:
+        store_to_edit.append(model)
 
 
 def show_song_popover(
