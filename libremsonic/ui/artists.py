@@ -44,8 +44,7 @@ class ArtistsPanel(Gtk.Paned):
 
     def update(self, state: ApplicationState):
         self.artist_list.update(state=state)
-        if state.selected_artist_id:
-            self.artist_detail_panel.update(state.selected_artist_id)
+        self.artist_detail_panel.update(state=state)
 
 
 class ArtistList(Gtk.Box):
@@ -237,14 +236,17 @@ class ArtistDetailPanel(Gtk.Box):
 
         self.add(artist_info_box)
 
-    def update(self, artist_id):
-        self.update_artist_view(artist_id)
-
     def get_model_list_future(self, before_download):
         def do_get_model_list() -> List[Child]:
             return self.albums
 
         return CacheManager.executor.submit(do_get_model_list)
+
+    def update(self, state: ApplicationState):
+        if state.selected_artist_id is None:
+            self.artist_action_buttons.hide()
+        else:
+            self.update_artist_view(state.selected_artist_id, state=state)
 
     # TODO need to handle when this is force updated. Need to delete a bunch of
     # stuff and un-cache things.

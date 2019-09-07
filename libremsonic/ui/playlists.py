@@ -61,8 +61,7 @@ class PlaylistsPanel(Gtk.Paned):
 
     def update(self, state: ApplicationState):
         self.playlist_list.update(state=state)
-        if state.selected_artist_id:
-            self.playlist_detail_panel.update(state.selected_artist_id)
+        self.playlist_detail_panel.update(state=state)
 
 
 class PlaylistList(Gtk.Box):
@@ -424,31 +423,90 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_view_loading_box.add(playlist_view_spinner)
         self.add_overlay(self.playlist_view_loading_box)
 
+    def update(self, state: ApplicationState):
+        if state.selected_playlist_id is None:
+            self.playlist_action_buttons.hide()
+            self.play_shuffle_buttons.hide()
+            self.playlist_view_loading_box.hide()
+            self.playlist_artwork.set_loading(False)
+        else:
+            self.update_playlist_view(state.selected_playlist_id, state=state)
+
     @util.async_callback(
         lambda *a, **k: CacheManager.get_playlist(*a, **k),
-        before_download=lambda self: None,
-        on_failure=lambda self, e: print(e),
+        before_download=lambda self: self.playlist_view_loading_box.show_all(),
+        on_failure=lambda self, e: self.playlist_view_loading_box.hide(),
     )
-    def update(self, state: ApplicationState = None, force=False):
-        print(state, force)
-        self.playlist_id = state.selected_playlist_id
+    def update_playlist_view(
+            self,
+            playlist,
+            state: ApplicationState = None,
+            force=False,
+    ):
+        if self.playlist_id != playlist.id:
+            self.playlist_songs.get_selection().unselect_all()
+
+        self.playlist_id = playlist.id
+
+        # Update the info display.
+        self.playlist_indicator.set_markup('PLAYLIST')
+        self.playlist_name.set_markup(f'<b>{playlist.name}</b>')
+        if playlist.comment:
+            self.playlist_comment.set_text(playlist.comment)
+            self.playlist_comment.show()
+        else:
+            self.playlist_comment.hide()
+        self.playlist_stats.set_markup(self.format_stats(playlist))
+
+        # Update the artwork.
+        self.update_playlist_artwork(playlist.coverArt)
+
+        # Update the song list model. This requires some fancy diffing to
+        # update the list.
+        self.editing_playlist_song_list = True
+
+        new_store = [[
+            util.get_cached_status_icon(CacheManager.get_cached_status(song)),
+            song.title,
+            song.album,
+            song.artist,
+            util.format_song_duration(song.duration),
+            song.id,
+        ] for song in (playlist.entry or [])]
+
+        util.diff_song_store(self.playlist_song_store, new_store)
+
+        self.editing_playlist_song_list = False
+
         self.playlist_view_loading_box.hide()
+        self.playlist_action_buttons.show_all()
+        self.play_shuffle_buttons.show_all()
+
+    @util.async_callback(
+        lambda *a, **k: CacheManager.get_cover_art_filename(*a, **k),
+        before_download=lambda self: self.playlist_artwork.set_loading(True),
+        on_failure=lambda self, e: self.playlist_artwork.set_loading(False),
+    )
+    def update_playlist_artwork(
+            self,
+            cover_art_filename,
+            state: ApplicationState,
+    ):
+        self.playlist_artwork.set_from_file(cover_art_filename)
+        self.playlist_artwork.set_loading(False)
 
     # Event Handlers
     # =========================================================================
     def on_view_refresh_click(self, button):
-        print('refresh')
+        self.update_playlist_view(self.playlist_id, force=True)
 
     def on_playlist_edit_button_click(self, button):
-        print('playlist edit')
-        selected = self.playlist_list.get_selected_row()
-        playlist = self.playlist_map[selected.get_index()]
         dialog = EditPlaylistDialog(
             self.get_toplevel(),
-            CacheManager.get_playlist(playlist.id).result())
+            CacheManager.get_playlist(self.playlist_id).result())
 
         def on_delete_playlist(e):
-            CacheManager.delete_playlist(playlist.id)
+            CacheManager.delete_playlist(self.playlist_id)
             dialog.destroy()
             self.update_playlist_list(force=True)
 
@@ -457,27 +515,23 @@ class PlaylistDetailPanel(Gtk.Overlay):
         result = dialog.run()
         if result == Gtk.ResponseType.OK:
             CacheManager.update_playlist(
-                playlist.id,
+                self.playlist_id,
                 name=dialog.data['name'].get_text(),
                 comment=dialog.data['comment'].get_text(),
                 public=dialog.data['public'].get_active(),
             )
 
-            cover_art_filename = f'cover_art/{playlist.coverArt}_*'
-            CacheManager.delete_cached(cover_art_filename)
+            # TODO
+            # cover_art_filename = f'cover_art/{playlist.coverArt}_*'
+            # CacheManager.delete_cached(cover_art_filename)
 
-            self.update_playlist_list(force=True)
-            self.update_playlist_view(playlist.id, force=True)
+            self.update_playlist_view(self.playlist_id, force=True)
         dialog.destroy()
 
     def on_playlist_list_download_all_button_click(self, button):
-        print('download all')
-        playlist = self.playlist_map[
-            self.playlist_list.get_selected_row().get_index()]
-
         def download_state_change(*args):
             # TODO: Only do this if it's the current playlist.
-            GLib.idle_add(self.update_playlist_view, playlist.id)
+            GLib.idle_add(self.update_playlist_view, self.playlist_id)
 
         song_ids = [s[-1] for s in self.playlist_song_store]
         CacheManager.batch_download_songs(
@@ -519,12 +573,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
             store, paths = tree.get_selection().get_selected_rows()
             allow_deselect = False
 
-            playlist = self.playlist_map[
-                self.playlist_list.get_selected_row().get_index()]
-
             def on_download_state_change(song_id=None):
                 # TODO: Only do this if it's the current playlist.
-                GLib.idle_add(self.update_playlist_song_list, playlist.id)
+                GLib.idle_add(self.update_playlist_view, self.playlist_id)
 
             # Use the new selection instead of the old one for calculating what
             # to do the right click on.
@@ -542,10 +593,10 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
             def on_remove_songs_click(button):
                 CacheManager.update_playlist(
-                    playlist_id=playlist.id,
+                    playlist_id=self.playlist_id,
                     song_index_to_remove=[p.get_indices()[0] for p in paths],
                 )
-                self.update_playlist_song_list(playlist.id, force=True)
+                self.update_playlist_view(self.playlist_id, force=True)
 
             remove_text = ('Remove ' + util.pluralize('song', len(song_ids))
                            + ' from playlist')
@@ -581,95 +632,10 @@ class PlaylistDetailPanel(Gtk.Overlay):
         # which one comes first, but just in case, we have this
         # reordering_playlist_song_list flag..
         if self.reordering_playlist_song_list:
-            selected = self.playlist_list.get_selected_row()
-            playlist = self.playlist_map[selected.get_index()]
-            self.update_playlist_order(playlist.id)
+            self.update_playlist_order(self.playlist_id)
             self.reordering_playlist_song_list = False
         else:
             self.reordering_playlist_song_list = True
-
-
-class Foo():
-    def update(self, state: ApplicationState):
-        self.new_playlist_row.hide()
-        self.set_playlist_view_loading(False)
-        self.playlist_artwork.set_loading(False)
-        self.update_playlist_list()
-        selected = self.playlist_list.get_selected_row()
-        if selected:
-            playlist_id = self.playlist_map[selected.get_index()].id
-            self.update_playlist_view(playlist_id)
-            self.playlist_action_buttons.show()
-            self.play_shuffle_buttons.show()
-        else:
-            self.playlist_action_buttons.hide()
-            self.play_shuffle_buttons.hide()
-
-        self.playlist_songs.set_headers_visible(state.config.show_headers)
-
-    def set_playlist_view_loading(self, loading_status):
-        if loading_status:
-            self.playlist_view_loading_box.show()
-            self.playlist_artwork.set_loading(True)
-        else:
-            self.playlist_view_loading_box.hide()
-
-    @util.async_callback(
-        lambda *a, **k: CacheManager.get_playlist(*a, **k),
-        before_download=lambda self: self.set_playlist_view_loading(True),
-        on_failure=lambda self, e: (self.set_playlist_view_loading(False) or
-                                    self.playlist_artwork.set_loading(False)),
-    )
-    def update_playlist_view(self, playlist, state: ApplicationState):
-        # Update the Playlist Info panel
-        self.update_playlist_artwork(playlist.coverArt)
-        self.playlist_indicator.set_markup('PLAYLIST')
-        self.playlist_name.set_markup(f'<b>{playlist.name}</b>')
-        if playlist.comment:
-            self.playlist_comment.set_text(playlist.comment)
-            self.playlist_comment.show()
-        else:
-            self.playlist_comment.hide()
-        self.playlist_stats.set_markup(self.format_stats(playlist))
-
-        self.update_playlist_song_list(playlist.id)
-        self.playlist_action_buttons.show()
-        self.play_shuffle_buttons.show()
-
-    @util.async_callback(
-        lambda *a, **k: CacheManager.get_playlist(*a, **k),
-    )
-    def update_playlist_song_list(self, playlist, state: ApplicationState):
-        # Update the song list model. This requires some fancy diffing to
-        # update the list.
-        self.editing_playlist_song_list = True
-
-        new_store = [[
-            util.get_cached_status_icon(CacheManager.get_cached_status(song)),
-            song.title,
-            song.album,
-            song.artist,
-            util.format_song_duration(song.duration),
-            song.id,
-        ] for song in (playlist.entry or [])]
-
-        util.diff_song_store(self.playlist_song_store, new_store)
-
-        self.editing_playlist_song_list = False
-        self.set_playlist_view_loading(False)
-
-    @util.async_callback(
-        lambda *a, **k: CacheManager.get_cover_art_filename(*a, **k),
-        before_download=lambda self: self.playlist_artwork.set_loading(True),
-        on_failure=lambda self, e: self.playlist_artwork.set_loading(False),
-    )
-    def update_playlist_artwork(
-            self,
-            cover_art_filename,
-            state: ApplicationState,
-    ):
-        self.playlist_artwork.set_from_file(cover_art_filename)
-        self.playlist_artwork.set_loading(False)
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_playlist(*a, **k),
@@ -681,7 +647,7 @@ class Foo():
             song_index_to_remove=list(range(playlist.songCount)),
             song_id_to_add=[s[-1] for s in self.playlist_song_store],
         )
-        self.update_playlist_song_list(playlist.id, force=True)
+        self.update_playlist_view(playlist.id, force=True)
 
     def format_stats(self, playlist):
         created_date = playlist.created.strftime('%B %d, %Y')
