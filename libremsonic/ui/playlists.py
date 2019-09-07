@@ -186,7 +186,7 @@ class PlaylistList(Gtk.Box):
                     playlist.name,
                 ))
 
-        # TODO this doesn't quite work
+        # TODO this doesn't quite work for adding and deleting.
         util.diff_model_store(self.playlists_store, new_store)
 
         # Preserve selection
@@ -226,7 +226,7 @@ class PlaylistList(Gtk.Box):
             lambda f: GLib.idle_add(on_playlist_created, f))
 
 
-class PlaylistDetailPanel(Gtk.Box):
+class PlaylistDetailPanel(Gtk.Overlay):
     __gsignals__ = {
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
@@ -235,26 +235,13 @@ class PlaylistDetailPanel(Gtk.Box):
         ),
     }
 
-    def __init__(self):
-        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
-
-    def update(self, state: ApplicationState = None, force=False):
-        pass
-
-
-class Foo():
-    playlist_map: OrderedDict[int, PlaylistWithSongs] = {}
-    song_ids: List[int] = []
+    playlist_id = None
 
     editing_playlist_song_list: bool = False
     reordering_playlist_song_list: bool = False
 
     def __init__(self):
-        Gtk.Paned.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
-
-        # The playlist view on the right side
-        # =====================================================================
-        loading_overlay = Gtk.Overlay(name='playlist-view-overlay')
+        Gtk.Overlay.__init__(self, name='playlist-view-overlay')
         playlist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Playlist info panel
@@ -423,7 +410,7 @@ class Foo():
         playlist_view_scroll_window.add(self.playlist_songs)
 
         playlist_box.pack_end(playlist_view_scroll_window, True, True, 0)
-        loading_overlay.add(playlist_box)
+        self.add(playlist_box)
 
         playlist_view_spinner = Gtk.Spinner(active=True)
         playlist_view_spinner.start()
@@ -435,16 +422,25 @@ class Foo():
             xscale=0.1,
             yscale=0.1)
         self.playlist_view_loading_box.add(playlist_view_spinner)
-        loading_overlay.add_overlay(self.playlist_view_loading_box)
+        self.add_overlay(self.playlist_view_loading_box)
 
-        self.pack2(loading_overlay, True, False)
+    @util.async_callback(
+        lambda *a, **k: CacheManager.get_playlist(*a, **k),
+        before_download=lambda self: None,
+        on_failure=lambda self, e: print(e),
+    )
+    def update(self, state: ApplicationState = None, force=False):
+        print(state, force)
+        self.playlist_id = state.selected_playlist_id
+        self.playlist_view_loading_box.hide()
 
     # Event Handlers
     # =========================================================================
-    def on_playlist_selected(self, playlist_list, row):
-        self.update_playlist_view(self.playlist_map[row.get_index()].id)
+    def on_view_refresh_click(self, button):
+        print('refresh')
 
     def on_playlist_edit_button_click(self, button):
+        print('playlist edit')
         selected = self.playlist_list.get_selected_row()
         playlist = self.playlist_map[selected.get_index()]
         dialog = EditPlaylistDialog(
@@ -475,6 +471,7 @@ class Foo():
         dialog.destroy()
 
     def on_playlist_list_download_all_button_click(self, button):
+        print('download all')
         playlist = self.playlist_map[
             self.playlist_list.get_selected_row().get_index()]
 
@@ -488,11 +485,6 @@ class Foo():
             before_download=download_state_change,
             on_song_download_complete=download_state_change,
         )
-
-    def on_view_refresh_click(self, button):
-        playlist = self.playlist_map[
-            self.playlist_list.get_selected_row().get_index()]
-        self.update_playlist_view(playlist.id, force=True)
 
     def on_play_all_clicked(self, btn):
         song_id = self.playlist_song_store[0][-1]
@@ -572,6 +564,14 @@ class Foo():
             if not allow_deselect:
                 return True
 
+    def make_label(self, text=None, name=None, **params):
+        return Gtk.Label(
+            label=text,
+            name=name,
+            halign=Gtk.Align.START,
+            **params,
+        )
+
     def playlist_model_row_move(self, *args):
         # If we are programatically editing the song list, don't do anything.
         if self.editing_playlist_song_list:
@@ -588,16 +588,8 @@ class Foo():
         else:
             self.reordering_playlist_song_list = True
 
-    # Helper Methods
-    # =========================================================================
-    def make_label(self, text=None, name=None, **params):
-        return Gtk.Label(
-            label=text,
-            name=name,
-            halign=Gtk.Align.START,
-            **params,
-        )
 
+class Foo():
     def update(self, state: ApplicationState):
         self.new_playlist_row.hide()
         self.set_playlist_view_loading(False)
@@ -614,12 +606,6 @@ class Foo():
             self.play_shuffle_buttons.hide()
 
         self.playlist_songs.set_headers_visible(state.config.show_headers)
-
-    def set_playlist_list_loading(self, loading_status):
-        if loading_status:
-            self.playlist_list_loading.show()
-        else:
-            self.playlist_list_loading.hide()
 
     def set_playlist_view_loading(self, loading_status):
         if loading_status:
@@ -667,8 +653,7 @@ class Foo():
             song.id,
         ] for song in (playlist.entry or [])]
 
-        util.diff_song_store(self.playlist_song_store,
-                        new_store)
+        util.diff_song_store(self.playlist_song_store, new_store)
 
         self.editing_playlist_song_list = False
         self.set_playlist_view_loading(False)
