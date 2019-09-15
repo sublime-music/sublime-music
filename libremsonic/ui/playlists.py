@@ -1,6 +1,6 @@
 from functools import lru_cache
 from random import randint
-from typing import List, OrderedDict
+from typing import List
 
 from fuzzywuzzy import process
 
@@ -22,6 +22,7 @@ class EditPlaylistDialog(EditFormDialog):
     boolean_fields = [('Public', 'public')]
 
     def __init__(self, *args, playlist_id=None, **kwargs):
+        # TODO this doesn't work
         delete_playlist = Gtk.Button(
             label='Delete Playlist',
             action_name='app.delete-playlist',
