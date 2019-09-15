@@ -99,10 +99,13 @@ class LibremsonicApp(Gtk.Application):
         )
 
     def do_activate(self):
-        # We only allow a single window and raise any existing ones
-        if self.window:
+        def show_window():
             self.window.show_all()
             self.window.present()
+
+        # We only allow a single window and raise any existing ones
+        if self.window:
+            show_window()
             return
 
         # Windows are associated with the application when the last one is
@@ -129,8 +132,7 @@ class LibremsonicApp(Gtk.Application):
             'value-changed', self.on_volume_change)
         self.window.connect('key-press-event', self.on_window_key_press)
 
-        self.window.show_all()
-        self.window.present()
+        show_window()
 
         # Load the configuration and update the UI with the curent server, if
         # it exists.
@@ -191,6 +193,10 @@ class LibremsonicApp(Gtk.Application):
             pass
 
         self.state.current_device = 'this device'
+
+        # Prompt to load the play queue from the server.
+        if self.current_server.sync_enabled:
+            self.update_play_state_from_server(prompt_confirm=True)
 
     # ########## ACTION HANDLERS ########## #
     def on_configure_servers(self, action, param):
@@ -446,7 +452,7 @@ class LibremsonicApp(Gtk.Application):
     def update_window(self):
         GLib.idle_add(self.window.update, self.state)
 
-    def update_play_state_from_server(self):
+    def update_play_state_from_server(self, prompt_confirm=False):
         # TODO need to make the up next list loading for the duration here
         was_playing = self.state.playing
         self.player.pause()
@@ -455,11 +461,41 @@ class LibremsonicApp(Gtk.Application):
 
         def do_update(f):
             play_queue = f.result()
-            self.state.play_queue = [s.id for s in play_queue.entry]
+            new_play_queue = [s.id for s in play_queue.entry]
+            new_current_song_id = str(play_queue.current)
+            new_song_progress = play_queue.position / 1000
+
+            # TODO check this is in seconds.
+            print(new_song_progress)
+
+            if prompt_confirm:
+                # If there's not a significant enough difference, don't prompt.
+                if (self.state.play_queue == new_play_queue
+                        and self.state.current_song.id == new_current_song_id
+                        and abs(self.state.song_progress - new_song_progress) <
+                        15):
+                    # TODO factor in the other things in PlayQueue?
+                    return
+
+                dialog = Gtk.MessageDialog(
+                    transient_for=self,
+                    message_type=Gtk.MessageType.INFO,
+                    buttons=Gtk.ButtonsType.YESNO,
+                    text='Resume Playback?',
+                )
+                dialog.format_secondary_markup(
+                    # TODO change this text according to the PlayQueue object?
+                    f'Do you want to resume the play queue from another device?',
+                )
+                result = dialog.run()
+                print(result)
+                print('prompt')
+                return
+
+            self.state.play_queue = new_play_queue
             self.state.song_progress = play_queue.position / 1000
 
-            current_song_idx = self.state.play_queue.index(
-                str(play_queue.current))
+            current_song_idx = self.state.play_queue.index(new_current_song_id)
             self.state.current_song = play_queue.entry[current_song_idx]
 
             self.player.reset()

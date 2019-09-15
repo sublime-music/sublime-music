@@ -32,7 +32,10 @@ class EditServerDialog(EditFormDialog):
         open_in_browser = Gtk.Button(label='Open in Browser')
         open_in_browser.connect('clicked', self.on_open_in_browser_clicked)
 
-        self.extra_buttons = [test_server, open_in_browser]
+        self.extra_buttons = [
+            (test_server, Gtk.ResponseType.OK),
+            (open_in_browser, Gtk.ResponseType.OK),
+        ]
 
         super().__init__(*args, **kwargs)
 
