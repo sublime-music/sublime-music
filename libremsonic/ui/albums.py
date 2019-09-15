@@ -93,8 +93,7 @@ class AlbumsPanel(Gtk.Box):
         self.grid = AlbumsGrid()
         self.grid.connect(
             'song-clicked',
-            lambda _, song, queue, metadata: self.emit('song-clicked', song,
-                                                       queue, metadata),
+            lambda _, *args: self.emit('song-clicked', *args),
         )
         scrolled_window.add(self.grid)
         self.add(scrolled_window)

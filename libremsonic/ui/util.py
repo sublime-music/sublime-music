@@ -8,7 +8,7 @@ from deepdiff import DeepDiff
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib, Gdk
+from gi.repository import Gtk, GLib, Gdk, GObject
 
 from libremsonic.cache_manager import CacheManager, SongCacheStatus
 
@@ -68,7 +68,16 @@ def get_cached_status_icon(cache_status: SongCacheStatus):
     return cache_icon[cache_status]
 
 
-def diff_store(store_to_edit, new_store):
+def _parse_diff_location(location):
+    match = re.match(r'root\[(\d*)\](?:\[(\d*)\]|\.(.*))?', location)
+    return tuple(g for g in match.groups() if g is not None)
+
+
+def diff_song_store(store_to_edit, new_store):
+    """
+    Diffing song stores is nice, because we can easily make edits by modifying
+    the underlying store.
+    """
     old_store = [row[:] for row in store_to_edit]
 
     # Diff the lists to determine what needs to be changed.
@@ -77,20 +86,32 @@ def diff_store(store_to_edit, new_store):
     added = diff.get('iterable_item_added', {})
     removed = diff.get('iterable_item_removed', {})
 
-    def parse_location(location):
-        match = re.match(r'root\[(\d*)\](?:\[(\d*)\])?', location)
-        return tuple(map(int, (g for g in match.groups() if g is not None)))
-
     for edit_location, diff in changed.items():
-        idx, field = parse_location(edit_location)
-        store_to_edit[idx][field] = diff['new_value']
+        idx, field = _parse_diff_location(edit_location)
+        store_to_edit[int(idx)][int(field)] = diff['new_value']
 
     for add_location, value in added.items():
         store_to_edit.append(value)
 
     for remove_location, value in reversed(list(removed.items())):
-        remove_at = parse_location(remove_location)[0]
+        remove_at = int(_parse_diff_location(remove_location)[0])
         del store_to_edit[remove_at]
+
+
+def diff_model_store(store_to_edit, new_store):
+    """
+    The diff here is that if there are any differences, then we refresh the
+    entire list. This is because it is too hard to do editing.
+    """
+    old_store = store_to_edit[:]
+
+    diff = DeepDiff(old_store, new_store)
+    if diff == {}:
+        return
+
+    store_to_edit.remove_all()
+    for model in new_store:
+        store_to_edit.append(model)
 
 
 def show_song_popover(

@@ -289,5 +289,5 @@ class AlbumWithSongs(Gtk.Box):
             GLib.Variant('as', song_ids))
         self.download_all_btn.set_sensitive(True)
 
-        util.diff_store(self.album_song_store, new_store)
+        util.diff_song_store(self.album_song_store, new_store)
         self.loading_indicator.hide()

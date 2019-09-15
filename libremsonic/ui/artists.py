@@ -1,9 +1,9 @@
-from typing import List, Union, Optional
+from typing import List, Union
 
 import gi
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GObject, Pango, GLib
+from gi.repository import Gtk, GObject, Pango, GLib, Gio
 
 from libremsonic.state_manager import ApplicationState
 from libremsonic.cache_manager import CacheManager
@@ -28,7 +28,6 @@ class ArtistsPanel(Gtk.Paned):
             (str, object, object),
         ),
     }
-    artist_id: Optional[str] = None
 
     def __init__(self, *args, **kwargs):
         Gtk.Paned.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
@@ -39,18 +38,27 @@ class ArtistsPanel(Gtk.Paned):
         self.artist_detail_panel = ArtistDetailPanel()
         self.artist_detail_panel.connect(
             'song-clicked',
-            lambda _, song, queue, metadata: self.emit('song-clicked', song,
-                                                       queue, metadata),
+            lambda _, *args: self.emit('song-clicked', *args),
         )
         self.pack2(self.artist_detail_panel, True, False)
 
     def update(self, state: ApplicationState):
-        self.artist_list.update(state)
-        if state.selected_artist_id:
-            self.artist_detail_panel.update(state.selected_artist_id)
+        self.artist_list.update(state=state)
+        self.artist_detail_panel.update(state=state)
 
 
 class ArtistList(Gtk.Box):
+    class ArtistModel(GObject.GObject):
+        artist_id = GObject.property(type=str)
+        name = GObject.property(type=str)
+        album_count = GObject.property(type=str)
+
+        def __init__(self, artist_id, name, album_count):
+            GObject.GObject.__init__(self)
+            self.artist_id = artist_id
+            self.name = name
+            self.album_count = album_count
+
     def __init__(self):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
 
@@ -62,52 +70,29 @@ class ArtistList(Gtk.Box):
 
         self.add(list_actions)
 
-        list_scroll_window = Gtk.ScrolledWindow(min_content_width=250)
-        self.list = Gtk.ListBox(name='artist-list-listbox')
-
-        self.loading_indicator = Gtk.ListBoxRow(
-            activatable=False,
-            selectable=False,
+        self.loading_indicator = Gtk.ListBox()
+        spinner_row = Gtk.ListBoxRow()
+        spinner = Gtk.Spinner(
+            name='artist-list-spinner',
+            active=True,
         )
-        loading_spinner = Gtk.Spinner(name='artist-list-spinner', active=True)
-        self.loading_indicator.add(loading_spinner)
-        self.list.add(self.loading_indicator)
+        spinner_row.add(spinner)
+        self.loading_indicator.add(spinner_row)
+        self.pack_start(self.loading_indicator, False, False, 0)
 
-        list_scroll_window.add(self.list)
-        self.pack_start(list_scroll_window, True, True, 0)
+        list_scroll_window = Gtk.ScrolledWindow(min_content_width=250)
 
-    def update(self, state=None, force=False):
-        self.update_list(force=force, state=state)
+        def create_artist_row(model: ArtistList.ArtistModel):
+            label_text = [f'<b>{util.esc(model.name)}</b>']
 
-    @util.async_callback(
-        lambda *a, **k: CacheManager.get_artists(*a, **k),
-        before_download=lambda self: self.loading_indicator.show(),
-        on_failure=lambda self, e: self.loading_indicator.hide(),
-    )
-    def update_list(self, artists, state: ApplicationState):
-        # TODO use a diff here
-        # Remove everything
-        for row in self.list.get_children()[1:]:
-            self.list.remove(row)
-        self.playlist_map = {}
-        selected_idx = None
-
-        for i, artist in enumerate(artists):
-            # Use i + 1 because of the loading indicator in index 0.
-            if (state.selected_artist_id
-                    and artist.id == (state.selected_artist_id or -1)):
-                selected_idx = i + 1
-
-            label_text = [f'<b>{util.esc(artist.name)}</b>']
-
-            album_count = artist.get('albumCount')
+            album_count = model.album_count
             if album_count:
                 label_text.append('{} {}'.format(
                     album_count, util.pluralize('album', album_count)))
 
             row = Gtk.ListBoxRow(
                 action_name='app.go-to-artist',
-                action_target=GLib.Variant('s', artist.id),
+                action_target=GLib.Variant('s', model.artist_id),
             )
             row.add(
                 Gtk.Label(
@@ -118,14 +103,42 @@ class ArtistList(Gtk.Box):
                     ellipsize=Pango.EllipsizeMode.END,
                     max_width_chars=30,
                 ))
-            self.list.add(row)
+            row.show_all()
+            return row
 
-        if selected_idx:
+        self.artists_store = Gio.ListStore()
+        self.list = Gtk.ListBox(name='artist-list')
+        self.list.bind_model(self.artists_store, create_artist_row)
+        list_scroll_window.add(self.list)
+
+        self.pack_start(list_scroll_window, True, True, 0)
+
+    @util.async_callback(
+        lambda *a, **k: CacheManager.get_artists(*a, **k),
+        before_download=lambda self: self.loading_indicator.show_all(),
+        on_failure=lambda self, e: self.loading_indicator.hide(),
+    )
+    def update(self, artists, state: ApplicationState):
+        new_store = []
+        selected_idx = None
+        for i, artist in enumerate(artists):
+            if state and state.selected_artist_id == artist.id:
+                selected_idx = i
+
+            new_store.append(
+                ArtistList.ArtistModel(
+                    artist.id,
+                    artist.name,
+                    artist.get('albumCount', ''),
+                ))
+
+        util.diff_model_store(self.artists_store, new_store)
+
+        # Preserve selection
+        if selected_idx is not None:
             row = self.list.get_row_at_index(selected_idx)
-            # TODO scroll to the row
             self.list.select_row(row)
 
-        self.list.show_all()
         self.loading_indicator.hide()
 
 
@@ -217,21 +230,23 @@ class ArtistDetailPanel(Gtk.Box):
         self.albums_list = AlbumsListWithSongs()
         self.albums_list.connect(
             'song-clicked',
-            lambda _, song, queue, metadata: self.emit('song-clicked', song,
-                                                       queue, metadata),
+            lambda _, *args: self.emit('song-clicked', *args),
         )
         artist_info_box.pack_start(self.albums_list, True, True, 0)
 
         self.add(artist_info_box)
-
-    def update(self, artist_id):
-        self.update_artist_view(artist_id)
 
     def get_model_list_future(self, before_download):
         def do_get_model_list() -> List[Child]:
             return self.albums
 
         return CacheManager.executor.submit(do_get_model_list)
+
+    def update(self, state: ApplicationState):
+        if state.selected_artist_id is None:
+            self.artist_action_buttons.hide()
+        else:
+            self.update_artist_view(state.selected_artist_id, state=state)
 
     # TODO need to handle when this is force updated. Need to delete a bunch of
     # stuff and un-cache things.
@@ -385,8 +400,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
             album_with_songs = AlbumWithSongs(album, show_artist_name=False)
             album_with_songs.connect(
                 'song-clicked',
-                lambda _, song, queue, metadata: self.emit(
-                    'song-clicked', song, queue, metadata),
+                lambda _, *args: self.emit('song-clicked', *args),
             )
             album_with_songs.connect('song-selected', self.on_song_selected)
             album_with_songs.show_all()
