@@ -38,13 +38,6 @@ class EditFormDialog(Gtk.Dialog):
             transient_for=parent,
             flags=0,
         )
-        self.add_buttons(
-            Gtk.STOCK_CANCEL,
-            Gtk.ResponseType.CANCEL,
-            Gtk.STOCK_EDIT if editing else Gtk.STOCK_ADD,
-            Gtk.ResponseType.OK,
-        )
-
         if not existing_object:
             existing_object = self.get_default_object()
 
@@ -110,11 +103,15 @@ class EditFormDialog(Gtk.Dialog):
 
         content_area.pack_start(content_grid, True, True, 10)
 
-        # Create a box for buttons.
-        if len(self.extra_buttons) > 0:
-            button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            for button in self.extra_buttons:
-                button_box.pack_start(button, False, True, 5)
-            content_area.pack_start(button_box, True, True, 10)
+        for button, response_id in self.extra_buttons:
+            self.add_action_widget(button, response_id)
+
+        self.add_buttons(
+            Gtk.STOCK_CANCEL,
+            Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_EDIT if editing else Gtk.STOCK_ADD,
+            Gtk.ResponseType.OK,
+        )
+
 
         self.show_all()

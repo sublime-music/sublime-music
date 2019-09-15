@@ -1,7 +1,8 @@
 import os
-from os import environ
 import math
 import random
+
+from os import environ
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -91,6 +92,13 @@ class LibremsonicApp(Gtk.Application):
         add_action('add-to-queue', self.on_add_to_queue, parameter_type='as')
         add_action('go-to-album', self.on_go_to_album, parameter_type='s')
         add_action('go-to-artist', self.on_go_to_artist, parameter_type='s')
+        add_action('go-to-playlist',
+                   self.on_go_to_playlist,
+                   parameter_type='s')
+
+        add_action('delete-playlist',
+                   self.on_delete_playlist,
+                   parameter_type='s')
 
         add_action('mute-toggle', self.on_mute_toggle)
         add_action(
@@ -195,6 +203,7 @@ class LibremsonicApp(Gtk.Application):
         self.state.current_device = 'this device'
 
         # Prompt to load the play queue from the server.
+        # TODO should this be behind sync enabled?
         if self.current_server.sync_enabled:
             self.update_play_state_from_server(prompt_confirm=True)
 
@@ -313,6 +322,17 @@ class LibremsonicApp(Gtk.Application):
     def on_go_to_artist(self, action, artist_id):
         self.state.current_tab = 'artists'
         self.state.selected_artist_id = artist_id.get_string()
+        self.update_window()
+
+    def on_go_to_playlist(self, action, playlist_id):
+        self.state.current_tab = 'playlists'
+        self.state.selected_playlist_id = playlist_id.get_string()
+        self.update_window()
+
+    def on_delete_playlist(self, action, playlist_id):
+        # Update state.
+        self.state.current_tab = 'playlists'
+        self.state.selected_playlist_id = None
         self.update_window()
 
     def on_server_list_changed(self, action, servers):
@@ -465,32 +485,29 @@ class LibremsonicApp(Gtk.Application):
             new_current_song_id = str(play_queue.current)
             new_song_progress = play_queue.position / 1000
 
-            # TODO check this is in seconds.
-            print(new_song_progress)
-
             if prompt_confirm:
                 # If there's not a significant enough difference, don't prompt.
                 if (self.state.play_queue == new_play_queue
                         and self.state.current_song.id == new_current_song_id
                         and abs(self.state.song_progress - new_song_progress) <
                         15):
-                    # TODO factor in the other things in PlayQueue?
                     return
 
                 dialog = Gtk.MessageDialog(
-                    transient_for=self,
+                    transient_for=self.window,
                     message_type=Gtk.MessageType.INFO,
-                    buttons=Gtk.ButtonsType.YESNO,
+                    buttons=Gtk.ButtonsType.YES_NO,
                     text='Resume Playback?',
                 )
+
                 dialog.format_secondary_markup(
-                    # TODO change this text according to the PlayQueue object?
-                    f'Do you want to resume the play queue from another device?',
-                )
+                    'Do you want to resume the play queue saved by '
+                    + str(play_queue.changedBy) + ' at '
+                    + play_queue.changed.astimezone(tz=None).strftime('%H:%M on %Y-%m-%d') + '?')
                 result = dialog.run()
-                print(result)
-                print('prompt')
-                return
+                dialog.destroy()
+                if result != Gtk.ResponseType.YES:
+                    return
 
             self.state.play_queue = new_play_queue
             self.state.song_progress = play_queue.position / 1000
