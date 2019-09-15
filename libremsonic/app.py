@@ -6,12 +6,12 @@ from os import environ
 
 import gi
 gi.require_version('Gtk', '3.0')
+gi.require_version('Notify', '0.7')
 from gi.repository import Gdk, Gio, GLib, Gtk, Notify, GdkPixbuf
 
 from .ui.main import MainWindow
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.settings import SettingsDialog
-from .ui import util
 
 from .state_manager import ApplicationState, RepeatType
 from .cache_manager import CacheManager
@@ -559,7 +559,7 @@ class LibremsonicApp(Gtk.Application):
                 song_notification.show()
 
                 def on_cover_art_download_complete(cover_art_filename):
-                    # Add the image to the notification, and re-show the
+                    # Add the image to the notification, and re-draw the
                     # notification.
                     song_notification.set_image_from_pixbuf(
                         GdkPixbuf.Pixbuf.new_from_file(cover_art_filename))
