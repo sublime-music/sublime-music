@@ -6,11 +6,12 @@ from os import environ
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gdk, Gio, GLib, Gtk
+from gi.repository import Gdk, Gio, GLib, Gtk, Notify, GdkPixbuf
 
 from .ui.main import MainWindow
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.settings import SettingsDialog
+from .ui import util
 
 from .state_manager import ApplicationState, RepeatType
 from .cache_manager import CacheManager
@@ -26,6 +27,8 @@ class LibremsonicApp(Gtk.Application):
             flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
             **kwargs,
         )
+        Notify.init('LibremSonic')
+
         self.window = None
         self.state = ApplicationState()
 
@@ -222,6 +225,8 @@ class LibremsonicApp(Gtk.Application):
                 'always_stream'].get_active()
             self.state.config.download_on_stream = dialog.data[
                 'download_on_stream'].get_active()
+            self.state.config.song_play_notification = dialog.data[
+                'song_play_notification'].get_active()
             self.state.config.prefetch_amount = dialog.data[
                 'prefetch_amount'].get_value_as_int()
             self.state.config.concurrent_download_limit = dialog.data[
@@ -503,7 +508,8 @@ class LibremsonicApp(Gtk.Application):
                 dialog.format_secondary_markup(
                     'Do you want to resume the play queue saved by '
                     + str(play_queue.changedBy) + ' at '
-                    + play_queue.changed.astimezone(tz=None).strftime('%H:%M on %Y-%m-%d') + '?')
+                    + play_queue.changed.astimezone(
+                        tz=None).strftime('%H:%M on %Y-%m-%d') + '?')
                 result = dialog.run()
                 dialog.destroy()
                 if result != Gtk.ResponseType.YES:
@@ -543,6 +549,26 @@ class LibremsonicApp(Gtk.Application):
             self.state.current_song = song
             self.state.playing = True
             self.update_window()
+
+            # Show a song play notification.
+            if self.state.config.song_play_notification:
+                song_notification = Notify.Notification.new(
+                    song.title,
+                    f'<i>{song.album}</i>\n{song.artist}',
+                )
+                song_notification.show()
+
+                def on_cover_art_download_complete(cover_art_filename):
+                    # Add the image to the notification, and re-show the
+                    # notification.
+                    song_notification.set_image_from_pixbuf(
+                        GdkPixbuf.Pixbuf.new_from_file(cover_art_filename))
+                    song_notification.show()
+
+                cover_art_future = CacheManager.get_cover_art_filename(
+                    song.coverArt, size=70)
+                cover_art_future.add_done_callback(
+                    lambda f: on_cover_art_download_complete(f.result()))
 
             # Prevent it from doing the thing where it continually loads
             # songs when it has to download.

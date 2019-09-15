@@ -15,6 +15,10 @@ class SettingsDialog(EditFormDialog):
         ('Show headers on song lists', 'show_headers'),
         ('Always stream songs', 'always_stream'),
         ('When streaming, also download song', 'download_on_stream'),
+        (
+            'Show a notification when a song begins to play',
+            'song_play_notification',
+        ),
     ]
     numeric_fields = [
         (

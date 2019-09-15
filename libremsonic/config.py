@@ -42,6 +42,7 @@ class AppConfiguration:
     show_headers: bool = True  # show the headers on song lists
     always_stream: bool = False  # always stream instead of downloading songs
     download_on_stream: bool = True  # also download when streaming a song
+    song_play_notification: bool = True
     prefetch_amount: int = 3
     concurrent_download_limit: int = 5
     port_number: int = 8080
@@ -56,6 +57,7 @@ class AppConfiguration:
             'show_headers': self.show_headers,
             'always_stream': self.always_stream,
             'download_on_stream': self.download_on_stream,
+            'song_play_notification': self.song_play_notification,
             'prefetch_amount': self.prefetch_amount,
             'concurrent_download_limit': self.concurrent_download_limit,
             'port_number': self.port_number,
