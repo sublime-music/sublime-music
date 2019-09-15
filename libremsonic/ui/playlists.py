@@ -185,12 +185,8 @@ class PlaylistList(Gtk.Box):
                 selected_idx = i
 
             new_store.append(
-                PlaylistList.PlaylistModel(
-                    playlist.id,
-                    playlist.name,
-                ))
+                PlaylistList.PlaylistModel(playlist.id, playlist.name))
 
-        # TODO this doesn't quite work for adding and deleting.
         util.diff_model_store(self.playlists_store, new_store)
 
         # Preserve selection
@@ -522,14 +518,17 @@ class PlaylistDetailPanel(Gtk.Overlay):
             )
 
             # Invalidate the cover art cache.
-            CacheManager.delete_cached_cover_art(playlist.id)
+            CacheManager.delete_cached_cover_art(self.playlist_id)
+
+            # Invalidate the playlist list
+            CacheManager.invalidate_playlists_cache()
+            # TODO force an update on the Playlist List.
 
             self.update_playlist_view(self.playlist_id, force=True)
         dialog.destroy()
 
     def on_playlist_list_download_all_button_click(self, button):
         def download_state_change(*args):
-            # TODO: Only do this if it's the current playlist.
             GLib.idle_add(self.update_playlist_view, self.playlist_id)
 
         song_ids = [s[-1] for s in self.playlist_song_store]
@@ -573,7 +572,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
             allow_deselect = False
 
             def on_download_state_change(song_id=None):
-                # TODO: Only do this if it's the current playlist.
                 GLib.idle_add(self.update_playlist_view, self.playlist_id)
 
             # Use the new selection instead of the old one for calculating what
@@ -636,17 +634,17 @@ class PlaylistDetailPanel(Gtk.Overlay):
         else:
             self.reordering_playlist_song_list = True
 
-    @util.async_callback(
-        lambda *a, **k: CacheManager.get_playlist(*a, **k),
-        # TODO make loading here
-    )
+    @util.async_callback(lambda *a, **k: CacheManager.get_playlist(*a, **k))
     def update_playlist_order(self, playlist, state: ApplicationState):
-        CacheManager.update_playlist(
+        self.playlist_view_loading_box.show_all()
+        update_playlist_future = CacheManager.update_playlist(
             playlist_id=playlist.id,
             song_index_to_remove=list(range(playlist.songCount)),
             song_id_to_add=[s[-1] for s in self.playlist_song_store],
         )
-        self.update_playlist_view(playlist.id, force=True)
+
+        update_playlist_future.add_done_callback(lambda f: GLib.idle_add(
+            lambda: self.update_playlist_view(playlist.id, force=True)))
 
     def format_stats(self, playlist):
         created_date = playlist.created.strftime('%B %d, %Y')

@@ -103,7 +103,6 @@ class EditFormDialog(Gtk.Dialog):
 
         content_area.pack_start(content_grid, True, True, 10)
 
-        # Create a box for buttons.
         for button, response_id in self.extra_buttons:
             self.add_action_widget(button, response_id)
 

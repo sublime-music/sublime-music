@@ -251,8 +251,7 @@ class CacheManager(metaclass=Singleton):
             return str(abs_path)
 
         def delete_cached_cover_art(self, id: int):
-            tag = 'tag_' if self.browse_by_tags else ''
-            relative_path = f'cover_art/{tag}{id}_*'
+            relative_path = f'cover_art/*{id}_*'
 
             abs_path = self.calculate_abs_path(relative_path)
 
@@ -322,9 +321,12 @@ class CacheManager(metaclass=Singleton):
             return CacheManager.executor.submit(do_create_playlist)
 
         def update_playlist(self, playlist_id, *args, **kwargs):
-            self.server.update_playlist(playlist_id, *args, **kwargs)
-            with self.cache_lock:
-                del self.cache['playlist_details'][playlist_id]
+            def do_update_playlist():
+                self.server.update_playlist(playlist_id, *args, **kwargs)
+                with self.cache_lock:
+                    del self.cache['playlist_details'][playlist_id]
+
+            return CacheManager.executor.submit(do_update_playlist)
 
         def get_artists(
                 self,
