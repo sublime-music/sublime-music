@@ -10,18 +10,38 @@ from libremsonic.ui import util
 from libremsonic.ui.common import IconButton, SpinnerImage
 from libremsonic.ui.common.players import ChromecastPlayer
 
+from libremsonic.server.api_objects import Child
+
 
 class PlayerControls(Gtk.ActionBar):
     """
     Defines the player controls panel that appears at the bottom of the window.
     """
     __gsignals__ = {
-        'song-scrub':
-        (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (float, )),
-        'device-update':
-        (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str, )),
+        'song-scrub': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (float, ),
+        ),
+        'device-update': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (str, ),
+        ),
+        'song-clicked': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (str, object, object),
+        ),
     }
     editing: bool = False
+
+    class PlayQueueSong(GObject.GObject):
+        song_id = GObject.property(type=str)
+
+        def __init__(self, song_id: str):
+            GObject.GObject.__init__(self)
+            self.song_id = song_id
 
     def __init__(self):
         Gtk.ActionBar.__init__(self)
@@ -96,7 +116,9 @@ class PlayerControls(Gtk.ActionBar):
 
             self.song_title.set_text(util.esc(state.current_song.title))
             self.album_name.set_text(util.esc(state.current_song.album))
-            self.artist_name.set_text(util.esc(state.current_song.artist))
+            artist_name = util.esc(state.current_song.artist)
+            if artist_name:
+                self.artist_name.set_text(artist_name)
         else:
             # TODO should probably clear out the cover art display if no song??
             self.album_art.set_loading(False)
@@ -107,44 +129,12 @@ class PlayerControls(Gtk.ActionBar):
             if play_queue_len == 0:
                 self.popover_label.set_markup('<b>Play Queue</b>')
             else:
-                song_label = str(play_queue_len) + ' ' + util.pluralize(
-                    'song', play_queue_len)
+                song_label = util.pluralize('song', play_queue_len)
                 self.popover_label.set_markup(
-                    f'<b>Play Queue:</b> {song_label}')
-
-            # Remove everything from the play queue.
-            for c in self.play_queue_list.get_children():
-                self.play_queue_list.remove(c)
+                    f'<b>Play Queue:</b> {play_queue_len} {song_label}')
 
             for s in state.play_queue:
-                self.play_queue_list.add(
-                    Gtk.Label(
-                        label='\n',
-                        halign=Gtk.Align.START,
-                        use_markup=True,
-                        margin=5,
-                    ))
-
-            self.play_queue_list.show_all()
-
-            # Create a function to capture the value of index for the inner
-            # function. This outer function creates the actual callback
-            # function.
-            def update_fn_generator(index):
-                def do_update_label(result):
-                    title = util.esc(result.title)
-                    album = util.esc(result.album)
-                    row = self.play_queue_list.get_row_at_index(index)
-                    row.get_child().set_markup(f'<b>{title}</b>\n{album}')
-                    row.show_all()
-
-                return lambda f: GLib.idle_add(do_update_label, f.result())
-
-            # These normally already have been retrieved, so should be no cost
-            # for doing the ``get_song_details`` call.
-            for i, song_id in enumerate(state.play_queue):
-                future = CacheManager.get_song_details(song_id)
-                future.add_done_callback(update_fn_generator(i))
+                self.play_queue_store.append(PlayerControls.PlayQueueSong(s))
 
     @util.async_callback(
         lambda *k, **v: CacheManager.get_cover_art_filename(*k, **v),
@@ -215,6 +205,10 @@ class PlayerControls(Gtk.ActionBar):
 
     def on_device_refresh_click(self, button):
         self.update_device_list(clear=True)
+
+    def on_play_queue_row_click(self, listbox, row):
+        print('play queue click')
+        print(row)
 
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -394,7 +388,16 @@ class PlayerControls(Gtk.ActionBar):
             min_content_height=600,
             min_content_width=400,
         )
+
+        self.play_queue_store = Gio.ListStore()
         self.play_queue_list = Gtk.ListBox()
+        self.play_queue_list.connect('row-activated',
+                                     self.on_play_queue_row_click)
+        self.play_queue_list.bind_model(
+            self.play_queue_store,
+            self.create_play_queue_row,
+        )
+
         play_queue_scrollbox.add(self.play_queue_list)
         play_queue_popover_box.pack_end(play_queue_scrollbox, True, True, 0)
 
@@ -415,3 +418,27 @@ class PlayerControls(Gtk.ActionBar):
         vbox.pack_start(box, False, True, 0)
         vbox.pack_start(Gtk.Box(), True, True, 0)
         return vbox
+
+    def create_play_queue_row(self, model: PlayQueueSong):
+        row = Gtk.ListBoxRow()
+        label = Gtk.Label(
+            label='\n',
+            use_markup=True,
+            margin=10,
+            halign=Gtk.Align.START,
+            ellipsize=Pango.EllipsizeMode.END,
+            max_width_chars=35,
+        )
+        row.add(label)
+
+        def update_label(song_details):
+            title = util.esc(song_details.title)
+            album = util.esc(song_details.album)
+            artist = util.esc(song_details.artist)
+            label.set_markup(f'<b>{title}</b>\n{util.dot_join(album, artist)}')
+
+        song_details_future = CacheManager.get_song_details(model.song_id)
+        song_details_future.add_done_callback(
+            lambda f: GLib.idle_add(update_label, f.result()))
+
+        return row

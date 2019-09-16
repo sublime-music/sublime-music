@@ -48,6 +48,8 @@ def format_sequence_duration(duration_secs) -> str:
 
 
 def esc(string):
+    if string is None:
+        return None
     return string.replace('&', '&amp;').replace(" target='_blank'", '')
 
 

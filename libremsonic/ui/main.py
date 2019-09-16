@@ -30,6 +30,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.set_titlebar(self.titlebar)
 
         self.player_controls = player_controls.PlayerControls()
+        self.player_controls.connect(
+            'song-clicked', lambda _, *a: self.emit('song-clicked', *a))
 
         flowbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         flowbox.pack_start(self.stack, True, True, 0)
