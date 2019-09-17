@@ -133,8 +133,10 @@ class PlayerControls(Gtk.ActionBar):
                 self.popover_label.set_markup(
                     f'<b>Play Queue:</b> {play_queue_len} {song_label}')
 
-            for s in state.play_queue:
-                self.play_queue_store.append(PlayerControls.PlayQueueSong(s))
+            new_model = [
+                PlayerControls.PlayQueueSong(s) for s in state.play_queue
+            ]
+            util.diff_model_store(self.play_queue_store, new_model)
 
     @util.async_callback(
         lambda *k, **v: CacheManager.get_cover_art_filename(*k, **v),
