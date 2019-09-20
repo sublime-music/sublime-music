@@ -4,10 +4,16 @@ from gi.repository import Gtk
 
 
 class SpinnerImage(Gtk.Overlay):
-    def __init__(self, loading=True, image_name=None, spinner_name=None):
+    def __init__(
+            self,
+            loading=True,
+            image_name=None,
+            spinner_name=None,
+            **kwargs,
+    ):
         Gtk.Overlay.__init__(self)
 
-        self.image = Gtk.Image(name=image_name)
+        self.image = Gtk.Image(name=image_name, **kwargs)
         self.add(self.image)
 
         self.spinner = Gtk.Spinner(

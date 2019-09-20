@@ -35,13 +35,16 @@ class PlayerControls(Gtk.ActionBar):
         ),
     }
     editing: bool = False
+    current_song = None
 
     class PlayQueueSong(GObject.GObject):
         song_id = GObject.property(type=str)
+        playing = GObject.property(type=str)
 
-        def __init__(self, song_id: str):
+        def __init__(self, song_id: str, playing: bool):
             GObject.GObject.__init__(self)
             self.song_id = song_id
+            self.playing = str(playing)
 
     def __init__(self):
         Gtk.ActionBar.__init__(self)
@@ -134,7 +137,8 @@ class PlayerControls(Gtk.ActionBar):
                     f'<b>Play Queue:</b> {play_queue_len} {song_label}')
 
             new_model = [
-                PlayerControls.PlayQueueSong(s) for s in state.play_queue
+                PlayerControls.PlayQueueSong(s, s == state.current_song.id)
+                for s in state.play_queue
             ]
             util.diff_model_store(self.play_queue_store, new_model)
 
@@ -165,6 +169,7 @@ class PlayerControls(Gtk.ActionBar):
 
     def on_play_queue_click(self, button):
         self.play_queue_popover.set_relative_to(button)
+        # TODO scroll the sfcurrently playing song into view.
         self.play_queue_popover.popup()
         self.play_queue_popover.show_all()
 
@@ -207,10 +212,6 @@ class PlayerControls(Gtk.ActionBar):
 
     def on_device_refresh_click(self, button):
         self.update_device_list(clear=True)
-
-    def on_play_queue_row_click(self, listbox, row):
-        print('play queue click')
-        print(row)
 
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -392,9 +393,7 @@ class PlayerControls(Gtk.ActionBar):
         )
 
         self.play_queue_store = Gio.ListStore()
-        self.play_queue_list = Gtk.ListBox()
-        self.play_queue_list.connect('row-activated',
-                                     self.on_play_queue_row_click)
+        self.play_queue_list = Gtk.ListBox(activate_on_single_click=False)
         self.play_queue_list.bind_model(
             self.play_queue_store,
             self.create_play_queue_row,
@@ -422,7 +421,32 @@ class PlayerControls(Gtk.ActionBar):
         return vbox
 
     def create_play_queue_row(self, model: PlayQueueSong):
-        row = Gtk.ListBoxRow()
+        row = Gtk.ListBoxRow(
+            action_name='app.play-queue-click',
+            action_target=GLib.Variant('s', model.song_id),
+        )
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, margin=3)
+
+        overlay = Gtk.Overlay()
+        image = SpinnerImage(image_name='play-queue-row-image')
+        overlay.add(image)
+        box.add(overlay)
+
+        # Add a play icon overlay if this is the currently playing song.
+        if model.playing == 'True':
+            # TODO style this with a a border so that it is visible when the
+            # cover art looks similar.
+            play_icon = Gtk.Image(
+                name='play-queue-playing-icon',
+                halign=Gtk.Align.CENTER,
+                valign=Gtk.Align.CENTER,
+            )
+            play_icon.set_from_icon_name(
+                'media-playback-start-symbolic',
+                Gtk.IconSize.DIALOG,
+            )
+            overlay.add_overlay(play_icon)
+
         label = Gtk.Label(
             label='\n',
             use_markup=True,
@@ -431,16 +455,29 @@ class PlayerControls(Gtk.ActionBar):
             ellipsize=Pango.EllipsizeMode.END,
             max_width_chars=35,
         )
-        row.add(label)
+        box.add(label)
+        row.add(box)
 
-        def update_label(song_details):
+        def update_image(image_filename):
+            image.set_from_file(image_filename)
+            image.set_loading(False)
+            row.show_all()
+
+        def update_row(song_details):
             title = util.esc(song_details.title)
             album = util.esc(song_details.album)
             artist = util.esc(song_details.artist)
             label.set_markup(f'<b>{title}</b>\n{util.dot_join(album, artist)}')
+            row.show_all()
+
+            cover_art_future = CacheManager.get_cover_art_filename(
+                song_details.coverArt, size=50)
+            cover_art_future.add_done_callback(
+                lambda f: GLib.idle_add(update_image, f.result()))
 
         song_details_future = CacheManager.get_song_details(model.song_id)
         song_details_future.add_done_callback(
-            lambda f: GLib.idle_add(update_label, f.result()))
+            lambda f: GLib.idle_add(update_row, f.result()))
 
+        row.show_all()
         return row

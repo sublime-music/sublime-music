@@ -89,6 +89,9 @@ class LibremsonicApp(Gtk.Application):
         add_action('prev-track', self.on_prev_track)
         add_action('repeat-press', self.on_repeat_press)
         add_action('shuffle-press', self.on_shuffle_press)
+        add_action('play-queue-click',
+                   self.on_play_queue_click,
+                   parameter_type='s')
 
         # Navigation actions.
         add_action('play-next', self.on_play_next, parameter_type='as')
@@ -300,6 +303,9 @@ class LibremsonicApp(Gtk.Application):
 
         self.state.shuffle_on = not self.state.shuffle_on
         self.update_window()
+
+    def on_play_queue_click(self, action, song_id):
+        self.play_song(song_id.get_string(), reset=True)
 
     def on_play_next(self, action, song_ids):
         if self.state.current_song is None:

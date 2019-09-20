@@ -118,6 +118,16 @@
   margin: 10px;
 }
 
+#play-queue-playing-icon {
+  min-height: 40px;
+  min-width: 40px;
+}
+
+#play-queue-row-image {
+  min-height: 50px;
+  min-width: 50px;
+}
+
 /* General */
 .menu-button {
   padding: 5px;
