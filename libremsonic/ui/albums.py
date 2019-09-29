@@ -21,6 +21,11 @@ class AlbumsPanel(Gtk.Box):
             GObject.TYPE_NONE,
             (str, object, object),
         ),
+        'force-refresh': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, ),
+        ),
     }
 
     currently_active_sort: str = 'random'

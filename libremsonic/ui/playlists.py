@@ -22,22 +22,7 @@ class EditPlaylistDialog(EditFormDialog):
     boolean_fields = [('Public', 'public')]
 
     def __init__(self, *args, playlist_id=None, **kwargs):
-        # TODO this doesn't work
-        delete_playlist = Gtk.Button(
-            label='Delete Playlist',
-            action_name='app.delete-playlist',
-            action_target=GLib.Variant('s', playlist_id),
-        )
-
-        def on_delete_playlist(e):
-            # Delete the playlists and invalidate caches.
-            CacheManager.delete_playlist(playlist_id)
-            CacheManager.delete_cached_cover_art(playlist_id)
-            CacheManager.invalidate_playlists_cache()
-            self.close()
-
-        delete_playlist.connect('clicked', on_delete_playlist)
-
+        delete_playlist = Gtk.Button(label='Delete Playlist')
         self.extra_buttons = [(delete_playlist, Gtk.ResponseType.DELETE_EVENT)]
         super().__init__(*args, **kwargs)
 
@@ -49,6 +34,11 @@ class PlaylistsPanel(Gtk.Paned):
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (str, object, object),
+        ),
+        'force-refresh': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, ),
         ),
     }
 
@@ -63,17 +53,29 @@ class PlaylistsPanel(Gtk.Paned):
             'song-clicked',
             lambda _, *args: self.emit('song-clicked', *args),
         )
+        self.playlist_detail_panel.connect(
+            'force-refresh',
+            lambda _, *args: self.emit('force-refresh', *args),
+        )
         self.pack2(self.playlist_detail_panel, True, False)
 
-    def update(self, state: ApplicationState):
+    def update(self, state: ApplicationState = None):
         self.playlist_list.update(state=state)
         self.playlist_detail_panel.update(state=state)
 
 
 class PlaylistList(Gtk.Box):
+    __gsignals__ = {
+        'force-refresh': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, ),
+        ),
+    }
+
     class PlaylistModel(GObject.GObject):
-        playlist_id = GObject.property(type=str)
-        name = GObject.property(type=str)
+        playlist_id = GObject.Property(type=str)
+        name = GObject.Property(type=str)
 
         def __init__(self, playlist_id, name):
             GObject.GObject.__init__(self)
@@ -218,6 +220,8 @@ class PlaylistList(Gtk.Box):
 
     def create_playlist(self, playlist_name):
         def on_playlist_created(f):
+            print(f)
+            CacheManager.invalidate_playlists_cache()
             self.update(force=True)
 
         self.loading_indicator.show()
@@ -233,6 +237,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (str, object, object),
+        ),
+        'force-refresh': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, ),
         ),
     }
 
@@ -427,6 +436,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     def update(self, state: ApplicationState):
         if state.selected_playlist_id is None:
+            self.playlist_artwork.set_from_file(None)
+            self.playlist_indicator.set_markup('')
+            self.playlist_name.set_markup('')
+            self.playlist_comment.hide()
+            self.playlist_stats.set_markup('')
             self.playlist_action_buttons.hide()
             self.play_shuffle_buttons.hide()
             self.playlist_view_loading_box.hide()
@@ -510,22 +524,28 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
         result = dialog.run()
-        if result == Gtk.ResponseType.OK:
-            CacheManager.update_playlist(
-                self.playlist_id,
-                name=dialog.data['name'].get_text(),
-                comment=dialog.data['comment'].get_text(),
-                public=dialog.data['public'].get_active(),
-            )
+        if result in (Gtk.ResponseType.OK, Gtk.ResponseType.DELETE_EVENT):
+            if result == Gtk.ResponseType.OK:
+                CacheManager.update_playlist(
+                    self.playlist_id,
+                    name=dialog.data['name'].get_text(),
+                    comment=dialog.data['comment'].get_text(),
+                    public=dialog.data['public'].get_active(),
+                )
+            elif result == Gtk.ResponseType.DELETE_EVENT:
+                # Delete the playlist.
+                CacheManager.delete_playlist(self.playlist_id)
 
-            # Invalidate the cover art cache.
+            # Invalidate the caches and force a re-fresh of the view
             CacheManager.delete_cached_cover_art(self.playlist_id)
-
-            # Invalidate the playlist list
             CacheManager.invalidate_playlists_cache()
-            # TODO force an update on the Playlist List.
+            self.emit(
+                'force-refresh', {
+                    'selected_playlist_id':
+                    None if result == Gtk.ResponseType.DELETE_EVENT else
+                    self.playlist_id
+                })
 
-            self.update_playlist_view(self.playlist_id, force=True)
         dialog.destroy()
 
     def on_playlist_list_download_all_button_click(self, button):

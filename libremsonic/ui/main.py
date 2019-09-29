@@ -9,8 +9,16 @@ from libremsonic.state_manager import ApplicationState
 class MainWindow(Gtk.ApplicationWindow):
     """Defines the main window for LibremSonic."""
     __gsignals__ = {
-        'song-clicked': (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE,
-                         (str, object, object)),
+        'song-clicked': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (str, object, object),
+        ),
+        'force-refresh': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, ),
+        ),
     }
 
     def __init__(self, *args, **kwargs):
@@ -60,8 +68,14 @@ class MainWindow(Gtk.ApplicationWindow):
     def create_stack(self, **kwargs):
         stack = Gtk.Stack()
         for name, child in kwargs.items():
-            child.connect('song-clicked',
-                          lambda _, *args: self.emit('song-clicked', *args))
+            child.connect(
+                'song-clicked',
+                lambda _, *args: self.emit('song-clicked', *args),
+            )
+            child.connect(
+                'force-refresh',
+                lambda _, *args: self.emit('force-refresh', *args),
+            )
             stack.add_titled(child, name.lower(), name)
         return stack
 

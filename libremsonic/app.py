@@ -102,10 +102,6 @@ class LibremsonicApp(Gtk.Application):
                    self.on_go_to_playlist,
                    parameter_type='s')
 
-        add_action('delete-playlist',
-                   self.on_delete_playlist,
-                   parameter_type='s')
-
         add_action('mute-toggle', self.on_mute_toggle)
         add_action(
             'update-play-queue-from-server',
@@ -139,6 +135,7 @@ class LibremsonicApp(Gtk.Application):
         self.window.stack.connect('notify::visible-child',
                                   self.on_stack_change)
         self.window.connect('song-clicked', self.on_song_clicked)
+        self.window.connect('force-refresh', self.on_force_refresh)
         self.window.player_controls.connect('song-scrub', self.on_song_scrub)
         self.window.player_controls.connect('device-update',
                                             self.on_device_update)
@@ -214,6 +211,11 @@ class LibremsonicApp(Gtk.Application):
             self.update_play_state_from_server(prompt_confirm=True)
 
     # ########## ACTION HANDLERS ########## #
+    def on_force_refresh(self, _, state_updates):
+        for k, v in state_updates.items():
+            setattr(self.state, k, v)
+        self.update_window()
+
     def on_configure_servers(self, action, param):
         self.show_configure_servers_dialog()
 
@@ -338,12 +340,6 @@ class LibremsonicApp(Gtk.Application):
     def on_go_to_playlist(self, action, playlist_id):
         self.state.current_tab = 'playlists'
         self.state.selected_playlist_id = playlist_id.get_string()
-        self.update_window()
-
-    def on_delete_playlist(self, action, playlist_id):
-        # Update state.
-        self.state.current_tab = 'playlists'
-        self.state.selected_playlist_id = None
         self.update_window()
 
     def on_server_list_changed(self, action, servers):

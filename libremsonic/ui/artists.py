@@ -27,6 +27,11 @@ class ArtistsPanel(Gtk.Paned):
             GObject.TYPE_NONE,
             (str, object, object),
         ),
+        'force-refresh': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, ),
+        ),
     }
 
     def __init__(self, *args, **kwargs):
@@ -49,9 +54,9 @@ class ArtistsPanel(Gtk.Paned):
 
 class ArtistList(Gtk.Box):
     class ArtistModel(GObject.GObject):
-        artist_id = GObject.property(type=str)
-        name = GObject.property(type=str)
-        album_count = GObject.property(type=str)
+        artist_id = GObject.Property(type=str)
+        name = GObject.Property(type=str)
+        album_count = GObject.Property(type=str)
 
         def __init__(self, artist_id, name, album_count):
             GObject.GObject.__init__(self)

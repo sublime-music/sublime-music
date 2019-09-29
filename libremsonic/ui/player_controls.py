@@ -38,8 +38,8 @@ class PlayerControls(Gtk.ActionBar):
     current_song = None
 
     class PlayQueueSong(GObject.GObject):
-        song_id = GObject.property(type=str)
-        playing = GObject.property(type=str)
+        song_id = GObject.Property(type=str)
+        playing = GObject.Property(type=str)
 
         def __init__(self, song_id: str, playing: bool):
             GObject.GObject.__init__(self)
