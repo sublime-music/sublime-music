@@ -132,8 +132,10 @@ class LibremsonicApp(Gtk.Application):
         context.add_provider_for_screen(screen, css_provider,
                                         Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
-        self.window.stack.connect('notify::visible-child',
-                                  self.on_stack_change)
+        self.window.stack.connect(
+            'notify::visible-child',
+            self.on_stack_change,
+        )
         self.window.connect('song-clicked', self.on_song_clicked)
         self.window.connect('force-refresh', self.on_force_refresh)
         self.window.player_controls.connect('song-scrub', self.on_song_scrub)
@@ -453,6 +455,7 @@ class LibremsonicApp(Gtk.Application):
             return True
 
     def on_app_shutdown(self, app):
+        Notify.uninit()
         self.player.pause()
         self.chromecast_player.shutdown()
         self.mpv_player.shutdown()
@@ -554,23 +557,29 @@ class LibremsonicApp(Gtk.Application):
 
             # Show a song play notification.
             if self.state.config.song_play_notification:
-                song_notification = Notify.Notification.new(
-                    song.title,
-                    f'<i>{song.album}</i>\n{song.artist}',
-                )
-                song_notification.show()
-
-                def on_cover_art_download_complete(cover_art_filename):
-                    # Add the image to the notification, and re-draw the
-                    # notification.
-                    song_notification.set_image_from_pixbuf(
-                        GdkPixbuf.Pixbuf.new_from_file(cover_art_filename))
+                try:
+                    song_notification = Notify.Notification.new(
+                        song.title,
+                        f'<i>{song.album}</i>\n{song.artist}',
+                    )
                     song_notification.show()
 
-                cover_art_future = CacheManager.get_cover_art_filename(
-                    song.coverArt, size=70)
-                cover_art_future.add_done_callback(
-                    lambda f: on_cover_art_download_complete(f.result()))
+                    def on_cover_art_download_complete(cover_art_filename):
+                        # Add the image to the notification, and re-draw the
+                        # notification.
+                        song_notification.set_image_from_pixbuf(
+                            GdkPixbuf.Pixbuf.new_from_file(cover_art_filename))
+                        song_notification.show()
+
+                    cover_art_future = CacheManager.get_cover_art_filename(
+                        song.coverArt, size=70)
+                    cover_art_future.add_done_callback(
+                        lambda f: on_cover_art_download_complete(f.result()))
+                except:
+                    print(
+                        'Unable to display notification.',
+                        'Is a notification daemon running?',
+                    )
 
             # Prevent it from doing the thing where it continually loads
             # songs when it has to download.
