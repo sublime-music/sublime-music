@@ -109,13 +109,10 @@ class LibremsonicApp(Gtk.Application):
         )
 
     def do_activate(self):
-        def show_window():
-            self.window.show_all()
-            self.window.present()
 
         # We only allow a single window and raise any existing ones
         if self.window:
-            show_window()
+            self.show_window()
             return
 
         # Windows are associated with the application when the last one is
@@ -145,7 +142,7 @@ class LibremsonicApp(Gtk.Application):
             'value-changed', self.on_volume_change)
         self.window.connect('key-press-event', self.on_window_key_press)
 
-        show_window()
+        self.show_window()
 
         # Load the configuration and update the UI with the curent server, if
         # it exists.
@@ -470,6 +467,10 @@ class LibremsonicApp(Gtk.Application):
         return self.state.config.servers[self.state.config.current_server]
 
     # ########## HELPER METHODS ########## #
+    def show_window(self):
+        self.window.show_all()
+        self.window.present()
+
     def show_configure_servers_dialog(self):
         """Show the Connect to Server dialog."""
         dialog = ConfigureServersDialog(self.window, self.state.config)
@@ -557,10 +558,21 @@ class LibremsonicApp(Gtk.Application):
 
             # Show a song play notification.
             if self.state.config.song_play_notification:
+
+                # TODO someone needs to test this, Dunst doesn't seem to
+                # support it.
+                def on_notification_click(*args):
+                    self.show_window()
+
                 try:
                     song_notification = Notify.Notification.new(
                         song.title,
                         f'<i>{song.album}</i>\n{song.artist}',
+                    )
+                    song_notification.add_action(
+                        'clicked',
+                        'Open LibremSonic',
+                        on_notification_click,
                     )
                     song_notification.show()
 
