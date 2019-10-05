@@ -54,6 +54,7 @@ class ApplicationState:
     selected_album_id: str = None
     selected_artist_id: str = None
     selected_playlist_id: str = None
+    current_album_sort: str = 'random'
 
     def to_json(self):
         current_song = (self.current_song.id if
@@ -74,6 +75,7 @@ class ApplicationState:
             'selected_artist_id': getattr(self, 'selected_artist_id', None),
             'selected_playlist_id': getattr(self, 'selected_playlist_id',
                                             None),
+            'current_album_sort': getattr(self, 'current_album_sort', None),
         }
 
     def load_from_json(self, json_object):
@@ -97,6 +99,8 @@ class ApplicationState:
         self.selected_artist_id = json_object.get('selected_artist_id', None)
         self.selected_playlist_id = json_object.get('selected_playlist_id',
                                                     None)
+        self.current_album_sort = json_object.get('current_album_sort',
+                                                  'random')
 
     def load(self):
         self.config = self.get_config(self.config_file)

@@ -35,10 +35,10 @@ class PlaylistsPanel(Gtk.Paned):
             GObject.TYPE_NONE,
             (str, object, object),
         ),
-        'force-refresh': (
+        'refresh-window': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (object, ),
+            (object, bool),
         ),
     }
 
@@ -54,22 +54,22 @@ class PlaylistsPanel(Gtk.Paned):
             lambda _, *args: self.emit('song-clicked', *args),
         )
         self.playlist_detail_panel.connect(
-            'force-refresh',
-            lambda _, *args: self.emit('force-refresh', *args),
+            'refresh-window',
+            lambda _, *args: self.emit('refresh-window', *args),
         )
         self.pack2(self.playlist_detail_panel, True, False)
 
-    def update(self, state: ApplicationState = None):
+    def update(self, state: ApplicationState = None, force=False):
         self.playlist_list.update(state=state)
         self.playlist_detail_panel.update(state=state)
 
 
 class PlaylistList(Gtk.Box):
     __gsignals__ = {
-        'force-refresh': (
+        'refresh-window': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (object, ),
+            (object, bool),
         ),
     }
 
@@ -238,10 +238,10 @@ class PlaylistDetailPanel(Gtk.Overlay):
             GObject.TYPE_NONE,
             (str, object, object),
         ),
-        'force-refresh': (
+        'refresh-window': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (object, ),
+            (object, bool),
         ),
     }
 
@@ -540,11 +540,14 @@ class PlaylistDetailPanel(Gtk.Overlay):
             CacheManager.delete_cached_cover_art(self.playlist_id)
             CacheManager.invalidate_playlists_cache()
             self.emit(
-                'force-refresh', {
+                'refresh-window',
+                {
                     'selected_playlist_id':
                     None if result == Gtk.ResponseType.DELETE_EVENT else
                     self.playlist_id
-                })
+                },
+                True,
+            )
 
         dialog.destroy()
 

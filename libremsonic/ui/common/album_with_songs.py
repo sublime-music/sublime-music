@@ -72,6 +72,7 @@ class AlbumWithSongs(Gtk.Box):
                 label=album.get('name', album.get('title')),
                 name='artist-album-list-album-name',
                 halign=Gtk.Align.START,
+                ellipsize=Pango.EllipsizeMode.END,
             ))
 
         self.play_btn = IconButton('media-playback-start-symbolic',

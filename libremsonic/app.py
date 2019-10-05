@@ -134,7 +134,7 @@ class LibremsonicApp(Gtk.Application):
             self.on_stack_change,
         )
         self.window.connect('song-clicked', self.on_song_clicked)
-        self.window.connect('force-refresh', self.on_force_refresh)
+        self.window.connect('refresh-window', self.on_refresh_window)
         self.window.player_controls.connect('song-scrub', self.on_song_scrub)
         self.window.player_controls.connect('device-update',
                                             self.on_device_update)
@@ -152,6 +152,8 @@ class LibremsonicApp(Gtk.Application):
         if (self.state.config.current_server is None
                 or self.state.config.current_server < 0):
             self.show_configure_servers_dialog()
+            if self.state.config.current_server is None:
+                self.window.close()
 
         self.update_window()
 
@@ -171,6 +173,16 @@ class LibremsonicApp(Gtk.Application):
                 self.save_play_queue()
 
         def on_track_end():
+            current_idx = self.state.play_queue.index(
+                self.state.current_song.id)
+
+            if (current_idx == len(self.state.play_queue) - 1
+                    and self.state.repeat_type == RepeatType.NO_REPEAT):
+                self.state.playing = False
+                self.state.current_song = None
+                GLib.idle_add(self.update_window)
+                return
+
             GLib.idle_add(self.on_next_track)
 
         def on_player_event(event: PlayerEvent):
@@ -210,10 +222,10 @@ class LibremsonicApp(Gtk.Application):
             self.update_play_state_from_server(prompt_confirm=True)
 
     # ########## ACTION HANDLERS ########## #
-    def on_force_refresh(self, _, state_updates):
+    def on_refresh_window(self, _, state_updates, force=False):
         for k, v in state_updates.items():
             setattr(self.state, k, v)
-        self.update_window()
+        self.update_window(force=force)
 
     def on_configure_servers(self, action, param):
         self.show_configure_servers_dialog()
@@ -480,8 +492,8 @@ class LibremsonicApp(Gtk.Application):
         dialog.run()
         dialog.destroy()
 
-    def update_window(self):
-        GLib.idle_add(self.window.update, self.state)
+    def update_window(self, force=False):
+        GLib.idle_add(lambda: self.window.update(self.state, force=force))
 
     def update_play_state_from_server(self, prompt_confirm=False):
         # TODO need to make the up next list loading for the duration here
@@ -499,6 +511,7 @@ class LibremsonicApp(Gtk.Application):
             if prompt_confirm:
                 # If there's not a significant enough difference, don't prompt.
                 if (self.state.play_queue == new_play_queue
+                        and self.state.current_song
                         and self.state.current_song.id == new_current_song_id
                         and abs(self.state.song_progress - new_song_progress) <
                         15):

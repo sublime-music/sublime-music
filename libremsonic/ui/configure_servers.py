@@ -103,9 +103,10 @@ class ConfigureServersDialog(Gtk.Dialog):
         flowbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Server List
-        self.server_list = Gtk.ListBox()
+        self.server_list = Gtk.ListBox(activate_on_single_click=False)
         self.server_list.connect('selected-rows-changed',
                                  self.server_list_on_selected_rows_changed)
+        self.server_list.connect('row-activated', self.on_server_list_activate)
         flowbox.pack_start(self.server_list, True, True, 10)
 
         button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -152,12 +153,21 @@ class ConfigureServersDialog(Gtk.Dialog):
             self.server_list.remove(el)
 
         # Add all of the rows for each of the servers.
-        for config in self.server_configs:
-            row = Gtk.ListBoxRow()
+        for i, config in enumerate(self.server_configs):
+            box = Gtk.Box()
+            image = Gtk.Image(margin=5)
+            if i == self.selected_server_index:
+                image.set_from_icon_name(
+                    'network-transmit-receive-symbolic',
+                    Gtk.IconSize.SMALL_TOOLBAR,
+                )
+
+            box.add(image)
+
             server_name_label = Gtk.Label(label=config.name)
             server_name_label.set_halign(Gtk.Align.START)
-            row.add(server_name_label)
-            self.server_list.add(row)
+            box.add(server_name_label)
+            self.server_list.add(box)
 
         # Show them, and select the current server.
         self.show_all()
@@ -205,6 +215,9 @@ class ConfigureServersDialog(Gtk.Dialog):
             self.emit('server-list-changed', self.server_configs)
 
         dialog.destroy()
+
+    def on_server_list_activate(self, *args):
+        self.on_connect_clicked(None)
 
     def on_connect_clicked(self, event):
         selected_index = self.server_list.get_selected_row().get_index()

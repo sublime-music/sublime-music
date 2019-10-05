@@ -27,10 +27,10 @@ class ArtistsPanel(Gtk.Paned):
             GObject.TYPE_NONE,
             (str, object, object),
         ),
-        'force-refresh': (
+        'refresh-window': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (object, ),
+            (object, bool),
         ),
     }
 
@@ -47,7 +47,7 @@ class ArtistsPanel(Gtk.Paned):
         )
         self.pack2(self.artist_detail_panel, True, False)
 
-    def update(self, state: ApplicationState):
+    def update(self, state: ApplicationState, force=False):
         self.artist_list.update(state=state)
         self.artist_detail_panel.update(state=state)
 
@@ -313,6 +313,7 @@ class ArtistDetailPanel(Gtk.Box):
             cover_art_filename,
             state: ApplicationState,
     ):
+        print(cover_art_filename)
         self.artist_artwork.set_from_file(cover_art_filename)
         self.artist_artwork.set_loading(False)
 

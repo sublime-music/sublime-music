@@ -59,9 +59,10 @@ class PlayerControls(Gtk.ActionBar):
         self.pack_end(play_queue_volume)
 
     def update(self, state: ApplicationState):
-        if hasattr(state, 'current_song') and state.current_song is not None:
-            self.update_scrubber(state.song_progress,
-                                 state.current_song.duration)
+        self.update_scrubber(
+            getattr(state, 'song_progress', None),
+            getattr(state.current_song, 'duration', None),
+        )
 
         icon = 'pause' if state.playing else 'start'
         self.play_button.set_icon(f"media-playback-{icon}-symbolic")
@@ -120,10 +121,13 @@ class PlayerControls(Gtk.ActionBar):
             self.song_title.set_text(util.esc(state.current_song.title))
             self.album_name.set_text(util.esc(state.current_song.album))
             artist_name = util.esc(state.current_song.artist)
-            if artist_name:
-                self.artist_name.set_text(artist_name)
+            self.artist_name.set_text(artist_name or '')
         else:
-            # TODO should probably clear out the cover art display if no song??
+            # Clear out the cover art and song tite if no song
+            self.album_art.set_from_file(None)
+            self.song_title.set_text('')
+            self.album_name.set_text('')
+            self.artist_name.set_text('')
             self.album_art.set_loading(False)
 
         # Set the Play Queue button popup.
@@ -137,7 +141,8 @@ class PlayerControls(Gtk.ActionBar):
                     f'<b>Play Queue:</b> {play_queue_len} {song_label}')
 
             new_model = [
-                PlayerControls.PlayQueueSong(s, s == state.current_song.id)
+                PlayerControls.PlayQueueSong(
+                    s, has_current_song and s == state.current_song.id)
                 for s in state.play_queue
             ]
             util.diff_model_store(self.play_queue_store, new_model)
@@ -152,6 +157,12 @@ class PlayerControls(Gtk.ActionBar):
         self.album_art.set_loading(False)
 
     def update_scrubber(self, current, duration):
+        if current is None and duration is None:
+            self.song_duration_label.set_text('-:--')
+            self.song_progress_label.set_text('-:--')
+            self.song_scrubber.set_value(0)
+            return
+
         current = current or 0
         percent_complete = current / duration * 100
 

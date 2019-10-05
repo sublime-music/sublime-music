@@ -21,14 +21,13 @@ class AlbumsPanel(Gtk.Box):
             GObject.TYPE_NONE,
             (str, object, object),
         ),
-        'force-refresh': (
+        'refresh-window': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (object, ),
+            (object, bool),
         ),
     }
 
-    currently_active_sort: str = 'random'
     currently_active_alphabetical_sort: str = 'name'
     currently_active_genre: str = 'Rock'
     currently_active_from_year: int = 2010
@@ -136,8 +135,10 @@ class AlbumsPanel(Gtk.Box):
             lambda f: GLib.idle_add(get_genres_done, f))
 
     def update(self, state: ApplicationState = None, force: bool = False):
+        if state:
+            self.sort_type_combo.set_active_id(state.current_album_sort)
+
         # TODO store this in state
-        self.sort_type_combo.set_active_id(self.currently_active_sort)
         self.alphabetical_type_combo.set_active_id(
             self.currently_active_alphabetical_sort)
         self.from_year_entry.set_text(str(self.currently_active_from_year))
@@ -148,7 +149,7 @@ class AlbumsPanel(Gtk.Box):
         # Show/hide the combo boxes.
         def show_if(sort_type, *elements):
             for element in elements:
-                if self.currently_active_sort == sort_type:
+                if state.current_album_sort == sort_type:
                     element.show()
                 else:
                     element.hide()
@@ -166,10 +167,13 @@ class AlbumsPanel(Gtk.Box):
             return combo.get_model()[tree_iter][0]
 
     def on_type_combo_changed(self, combo):
-        self.currently_active_sort = self.get_id(combo)
-        if self.grid.type_ != self.currently_active_sort:
-            self.grid.update_params(type_=self.currently_active_sort)
-            self.update(force=True)
+        new_active_sort = self.get_id(combo)
+        self.grid.update_params(type_=new_active_sort)
+        self.emit(
+            'refresh-window',
+            {'current_album_sort': new_active_sort},
+            False,
+        )
 
     def on_alphabetical_type_change(self, combo):
         self.currently_active_alphabetical_sort = self.get_id(combo)
@@ -190,6 +194,7 @@ class AlbumsPanel(Gtk.Box):
         try:
             year = int(entry.get_text())
         except:
+            # TODO
             print('failed, should do something to prevent non-numeric input')
             return
 
@@ -216,7 +221,7 @@ class AlbumModel(GObject.Object):
 
 class AlbumsGrid(CoverArtGrid):
     """Defines the albums panel."""
-    type_: str = 'random'
+    type_: str
     alphabetical_type: str = 'name'
     from_year: int = 2010
     to_year: int = 2020

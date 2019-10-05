@@ -14,10 +14,10 @@ class MainWindow(Gtk.ApplicationWindow):
             GObject.TYPE_NONE,
             (str, object, object),
         ),
-        'force-refresh': (
+        'refresh-window': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (object, ),
+            (object, bool),
         ),
     }
 
@@ -46,7 +46,7 @@ class MainWindow(Gtk.ApplicationWindow):
         flowbox.pack_start(self.player_controls, False, True, 0)
         self.add(flowbox)
 
-    def update(self, state: ApplicationState):
+    def update(self, state: ApplicationState, force=False):
         # Update the Connected to label on the popup menu.
         if state.config.current_server >= 0:
             server_name = state.config.servers[
@@ -61,7 +61,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         active_panel = self.stack.get_visible_child()
         if hasattr(active_panel, 'update'):
-            active_panel.update(state)
+            active_panel.update(state, force=force)
 
         self.player_controls.update(state)
 
@@ -73,8 +73,8 @@ class MainWindow(Gtk.ApplicationWindow):
                 lambda _, *args: self.emit('song-clicked', *args),
             )
             child.connect(
-                'force-refresh',
-                lambda _, *args: self.emit('force-refresh', *args),
+                'refresh-window',
+                lambda _, *args: self.emit('refresh-window', *args),
             )
             stack.add_titled(child, name.lower(), name)
         return stack
