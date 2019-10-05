@@ -109,7 +109,6 @@ class LibremsonicApp(Gtk.Application):
         )
 
     def do_activate(self):
-
         # We only allow a single window and raise any existing ones
         if self.window:
             self.show_window()
@@ -220,6 +219,216 @@ class LibremsonicApp(Gtk.Application):
         # TODO should this be behind sync enabled?
         if self.current_server.sync_enabled:
             self.update_play_state_from_server(prompt_confirm=True)
+
+    # ########## DBUS MANAGMENT ########## #
+    def do_dbus_register(self, connection, path):
+        Gio.bus_own_name_on_connection(
+            connection,
+            'org.mpris.MediaPlayer2.libremsonic',
+            Gio.BusNameOwnerFlags.NONE,
+            self.dbus_name_acquired,
+            self.dbus_name_lost,
+        )
+        return True
+
+    def dbus_name_acquired(self, connection, name):
+        specs = [
+            'org.mpris.MediaPlayer2.xml',
+            'org.mpris.MediaPlayer2.Player.xml',
+            'org.mpris.MediaPlayer2.Playlists.xml',
+            'org.mpris.MediaPlayer2.TrackList.xml',
+        ]
+        for spec in specs:
+            spec_path = os.path.join(
+                os.path.dirname(__file__),
+                f'ui/mpris_specs/{spec}',
+            )
+            with open(spec_path) as f:
+                node_info = Gio.DBusNodeInfo.new_for_xml(f.read())
+
+            connection.register_object(
+                '/org/mpris/MediaPlayer2',
+                node_info.interfaces[0],
+                self.on_dbus_method_call,
+                self.on_dbus_get_property,
+                self.on_dbus_set_property,
+            )
+
+    # TODO: I have no idea what to do here.
+    def dbus_name_lost(self, *args):
+        pass
+
+    def on_dbus_method_call(
+            self,
+            connection,
+            sender,
+            path,
+            interface,
+            method,
+            params,
+            invocation,
+    ):
+        second_microsecond_conversion = 1000000
+
+        def seek_fn(offset):
+            offset_seconds = offset / second_microsecond_conversion
+            new_seconds = self.state.song_progress + offset_seconds
+            self.on_song_scrub(
+                None, new_seconds / self.state.current_song.duration * 100)
+
+        method_call_map = {
+            'org.mpris.MediaPlayer2.Player': {
+                'Next': self.on_next_track,
+                'Previous': self.on_prev_track,
+                'Pause': self.state.playing and self.on_play_pause,
+                'PlayPause': self.on_play_pause,
+                'Stop': self.state.playing and self.on_play_pause,
+                'Play': not self.state.playing and self.on_play_pause,
+                'Seek': seek_fn,
+                # 'SetPosition': lambda args: None,
+                # 'OpenUri': lambda uri: print(uri)
+            },
+        }
+        method = method_call_map.get(interface).get(method)
+        if method is None:
+            print('Unknown method:', method)
+        invocation.return_value(method(*params) if callable(method) else None)
+
+    def on_dbus_get_property(
+            self,
+            connection,
+            sender,
+            path,
+            interface,
+            property_name,
+    ):
+        second_microsecond_conversion = 1000000
+        response_map = {
+            'org.mpris.MediaPlayer2.Player': {
+                'PlaybackStatus': {
+                    (False, False): 'Stopped',
+                    (False, True): 'Stopped',
+                    (True, False): 'Paused',
+                    (True, True): 'Playing',
+                }[self.player.song_loaded, self.state.playing],
+                'LoopStatus':
+                self.state.repeat_type.as_mpris_loop_status(),
+                'Rate':
+                1.0,
+                'Shuffle':
+                self.state.shuffle_on,
+                'Metadata': {
+                    'mpris:trackid':
+                    self.state.current_song.id,
+                    'mpris:length':
+                    GLib.Variant(
+                        'i',
+                        self.state.current_song.duration
+                        * second_microsecond_conversion,
+                    ),
+                    # TODO this won't work. Need to get the cached version or
+                    # give a URL which downloads from the server.
+                    'mpris:artUrl':
+                    self.state.current_song.coverArt,
+                    'xesam:album':
+                    self.state.current_song.album,
+                    'xesam:albumArtist':
+                    GLib.Variant('as', [self.state.current_song.artist]),
+                    'xesam:artist':
+                    GLib.Variant('as', [self.state.current_song.artist]),
+                    'xesam:title':
+                    self.state.current_song.title,
+                } if self.state.current_song else {},
+                'Volume':
+                self.state.volume,
+                'Position':
+                GLib.Variant(
+                    'x',
+                    int(self.state.song_progress
+                        * second_microsecond_conversion),
+                ),
+                'MinimumRate':
+                1.0,
+                'MaximumRate':
+                1.0,
+                # TODO: these two are more complicated. Should make them
+                # actually depend on the correct things.
+                'CanGoNext':
+                True,
+                'CanGoPrevious':
+                True,
+                'CanPlay':
+                True,
+                'CanPause':
+                True,
+                'CanSeek':
+                True,
+                'CanControl':
+                True,
+            },
+        }
+
+        response = response_map.get(interface).get(property_name)
+        if response is None:
+            print('get FAILED', interface, property_name)
+            #  TODO finish implementing all of this
+        if callable(response):
+            response = response()
+
+        if type(response) == dict:
+            return GLib.Variant(
+                'a{sv}',
+                {
+                    k:
+                    v if isinstance(v, GLib.Variant) else GLib.Variant('s', v)
+                    for k, v in response.items()
+                },
+            )
+        elif type(response) == str:
+            return GLib.Variant('s', response)
+        elif type(response) == int:
+            return GLib.Variant('i', response)
+        elif type(response) == float:
+            return GLib.Variant('d', response)
+        elif type(response) == bool:
+            return GLib.Variant('b', response)
+        else:
+            return response
+
+    def on_dbus_set_property(
+            self,
+            connection,
+            sender,
+            path,
+            interface,
+            property_name,
+            value,
+    ):
+        def change_loop(new_loop_status):
+            self.state.repeat_type = RepeatType.from_mpris_loop_status(
+                new_loop_status.get_string())
+            self.update_window()
+
+        def do_shuffle(new_val):
+            if new_val.get_boolean() != self.state.shuffle_on:
+                self.on_shuffle_press(None, None)
+
+        setter_map = {
+            'org.mpris.MediaPlayer2.Player': {
+                'LoopStatus': change_loop,
+                'Rate': lambda _: None,
+                'Shuffle': do_shuffle,
+                'Volume':
+                lambda v: self.on_volume_change(None, v.get_double()),
+            }
+        }
+
+        setter = setter_map.get(interface).get(property_name)
+        if setter is None:
+            print('Set: Unknown property:', setter)
+            return
+        if callable(setter):
+            setter(value)
 
     # ########## ACTION HANDLERS ########## #
     def on_refresh_window(self, _, state_updates, force=False):

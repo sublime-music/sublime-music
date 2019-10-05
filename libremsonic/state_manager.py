@@ -23,6 +23,17 @@ class RepeatType(Enum):
         ][self.value]
         return 'media-playlist-' + icon_name
 
+    def as_mpris_loop_status(self):
+        return ['None', 'Playlist', 'Track'][self.value]
+
+    @staticmethod
+    def from_mpris_loop_status(loop_status):
+        return {
+            'None': RepeatType.NO_REPEAT,
+            'Track': RepeatType.REPEAT_SONG,
+            'Playlist': RepeatType.REPEAT_QUEUE,
+        }[loop_status]
+
 
 class ApplicationState:
     """
