@@ -44,8 +44,8 @@ class ApplicationState:
     playing: bool = False
     play_queue: List[str] = []
     old_play_queue: List[str] = []
-    volume: int = 100
-    old_volume: int = 100
+    _volume: dict = {'this device': 100}
+    is_muted: bool = False
     repeat_type: RepeatType = RepeatType.NO_REPEAT
     shuffle_on: bool = False
     song_progress: float = 0
@@ -64,7 +64,8 @@ class ApplicationState:
             'current_song': current_song,
             'play_queue': getattr(self, 'play_queue', None),
             'old_play_queue': getattr(self, 'old_play_queue', None),
-            'volume': getattr(self, 'volume', None),
+            '_volume': getattr(self, '_volume', {}),
+            'is_muted': getattr(self, 'is_muted', None),
             'repeat_type': getattr(self, 'repeat_type',
                                    RepeatType.NO_REPEAT).value,
             'shuffle_on': getattr(self, 'shuffle_on', None),
@@ -88,7 +89,8 @@ class ApplicationState:
 
         self.play_queue = json_object.get('play_queue') or []
         self.old_play_queue = json_object.get('old_play_queue') or []
-        self.volume = json_object.get('volume') or 100
+        self._volume = json_object.get('_volume') or {'this device': 100}
+        self.is_muted = json_object.get('is_muted') or False
         self.repeat_type = (RepeatType(json_object.get('repeat_type'))
                             or RepeatType.NO_REPEAT)
         self.shuffle_on = json_object.get('shuffle_on', False)
@@ -147,6 +149,16 @@ class ApplicationState:
 
     @property
     def state_filename(self):
+        # TODO: this should probably not be stored in ~/.cache. I blow this
+        # away too often...
         state_filename = (os.environ.get('XDG_CACHE_HOME')
                           or os.path.expanduser('~/.cache'))
         return os.path.join(state_filename, 'libremsonic/state.yaml')
+
+    @property
+    def volume(self):
+        return self._volume.get(self.current_device, 100)
+
+    @volume.setter
+    def volume(self, value):
+        self._volume[self.current_device] = value

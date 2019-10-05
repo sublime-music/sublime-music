@@ -138,8 +138,8 @@ class LibremsonicApp(Gtk.Application):
         self.window.player_controls.connect('song-scrub', self.on_song_scrub)
         self.window.player_controls.connect('device-update',
                                             self.on_device_update)
-        self.window.player_controls.volume_slider.connect(
-            'value-changed', self.on_volume_change)
+        self.window.player_controls.connect('volume-change',
+                                            self.on_volume_change)
         self.window.connect('key-press-event', self.on_window_key_press)
 
         self.show_window()
@@ -436,18 +436,12 @@ class LibremsonicApp(Gtk.Application):
             self.on_play_pause()
 
     def on_mute_toggle(self, action, _):
-        if self.state.volume == 0:
-            new_volume = self.state.old_volume
-        else:
-            self.state.old_volume = self.state.volume
-            new_volume = 0
-
-        self.state.volume = new_volume
-        self.player.volume = new_volume
+        self.state.is_muted = not self.state.is_muted
+        self.player.is_muted = self.state.is_muted
         self.update_window()
 
-    def on_volume_change(self, scale):
-        self.state.volume = scale.get_value()
+    def on_volume_change(self, _, value):
+        self.state.volume = value
         self.player.volume = self.state.volume
         self.update_window()
 

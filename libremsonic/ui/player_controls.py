@@ -23,6 +23,11 @@ class PlayerControls(Gtk.ActionBar):
             GObject.TYPE_NONE,
             (float, ),
         ),
+        'volume-change': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (float, ),
+        ),
         'device-update': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
@@ -96,7 +101,7 @@ class PlayerControls(Gtk.ActionBar):
         self.next_button.set_sensitive(has_current_song and has_next_song)
 
         # Volume button and slider
-        if state.volume == 0:
+        if state.is_muted:
             icon_name = 'muted'
         elif state.volume < 30:
             icon_name = 'low'
@@ -105,13 +110,11 @@ class PlayerControls(Gtk.ActionBar):
         else:
             icon_name = 'high'
 
-        icon = Gio.ThemedIcon(name='audio-volume-' + icon_name)
-        image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
-        self.volume_mute_toggle.remove(self.volume_mute_toggle.get_child())
-        self.volume_mute_toggle.add(image)
-        self.volume_mute_toggle.show_all()
+        self.volume_mute_toggle.set_icon('audio-volume-' + icon_name)
 
-        self.volume_slider.set_value(state.volume)
+        self.editing = True
+        self.volume_slider.set_value(0 if state.is_muted else state.volume)
+        self.editing = False
 
         # Update the current song information.
         # TODO add popup of bigger cover art photo here
@@ -177,6 +180,10 @@ class PlayerControls(Gtk.ActionBar):
 
         if not self.editing:
             self.emit('song-scrub', self.song_scrubber.get_value())
+
+    def on_volume_change(self, scale):
+        if not self.editing:
+            self.emit('volume-change', scale.get_value())
 
     def on_play_queue_click(self, button):
         self.play_queue_popover.set_relative_to(button)
@@ -425,6 +432,7 @@ class PlayerControls(Gtk.ActionBar):
             orientation=Gtk.Orientation.HORIZONTAL, min=0, max=100, step=5)
         self.volume_slider.set_name('volume-slider')
         self.volume_slider.set_draw_value(False)
+        self.volume_slider.connect('value-changed', self.on_volume_change)
         box.pack_start(self.volume_slider, True, True, 0)
 
         vbox.pack_start(box, False, True, 0)

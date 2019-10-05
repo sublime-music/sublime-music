@@ -60,6 +60,14 @@ class Player:
     def volume(self, value):
         return self._set_volume(value)
 
+    @property
+    def is_muted(self):
+        return self._get_is_muted()
+
+    @is_muted.setter
+    def is_muted(self, value):
+        return self._set_is_muted(value)
+
     def reset(self):
         raise NotImplementedError(
             'reset must be implemented by implementor of Player')
@@ -92,9 +100,17 @@ class Player:
         raise NotImplementedError(
             '_get_volume must be implemented by implementor of Player')
 
-    def _set_volume(self):
+    def _set_volume(self, value):
         raise NotImplementedError(
             '_set_volume must be implemented by implementor of Player')
+
+    def _get_is_muted(self):
+        raise NotImplementedError(
+            '_get_is_muted must be implemented by implementor of Player')
+
+    def _set_is_muted(self, value):
+        raise NotImplementedError(
+            '_set_is_muted must be implemented by implementor of Player')
 
     def shutdown(self):
         raise NotImplementedError(
@@ -158,6 +174,12 @@ class MPVPlayer(Player):
 
     def _get_volume(self):
         return self.mpv.volume
+
+    def _get_is_muted(self):
+        return self.mpv.ao_mute
+
+    def _set_is_muted(self, value):
+        self.mpv.ao_mute = value
 
     def shutdown(self):
         pass
@@ -379,19 +401,19 @@ class ChromecastPlayer(Player):
     def _set_volume(self, value):
         # Chromecast volume is in the range [0, 1], not [0, 100].
         if self.chromecast:
-            if value == 0:
-                self.chromecast.set_volume_muted(True)
-            else:
-                self.chromecast.set_volume_muted(False)
-                self.chromecast.set_volume(value / 100)
+            self.chromecast.set_volume(value / 100)
 
     def _get_volume(self, value):
         if self.chromecast:
-            if self.chromecast.status.volume_muted:
-                return 0
             return self.chromecast.status.volume_level * 100
         else:
             return 100
+
+    def _get_is_muted(self):
+        return self.chromecast.volume_muted
+
+    def _set_is_muted(self, value):
+        self.chromecast.set_volume_muted(value)
 
     def shutdown(self):
         if self.chromecast:
