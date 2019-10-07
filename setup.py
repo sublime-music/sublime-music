@@ -29,7 +29,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 3 - ALpha',
+        'Development Status :: 3 - Alpha',
 
         # Indicate who your project is intended for
         'Intended Audience :: End Users/Desktop',
@@ -43,7 +43,15 @@ setup(
     ],
     keywords='airsonic subsonic libresonic music',
     packages=find_packages(exclude=['tests']),
-    package_data={'libremsonic': ['ui/app_styles.css']},
+    package_data={
+        'libremsonic': [
+            'ui/app_styles.css',
+            'ui/mpris_specs/org.mpris.MediaPlayer2.xml',
+            'ui/mpris_specs/org.mpris.MediaPlayer2.Player.xml',
+            'ui/mpris_specs/org.mpris.MediaPlayer2.Playlists.xml',
+            'ui/mpris_specs/org.mpris.MediaPlayer2.Tracklist.xml',
+        ]
+    },
     install_requires=[
         'bottle',
         'deepdiff',
