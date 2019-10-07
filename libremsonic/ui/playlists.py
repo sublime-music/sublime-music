@@ -103,15 +103,15 @@ class PlaylistList(Gtk.Box):
             activatable=False,
             selectable=False,
         )
-        loading_spinner = Gtk.Spinner(name='playlist-list-spinner',
-                                      active=True)
+        loading_spinner = Gtk.Spinner(
+            name='playlist-list-spinner', active=True)
         self.loading_indicator.add(loading_spinner)
         loading_new_playlist.add(self.loading_indicator)
 
-        self.new_playlist_row = Gtk.ListBoxRow(activatable=False,
-                                               selectable=False)
-        new_playlist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
-                                   visible=False)
+        self.new_playlist_row = Gtk.ListBoxRow(
+            activatable=False, selectable=False)
+        new_playlist_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, visible=False)
 
         self.new_playlist_entry = Gtk.Entry(
             name='playlist-list-new-playlist-entry')
@@ -277,23 +277,23 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         view_refresh_button = IconButton('view-refresh-symbolic')
         view_refresh_button.connect('clicked', self.on_view_refresh_click)
-        self.playlist_action_buttons.pack_end(view_refresh_button, False,
-                                              False, 5)
+        self.playlist_action_buttons.pack_end(
+            view_refresh_button, False, False, 5)
 
         playlist_edit_button = IconButton('document-edit-symbolic')
-        playlist_edit_button.connect('clicked',
-                                     self.on_playlist_edit_button_click)
-        self.playlist_action_buttons.pack_end(playlist_edit_button, False,
-                                              False, 5)
+        playlist_edit_button.connect(
+            'clicked', self.on_playlist_edit_button_click)
+        self.playlist_action_buttons.pack_end(
+            playlist_edit_button, False, False, 5)
 
         download_all_button = IconButton('folder-download-symbolic')
         download_all_button.connect(
             'clicked', self.on_playlist_list_download_all_button_click)
-        self.playlist_action_buttons.pack_end(download_all_button, False,
-                                              False, 5)
+        self.playlist_action_buttons.pack_end(
+            download_all_button, False, False, 5)
 
-        playlist_details_box.pack_start(self.playlist_action_buttons, False,
-                                        False, 5)
+        playlist_details_box.pack_start(
+            self.playlist_action_buttons, False, False, 5)
 
         playlist_details_box.pack_start(Gtk.Box(), True, False, 0)
 
@@ -407,15 +407,15 @@ class PlaylistDetailPanel(Gtk.Overlay):
             create_column('DURATION', 4, align=1, width=40))
 
         self.playlist_songs.connect('row-activated', self.on_song_activated)
-        self.playlist_songs.connect('button-press-event',
-                                    self.on_song_button_press)
+        self.playlist_songs.connect(
+            'button-press-event', self.on_song_button_press)
 
         # Set up drag-and-drop on the song list for editing the order of the
         # playlist.
-        self.playlist_song_store.connect('row-inserted',
-                                         self.playlist_model_row_move)
-        self.playlist_song_store.connect('row-deleted',
-                                         self.playlist_model_row_move)
+        self.playlist_song_store.connect(
+            'row-inserted', self.playlist_model_row_move)
+        self.playlist_song_store.connect(
+            'row-deleted', self.playlist_model_row_move)
 
         playlist_view_scroll_window.add(self.playlist_songs)
 
@@ -481,14 +481,17 @@ class PlaylistDetailPanel(Gtk.Overlay):
         # update the list.
         self.editing_playlist_song_list = True
 
-        new_store = [[
-            util.get_cached_status_icon(CacheManager.get_cached_status(song)),
-            song.title,
-            song.album,
-            song.artist,
-            util.format_song_duration(song.duration),
-            song.id,
-        ] for song in (playlist.entry or [])]
+        new_store = [
+            [
+                util.get_cached_status_icon(
+                    CacheManager.get_cached_status(song)),
+                song.title,
+                song.album,
+                song.artist,
+                util.format_song_duration(song.duration),
+                song.id,
+            ] for song in (playlist.entry or [])
+        ]
 
         util.diff_song_store(self.playlist_song_store, new_store)
 
@@ -564,9 +567,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     def on_play_all_clicked(self, btn):
         song_id = self.playlist_song_store[0][-1]
-        self.emit('song-clicked', song_id,
-                  [m[-1] for m in self.playlist_song_store],
-                  {'force_shuffle_state': False})
+        self.emit(
+            'song-clicked', song_id, [m[-1] for m in self.playlist_song_store],
+            {'force_shuffle_state': False})
 
     def on_shuffle_all_button(self, btn):
         rand_idx = randint(0, len(self.playlist_song_store) - 1)
@@ -619,8 +622,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 )
                 self.update_playlist_view(self.playlist_id, force=True)
 
-            remove_text = ('Remove ' + util.pluralize('song', len(song_ids))
-                           + ' from playlist')
+            remove_text = (
+                'Remove ' + util.pluralize('song', len(song_ids))
+                + ' from playlist')
             util.show_song_popover(
                 song_ids,
                 event.x,
@@ -667,8 +671,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
             song_id_to_add=[s[-1] for s in self.playlist_song_store],
         )
 
-        update_playlist_future.add_done_callback(lambda f: GLib.idle_add(
-            lambda: self.update_playlist_view(playlist.id, force=True)))
+        update_playlist_future.add_done_callback(
+            lambda f: GLib.idle_add(
+                lambda: self.update_playlist_view(playlist.id, force=True)))
 
     def format_stats(self, playlist):
         created_date = playlist.created.strftime('%B %d, %Y')
@@ -678,8 +683,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 f"{'Not v' if not playlist.public else 'V'}isible to others",
             ),
             util.dot_join(
-                '{} {}'.format(playlist.songCount,
-                               util.pluralize("song", playlist.songCount)),
+                '{} {}'.format(
+                    playlist.songCount,
+                    util.pluralize("song", playlist.songCount)),
                 util.format_sequence_duration(playlist.duration),
             ),
         ]

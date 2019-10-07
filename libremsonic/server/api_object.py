@@ -24,9 +24,10 @@ class APIObject:
 
         annotations: Dict[str, Any] = self.get('__annotations__', {})
         typename = type(self).__name__
-        fieldstr = ' '.join([
-            f'{field}={getattr(self, field)!r}'
-            for field in annotations.keys()
-            if hasattr(self, field) and getattr(self, field) is not None
-        ])
+        fieldstr = ' '.join(
+            [
+                f'{field}={getattr(self, field)!r}'
+                for field in annotations.keys()
+                if hasattr(self, field) and getattr(self, field) is not None
+            ])
         return f'<{typename} {fieldstr}>'

@@ -92,8 +92,9 @@ class ArtistList(Gtk.Box):
 
             album_count = model.album_count
             if album_count:
-                label_text.append('{} {}'.format(
-                    album_count, util.pluralize('album', album_count)))
+                label_text.append(
+                    '{} {}'.format(
+                        album_count, util.pluralize('album', album_count)))
 
             row = Gtk.ListBoxRow(
                 action_name='app.go-to-artist',
@@ -190,15 +191,15 @@ class ArtistDetailPanel(Gtk.Box):
 
         view_refresh_button = IconButton('view-refresh-symbolic')
         view_refresh_button.connect('clicked', self.on_view_refresh_click)
-        self.artist_action_buttons.pack_end(view_refresh_button, False, False,
-                                            5)
+        self.artist_action_buttons.pack_end(
+            view_refresh_button, False, False, 5)
 
         download_all_btn = IconButton('folder-download-symbolic')
         download_all_btn.connect('clicked', self.on_download_all_click)
         self.artist_action_buttons.pack_end(download_all_btn, False, False, 5)
 
-        artist_details_box.pack_start(self.artist_action_buttons, False, False,
-                                      5)
+        artist_details_box.pack_start(
+            self.artist_action_buttons, False, False, 5)
 
         artist_details_box.pack_start(Gtk.Box(), True, False, 0)
 
@@ -208,8 +209,8 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_name = self.make_label(name='artist-name')
         artist_details_box.add(self.artist_name)
 
-        self.artist_bio = self.make_label(name='artist-bio',
-                                          justify=Gtk.Justification.LEFT)
+        self.artist_bio = self.make_label(
+            name='artist-bio', justify=Gtk.Justification.LEFT)
         self.artist_bio.set_line_wrap(True)
         artist_details_box.add(self.artist_bio)
 

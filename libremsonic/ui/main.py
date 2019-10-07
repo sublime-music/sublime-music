@@ -118,8 +118,10 @@ class MainWindow(Gtk.ApplicationWindow):
 
         menu_items = [
             (None, self.connected_to_label),
-            ('app.configure-servers',
-             Gtk.ModelButton(text='Configure Servers')),
+            (
+                'app.configure-servers',
+                Gtk.ModelButton(text='Configure Servers'),
+            ),
             ('app.settings', Gtk.ModelButton(text='Settings')),
         ]
 

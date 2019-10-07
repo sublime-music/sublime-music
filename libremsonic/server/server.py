@@ -164,9 +164,10 @@ class Server:
         :param if_modified_since: If specified, only return a result if the
             artist collection has changed since the given time.
         """
-        result = self._get_json(self._make_url('getIndexes'),
-                                musicFolderId=music_folder_id,
-                                ifModifiedSince=if_modified_since)
+        result = self._get_json(
+            self._make_url('getIndexes'),
+            musicFolderId=music_folder_id,
+            ifModifiedSince=if_modified_since)
         return result.indexes
 
     def get_music_directory(self, dir_id) -> Directory:
@@ -177,8 +178,8 @@ class Server:
         :param dir_id: A string which uniquely identifies the music folder.
             Obtained by calls to ``getIndexes`` or ``getMusicDirectory``.
         """
-        result = self._get_json(self._make_url('getMusicDirectory'),
-                                id=str(dir_id))
+        result = self._get_json(
+            self._make_url('getMusicDirectory'), id=str(dir_id))
         return result.directory
 
     def get_genres(self) -> Genres:
@@ -195,8 +196,8 @@ class Server:
         :param music_folder_id: If specified, only return artists in the music
             folder with the given ID. See ``getMusicFolders``.
         """
-        result = self._get_json(self._make_url('getArtists'),
-                                musicFolderId=music_folder_id)
+        result = self._get_json(
+            self._make_url('getArtists'), musicFolderId=music_folder_id)
         return result.artists
 
     def get_artist(self, artist_id: int) -> ArtistWithAlbumsID3:
@@ -666,8 +667,8 @@ class Server:
             user rather than for the authenticated user. The authenticated user
             must have admin role if this parameter is used.
         """
-        result = self._get_json(self._make_url('getPlaylists'),
-                                username=username)
+        result = self._get_json(
+            self._make_url('getPlaylists'), username=username)
         return result.playlists
 
     def get_playlist(self, id: int = None) -> PlaylistWithSongs:
@@ -814,9 +815,8 @@ class Server:
         :param id: The ID of a song, album or artist.
         :param size: If specified, scale image to this size.
         """
-        return self.do_download(self._make_url('getCoverArt'),
-                                id=id,
-                                size=size)
+        return self.do_download(
+            self._make_url('getCoverArt'), id=id, size=size)
 
     def get_cover_art_url(self, id: str, size: str = None):
         """
@@ -914,9 +914,8 @@ class Server:
         :param rating: The rating between 1 and 5 (inclusive), or 0 to remove
             the rating.
         """
-        return self._get_json(self._make_url('setRating'),
-                              id=id,
-                              rating=rating)
+        return self._get_json(
+            self._make_url('setRating'), id=id, rating=rating)
 
     def scrobble(
             self,
@@ -1076,8 +1075,8 @@ class Server:
 
         :param id: The ID for the station.
         """
-        return self._get_json(self._make_url('deleteInternetRadioStation'),
-                              id=id)
+        return self._get_json(
+            self._make_url('deleteInternetRadioStation'), id=id)
 
     def get_user(self, username: str) -> User:
         """

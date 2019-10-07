@@ -55,9 +55,9 @@ class LibremsonicApp(Gtk.Application):
             config_file = config_file.get_bytestring().decode('utf-8')
         else:
             # Default to ~/.config/libremsonic.
-            config_folder = (environ.get('XDG_CONFIG_HOME')
-                             or environ.get('APPDATA')
-                             or os.path.join(environ.get('HOME'), '.config'))
+            config_folder = (
+                environ.get('XDG_CONFIG_HOME') or environ.get('APPDATA')
+                or os.path.join(environ.get('HOME'), '.config'))
             config_folder = os.path.join(config_folder, 'libremsonic')
             config_file = os.path.join(config_folder, 'config.json')
 
@@ -89,18 +89,16 @@ class LibremsonicApp(Gtk.Application):
         add_action('prev-track', self.on_prev_track)
         add_action('repeat-press', self.on_repeat_press)
         add_action('shuffle-press', self.on_shuffle_press)
-        add_action('play-queue-click',
-                   self.on_play_queue_click,
-                   parameter_type='s')
+        add_action(
+            'play-queue-click', self.on_play_queue_click, parameter_type='s')
 
         # Navigation actions.
         add_action('play-next', self.on_play_next, parameter_type='as')
         add_action('add-to-queue', self.on_add_to_queue, parameter_type='as')
         add_action('go-to-album', self.on_go_to_album, parameter_type='s')
         add_action('go-to-artist', self.on_go_to_artist, parameter_type='s')
-        add_action('go-to-playlist',
-                   self.on_go_to_playlist,
-                   parameter_type='s')
+        add_action(
+            'go-to-playlist', self.on_go_to_playlist, parameter_type='s')
 
         add_action('mute-toggle', self.on_mute_toggle)
         add_action(
@@ -125,8 +123,8 @@ class LibremsonicApp(Gtk.Application):
             os.path.join(os.path.dirname(__file__), 'ui/app_styles.css'))
         context = Gtk.StyleContext()
         screen = Gdk.Screen.get_default()
-        context.add_provider_for_screen(screen, css_provider,
-                                        Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        context.add_provider_for_screen(
+            screen, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
         self.window.stack.connect(
             'notify::visible-child',
@@ -135,10 +133,10 @@ class LibremsonicApp(Gtk.Application):
         self.window.connect('song-clicked', self.on_song_clicked)
         self.window.connect('refresh-window', self.on_refresh_window)
         self.window.player_controls.connect('song-scrub', self.on_song_scrub)
-        self.window.player_controls.connect('device-update',
-                                            self.on_device_update)
-        self.window.player_controls.connect('volume-change',
-                                            self.on_volume_change)
+        self.window.player_controls.connect(
+            'device-update', self.on_device_update)
+        self.window.player_controls.connect(
+            'volume-change', self.on_volume_change)
         self.window.connect('key-press-event', self.on_window_key_press)
 
         self.show_window()
@@ -276,6 +274,10 @@ class LibremsonicApp(Gtk.Application):
             self.on_song_scrub(
                 None, new_seconds / self.state.current_song.duration * 100)
 
+        def set_pos_fn(track_id, position):
+            # TODO
+            print(track_id, position)
+
         method_call_map = {
             'org.mpris.MediaPlayer2.Player': {
                 'Next': self.on_next_track,
@@ -285,7 +287,7 @@ class LibremsonicApp(Gtk.Application):
                 'Stop': self.state.playing and self.on_play_pause,
                 'Play': not self.state.playing and self.on_play_pause,
                 'Seek': seek_fn,
-                # 'SetPosition': lambda args: None,
+                'SetPosition': set_pos_fn,
                 # 'OpenUri': lambda uri: print(uri)
             },
         }
@@ -344,7 +346,8 @@ class LibremsonicApp(Gtk.Application):
                 'Position':
                 GLib.Variant(
                     'x',
-                    int(self.state.song_progress
+                    int(
+                        self.state.song_progress
                         * second_microsecond_conversion),
                 ),
                 'MinimumRate':
@@ -368,7 +371,7 @@ class LibremsonicApp(Gtk.Application):
             },
         }
 
-        response = response_map.get(interface).get(property_name)
+        response = response_map.get(interface, {}).get(property_name)
         if response is None:
             print('get FAILED', interface, property_name)
             #  TODO finish implementing all of this
@@ -536,9 +539,9 @@ class LibremsonicApp(Gtk.Application):
             insert_at = (
                 self.state.play_queue.index(self.state.current_song.id) + 1)
 
-        self.state.play_queue = (self.state.play_queue[:insert_at]
-                                 + list(song_ids)
-                                 + self.state.play_queue[insert_at:])
+        self.state.play_queue = (
+            self.state.play_queue[:insert_at] + list(song_ids)
+            + self.state.play_queue[insert_at:])
         self.state.old_play_queue.extend(song_ids)
         self.update_window()
 
@@ -690,8 +693,8 @@ class LibremsonicApp(Gtk.Application):
         """Show the Connect to Server dialog."""
         dialog = ConfigureServersDialog(self.window, self.state.config)
         dialog.connect('server-list-changed', self.on_server_list_changed)
-        dialog.connect('connected-server-changed',
-                       self.on_connected_server_changed)
+        dialog.connect(
+            'connected-server-changed', self.on_connected_server_changed)
         dialog.run()
         dialog.destroy()
 
@@ -824,8 +827,8 @@ class LibremsonicApp(Gtk.Application):
                 if self.player.can_hotswap_source:
                     downloaded_filename = (
                         CacheManager.get_song_filename_or_stream(song)[0])
-                    self.player.play_media(downloaded_filename,
-                                           self.state.song_progress, song)
+                    self.player.play_media(
+                        downloaded_filename, self.state.song_progress, song)
                 GLib.idle_add(self.update_window)
 
             # If streaming, also download the song, unless configured not to,

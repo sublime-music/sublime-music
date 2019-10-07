@@ -44,8 +44,8 @@ class AlbumWithSongs(Gtk.Box):
             spinner_name='artist-artwork-spinner',
         )
         # Account for 10px margin on all sides with "+ 20".
-        artist_artwork.set_size_request(cover_art_size + 20,
-                                        cover_art_size + 20)
+        artist_artwork.set_size_request(
+            cover_art_size + 20, cover_art_size + 20)
         box.pack_start(artist_artwork, False, False, 0)
         box.pack_start(Gtk.Box(), True, True, 0)
         self.pack_start(box, False, False, 0)
@@ -75,30 +75,30 @@ class AlbumWithSongs(Gtk.Box):
                 ellipsize=Pango.EllipsizeMode.END,
             ))
 
-        self.play_btn = IconButton('media-playback-start-symbolic',
-                                   sensitive=False)
+        self.play_btn = IconButton(
+            'media-playback-start-symbolic', sensitive=False)
         self.play_btn.connect('clicked', self.play_btn_clicked)
         album_title_and_buttons.pack_start(self.play_btn, False, False, 5)
 
-        self.shuffle_btn = IconButton('media-playlist-shuffle-symbolic',
-                                      sensitive=False)
+        self.shuffle_btn = IconButton(
+            'media-playlist-shuffle-symbolic', sensitive=False)
         self.shuffle_btn.connect('clicked', self.shuffle_btn_clicked)
         album_title_and_buttons.pack_start(self.shuffle_btn, False, False, 5)
 
-        self.play_next_btn = IconButton('go-top-symbolic',
-                                        action_name='app.play-next')
+        self.play_next_btn = IconButton(
+            'go-top-symbolic', action_name='app.play-next')
         album_title_and_buttons.pack_start(self.play_next_btn, False, False, 5)
 
-        self.add_to_queue_btn = IconButton('go-jump-symbolic',
-                                           action_name='app.add-to-queue')
-        album_title_and_buttons.pack_start(self.add_to_queue_btn, False, False,
-                                           5)
+        self.add_to_queue_btn = IconButton(
+            'go-jump-symbolic', action_name='app.add-to-queue')
+        album_title_and_buttons.pack_start(
+            self.add_to_queue_btn, False, False, 5)
 
-        self.download_all_btn = IconButton('folder-download-symbolic',
-                                           sensitive=False)
+        self.download_all_btn = IconButton(
+            'folder-download-symbolic', sensitive=False)
         self.download_all_btn.connect('clicked', self.on_download_all_click)
-        album_title_and_buttons.pack_end(self.download_all_btn, False, False,
-                                         5)
+        album_title_and_buttons.pack_end(
+            self.download_all_btn, False, False, 5)
 
         album_details.add(album_title_and_buttons)
 
@@ -169,10 +169,10 @@ class AlbumWithSongs(Gtk.Box):
             create_column('DURATION', 2, align=1, width=40))
 
         self.album_songs.connect('row-activated', self.on_song_activated)
-        self.album_songs.connect('button-press-event',
-                                 self.on_song_button_press)
-        self.album_songs.get_selection().connect('changed',
-                                                 self.on_song_selection_change)
+        self.album_songs.connect(
+            'button-press-event', self.on_song_button_press)
+        self.album_songs.get_selection().connect(
+            'changed', self.on_song_selection_change)
         album_details.add(self.album_songs)
 
         self.pack_end(album_details, True, True, 0)
@@ -188,8 +188,9 @@ class AlbumWithSongs(Gtk.Box):
     def on_song_activated(self, treeview, idx, column):
         # The song ID is in the last column of the model.
         song_id = self.album_song_store[idx][-1]
-        self.emit('song-clicked', song_id,
-                  [m[-1] for m in self.album_song_store], {})
+        self.emit(
+            'song-clicked', song_id, [m[-1] for m in self.album_song_store],
+            {})
 
     def on_song_button_press(self, tree, event):
         if event.button == 3:  # Right click
@@ -273,19 +274,22 @@ class AlbumWithSongs(Gtk.Box):
             album: Union[AlbumWithSongsID3, Child, Directory],
             state: ApplicationState,
     ):
-        new_store = [[
-            util.get_cached_status_icon(CacheManager.get_cached_status(song)),
-            util.esc(song.title),
-            util.format_song_duration(song.duration),
-            song.id,
-        ] for song in (album.get('child') or album.get('song') or [])]
+        new_store = [
+            [
+                util.get_cached_status_icon(
+                    CacheManager.get_cached_status(song)),
+                util.esc(song.title),
+                util.format_song_duration(song.duration),
+                song.id,
+            ] for song in (album.get('child') or album.get('song') or [])
+        ]
 
         song_ids = [song[-1] for song in new_store]
 
         self.play_btn.set_sensitive(True)
         self.shuffle_btn.set_sensitive(True)
-        self.play_next_btn.set_action_target_value(GLib.Variant(
-            'as', song_ids))
+        self.play_next_btn.set_action_target_value(
+            GLib.Variant('as', song_ids))
         self.add_to_queue_btn.set_action_target_value(
             GLib.Variant('as', song_ids))
         self.download_all_btn.set_sensitive(True)
