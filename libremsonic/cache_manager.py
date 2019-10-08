@@ -108,6 +108,8 @@ class CacheManager(metaclass=Singleton):
         server: Server
         browse_by_tags: bool
 
+        # TODO need to split out the song downloads and make them higher
+        # priority I think. Maybe even need to just make this a priority queue.
         download_set_lock = threading.Lock()
         current_downloads: Set[Path] = set()
 
