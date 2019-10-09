@@ -275,10 +275,17 @@ class LibremsonicApp(Gtk.Application):
                 None, new_seconds / self.state.current_song.duration * 100)
 
         def set_pos_fn(track_id, position):
-            # TODO
-            print(track_id, position)
+            if self.state.playing:
+                self.on_play_pause()
+            pos_seconds = position / second_microsecond_conversion
+            self.state.song_progress = pos_seconds
+            self.play_song(track_id)
 
         method_call_map = {
+            'org.mpris.MediaPlayer2': {
+                'Raise': self.show_window,
+                'Quit': self.window.destroy,
+            },
             'org.mpris.MediaPlayer2.Player': {
                 'Next': self.on_next_track,
                 'Previous': self.on_prev_track,
@@ -288,7 +295,7 @@ class LibremsonicApp(Gtk.Application):
                 'Play': not self.state.playing and self.on_play_pause,
                 'Seek': seek_fn,
                 'SetPosition': set_pos_fn,
-                # 'OpenUri': lambda uri: print(uri)
+                'OpenUri': lambda uri: None,
             },
         }
         method = method_call_map.get(interface).get(method)
@@ -306,6 +313,16 @@ class LibremsonicApp(Gtk.Application):
     ):
         second_microsecond_conversion = 1000000
         response_map = {
+            'org.mpris.MediaPlayer2': {
+                'CanQuit': True,
+                'CanRaise': True,
+                'HasTrackList': True,
+                'Identity': 'Libremsonic',
+                # TODO should implement in #29
+                'DesktopEntry': 'foo',
+                'SupportedUriSchemes': [],
+                'SupportedMimeTypes': [],
+            },
             'org.mpris.MediaPlayer2.Player': {
                 'PlaybackStatus': {
                     (False, False): 'Stopped',
@@ -334,10 +351,8 @@ class LibremsonicApp(Gtk.Application):
                     self.state.current_song.coverArt,
                     'xesam:album':
                     self.state.current_song.album,
-                    'xesam:albumArtist':
-                    GLib.Variant('as', [self.state.current_song.artist]),
-                    'xesam:artist':
-                    GLib.Variant('as', [self.state.current_song.artist]),
+                    'xesam:albumArtist': [self.state.current_song.artist],
+                    'xesam:artist': [self.state.current_song.artist],
                     'xesam:title':
                     self.state.current_song.title,
                 } if self.state.current_song else {},
@@ -369,6 +384,10 @@ class LibremsonicApp(Gtk.Application):
                 'CanControl':
                 True,
             },
+            'org.mpris.MediaPlayer2.TrackList': {
+                'Tracks': self.state.play_queue,
+                'CanEditTracks': self.state.play_queue,
+            },
         }
 
         response = response_map.get(interface, {}).get(property_name)
@@ -387,6 +406,8 @@ class LibremsonicApp(Gtk.Application):
                     for k, v in response.items()
                 },
             )
+        elif type(response) == list:
+            return GLib.Variant('as', response)
         elif type(response) == str:
             return GLib.Variant('s', response)
         elif type(response) == int:
@@ -758,7 +779,7 @@ class LibremsonicApp(Gtk.Application):
 
     def play_song(
             self,
-            song: Child,
+            song_id: str,
             reset=False,
             old_play_queue=None,
             play_queue=None,
@@ -870,7 +891,7 @@ class LibremsonicApp(Gtk.Application):
             if self.current_server.sync_enabled:
                 CacheManager.scrobble(song.id)
 
-        song_details_future = CacheManager.get_song_details(song)
+        song_details_future = CacheManager.get_song_details(song_id)
         song_details_future.add_done_callback(
             lambda f: GLib.idle_add(do_play_song, f.result()), )
 
