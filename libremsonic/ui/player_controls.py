@@ -159,7 +159,7 @@ class PlayerControls(Gtk.ActionBar):
         self.album_art.set_loading(False)
 
     def update_scrubber(self, current, duration):
-        if current is None and duration is None:
+        if current is None or duration is None:
             self.song_duration_label.set_text('-:--')
             self.song_progress_label.set_text('-:--')
             self.song_scrubber.set_value(0)
