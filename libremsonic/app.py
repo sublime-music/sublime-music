@@ -312,6 +312,15 @@ class LibremsonicApp(Gtk.Application):
             property_name,
     ):
         second_microsecond_conversion = 1000000
+        has_current_song = self.state.current_song is not None
+        has_next_song = False
+        if self.state.repeat_type in (RepeatType.REPEAT_QUEUE,
+                                      RepeatType.REPEAT_SONG):
+            has_next_song = True
+        elif has_current_song and self.state.current_song.id in self.state.play_queue:
+            current = self.state.play_queue.index(self.state.current_song.id)
+            has_next_song = current < len(self.state.play_queue) - 1
+
         response_map = {
             'org.mpris.MediaPlayer2': {
                 'CanQuit': True,
@@ -369,12 +378,10 @@ class LibremsonicApp(Gtk.Application):
                 1.0,
                 'MaximumRate':
                 1.0,
-                # TODO: these two are more complicated. Should make them
-                # actually depend on the correct things.
                 'CanGoNext':
-                True,
+                has_current_song and has_next_song,
                 'CanGoPrevious':
-                True,
+                has_current_song,
                 'CanPlay':
                 True,
                 'CanPause':
