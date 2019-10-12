@@ -72,7 +72,7 @@ class DBusManager:
             interface,
             property_name,
     ):
-        return self.to_variant(
+        return DBusManager.to_variant(
             self.property_dict().get(
                 interface,
                 {},
@@ -98,7 +98,7 @@ class DBusManager:
                     connection, sender, path, interface, *params)
             elif method == 'GetAll':
                 all_properties = {
-                    k: self.to_variant(v)
+                    k: DBusManager.to_variant(v)
                     for k, v in self.property_dict()[interface].items()
                 }
                 invocation.return_value(
@@ -115,9 +115,10 @@ class DBusManager:
             invocation,
         )
 
-    def to_variant(self, value):
+    @staticmethod
+    def to_variant(value):
         if callable(value):
-            return self.to_variant(value())
+            return DBusManager.to_variant(value())
 
         if isinstance(value, GLib.Variant):
             return value
@@ -128,7 +129,7 @@ class DBusManager:
         if type(value) == dict:
             return GLib.Variant(
                 'a{sv}',
-                {k: self.to_variant(v)
+                {k: DBusManager.to_variant(v)
                  for k, v in value.items()},
             )
 
@@ -182,7 +183,7 @@ class DBusManager:
                     'mpris:trackid':
                     state.current_song.id,
                     'mpris:length': (
-                        'i',
+                        'x',
                         (state.current_song.duration or 0)
                         * self.second_microsecond_conversion,
                     ),
@@ -234,23 +235,6 @@ class DBusManager:
         new_property_dict = self.property_dict()
         diff = DeepDiff(self.current_state, new_property_dict)
 
-        if 'dictionary_item_added' in diff.keys():
-            for interface, property_dict in new_property_dict.items():
-                self.connection.emit_signal(
-                    None,
-                    '/org/mpris/MediaPlayer2',
-                    'org.freedesktop.DBus.Properties',
-                    'PropertiesChanged',
-                    GLib.Variant(
-                        '(sa{sv}as)', (
-                            interface,
-                            self.to_variant(property_dict),
-                            self.to_variant([]),
-                        )),
-                )
-            self.current_state = new_property_dict
-            return
-
         changes = defaultdict(dict)
 
         for path, change in diff.get('values_changed', {}).items():
@@ -267,18 +251,19 @@ class DBusManager:
             if 'Position' in changed_props.keys():
                 del changed_props['Position']
 
-            print(interface, changed_props)
-            print(self.to_variant(changed_props))
             self.connection.emit_signal(
                 None,
                 '/org/mpris/MediaPlayer2',
                 'org.freedesktop.DBus.Properties',
                 'PropertiesChanged',
                 GLib.Variant(
-                    "(sa{sv}as)", (
+                    '(sa{sv}as)', (
                         interface,
-                        self.to_variant(changed_props),
-                        self.to_variant([]),
+                        {
+                            k: DBusManager.to_variant(v)
+                            for k, v in changed_props.items()
+                        },
+                        [],
                     )),
             )
 
