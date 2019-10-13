@@ -210,8 +210,15 @@ class DBusManager:
                 True,
             },
             'org.mpris.MediaPlayer2.TrackList': {
-                'Tracks': ['/' + i for i in state.play_queue],
+                'Tracks': ['/song/' + i for i in state.play_queue],
                 'CanEditTracks': False,
+            },
+            'org.mpris.MediaPlayer2.Playlists': {
+                # TODO this may do a network request. This really is a case for
+                # doing the whole thing with caching some data beforehand.
+                'PlaylistCount': len(CacheManager.get_playlists().result()),
+                'Orderings': ['Alphabetical'],
+                'ActivePlaylist': None,
             },
         }
 
@@ -221,7 +228,7 @@ class DBusManager:
             (song.duration or 0) * self.second_microsecond_conversion,
         )
         return {
-            'mpris:trackid': song.id,
+            'mpris:trackid': '/song/' + song.id,
             'mpris:length': duration,
             'mpris:artUrl': CacheManager.get_cover_art_url(song.id, 1000),
             'xesam:album': song.album,
@@ -252,15 +259,46 @@ class DBusManager:
                 changed_props['Metadata'] = new_property_dict[interface][
                     'Metadata']
 
-            if 'Position' in changed_props.keys():
+            # Special handling for when the position changes (a seek).
+            # Technically, I'm sending this signal too often, but I don't think
+            # it really matters.
+            if (interface == 'org.mpris.MediaPlayer2.Player'
+                    and 'Position' in changed_props):
                 self.connection.emit_signal(
                     None,
                     '/org/mpris/MediaPlayer2',
-                    'org.mpris.MediaPlayer2.Player',
+                    interface,
                     'Seeked',
                     GLib.Variant('(x)', (changed_props['Position'][1], )),
                 )
+
+                # Do not emit the property change.
                 del changed_props['Position']
+
+            # Special handling for when the track list changes.
+            # Technically, I'm supposed to use `TrackAdded` and `TrackRemoved`
+            # signals when minor changes occur, but the docs also say that:
+            #
+            # > It is left up to the implementation to decide when a change to
+            # > the track list is invasive enough that this signal should be
+            # > emitted instead of a series of TrackAdded and TrackRemoved
+            # > signals.
+            #
+            # So I think that any change is invasive enough that I should use
+            # this signal.
+            if (interface == 'org.mpris.MediaPlayer2.TrackList'
+                    and 'Tracks' in changed_props):
+                track_list = changed_props['Tracks']
+                current_track = (
+                    new_property_dict['org.mpris.MediaPlayer2.Player']
+                    ['Metadata']['mpris:trackid'])
+                self.connection.emit_signal(
+                    None,
+                    '/org/mpris/MediaPlayer2',
+                    interface,
+                    'TrackListReplaced',
+                    GLib.Variant('(aoo)', (track_list, current_track)),
+                )
 
             self.connection.emit_signal(
                 None,

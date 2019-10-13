@@ -1,5 +1,6 @@
 import functools
 import os
+import re
 import math
 import random
 
@@ -264,6 +265,7 @@ class LibremsonicApp(Gtk.Application):
             invocation,
     ):
         second_microsecond_conversion = 1000000
+        track_id_re = re.compile(r'/song/(.*)')
 
         def seek_fn(offset):
             offset_seconds = offset / second_microsecond_conversion
@@ -276,14 +278,14 @@ class LibremsonicApp(Gtk.Application):
                 self.on_play_pause()
             pos_seconds = position / second_microsecond_conversion
             self.state.song_progress = pos_seconds
-            self.play_song(track_id[1:])
+            self.play_song(track_id_re.match(track_id).group(1))
 
         def get_track_metadata(track_ids):
             metadatas = []
 
             song_details_futures = [
-                CacheManager.get_song_details(track_id)
-                for track_id in (tid[1:] for tid in track_ids)
+                CacheManager.get_song_details(track_id) for track_id in (
+                    track_id_re.match(tid).group(1) for tid in track_ids)
             ]
             for f in concurrent.futures.wait(song_details_futures).done:
                 metadata = self.dbus_manager.get_mpris_metadata(f.result())
@@ -293,7 +295,7 @@ class LibremsonicApp(Gtk.Application):
                         for k, v in metadata.items()
                     })
 
-            return GLib.Variant('(aa{sv})', (metadatas,))
+            return GLib.Variant('(aa{sv})', (metadatas, ))
 
         method_call_map = {
             'org.mpris.MediaPlayer2': {
@@ -334,17 +336,19 @@ class LibremsonicApp(Gtk.Application):
                 new_loop_status.get_string())
             self.update_window()
 
-        def do_shuffle(new_val):
+        def set_shuffle(new_val):
             if new_val.get_boolean() != self.state.shuffle_on:
                 self.on_shuffle_press(None, None)
+
+        def set_volume(new_val):
+            self.on_volume_change(None, value.get_double() * 100)
 
         setter_map = {
             'org.mpris.MediaPlayer2.Player': {
                 'LoopStatus': change_loop,
                 'Rate': lambda _: None,
-                'Shuffle': do_shuffle,
-                'Volume':
-                lambda v: self.on_volume_change(None, v.get_double() * 100),
+                'Shuffle': set_shuffle,
+                'Volume': set_volume,
             }
         }
 
