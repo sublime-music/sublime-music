@@ -266,6 +266,7 @@ class LibremsonicApp(Gtk.Application):
     ):
         second_microsecond_conversion = 1000000
         track_id_re = re.compile(r'/song/(.*)')
+        playlist_id_re = re.compile(r'/playlist/(.*)')
 
         def seek_fn(offset):
             offset_seconds = offset / second_microsecond_conversion
@@ -297,6 +298,50 @@ class LibremsonicApp(Gtk.Application):
 
             return GLib.Variant('(aa{sv})', (metadatas, ))
 
+        def activate_playlist(playlist_id):
+            playlist_id = playlist_id_re.match(playlist_id).group(1)
+            playlist = CacheManager.get_playlist(playlist_id).result()
+
+            # Calculate the song id to play.
+            song_id = playlist.entry[0].id
+            if self.state.shuffle_on:
+                rand_idx = random.randint(0, len(playlist.entry) - 1)
+                song_id = playlist.entry[rand_idx].id
+
+            self.on_song_clicked(
+                None,
+                song_id,
+                [s.id for s in playlist.entry],
+                {'active_playlist_id': playlist_id},
+            )
+
+        def get_playlists(index, max_count, order, reverse_order):
+            playlists = CacheManager.get_playlists().result()
+            sorters = {
+                'Alphabetical': lambda p: p.name,
+                'Created': lambda p: p.created,
+                'Modified': lambda p: p.changed,
+            }
+            playlists.sort(
+                key=sorters.get(order, lambda p: p),
+                reverse=reverse_order,
+            )
+
+            return GLib.Variant(
+                '(a(oss))', (
+                    [
+                        (
+                            '/playlist/' + p.id,
+                            p.name,
+                            CacheManager.get_cover_art_filename(
+                                p.coverArt,
+                                allow_download=False,
+                            ).result() or '',
+                        )
+                        for p in playlists[index:(index + max_count)]
+                        if p.songCount > 0
+                    ], ))
+
         method_call_map = {
             'org.mpris.MediaPlayer2': {
                 'Raise': self.window.present,
@@ -315,6 +360,10 @@ class LibremsonicApp(Gtk.Application):
             'org.mpris.MediaPlayer2.TrackList': {
                 'GoTo': set_pos_fn,
                 'GetTracksMetadata': get_track_metadata,
+            },
+            'org.mpris.MediaPlayer2.Playlists': {
+                'ActivatePlaylist': activate_playlist,
+                'GetPlaylists': get_playlists,
             },
         }
         method = method_call_map.get(interface, {}).get(method)
@@ -532,6 +581,9 @@ class LibremsonicApp(Gtk.Application):
 
         if metadata.get('force_shuffle_state') is not None:
             self.state.shuffle_on = metadata['force_shuffle_state']
+
+        if metadata.get('active_playlist_id') is not None:
+            self.state.active_playlist_id = metadata.get('active_playlist_id')
 
         # If shuffle is enabled, then shuffle the playlist.
         if self.state.shuffle_on:

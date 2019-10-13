@@ -210,10 +210,14 @@ class CacheManager(metaclass=Singleton):
                 download_fn: Callable[[], bytes],
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
+                allow_download: bool = True,
         ):
             abs_path = self.calculate_abs_path(relative_path)
             download_path = self.calculate_download_path(relative_path)
             if not abs_path.exists() or force:
+                if not allow_download:
+                    return None
+
                 before_download()
                 resource_downloading = False
                 with self.download_set_lock:
@@ -556,6 +560,7 @@ class CacheManager(metaclass=Singleton):
                 before_download: Callable[[], None] = lambda: None,
                 size: Union[str, int] = 200,
                 force: bool = False,
+                allow_download: bool = True,
         ) -> Future:
             def do_get_cover_art_filename() -> str:
                 tag = 'tag_' if self.browse_by_tags else ''
@@ -564,6 +569,7 @@ class CacheManager(metaclass=Singleton):
                     lambda: self.server.get_cover_art(id, str(size)),
                     before_download=before_download,
                     force=force,
+                    allow_download=allow_download,
                 )
 
             return CacheManager.executor.submit(do_get_cover_art_filename)

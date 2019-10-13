@@ -157,6 +157,26 @@ class DBusManager:
             current = state.play_queue.index(state.current_song.id)
             has_next_song = current < len(state.play_queue) - 1
 
+        if state.active_playlist_id is None:
+            active_playlist = (False, GLib.Variant('(oss)', ('/', '', '')))
+        else:
+            playlist = CacheManager.get_playlist(
+                state.active_playlist_id).result()
+            active_playlist = (
+                True,
+                GLib.Variant(
+                    '(oss)',
+                    (
+                        '/playlist/' + playlist.id,
+                        playlist.name,
+                        CacheManager.get_cover_art_filename(
+                            playlist.coverArt,
+                            allow_download=False,
+                        ).result() or '',
+                    ),
+                ),
+            )
+
         return {
             'org.mpris.MediaPlayer2': {
                 'CanQuit': True,
@@ -217,8 +237,8 @@ class DBusManager:
                 # TODO this may do a network request. This really is a case for
                 # doing the whole thing with caching some data beforehand.
                 'PlaylistCount': len(CacheManager.get_playlists().result()),
-                'Orderings': ['Alphabetical'],
-                'ActivePlaylist': None,
+                'Orderings': ['Alphabetical', 'Created', 'Modified'],
+                'ActivePlaylist': ('(b(oss))', active_playlist),
             },
         }
 

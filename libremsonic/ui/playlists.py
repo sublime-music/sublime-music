@@ -568,8 +568,14 @@ class PlaylistDetailPanel(Gtk.Overlay):
     def on_play_all_clicked(self, btn):
         song_id = self.playlist_song_store[0][-1]
         self.emit(
-            'song-clicked', song_id, [m[-1] for m in self.playlist_song_store],
-            {'force_shuffle_state': False})
+            'song-clicked',
+            song_id,
+            [m[-1] for m in self.playlist_song_store],
+            {
+                'force_shuffle_state': False,
+                'active_playlist_id': self.playlist_id,
+            },
+        )
 
     def on_shuffle_all_button(self, btn):
         rand_idx = randint(0, len(self.playlist_song_store) - 1)
@@ -577,7 +583,10 @@ class PlaylistDetailPanel(Gtk.Overlay):
             'song-clicked',
             self.playlist_song_store[rand_idx][-1],
             [m[-1] for m in self.playlist_song_store],
-            {'force_shuffle_state': True},
+            {
+                'force_shuffle_state': True,
+                'active_playlist_id': self.playlist_id,
+            },
         )
 
     def on_song_activated(self, treeview, idx, column):
@@ -586,7 +595,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
             'song-clicked',
             self.playlist_song_store[idx][-1],
             [m[-1] for m in self.playlist_song_store],
-            {},
+            {
+                'active_playlist_id': self.playlist_id,
+            },
         )
 
     def on_song_button_press(self, tree, event):
