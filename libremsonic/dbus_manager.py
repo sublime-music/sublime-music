@@ -1,3 +1,4 @@
+import functools
 import os
 import re
 
@@ -9,6 +10,21 @@ from gi.repository import Gio, GLib
 from .state_manager import RepeatType
 from .cache_manager import CacheManager
 from .server.api_objects import Child
+
+
+def dbus_propagate(param_self=None):
+    """
+    Wraps a function which causes changes to DBus properties.
+    """
+    def decorator(function):
+        @functools.wraps(function)
+        def wrapper(*args):
+            function(*args)
+            (param_self or args[0]).dbus_manager.property_diff()
+
+        return wrapper
+
+    return decorator
 
 
 class DBusManager:
@@ -74,11 +90,8 @@ class DBusManager:
             interface,
             property_name,
     ):
-        return DBusManager.to_variant(
-            self.property_dict().get(
-                interface,
-                {},
-            ).get(property_name))
+        value = self.property_dict().get(interface, {}).get(property_name)
+        return DBusManager.to_variant(value)
 
     def on_method_call(
             self,
@@ -90,6 +103,7 @@ class DBusManager:
             params,
             invocation,
     ):
+        # TODO I don't even know if this works.
         if interface == 'org.freedesktop.DBus.Properties':
             if method == 'Get':
                 invocation.return_value(

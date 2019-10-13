@@ -1,4 +1,3 @@
-import functools
 import os
 import re
 import math
@@ -16,26 +15,11 @@ from .ui.main import MainWindow
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.settings import SettingsDialog
 
-from .dbus_manager import DBusManager
+from .dbus_manager import DBusManager, dbus_propagate
 from .state_manager import ApplicationState, RepeatType
 from .cache_manager import CacheManager
 from .server.api_objects import Child
 from .ui.common.players import PlayerEvent, MPVPlayer, ChromecastPlayer
-
-
-def dbus_propagate(param_self=None):
-    """
-    Wraps a function which causes changes to DBus properties.
-    """
-    def decorator(function):
-        @functools.wraps(function)
-        def wrapper(*args):
-            function(*args)
-            (param_self or args[0]).dbus_manager.property_diff()
-
-        return wrapper
-
-    return decorator
 
 
 class LibremsonicApp(Gtk.Application):
@@ -584,6 +568,8 @@ class LibremsonicApp(Gtk.Application):
 
         if metadata.get('active_playlist_id') is not None:
             self.state.active_playlist_id = metadata.get('active_playlist_id')
+        else:
+            self.state.active_playlist_id = None
 
         # If shuffle is enabled, then shuffle the playlist.
         if self.state.shuffle_on:
