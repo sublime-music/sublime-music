@@ -293,7 +293,7 @@ class LibremsonicApp(Gtk.Application):
                         for k, v in metadata.items()
                     })
 
-            return GLib.Variant('aa{sv}', metadatas)
+            return GLib.Variant('(aa{sv})', (metadatas,))
 
         method_call_map = {
             'org.mpris.MediaPlayer2': {

@@ -210,7 +210,7 @@ class DBusManager:
                 True,
             },
             'org.mpris.MediaPlayer2.TrackList': {
-                'Tracks': state.play_queue,
+                'Tracks': ['/' + i for i in state.play_queue],
                 'CanEditTracks': False,
             },
         }
