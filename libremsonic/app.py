@@ -4,6 +4,7 @@ import math
 import random
 
 from os import environ
+import concurrent.futures
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -126,7 +127,7 @@ class LibremsonicApp(Gtk.Application):
     def do_activate(self):
         # We only allow a single window and raise any existing ones
         if self.window:
-            self.show_window()
+            self.window.present()
             return
 
         # Windows are associated with the application when the last one is
@@ -156,7 +157,8 @@ class LibremsonicApp(Gtk.Application):
             'volume-change', self.on_volume_change)
         self.window.connect('key-press-event', self.on_window_key_press)
 
-        self.show_window()
+        self.window.show_all()
+        self.window.present()
 
         # Load the configuration and update the UI with the curent server, if
         # it exists.
@@ -199,6 +201,7 @@ class LibremsonicApp(Gtk.Application):
 
             GLib.idle_add(self.on_next_track)
 
+        @dbus_propagate(self)
         def on_player_event(event: PlayerEvent):
             if event.name == 'play_state_change':
                 self.state.playing = event.value
@@ -268,16 +271,33 @@ class LibremsonicApp(Gtk.Application):
             self.on_song_scrub(
                 None, new_seconds / self.state.current_song.duration * 100)
 
-        def set_pos_fn(track_id, position):
+        def set_pos_fn(track_id, position=0):
             if self.state.playing:
                 self.on_play_pause()
             pos_seconds = position / second_microsecond_conversion
             self.state.song_progress = pos_seconds
-            self.play_song(track_id)
+            self.play_song(track_id[1:])
+
+        def get_track_metadata(track_ids):
+            metadatas = []
+
+            song_details_futures = [
+                CacheManager.get_song_details(track_id)
+                for track_id in (tid[1:] for tid in track_ids)
+            ]
+            for f in concurrent.futures.wait(song_details_futures).done:
+                metadata = self.dbus_manager.get_mpris_metadata(f.result())
+                metadatas.append(
+                    {
+                        k: DBusManager.to_variant(v)
+                        for k, v in metadata.items()
+                    })
+
+            return GLib.Variant('aa{sv}', metadatas)
 
         method_call_map = {
             'org.mpris.MediaPlayer2': {
-                'Raise': self.show_window,
+                'Raise': self.window.present,
                 'Quit': self.window.destroy,
             },
             'org.mpris.MediaPlayer2.Player': {
@@ -289,12 +309,15 @@ class LibremsonicApp(Gtk.Application):
                 'Play': not self.state.playing and self.on_play_pause,
                 'Seek': seek_fn,
                 'SetPosition': set_pos_fn,
-                'OpenUri': lambda uri: None,
+            },
+            'org.mpris.MediaPlayer2.TrackList': {
+                'GoTo': set_pos_fn,
+                'GetTracksMetadata': get_track_metadata,
             },
         }
-        method = method_call_map.get(interface).get(method)
+        method = method_call_map.get(interface, {}).get(method)
         if method is None:
-            print('Unknown method:', method)
+            print(f'Unknown/unimplemented method: {interface}.{method}')
         invocation.return_value(method(*params) if callable(method) else None)
 
     def on_dbus_set_property(
@@ -321,7 +344,7 @@ class LibremsonicApp(Gtk.Application):
                 'Rate': lambda _: None,
                 'Shuffle': do_shuffle,
                 'Volume':
-                lambda v: self.on_volume_change(None, v.get_double()),
+                lambda v: self.on_volume_change(None, v.get_double() * 100),
             }
         }
 
@@ -378,7 +401,6 @@ class LibremsonicApp(Gtk.Application):
         self.state.playing = not self.state.playing
         self.update_window()
 
-    @dbus_propagate()
     def on_next_track(self, *args):
         current_idx = self.state.play_queue.index(self.state.current_song.id)
 
@@ -387,11 +409,13 @@ class LibremsonicApp(Gtk.Application):
             current_idx = current_idx - 1
         # Wrap around the play queue if at the end.
         elif current_idx == len(self.state.play_queue) - 1:
+            # This may happen due to D-Bus.
+            if self.state.repeat_type == RepeatType.NO_REPEAT:
+                return
             current_idx = -1
 
         self.play_song(self.state.play_queue[current_idx + 1], reset=True)
 
-    @dbus_propagate()
     def on_prev_track(self, *args):
         # TODO there is a bug where you can't go back multiple songs fast
         current_idx = self.state.play_queue.index(self.state.current_song.id)
@@ -544,6 +568,8 @@ class LibremsonicApp(Gtk.Application):
         self.player.pause()
         self.player._song_loaded = False
         self.state.playing = False
+
+        self.dbus_manager.property_diff()
         self.update_window()
 
         if device_uuid == 'this device':
@@ -554,6 +580,7 @@ class LibremsonicApp(Gtk.Application):
 
         if was_playing:
             self.on_play_pause()
+            self.dbus_manager.property_diff()
 
     @dbus_propagate()
     def on_mute_toggle(self, action, _):
@@ -596,10 +623,6 @@ class LibremsonicApp(Gtk.Application):
         return self.state.config.servers[self.state.config.current_server]
 
     # ########## HELPER METHODS ########## #
-    def show_window(self):
-        self.window.show_all()
-        self.window.present()
-
     def show_configure_servers_dialog(self):
         """Show the Connect to Server dialog."""
         dialog = ConfigureServersDialog(self.window, self.state.config)
@@ -693,7 +716,7 @@ class LibremsonicApp(Gtk.Application):
                 # TODO someone needs to test this, Dunst doesn't seem to
                 # support it.
                 def on_notification_click(*args):
-                    self.show_window()
+                    self.window.present()
 
                 try:
                     song_notification = Notify.Notification.new(

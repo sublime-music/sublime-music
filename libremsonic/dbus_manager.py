@@ -7,6 +7,8 @@ from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
 
 from .state_manager import RepeatType
+from .cache_manager import CacheManager
+from .server.api_objects import Child
 
 
 class DBusManager:
@@ -179,31 +181,15 @@ class DBusManager:
                 1.0,
                 'Shuffle':
                 state.shuffle_on,
-                'Metadata': {
-                    'mpris:trackid':
-                    state.current_song.id,
-                    'mpris:length': (
-                        'x',
-                        (state.current_song.duration or 0)
-                        * self.second_microsecond_conversion,
-                    ),
-                    # TODO this won't work. Need to get the cached version or
-                    # give a URL which downloads from the server.
-                    'mpris:artUrl':
-                    state.current_song.coverArt,
-                    'xesam:album':
-                    state.current_song.album,
-                    'xesam:albumArtist': [state.current_song.artist],
-                    'xesam:artist': [state.current_song.artist],
-                    'xesam:title':
-                    state.current_song.title,
-                } if state.current_song else {},
+                'Metadata':
+                self.get_mpris_metadata(state.current_song)
+                if state.current_song else {},
                 'Volume':
-                0.0 if state.is_muted else state.volume,
+                0.0 if state.is_muted else state.volume / 100,
                 'Position': (
                     'x',
                     int(
-                        (state.song_progress or 0)
+                        max(state.song_progress or 0, 0)
                         * self.second_microsecond_conversion),
                 ),
                 'MinimumRate':
@@ -229,6 +215,21 @@ class DBusManager:
             },
         }
 
+    def get_mpris_metadata(self, song: Child):
+        duration = (
+            'x',
+            (song.duration or 0) * self.second_microsecond_conversion,
+        )
+        return {
+            'mpris:trackid': song.id,
+            'mpris:length': duration,
+            'mpris:artUrl': CacheManager.get_cover_art_url(song.id, 1000),
+            'xesam:album': song.album,
+            'xesam:albumArtist': [song.artist],
+            'xesam:artist': [song.artist],
+            'xesam:title': song.title,
+        }
+
     diff_parse_re = re.compile(r"root\['(.*?)'\]\['(.*?)'\](?:\[.*\])?")
 
     def property_diff(self):
@@ -236,12 +237,13 @@ class DBusManager:
         diff = DeepDiff(self.current_state, new_property_dict)
 
         changes = defaultdict(dict)
-        if diff.get('dictionary_item_added'):
-            changes = new_property_dict
 
         for path, change in diff.get('values_changed', {}).items():
             interface, property_name = self.diff_parse_re.match(path).groups()
             changes[interface][property_name] = change['new_value']
+
+        if diff.get('dictionary_item_added'):
+            changes = new_property_dict
 
         for interface, changed_props in changes.items():
             # If the metadata has changed, just make the entire Metadata object
