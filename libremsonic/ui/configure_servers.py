@@ -104,8 +104,8 @@ class ConfigureServersDialog(Gtk.Dialog):
 
         # Server List
         self.server_list = Gtk.ListBox(activate_on_single_click=False)
-        self.server_list.connect('selected-rows-changed',
-                                 self.server_list_on_selected_rows_changed)
+        self.server_list.connect(
+            'selected-rows-changed', self.server_list_on_selected_rows_changed)
         self.server_list.connect('row-activated', self.on_server_list_activate)
         flowbox.pack_start(self.server_list, True, True, 10)
 
@@ -114,18 +114,23 @@ class ConfigureServersDialog(Gtk.Dialog):
         # Add all of the buttons to the button box.
         self.buttons = [
             # TODO get good icons for these
-            (IconButton('document-edit-symbolic', label='Edit...',
-                        relief=True), lambda e: self.on_edit_clicked(e, False),
-             'start', True),
-            (IconButton('list-add', label='Add...', relief=True),
-             lambda e: self.on_edit_clicked(e, True), 'start', False),
-            (IconButton('list-remove', label='Remove',
-                        relief=True), self.on_remove_clicked, 'start', True),
-            (IconButton('window-close', label='Close',
-                        relief=True), lambda _: self.close(), 'end', False),
-            (IconButton('network-transmit-receive',
-                        label='Connect',
-                        relief=True), self.on_connect_clicked, 'end', True),
+            (
+                IconButton(
+                    'document-edit-symbolic', label='Edit...', relief=True),
+                lambda e: self.on_edit_clicked(e, False), 'start', True),
+            (
+                IconButton('list-add', label='Add...', relief=True),
+                lambda e: self.on_edit_clicked(e, True), 'start', False),
+            (
+                IconButton('list-remove', label='Remove', relief=True),
+                self.on_remove_clicked, 'start', True),
+            (
+                IconButton('window-close', label='Close',
+                           relief=True), lambda _: self.close(), 'end', False),
+            (
+                IconButton(
+                    'network-transmit-receive', label='Connect',
+                    relief=True), self.on_connect_clicked, 'end', True),
         ]
         for button_cfg in self.buttons:
             btn, action, pack_end, requires_selection = button_cfg
@@ -187,8 +192,8 @@ class ConfigureServersDialog(Gtk.Dialog):
             dialog = EditServerDialog(self)
         else:
             selected_index = self.server_list.get_selected_row().get_index()
-            dialog = EditServerDialog(self,
-                                      self.server_configs[selected_index])
+            dialog = EditServerDialog(
+                self, self.server_configs[selected_index])
 
         result = dialog.run()
         if result == Gtk.ResponseType.OK:

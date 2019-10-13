@@ -1,8 +1,10 @@
 import os
+import re
 import math
 import random
 
 from os import environ
+import concurrent.futures
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -13,6 +15,7 @@ from .ui.main import MainWindow
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.settings import SettingsDialog
 
+from .dbus_manager import DBusManager, dbus_propagate
 from .state_manager import ApplicationState, RepeatType
 from .cache_manager import CacheManager
 from .server.api_objects import Child
@@ -55,9 +58,9 @@ class LibremsonicApp(Gtk.Application):
             config_file = config_file.get_bytestring().decode('utf-8')
         else:
             # Default to ~/.config/libremsonic.
-            config_folder = (environ.get('XDG_CONFIG_HOME')
-                             or environ.get('APPDATA')
-                             or os.path.join(environ.get('HOME'), '.config'))
+            config_folder = (
+                environ.get('XDG_CONFIG_HOME') or environ.get('APPDATA')
+                or os.path.join(environ.get('HOME'), '.config'))
             config_folder = os.path.join(config_folder, 'libremsonic')
             config_file = os.path.join(config_folder, 'config.json')
 
@@ -89,18 +92,16 @@ class LibremsonicApp(Gtk.Application):
         add_action('prev-track', self.on_prev_track)
         add_action('repeat-press', self.on_repeat_press)
         add_action('shuffle-press', self.on_shuffle_press)
-        add_action('play-queue-click',
-                   self.on_play_queue_click,
-                   parameter_type='s')
+        add_action(
+            'play-queue-click', self.on_play_queue_click, parameter_type='s')
 
         # Navigation actions.
         add_action('play-next', self.on_play_next, parameter_type='as')
         add_action('add-to-queue', self.on_add_to_queue, parameter_type='as')
         add_action('go-to-album', self.on_go_to_album, parameter_type='s')
         add_action('go-to-artist', self.on_go_to_artist, parameter_type='s')
-        add_action('go-to-playlist',
-                   self.on_go_to_playlist,
-                   parameter_type='s')
+        add_action(
+            'go-to-playlist', self.on_go_to_playlist, parameter_type='s')
 
         add_action('mute-toggle', self.on_mute_toggle)
         add_action(
@@ -109,10 +110,9 @@ class LibremsonicApp(Gtk.Application):
         )
 
     def do_activate(self):
-
         # We only allow a single window and raise any existing ones
         if self.window:
-            self.show_window()
+            self.window.present()
             return
 
         # Windows are associated with the application when the last one is
@@ -126,8 +126,8 @@ class LibremsonicApp(Gtk.Application):
             os.path.join(os.path.dirname(__file__), 'ui/app_styles.css'))
         context = Gtk.StyleContext()
         screen = Gdk.Screen.get_default()
-        context.add_provider_for_screen(screen, css_provider,
-                                        Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        context.add_provider_for_screen(
+            screen, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
         self.window.stack.connect(
             'notify::visible-child',
@@ -136,13 +136,14 @@ class LibremsonicApp(Gtk.Application):
         self.window.connect('song-clicked', self.on_song_clicked)
         self.window.connect('refresh-window', self.on_refresh_window)
         self.window.player_controls.connect('song-scrub', self.on_song_scrub)
-        self.window.player_controls.connect('device-update',
-                                            self.on_device_update)
-        self.window.player_controls.connect('volume-change',
-                                            self.on_volume_change)
+        self.window.player_controls.connect(
+            'device-update', self.on_device_update)
+        self.window.player_controls.connect(
+            'volume-change', self.on_volume_change)
         self.window.connect('key-press-event', self.on_window_key_press)
 
-        self.show_window()
+        self.window.show_all()
+        self.window.present()
 
         # Load the configuration and update the UI with the curent server, if
         # it exists.
@@ -185,6 +186,7 @@ class LibremsonicApp(Gtk.Application):
 
             GLib.idle_add(self.on_next_track)
 
+        @dbus_propagate(self)
         def on_player_event(event: PlayerEvent):
             if event.name == 'play_state_change':
                 self.state.playing = event.value
@@ -208,6 +210,8 @@ class LibremsonicApp(Gtk.Application):
         )
         self.player = self.mpv_player
 
+        self.player.volume = self.state.volume
+
         if self.state.current_device != 'this device':
             # TODO figure out how to activate the chromecast if possible
             # without blocking the main thread. Also, need to make it obvious
@@ -221,7 +225,175 @@ class LibremsonicApp(Gtk.Application):
         if self.current_server.sync_enabled:
             self.update_play_state_from_server(prompt_confirm=True)
 
+        # Send out to the bus that we exist.
+        self.dbus_manager.property_diff()
+
+    # ########## DBUS MANAGMENT ########## #
+    def do_dbus_register(self, connection, path):
+        self.dbus_manager = DBusManager(
+            connection,
+            self.on_dbus_method_call,
+            self.on_dbus_set_property,
+            lambda: (self.state, self.player),
+        )
+        return True
+
+    def on_dbus_method_call(
+            self,
+            connection,
+            sender,
+            path,
+            interface,
+            method,
+            params,
+            invocation,
+    ):
+        second_microsecond_conversion = 1000000
+        track_id_re = re.compile(r'/song/(.*)')
+        playlist_id_re = re.compile(r'/playlist/(.*)')
+
+        def seek_fn(offset):
+            offset_seconds = offset / second_microsecond_conversion
+            new_seconds = self.state.song_progress + offset_seconds
+            self.on_song_scrub(
+                None, new_seconds / self.state.current_song.duration * 100)
+
+        def set_pos_fn(track_id, position=0):
+            if self.state.playing:
+                self.on_play_pause()
+            pos_seconds = position / second_microsecond_conversion
+            self.state.song_progress = pos_seconds
+            self.play_song(track_id_re.match(track_id).group(1))
+
+        def get_track_metadata(track_ids):
+            metadatas = []
+
+            song_details_futures = [
+                CacheManager.get_song_details(track_id) for track_id in (
+                    track_id_re.match(tid).group(1) for tid in track_ids)
+            ]
+            for f in concurrent.futures.wait(song_details_futures).done:
+                metadata = self.dbus_manager.get_mpris_metadata(f.result())
+                metadatas.append(
+                    {
+                        k: DBusManager.to_variant(v)
+                        for k, v in metadata.items()
+                    })
+
+            return GLib.Variant('(aa{sv})', (metadatas, ))
+
+        def activate_playlist(playlist_id):
+            playlist_id = playlist_id_re.match(playlist_id).group(1)
+            playlist = CacheManager.get_playlist(playlist_id).result()
+
+            # Calculate the song id to play.
+            song_id = playlist.entry[0].id
+            if self.state.shuffle_on:
+                rand_idx = random.randint(0, len(playlist.entry) - 1)
+                song_id = playlist.entry[rand_idx].id
+
+            self.on_song_clicked(
+                None,
+                song_id,
+                [s.id for s in playlist.entry],
+                {'active_playlist_id': playlist_id},
+            )
+
+        def get_playlists(index, max_count, order, reverse_order):
+            playlists = CacheManager.get_playlists().result()
+            sorters = {
+                'Alphabetical': lambda p: p.name,
+                'Created': lambda p: p.created,
+                'Modified': lambda p: p.changed,
+            }
+            playlists.sort(
+                key=sorters.get(order, lambda p: p),
+                reverse=reverse_order,
+            )
+
+            return GLib.Variant(
+                '(a(oss))', (
+                    [
+                        (
+                            '/playlist/' + p.id,
+                            p.name,
+                            CacheManager.get_cover_art_filename(
+                                p.coverArt,
+                                allow_download=False,
+                            ).result() or '',
+                        )
+                        for p in playlists[index:(index + max_count)]
+                        if p.songCount > 0
+                    ], ))
+
+        method_call_map = {
+            'org.mpris.MediaPlayer2': {
+                'Raise': self.window.present,
+                'Quit': self.window.destroy,
+            },
+            'org.mpris.MediaPlayer2.Player': {
+                'Next': self.on_next_track,
+                'Previous': self.on_prev_track,
+                'Pause': self.state.playing and self.on_play_pause,
+                'PlayPause': self.on_play_pause,
+                'Stop': self.state.playing and self.on_play_pause,
+                'Play': not self.state.playing and self.on_play_pause,
+                'Seek': seek_fn,
+                'SetPosition': set_pos_fn,
+            },
+            'org.mpris.MediaPlayer2.TrackList': {
+                'GoTo': set_pos_fn,
+                'GetTracksMetadata': get_track_metadata,
+            },
+            'org.mpris.MediaPlayer2.Playlists': {
+                'ActivatePlaylist': activate_playlist,
+                'GetPlaylists': get_playlists,
+            },
+        }
+        method = method_call_map.get(interface, {}).get(method)
+        if method is None:
+            print(f'Unknown/unimplemented method: {interface}.{method}')
+        invocation.return_value(method(*params) if callable(method) else None)
+
+    def on_dbus_set_property(
+            self,
+            connection,
+            sender,
+            path,
+            interface,
+            property_name,
+            value,
+    ):
+        def change_loop(new_loop_status):
+            self.state.repeat_type = RepeatType.from_mpris_loop_status(
+                new_loop_status.get_string())
+            self.update_window()
+
+        def set_shuffle(new_val):
+            if new_val.get_boolean() != self.state.shuffle_on:
+                self.on_shuffle_press(None, None)
+
+        def set_volume(new_val):
+            self.on_volume_change(None, value.get_double() * 100)
+
+        setter_map = {
+            'org.mpris.MediaPlayer2.Player': {
+                'LoopStatus': change_loop,
+                'Rate': lambda _: None,
+                'Shuffle': set_shuffle,
+                'Volume': set_volume,
+            }
+        }
+
+        setter = setter_map.get(interface).get(property_name)
+        if setter is None:
+            print('Set: Unknown property:', setter)
+            return
+        if callable(setter):
+            setter(value)
+
     # ########## ACTION HANDLERS ########## #
+    @dbus_propagate()
     def on_refresh_window(self, _, state_updates, force=False):
         for k, v in state_updates.items():
             setattr(self.state, k, v)
@@ -251,6 +423,7 @@ class LibremsonicApp(Gtk.Application):
             self.reset_cache_manager()
         dialog.destroy()
 
+    @dbus_propagate()
     def on_play_pause(self, *args):
         if self.state.current_song is None:
             return
@@ -273,6 +446,9 @@ class LibremsonicApp(Gtk.Application):
             current_idx = current_idx - 1
         # Wrap around the play queue if at the end.
         elif current_idx == len(self.state.play_queue) - 1:
+            # This may happen due to D-Bus.
+            if self.state.repeat_type == RepeatType.NO_REPEAT:
+                return
             current_idx = -1
 
         self.play_song(self.state.play_queue[current_idx + 1], reset=True)
@@ -295,12 +471,14 @@ class LibremsonicApp(Gtk.Application):
 
         self.play_song(self.state.play_queue[song_to_play], reset=True)
 
+    @dbus_propagate()
     def on_repeat_press(self, action, params):
         # Cycle through the repeat types.
         new_repeat_type = RepeatType((self.state.repeat_type.value + 1) % 3)
         self.state.repeat_type = new_repeat_type
         self.update_window()
 
+    @dbus_propagate()
     def on_shuffle_press(self, action, params):
         if self.state.shuffle_on:
             # Revert to the old play queue.
@@ -320,6 +498,7 @@ class LibremsonicApp(Gtk.Application):
     def on_play_queue_click(self, action, song_id):
         self.play_song(song_id.get_string(), reset=True)
 
+    @dbus_propagate()
     def on_play_next(self, action, song_ids):
         if self.state.current_song is None:
             insert_at = 0
@@ -327,12 +506,13 @@ class LibremsonicApp(Gtk.Application):
             insert_at = (
                 self.state.play_queue.index(self.state.current_song.id) + 1)
 
-        self.state.play_queue = (self.state.play_queue[:insert_at]
-                                 + list(song_ids)
-                                 + self.state.play_queue[insert_at:])
+        self.state.play_queue = (
+            self.state.play_queue[:insert_at] + list(song_ids)
+            + self.state.play_queue[insert_at:])
         self.state.old_play_queue.extend(song_ids)
         self.update_window()
 
+    @dbus_propagate()
     def on_add_to_queue(self, action, song_ids):
         self.state.play_queue.extend(song_ids)
         self.state.old_play_queue.extend(song_ids)
@@ -386,6 +566,11 @@ class LibremsonicApp(Gtk.Application):
         if metadata.get('force_shuffle_state') is not None:
             self.state.shuffle_on = metadata['force_shuffle_state']
 
+        if metadata.get('active_playlist_id') is not None:
+            self.state.active_playlist_id = metadata.get('active_playlist_id')
+        else:
+            self.state.active_playlist_id = None
+
         # If shuffle is enabled, then shuffle the playlist.
         if self.state.shuffle_on:
             song_queue.remove(song_id)
@@ -399,6 +584,7 @@ class LibremsonicApp(Gtk.Application):
             play_queue=song_queue,
         )
 
+    @dbus_propagate()
     def on_song_scrub(self, _, scrub_value):
         if not hasattr(self.state, 'current_song'):
             return
@@ -424,6 +610,8 @@ class LibremsonicApp(Gtk.Application):
         self.player.pause()
         self.player._song_loaded = False
         self.state.playing = False
+
+        self.dbus_manager.property_diff()
         self.update_window()
 
         if device_uuid == 'this device':
@@ -434,12 +622,15 @@ class LibremsonicApp(Gtk.Application):
 
         if was_playing:
             self.on_play_pause()
+            self.dbus_manager.property_diff()
 
+    @dbus_propagate()
     def on_mute_toggle(self, action, _):
         self.state.is_muted = not self.state.is_muted
         self.player.is_muted = self.state.is_muted
         self.update_window()
 
+    @dbus_propagate()
     def on_volume_change(self, _, value):
         self.state.volume = value
         self.player.volume = self.state.volume
@@ -465,6 +656,7 @@ class LibremsonicApp(Gtk.Application):
 
         self.state.save()
         self.save_play_queue()
+        self.dbus_manager.shutdown()
         CacheManager.shutdown()
 
     # ########## PROPERTIES ########## #
@@ -473,16 +665,12 @@ class LibremsonicApp(Gtk.Application):
         return self.state.config.servers[self.state.config.current_server]
 
     # ########## HELPER METHODS ########## #
-    def show_window(self):
-        self.window.show_all()
-        self.window.present()
-
     def show_configure_servers_dialog(self):
         """Show the Connect to Server dialog."""
         dialog = ConfigureServersDialog(self.window, self.state.config)
         dialog.connect('server-list-changed', self.on_server_list_changed)
-        dialog.connect('connected-server-changed',
-                       self.on_connected_server_changed)
+        dialog.connect(
+            'connected-server-changed', self.on_connected_server_changed)
         dialog.run()
         dialog.destroy()
 
@@ -546,13 +734,14 @@ class LibremsonicApp(Gtk.Application):
 
     def play_song(
             self,
-            song: Child,
+            song_id: str,
             reset=False,
             old_play_queue=None,
             play_queue=None,
     ):
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.
+        @dbus_propagate(self)
         def do_play_song(song: Child):
             uri, stream = CacheManager.get_song_filename_or_stream(
                 song,
@@ -569,7 +758,7 @@ class LibremsonicApp(Gtk.Application):
                 # TODO someone needs to test this, Dunst doesn't seem to
                 # support it.
                 def on_notification_click(*args):
-                    self.show_window()
+                    self.window.present()
 
                 try:
                     song_notification = Notify.Notification.new(
@@ -615,8 +804,8 @@ class LibremsonicApp(Gtk.Application):
                 if self.player.can_hotswap_source:
                     downloaded_filename = (
                         CacheManager.get_song_filename_or_stream(song)[0])
-                    self.player.play_media(downloaded_filename,
-                                           self.state.song_progress, song)
+                    self.player.play_media(
+                        downloaded_filename, self.state.song_progress, song)
                 GLib.idle_add(self.update_window)
 
             # If streaming, also download the song, unless configured not to,
@@ -658,7 +847,7 @@ class LibremsonicApp(Gtk.Application):
             if self.current_server.sync_enabled:
                 CacheManager.scrobble(song.id)
 
-        song_details_future = CacheManager.get_song_details(song)
+        song_details_future = CacheManager.get_song_details(song_id)
         song_details_future.add_done_callback(
             lambda f: GLib.idle_add(do_play_song, f.result()), )
 

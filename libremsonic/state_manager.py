@@ -23,6 +23,17 @@ class RepeatType(Enum):
         ][self.value]
         return 'media-playlist-' + icon_name
 
+    def as_mpris_loop_status(self):
+        return ['None', 'Playlist', 'Track'][self.value]
+
+    @staticmethod
+    def from_mpris_loop_status(loop_status):
+        return {
+            'None': RepeatType.NO_REPEAT,
+            'Track': RepeatType.REPEAT_SONG,
+            'Playlist': RepeatType.REPEAT_QUEUE,
+        }[loop_status]
+
 
 class ApplicationState:
     """
@@ -55,11 +66,13 @@ class ApplicationState:
     selected_artist_id: str = None
     selected_playlist_id: str = None
     current_album_sort: str = 'random'
+    active_playlist_id: str = None
 
     def to_json(self):
-        current_song = (self.current_song.id if
-                        (hasattr(self, 'current_song')
-                         and self.current_song is not None) else None)
+        current_song = (
+            self.current_song.id if
+            (hasattr(self, 'current_song')
+             and self.current_song is not None) else None)
         return {
             'current_song': current_song,
             'play_queue': getattr(self, 'play_queue', None),
@@ -74,9 +87,10 @@ class ApplicationState:
             'current_tab': getattr(self, 'current_tab', 'albums'),
             'selected_album_id': getattr(self, 'selected_album_id', None),
             'selected_artist_id': getattr(self, 'selected_artist_id', None),
-            'selected_playlist_id': getattr(self, 'selected_playlist_id',
-                                            None),
+            'selected_playlist_id':
+            getattr(self, 'selected_playlist_id', None),
             'current_album_sort': getattr(self, 'current_album_sort', None),
+            'active_playlist_id': getattr(self, 'active_playlist_id', None),
         }
 
     def load_from_json(self, json_object):
@@ -91,18 +105,19 @@ class ApplicationState:
         self.old_play_queue = json_object.get('old_play_queue') or []
         self._volume = json_object.get('_volume') or {'this device': 100}
         self.is_muted = json_object.get('is_muted') or False
-        self.repeat_type = (RepeatType(json_object.get('repeat_type'))
-                            or RepeatType.NO_REPEAT)
+        self.repeat_type = (
+            RepeatType(json_object.get('repeat_type')) or RepeatType.NO_REPEAT)
         self.shuffle_on = json_object.get('shuffle_on', False)
         self.song_progress = json_object.get('song_progress', 0.0)
         self.current_device = json_object.get('current_device', 'this device')
         self.current_tab = json_object.get('current_tab', 'albums')
         self.selected_album_id = json_object.get('selected_album_id', None)
         self.selected_artist_id = json_object.get('selected_artist_id', None)
-        self.selected_playlist_id = json_object.get('selected_playlist_id',
-                                                    None)
-        self.current_album_sort = json_object.get('current_album_sort',
-                                                  'random')
+        self.selected_playlist_id = json_object.get(
+            'selected_playlist_id', None)
+        self.current_album_sort = json_object.get(
+            'current_album_sort', 'random')
+        self.active_playlist_id = json_object.get('active_playlist_id', None)
 
     def load(self):
         self.config = self.get_config(self.config_file)
@@ -130,8 +145,8 @@ class ApplicationState:
 
         # Save the config
         with open(self.config_file, 'w+') as f:
-            f.write(json.dumps(self.config.to_json(), indent=2,
-                               sort_keys=True))
+            f.write(
+                json.dumps(self.config.to_json(), indent=2, sort_keys=True))
 
         # Save the state
         with open(self.state_filename, 'w+') as f:
@@ -151,8 +166,8 @@ class ApplicationState:
     def state_filename(self):
         # TODO: this should probably not be stored in ~/.cache. I blow this
         # away too often...
-        state_filename = (os.environ.get('XDG_CACHE_HOME')
-                          or os.path.expanduser('~/.cache'))
+        state_filename = (
+            os.environ.get('XDG_CACHE_HOME') or os.path.expanduser('~/.cache'))
         return os.path.join(state_filename, 'libremsonic/state.yaml')
 
     @property

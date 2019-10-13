@@ -70,6 +70,7 @@ class AppConfiguration:
                 and self._cache_location != ''):
             return self._cache_location
         else:
-            default_cache_location = (os.environ.get('XDG_DATA_HOME')
-                                      or os.path.expanduser('~/.local/share'))
+            default_cache_location = (
+                os.environ.get('XDG_DATA_HOME')
+                or os.path.expanduser('~/.local/share'))
             return os.path.join(default_cache_location, 'libremsonic')

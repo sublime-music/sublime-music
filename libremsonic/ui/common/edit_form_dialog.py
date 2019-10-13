@@ -113,5 +113,4 @@ class EditFormDialog(Gtk.Dialog):
             Gtk.ResponseType.OK,
         )
 
-
         self.show_all()

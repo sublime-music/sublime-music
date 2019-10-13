@@ -244,8 +244,8 @@ class AlbumsGrid(CoverArtGrid):
     # Override Methods
     # =========================================================================
     def get_header_text(self, item: AlbumModel) -> str:
-        return (item.album.title
-                if type(item.album) == Child else item.album.name)
+        return (
+            item.album.title if type(item.album) == Child else item.album.name)
 
     def get_info_text(self, item: AlbumModel) -> Optional[str]:
         return util.dot_join(item.album.artist, item.album.year)

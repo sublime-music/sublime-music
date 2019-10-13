@@ -34,14 +34,14 @@ def format_sequence_duration(duration_secs) -> str:
         format_components.append(hrs)
 
     if duration_mins > 0:
-        mins = '{} {}'.format(duration_mins, pluralize('minute',
-                                                       duration_mins))
+        mins = '{} {}'.format(
+            duration_mins, pluralize('minute', duration_mins))
         format_components.append(mins)
 
     # Show seconds if there are no hours.
     if duration_hrs == 0:
-        secs = '{} {}'.format(duration_secs, pluralize('second',
-                                                       duration_secs))
+        secs = '{} {}'.format(
+            duration_secs, pluralize('second', duration_secs))
         format_components.append(secs)
 
     return ', '.join(format_components)

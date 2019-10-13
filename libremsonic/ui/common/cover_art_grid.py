@@ -189,9 +189,9 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         # Determine where the cuttoff is between the top and bottom grids.
         entries_before_fold = len(self.list_store)
         if self.selected_list_store_index is not None:
-            entries_before_fold = ((
-                (self.selected_list_store_index // self.items_per_row) + 1)
-                                   * self.items_per_row)
+            entries_before_fold = (
+                ((self.selected_list_store_index // self.items_per_row) + 1)
+                * self.items_per_row)
 
         if force_reload_from_master:
             # Just remove everything and re-add all of the items.
@@ -268,8 +268,8 @@ class CoverArtGrid(Gtk.ScrolledWindow):
     # =========================================================================
     def on_child_activated(self, flowbox, child):
         click_top = flowbox == self.grid_top
-        selected = (child.get_index() +
-                    (0 if click_top else len(self.list_store_top)))
+        selected = (
+            child.get_index() + (0 if click_top else len(self.list_store_top)))
 
         if selected == self.selected_list_store_index:
             self.selected_list_store_index = None

@@ -242,8 +242,9 @@ class ChromecastPlayer(Player):
         return ChromecastPlayer.executor.submit(do_get_chromecasts)
 
     def set_playing_chromecast(self, uuid):
-        self.chromecast = next(cc for cc in ChromecastPlayer.chromecasts
-                               if cc.device.uuid == UUID(uuid))
+        self.chromecast = next(
+            cc for cc in ChromecastPlayer.chromecasts
+            if cc.device.uuid == UUID(uuid))
 
         self.chromecast.media_controller.register_status_listener(
             ChromecastPlayer.media_status_listener)

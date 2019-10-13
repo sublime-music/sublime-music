@@ -10,8 +10,6 @@ from libremsonic.ui import util
 from libremsonic.ui.common import IconButton, SpinnerImage
 from libremsonic.ui.common.players import ChromecastPlayer
 
-from libremsonic.server.api_objects import Child
-
 
 class PlayerControls(Gtk.ActionBar):
     """
@@ -72,8 +70,8 @@ class PlayerControls(Gtk.ActionBar):
         icon = 'pause' if state.playing else 'start'
         self.play_button.set_icon(f"media-playback-{icon}-symbolic")
 
-        has_current_song = (hasattr(state, 'current_song')
-                            and state.current_song is not None)
+        has_current_song = (
+            hasattr(state, 'current_song') and state.current_song is not None)
         has_next_song = False
         if state.repeat_type in (RepeatType.REPEAT_QUEUE,
                                  RepeatType.REPEAT_SONG):
@@ -92,8 +90,9 @@ class PlayerControls(Gtk.ActionBar):
         # TODO: it's not correct to use symboloc vs. not symbolic icons for
         # lighter/darker versions of the icon. Fix this by using FG color I
         # think? But then we have to deal with styling, which sucks.
-        self.shuffle_button.set_icon('media-playlist-shuffle' +
-                                     ('-symbolic' if state.shuffle_on else ''))
+        self.shuffle_button.set_icon(
+            'media-playlist-shuffle'
+            + ('-symbolic' if state.shuffle_on else ''))
 
         self.song_scrubber.set_sensitive(has_current_song)
         self.prev_button.set_sensitive(has_current_song)
@@ -160,7 +159,7 @@ class PlayerControls(Gtk.ActionBar):
         self.album_art.set_loading(False)
 
     def update_scrubber(self, current, duration):
-        if current is None and duration is None:
+        if current is None or duration is None:
             self.song_duration_label.set_text('-:--')
             self.song_progress_label.set_text('-:--')
             self.song_scrubber.set_value(0)
@@ -277,10 +276,10 @@ class PlayerControls(Gtk.ActionBar):
             orientation=Gtk.Orientation.HORIZONTAL, min=0, max=100, step=5)
         self.song_scrubber.set_name('song-scrubber')
         self.song_scrubber.set_draw_value(False)
-        self.song_scrubber.connect('button-press-event',
-                                   self.on_scrub_state_change)
-        self.song_scrubber.connect('button-release-event',
-                                   self.on_scrub_state_change)
+        self.song_scrubber.connect(
+            'button-press-event', self.on_scrub_state_change)
+        self.song_scrubber.connect(
+            'button-release-event', self.on_scrub_state_change)
         scrubber_box.pack_start(self.song_scrubber, True, True, 0)
 
         self.song_duration_label = Gtk.Label(label='-:--')
@@ -297,22 +296,25 @@ class PlayerControls(Gtk.ActionBar):
         buttons.pack_start(self.repeat_button, False, False, 5)
 
         # Previous button
-        self.prev_button = IconButton('media-skip-backward-symbolic',
-                                      icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        self.prev_button = IconButton(
+            'media-skip-backward-symbolic',
+            icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         self.prev_button.set_action_name('app.prev-track')
         buttons.pack_start(self.prev_button, False, False, 5)
 
         # Play button
-        self.play_button = IconButton('media-playback-start-symbolic',
-                                      relief=True,
-                                      icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        self.play_button = IconButton(
+            'media-playback-start-symbolic',
+            relief=True,
+            icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         self.play_button.set_name('play-button')
         self.play_button.set_action_name('app.play-pause')
         buttons.pack_start(self.play_button, False, False, 0)
 
         # Next button
-        self.next_button = IconButton('media-skip-forward-symbolic',
-                                      icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        self.next_button = IconButton(
+            'media-skip-forward-symbolic',
+            icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         self.next_button.set_action_name('app.next-track')
         buttons.pack_start(self.next_button, False, False, 5)
 
@@ -333,8 +335,8 @@ class PlayerControls(Gtk.ActionBar):
 
         # Device button (for chromecast)
         # TODO need icon
-        device_button = IconButton('view-list-symbolic',
-                                   icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        device_button = IconButton(
+            'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         device_button.connect('clicked', self.on_device_click)
         box.pack_start(device_button, False, True, 5)
 
@@ -380,8 +382,8 @@ class PlayerControls(Gtk.ActionBar):
         self.device_popover.add(device_popover_box)
 
         # Play Queue button
-        play_queue_button = IconButton('view-list-symbolic',
-                                       icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+        play_queue_button = IconButton(
+            'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         play_queue_button.connect('clicked', self.on_play_queue_click)
         box.pack_start(play_queue_button, False, True, 5)
 
