@@ -237,6 +237,9 @@ class LibremsonicApp(Gtk.Application):
         if self.current_server.sync_enabled:
             self.update_play_state_from_server(prompt_confirm=True)
 
+        # Send out to the bus that we exist.
+        self.dbus_manager.property_diff()
+
     # ########## DBUS MANAGMENT ########## #
     def do_dbus_register(self, connection, path):
         self.dbus_manager = DBusManager(

@@ -225,7 +225,7 @@ class DBusManager:
             },
             'org.mpris.MediaPlayer2.TrackList': {
                 'Tracks': state.play_queue,
-                'CanEditTracks': True,
+                'CanEditTracks': False,
             },
         }
 
@@ -236,6 +236,8 @@ class DBusManager:
         diff = DeepDiff(self.current_state, new_property_dict)
 
         changes = defaultdict(dict)
+        if diff.get('dictionary_item_added'):
+            changes = new_property_dict
 
         for path, change in diff.get('values_changed', {}).items():
             interface, property_name = self.diff_parse_re.match(path).groups()
@@ -249,6 +251,13 @@ class DBusManager:
                     'Metadata']
 
             if 'Position' in changed_props.keys():
+                self.connection.emit_signal(
+                    None,
+                    '/org/mpris/MediaPlayer2',
+                    'org.mpris.MediaPlayer2.Player',
+                    'Seeked',
+                    GLib.Variant('(x)', (changed_props['Position'][1], )),
+                )
                 del changed_props['Position']
 
             self.connection.emit_signal(
@@ -267,4 +276,5 @@ class DBusManager:
                     )),
             )
 
+        # Update state for next diff.
         self.current_state = new_property_dict
