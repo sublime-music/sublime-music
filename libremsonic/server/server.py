@@ -55,6 +55,8 @@ class Server:
     * None of the podcast endpoints are supported.
     * The ``jukeboxControl`` endpoint is not supported.
     * None of the chat message endpoints are supported.
+    * The ``server`` module is stateless. The only thing that it does is allow
+      the module's user to query the *sonic server via the API.
     """
     def __init__(self, name: str, hostname: str, username: str, password: str):
         self.name: str = name

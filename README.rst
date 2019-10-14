@@ -9,14 +9,33 @@ A GTK3 `Revel`_/`Subsonic`_/`Airsonic`_/\*sonic client for the Linux Desktop.
 
 Built using Python and GTK+.
 
-Design Decisions
-----------------
+Features
+--------
 
-- The ``server`` module is stateless. The only thing that it does is allow the
-  module's user to query the Airsonic server via the API.
+- Connect to multiple Subsonic-API-compliant servers.
+- Play music through Chromecasts on the same LAN.
+- DBus MPRIS interface integration for controlling Libremsonic via
+  ``playerctl``, ``i3status-rust``, KDE Connect, and other DBus MPRIS clients.
+- Browse Albums, Artists, and Playlists.
+- Play queue.
+- Create/delete/edit Playlists.
+- Cache songs for offline listening.
 
-flatpak Support
----------------
+Installation
+------------
+
+TODO
+
+Development Setup
+-----------------
+
+Requirements:
+
+- Python 3.7
+- GTK3
+
+Building the flatpak
+^^^^^^^^^^^^^^^^^^^^
 
 - A flatpak-builder environment must be setup on the build machine to do a
   flatpak build. This includes ``org.gnome.SDK//3.32`` and
