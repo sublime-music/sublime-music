@@ -265,9 +265,9 @@ class DBusManager:
             'mpris:trackid': '/song/' + song.id,
             'mpris:length': duration,
             'mpris:artUrl': CacheManager.get_cover_art_url(song.id, 1000),
-            'xesam:album': song.album,
-            'xesam:albumArtist': [song.artist],
-            'xesam:artist': [song.artist],
+            'xesam:album': song.album or '',
+            'xesam:albumArtist': [song.artist or ''],
+            'xesam:artist': [song.artist or ''],
             'xesam:title': song.title,
         }
 

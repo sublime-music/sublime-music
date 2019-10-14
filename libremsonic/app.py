@@ -761,9 +761,14 @@ class LibremsonicApp(Gtk.Application):
                     self.window.present()
 
                 try:
+                    notification_lines = []
+                    if song.album:
+                        notification_lines.append(f'<i>{song.album}</i>')
+                    if song.artist:
+                        notification_lines.append(song.artist)
                     song_notification = Notify.Notification.new(
                         song.title,
-                        f'<i>{song.album}</i>\n{song.artist}',
+                        '\n'.join(notification_lines),
                     )
                     song_notification.add_action(
                         'clicked',
