@@ -7,14 +7,16 @@ stages:
 variables:
     GIT_SUBMODULE_STRATEGY: recursive
 
-image: python:3.6-alpine
+image: ubuntu:18.10
 
 lint:
   stage: test
   allow_failure: true
   before_script:
-    - pip install -e .
-    - pip install pycodestyle
+    - apt update
+    - apt install -y python3-pip libcairo2-dev pkg-config
+    - pip3 install -e .
+    - pip3 install pycodestyle
   script:
     - python setup.py check -mrs
     - pycodestyle
@@ -22,8 +24,10 @@ lint:
 test:
   stage: test
   before_script:
-    - pip install -e .
-    - pip install pytest pytest-cov
+    - apt update
+    - apt install -y python3-pip libcairo2-dev pkg-config
+    - pip3 install -e .
+    - pip3 install pytest pytest-cov
   script:
     - pytest libremsonic
   artifacts:
@@ -33,7 +37,9 @@ test:
 build:
   stage: build
   before_script:
-    - pip install docutils
+    - apt update
+    - apt install -y python3-pip libcairo2-dev pkg-config
+    - pip3 install docutils
   script:
     - python setup.py sdist
   artifacts:
@@ -52,6 +58,7 @@ build_flatpak:
         - flatpak/libremsonic.flatpak
 
 deploy_pypi:
+  image: python:3.6-alpine
   stage: deploy
   only:
     - master
@@ -70,4 +77,4 @@ verify_deploy:
   only:
     - master
   script:
-    - pip install libremsonic
+    - pip3 install libremsonic
