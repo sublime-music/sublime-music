@@ -1,9 +1,48 @@
+stages:
+  - test
+  - build
+  - deploy
+  - verify
+
 variables:
     GIT_SUBMODULE_STRATEGY: recursive
 
+image: python:3.6-alpine
+
+lint:
+  stage: test
+  allow_failure: true
+  before_script:
+    - pip install -e .
+    - pip install pycodestyle
+  script:
+    - python setup.py check -mrs
+    - pycodestyle
+
+test:
+  stage: test
+  before_script:
+    - pip install -e .
+    - pip install pytest pytest-cov
+  script:
+    - pytest libremsonic
+  artifacts:
+    paths:
+      - htmlcov
+
+build:
+  stage: build
+  before_script:
+    - pip install docutils
+  script:
+    - python setup.py sdist
+  artifacts:
+    paths:
+      - dist/*
 
 build_flatpak:
     image: registry.gitlab.com/robozman/libremsonic/libremsonic/build:latest
+    stage: build
     script:
       - cd flatpak
       - ./flatpak_build.sh
@@ -11,3 +50,24 @@ build_flatpak:
       name: "libremsonic-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
       paths:
         - flatpak/libremsonic.flatpak
+
+deploy_pypi:
+  stage: deploy
+  only:
+    - master
+  before_script:
+    - 'pip install twine'
+    - './create-pypirc.sh'
+  script:
+    # Upload to the test PyPi instance, then upload to the real one.
+    - twine upload -r pypi_test dist/*
+    - twine upload dist/*
+  after_script:
+    - echo "" > ~/.pypirc && rm -f ~/.pypirc
+
+verify_deploy:
+  stage: verify
+  only:
+    - master
+  script:
+    - pip install libremsonic
