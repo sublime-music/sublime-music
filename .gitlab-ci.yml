@@ -15,7 +15,7 @@ lint:
   before_script:
     - apt update
     - apt install -y python3-pip libcairo2-dev pkg-config
-    - pip3 install docutils pycodestyle
+    - pip3 install -r dev-requirements.txt
     - pip3 install -e .
   script:
     - python3 setup.py check -mrs
@@ -26,7 +26,7 @@ test:
   before_script:
     - apt update
     - apt install -y python3-pip libcairo2-dev pkg-config libgtk-3-dev libmpv-dev libglib2.0-dev gir1.2-notify-0.7
-    - pip3 install pytest pytest-cov
+    - pip3 install -r dev-requirements.txt
     - pip3 install -e .
   script:
     - pytest libremsonic
@@ -39,7 +39,7 @@ build:
   before_script:
     - apt update
     - apt install -y python3-pip libcairo2-dev pkg-config
-    - pip3 install docutils
+    - pip3 install -r dev-requirements.txt
   script:
     - python3 setup.py sdist
   artifacts:
