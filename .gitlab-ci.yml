@@ -14,7 +14,8 @@ lint:
   allow_failure: true
   before_script:
     - apt update
-    - apt install -y python3-pip libcairo2-dev pkg-config python3-docutils python3-pycodestyle
+    - apt install -y python3-pip libcairo2-dev pkg-config
+    - pip3 install docutils pycodestyle
     - pip3 install -e .
   script:
     - python3 setup.py check -mrs
@@ -25,8 +26,8 @@ test:
   before_script:
     - apt update
     - apt install -y python3-pip libcairo2-dev pkg-config libgtk-3-dev libmpv glib
-    - pip3 install -e .
     - pip3 install pytest pytest-cov
+    - pip3 install -e .
   script:
     - pytest libremsonic
   artifacts:
@@ -37,7 +38,8 @@ build:
   stage: build
   before_script:
     - apt update
-    - apt install -y python3-pip libcairo2-dev pkg-config python3-docutils
+    - apt install -y python3-pip libcairo2-dev pkg-config
+    - pip3 install docutils
   script:
     - python3 setup.py sdist
   artifacts:
