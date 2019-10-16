@@ -323,16 +323,17 @@ class DBusManager:
             if (interface == 'org.mpris.MediaPlayer2.TrackList'
                     and 'Tracks' in changed_props):
                 track_list = changed_props['Tracks']
-                current_track = (
-                    new_property_dict['org.mpris.MediaPlayer2.Player']
-                    ['Metadata']['mpris:trackid'])
-                self.connection.emit_signal(
-                    None,
-                    '/org/mpris/MediaPlayer2',
-                    interface,
-                    'TrackListReplaced',
-                    GLib.Variant('(aoo)', (track_list, current_track)),
-                )
+                if len(track_list) > 0:
+                    current_track = (
+                        new_property_dict['org.mpris.MediaPlayer2.Player']
+                        ['Metadata'].get('mpris:trackid', track_list[0]))
+                    self.connection.emit_signal(
+                        None,
+                        '/org/mpris/MediaPlayer2',
+                        interface,
+                        'TrackListReplaced',
+                        GLib.Variant('(aoo)', (track_list, current_track)),
+                    )
 
             self.connection.emit_signal(
                 None,

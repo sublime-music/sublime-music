@@ -169,6 +169,18 @@ def show_song_popover(
                               SongCacheStatus.PERMANENTLY_CACHED)):
             remove_download_sensitive = True
 
+    go_to_album_button = Gtk.ModelButton(
+        text='Go to album', action_name='app.go-to-album')
+    if len(albums) == 1 and list(albums)[0] is not None:
+        album_value = GLib.Variant('s', list(albums)[0])
+        go_to_album_button.set_action_target_value(album_value)
+
+    go_to_artist_button = Gtk.ModelButton(
+        text='Go to artist', action_name='app.go-to-artist')
+    if len(artists) == 1 and list(artists)[0] is not None:
+        artist_value = GLib.Variant('s', list(artists)[0])
+        go_to_artist_button.set_action_target_value(artist_value)
+
     menu_items = [
         Gtk.ModelButton(
             text='Play next',
@@ -181,20 +193,8 @@ def show_song_popover(
             action_target=GLib.Variant('as', song_ids),
         ),
         Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
-        Gtk.ModelButton(
-            text='Go to album',
-            action_name='app.go-to-album',
-            action_target=GLib.Variant('s',
-                                       list(albums)[0]),
-            sensitive=len(albums) == 1,
-        ),
-        Gtk.ModelButton(
-            text='Go to artist',
-            action_name='app.go-to-artist',
-            action_target=GLib.Variant('s',
-                                       list(artists)[0]),
-            sensitive=len(artists) == 1,
-        ),
+        go_to_album_button,
+        go_to_artist_button,
         Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
         (
             Gtk.ModelButton(

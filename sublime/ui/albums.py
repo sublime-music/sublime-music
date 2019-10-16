@@ -28,11 +28,6 @@ class AlbumsPanel(Gtk.Box):
         ),
     }
 
-    currently_active_alphabetical_sort: str = 'name'
-    currently_active_genre: str = 'Rock'
-    currently_active_from_year: int = 2010
-    currently_active_to_year: int = 2020
-
     populating_genre_combo = False
 
     def __init__(self):
@@ -69,10 +64,7 @@ class AlbumsPanel(Gtk.Box):
         actionbar.pack_start(self.alphabetical_type_combo)
 
         # Alphabetically how?
-        self.genre_combo = self.make_combobox(
-            (),
-            self.on_genre_change,
-        )
+        self.genre_combo = self.make_combobox((), self.on_genre_change)
         actionbar.pack_start(self.genre_combo)
 
         self.from_year_label = Gtk.Label(label='from')
@@ -88,7 +80,7 @@ class AlbumsPanel(Gtk.Box):
         actionbar.pack_start(self.to_year_entry)
 
         refresh = IconButton('view-refresh')
-        refresh.connect('clicked', lambda *a: self.update(force=True))
+        refresh.connect('clicked', self.on_refresh_clicked)
         actionbar.pack_end(refresh)
 
         self.add(actionbar)
@@ -117,34 +109,39 @@ class AlbumsPanel(Gtk.Box):
 
         return combo
 
-    def populate_genre_combo(self):
+    def populate_genre_combo(
+            self,
+            state: ApplicationState,
+            force: bool = False,
+    ):
         def get_genres_done(f):
-            model = self.genre_combo.get_model()
+            new_store = [
+                (genre.value, genre.value) for genre in (f.result() or [])
+            ]
 
             self.populating_genre_combo = True
-            model.clear()
-            for genre in (f.result() or []):
-                model.append((genre.value, genre.value))
-
+            util.diff_song_store(self.genre_combo.get_model(), new_store)
             self.populating_genre_combo = False
-            # TODO Get this from state
-            self.genre_combo.set_active_id(self.currently_active_genre)
 
-        genres_future = CacheManager.get_genres()
+            if self.get_id(self.genre_combo) != state.current_album_genre:
+                self.genre_combo.set_active_id(state.current_album_genre)
+
+        # Never force. We invalidate the cache ourselves (force is used when
+        # sort params change).
+        genres_future = CacheManager.get_genres(force=False)
         genres_future.add_done_callback(
             lambda f: GLib.idle_add(get_genres_done, f))
 
-    def update(self, state: ApplicationState = None, force: bool = False):
-        if state:
-            self.sort_type_combo.set_active_id(state.current_album_sort)
+    def update(self, state: ApplicationState, force: bool = False):
+        self.sort_type_combo.set_active_id(state.current_album_sort)
 
         # TODO store this in state
         self.alphabetical_type_combo.set_active_id(
-            self.currently_active_alphabetical_sort)
-        self.from_year_entry.set_text(str(self.currently_active_from_year))
-        self.to_year_entry.set_text(str(self.currently_active_to_year))
+            state.current_album_alphabetical_sort)
+        self.from_year_entry.set_text(str(state.current_album_from_year))
+        self.to_year_entry.set_text(str(state.current_album_to_year))
 
-        self.populate_genre_combo()
+        self.populate_genre_combo(state, force=force)
 
         # Show/hide the combo boxes.
         def show_if(sort_type, *elements):
@@ -166,48 +163,57 @@ class AlbumsPanel(Gtk.Box):
         if tree_iter is not None:
             return combo.get_model()[tree_iter][0]
 
+    def on_refresh_clicked(self, button):
+        # TODO: Invalidate the appropriate album cache to force the cache
+        # manager to re-fetch.  (Just using force=True is not enough since that
+        # is also used for when we change sort params.)
+        # TODO: If in genre mode, invalidate the genre list.
+        self.emit('refresh-window', {}, True)
+
     def on_type_combo_changed(self, combo):
         new_active_sort = self.get_id(combo)
         self.grid.update_params(type_=new_active_sort)
         self.emit(
             'refresh-window',
             {'current_album_sort': new_active_sort},
-            False,
+            True,
         )
 
     def on_alphabetical_type_change(self, combo):
-        self.currently_active_alphabetical_sort = self.get_id(combo)
-        if self.grid.alphabetical_type != self.currently_active_alphabetical_sort:
-            self.grid.update_params(
-                alphabetical_type=self.currently_active_alphabetical_sort)
-            self.update(force=True)
+        new_active_alphabetical_sort = self.get_id(combo)
+        self.grid.update_params(alphabetical_type=new_active_alphabetical_sort)
+        self.emit(
+            'refresh-window',
+            {'current_album_alphabetical_sort': new_active_alphabetical_sort},
+            True,
+        )
 
     def on_genre_change(self, combo):
         if self.populating_genre_combo:
             return
-        self.currently_active_genre = self.get_id(combo)
-        if self.grid.genre != self.currently_active_genre:
-            self.grid.update_params(genre=self.currently_active_genre)
-            self.update(force=True)
+        new_active_genre = self.get_id(combo)
+        self.grid.update_params(genre=new_active_genre)
+        self.emit(
+            'refresh-window',
+            {'current_album_genre': new_active_genre},
+            True,
+        )
 
     def on_year_changed(self, entry):
         try:
             year = int(entry.get_text())
         except:
-            # TODO
+            # TODO prevent input of non-numerals
             print('failed, should do something to prevent non-numeric input')
             return
 
         if self.to_year_entry == entry:
-            self.currently_active_to_year = year
-            if self.grid.to_year != self.currently_active_to_year:
-                self.grid.update_params(to_year=year)
-                self.update(force=True)
+            self.grid.update_params(to_year=year)
+            self.emit('refresh-window', {'current_album_to_year': year}, True)
         else:
-            self.currently_active_from_year = year
-            if self.grid.from_year != self.currently_active_from_year:
-                self.grid.update_params(from_year=year)
-                self.update(force=True)
+            self.grid.update_params(from_year=year)
+            self.emit(
+                'refresh-window', {'current_album_from_year': year}, True)
 
 
 class AlbumModel(GObject.Object):
@@ -264,7 +270,11 @@ class AlbumsGrid(CoverArtGrid):
             from_year=self.from_year,
             genre=self.genre,
             before_download=before_download,
-            force=force,
+
+            # We handle invalidating the cache manually. Never force. We
+            # invalidate the cache ourselves (force is used when sort params
+            # change).
+            force=False,
         )
 
     def create_model_from_element(self, album):

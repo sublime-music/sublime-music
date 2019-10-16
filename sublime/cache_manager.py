@@ -152,14 +152,14 @@ class CacheManager(metaclass=Singleton):
                 ('genres', Genre, list),
 
                 # Non-ID3 caches
-                ('albums', Child, list),
+                ('albums', Child, 'dict-list'),
                 ('album_details', Directory, dict),
                 ('artists', Artist, list),
                 ('artist_details', Directory, dict),
                 ('artist_infos', ArtistInfo, dict),
 
                 # ID3 caches
-                ('albums_id3', AlbumWithSongsID3, list),
+                ('albums_id3', AlbumWithSongsID3, 'dict-list'),
                 ('album_details_id3', AlbumWithSongsID3, dict),
                 ('artists_id3', ArtistID3, list),
                 ('artist_details_id3', ArtistWithAlbumsID3, dict),
@@ -175,6 +175,12 @@ class CacheManager(metaclass=Singleton):
                     self.cache[name] = {
                         id: type_name.from_json(x)
                         for id, x in meta_json.get(name, {}).items()
+                    }
+                elif default == 'dict-list':
+                    print(meta_json.get(name, {}))
+                    self.cache[name] = {
+                        n: [type_name.from_json(x) for x in xs]
+                        for n, xs in meta_json.get(name, {}).items()
                     }
 
         def save_cache_info(self):
@@ -462,18 +468,18 @@ class CacheManager(metaclass=Singleton):
                     self.server.get_album_list2
                     if self.browse_by_tags else self.server.get_album_list)
 
-                # TODO cache per type.
+                # TODO handle other parameters
                 # TODO handle random.
-                if not self.cache.get(cache_name) or force:
+                if not self.cache.get(cache_name, {}).get(type_) or force:
                     before_download()
                     albums = server_fn(type_, size=size, **params)
 
                     with self.cache_lock:
-                        self.cache[cache_name] = albums.album
+                        self.cache[cache_name][type_] = albums.album
 
                     self.save_cache_info()
 
-                return self.cache[cache_name]
+                return self.cache[cache_name][type_]
 
             return CacheManager.executor.submit(do_get_albums)
 
