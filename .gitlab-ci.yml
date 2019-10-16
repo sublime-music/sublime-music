@@ -18,7 +18,7 @@ lint:
     - pip3 install -e .
     - pip3 install pycodestyle
   script:
-    - python setup.py check -mrs
+    - python3 setup.py check -mrs
     - pycodestyle
 
 test:
@@ -41,7 +41,7 @@ build:
     - apt install -y python3-pip libcairo2-dev pkg-config
     - pip3 install docutils
   script:
-    - python setup.py sdist
+    - python3 setup.py sdist
   artifacts:
     paths:
       - dist/*
