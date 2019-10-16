@@ -25,7 +25,7 @@ test:
   stage: test
   before_script:
     - apt update
-    - apt install -y python3-pip libcairo2-dev pkg-config libgtk-3-dev libmpv glib
+    - apt install -y python3-pip libcairo2-dev pkg-config libgtk-3-dev libmpv-dev libglib2.0-dev
     - pip3 install pytest pytest-cov
     - pip3 install -e .
   script:
