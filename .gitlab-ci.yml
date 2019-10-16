@@ -14,9 +14,8 @@ lint:
   allow_failure: true
   before_script:
     - apt update
-    - apt install -y python3-pip libcairo2-dev pkg-config python-docutils
+    - apt install -y python3-pip libcairo2-dev pkg-config python3-docutils python3-pycodestyle
     - pip3 install -e .
-    - pip3 install pycodestyle
   script:
     - python3 setup.py check -mrs
     - pycodestyle
@@ -38,8 +37,7 @@ build:
   stage: build
   before_script:
     - apt update
-    - apt install -y python3-pip libcairo2-dev pkg-config
-    - pip3 install docutils
+    - apt install -y python3-pip libcairo2-dev pkg-config python3-docutils
   script:
     - python3 setup.py sdist
   artifacts:
