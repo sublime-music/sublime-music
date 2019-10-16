@@ -91,6 +91,7 @@ class AlbumsPanel(Gtk.Box):
             'song-clicked',
             lambda _, *args: self.emit('song-clicked', *args),
         )
+        self.grid.connect('cover-clicked', self.on_grid_cover_clicked)
         scrolled_window.add(self.grid)
         self.add(scrolled_window)
 
@@ -134,8 +135,6 @@ class AlbumsPanel(Gtk.Box):
 
     def update(self, state: ApplicationState, force: bool = False):
         self.sort_type_combo.set_active_id(state.current_album_sort)
-
-        # TODO store this in state
         self.alphabetical_type_combo.set_active_id(
             state.current_album_alphabetical_sort)
         self.from_year_entry.set_text(str(state.current_album_from_year))
@@ -156,7 +155,11 @@ class AlbumsPanel(Gtk.Box):
         show_if('byYear', self.from_year_label, self.from_year_entry)
         show_if('byYear', self.to_year_label, self.to_year_entry)
 
-        self.grid.update(state=state, force=force)
+        self.grid.update(
+            state=state,
+            force=force,
+            selected_id=state.selected_album_id,
+        )
 
     def get_id(self, combo):
         tree_iter = combo.get_active_iter()
@@ -215,11 +218,22 @@ class AlbumsPanel(Gtk.Box):
             self.emit(
                 'refresh-window', {'current_album_from_year': year}, True)
 
+    def on_grid_cover_clicked(self, grid, id):
+        self.emit(
+            'refresh-window',
+            {'selected_album_id': id},
+            True,
+        )
+
 
 class AlbumModel(GObject.Object):
     def __init__(self, album: Album):
         self.album: Album = album
         super().__init__()
+
+    @property
+    def id(self):
+        return self.album.id
 
     def __repr__(self):
         return f'<AlbumModel {self.album}>'

@@ -16,15 +16,21 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (str, object, object),
-        )
+        ),
+        'cover-clicked': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, ),
+        ),
     }
+
+    current_selection = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # This is the master list.
         self.list_store = Gio.ListStore()
-        self.selected_list_store_index = None
 
         self.items_per_row = 4
 
@@ -90,16 +96,25 @@ class CoverArtGrid(Gtk.ScrolledWindow):
 
         self.add(overlay)
 
-    def update(self, state: ApplicationState = None, force: bool = False):
-        self.update_grid(force=force)
+    def update(
+            self,
+            state: ApplicationState = None,
+            force: bool = False,
+            selected_id: str = None,
+    ):
+        self.update_grid(force=force, selected_id=selected_id)
 
         # Update the detail panel.
         children = self.detail_box_inner.get_children()
         if len(children) > 0 and hasattr(children[0], 'update'):
             children[0].update(force=force)
 
-    def update_grid(self, force=False):
+    def update_grid(self, force=False, selected_id=None):
+        self.download_occurred = False
+
         def start_loading():
+            self.download_occurred = True
+
             self.spinner.show()
 
         def stop_loading():
@@ -112,23 +127,23 @@ class CoverArtGrid(Gtk.ScrolledWindow):
                 print('fail', e)
                 return
 
-            selection = self.grid_top.get_selected_children()
-            if selection:
-                self.selected_list_store_index = selection[0].get_index()
-
-            if force:
-                self.selected_list_store_index = None
-
             old_len = len(self.list_store)
             self.list_store.remove_all()
-            for el in (result or []):
-                self.list_store.append(self.create_model_from_element(el))
+            selected_index = None
+            for i, el in enumerate(result or []):
+                model = self.create_model_from_element(el)
+                if model.id == selected_id:
+                    selected_index = i
+
+                self.list_store.append(model)
             new_len = len(self.list_store)
 
+            self.current_selection = selected_index
+
             # Only force if there's a length change.
-            # TODO, this doesn't handle when something is edited.
             self.reflow_grids(
-                force_reload_from_master=(old_len != new_len or force))
+                force_reload_from_master=(
+                    old_len != new_len or self.download_occurred))
             stop_loading()
 
         future = self.get_model_list_future(
@@ -188,9 +203,9 @@ class CoverArtGrid(Gtk.ScrolledWindow):
     def reflow_grids(self, force_reload_from_master=False):
         # Determine where the cuttoff is between the top and bottom grids.
         entries_before_fold = len(self.list_store)
-        if self.selected_list_store_index is not None:
+        if self.current_selection is not None and self.items_per_row:
             entries_before_fold = (
-                ((self.selected_list_store_index // self.items_per_row) + 1)
+                ((self.current_selection // self.items_per_row) + 1)
                 * self.items_per_row)
 
         if force_reload_from_master:
@@ -221,11 +236,25 @@ class CoverArtGrid(Gtk.ScrolledWindow):
                 for _ in range(top_diff):
                     del self.list_store_top[-1]
 
-        if self.selected_list_store_index is not None:
+        if self.current_selection is not None:
             self.grid_top.select_child(
-                self.grid_top.get_child_at_index(
-                    self.selected_list_store_index))
-            self.detail_box.show()
+                self.grid_top.get_child_at_index(self.current_selection))
+
+            for c in self.detail_box_inner.get_children():
+                self.detail_box_inner.remove(c)
+
+            model = self.list_store[self.current_selection]
+            detail_element = self.create_detail_element_from_model(model)
+            detail_element.connect(
+                'song-clicked',
+                lambda _, song, queue, metadata: self.emit(
+                    'song-clicked', song, queue, metadata),
+            )
+            detail_element.connect('song-selected', lambda *a: None)
+
+            self.detail_box_inner.pack_start(detail_element, True, True, 0)
+            self.detail_box.show_all()
+
             # TODO scroll so that the grid_top is visible, and the detail_box
             # is visible, with preference to the grid_top.
         else:
@@ -268,38 +297,24 @@ class CoverArtGrid(Gtk.ScrolledWindow):
     # =========================================================================
     def on_child_activated(self, flowbox, child):
         click_top = flowbox == self.grid_top
-        selected = (
+        selected_index = (
             child.get_index() + (0 if click_top else len(self.list_store_top)))
 
-        if selected == self.selected_list_store_index:
-            self.selected_list_store_index = None
+        if selected_index == self.current_selection:
+            self.emit('cover-clicked', None)
         else:
-            self.selected_list_store_index = selected
-
-            for c in self.detail_box_inner.get_children():
-                self.detail_box_inner.remove(c)
-
-            model = self.list_store[self.selected_list_store_index]
-            detail_element = self.create_detail_element_from_model(model)
-            detail_element.connect(
-                'song-clicked',
-                lambda _, song, queue, metadata: self.emit(
-                    'song-clicked', song, queue, metadata),
-            )
-            detail_element.connect('song-selected', lambda *a: None)
-
-            self.detail_box_inner.pack_start(detail_element, True, True, 0)
-            self.detail_box_inner.show_all()
-
-        self.reflow_grids()
+            self.emit('cover-clicked', self.list_store[selected_index].id)
 
     def on_grid_resize(self, flowbox, rect):
+        # TODO: this doesn't work with themes that add extra padding.
         # 200     + (10      * 2) + (5      * 2) = 230
         # picture + (padding * 2) + (margin * 2)
-        self.items_per_row = min((rect.width // 230), 7)
-        self.detail_box_inner.set_size_request(
-            self.items_per_row * 230 - 10,
-            -1,
-        )
+        new_items_per_row = min((rect.width // 230), 7)
+        if new_items_per_row != self.items_per_row:
+            self.items_per_row = min((rect.width // 230), 7)
+            self.detail_box_inner.set_size_request(
+                self.items_per_row * 230 - 10,
+                -1,
+            )
 
-        self.reflow_grids()
+            self.reflow_grids()
