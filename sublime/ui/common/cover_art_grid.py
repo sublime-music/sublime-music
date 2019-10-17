@@ -114,7 +114,6 @@ class CoverArtGrid(Gtk.ScrolledWindow):
 
         def start_loading():
             self.download_occurred = True
-
             self.spinner.show()
 
         def stop_loading():

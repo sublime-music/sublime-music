@@ -186,7 +186,7 @@ class PlayerControls(Gtk.ActionBar):
 
     def on_play_queue_click(self, button):
         self.play_queue_popover.set_relative_to(button)
-        # TODO scroll the sfcurrently playing song into view.
+        # TODO scroll the currently playing song into view.
         self.play_queue_popover.popup()
         self.play_queue_popover.show_all()
 
