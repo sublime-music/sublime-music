@@ -177,7 +177,6 @@ class CacheManager(metaclass=Singleton):
                         for id, x in meta_json.get(name, {}).items()
                     }
                 elif default == 'dict-list':
-                    print(meta_json.get(name, {}))
                     self.cache[name] = {
                         n: [type_name.from_json(x) for x in xs]
                         for n, xs in meta_json.get(name, {}).items()
@@ -303,7 +302,7 @@ class CacheManager(metaclass=Singleton):
             def do_get_playlist() -> PlaylistWithSongs:
                 cache_name = "playlist_details"
 
-                if playlist_id not in self.cache.get(cache_name) or force:
+                if playlist_id not in self.cache.get(cache_name, {}) or force:
                     before_download()
                     playlist = self.server.get_playlist(playlist_id)
                     with self.cache_lock:
