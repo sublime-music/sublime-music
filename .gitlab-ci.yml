@@ -1,9 +1,54 @@
+stages:
+  - test
+  - build
+  - deploy
+  - verify
+
 variables:
     GIT_SUBMODULE_STRATEGY: recursive
 
+image: ubuntu:18.10
+
+lint:
+  stage: test
+  allow_failure: true
+  before_script:
+    - apt update
+    - apt install -y python3-pip libcairo2-dev pkg-config
+    - pip3 install -r dev-requirements.txt
+    - pip3 install -e .
+  script:
+    - python3 setup.py check -mrs
+    - pycodestyle
+
+test:
+  stage: test
+  before_script:
+    - apt update
+    - apt install -y python3-pip libcairo2-dev pkg-config libgtk-3-dev libmpv-dev libglib2.0-dev gir1.2-notify-0.7
+    - pip3 install -r dev-requirements.txt
+    - pip3 install -e .
+  script:
+    - ./cicd/pytest.sh
+  artifacts:
+    paths:
+      - htmlcov
+
+build:
+  stage: build
+  before_script:
+    - apt update
+    - apt install -y python3-pip libcairo2-dev pkg-config
+    - pip3 install -r dev-requirements.txt
+  script:
+    - python3 setup.py sdist
+  artifacts:
+    paths:
+      - dist/*
 
 build_flatpak:
     image: registry.gitlab.com/robozman/libremsonic/libremsonic/build:latest
+    stage: build
     script:
       - cd flatpak
       - ./flatpak_build.sh
@@ -11,3 +56,25 @@ build_flatpak:
       name: "libremsonic-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
       paths:
         - flatpak/libremsonic.flatpak
+
+deploy_pypi:
+  image: python:3.6-alpine
+  stage: deploy
+  only:
+    - master
+  before_script:
+    - 'pip install twine'
+    - './create-pypirc.sh'
+  script:
+    # Upload to the test PyPi instance, then upload to the real one.
+    - twine upload -r pypi_test dist/*
+    - twine upload dist/*
+  after_script:
+    - echo "" > ~/.pypirc && rm -f ~/.pypirc
+
+verify_deploy:
+  stage: verify
+  only:
+    - master
+  script:
+    - pip3 install libremsonic
