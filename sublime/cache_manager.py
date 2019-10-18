@@ -493,7 +493,9 @@ class CacheManager(metaclass=Singleton):
             while True:
                 yield 'network barrier'
                 before_download()
-                page = server_fn(type_, size=page_size, offset=offset).album
+                page = (
+                    server_fn(type_, size=page_size, offset=offset).album
+                    or [])
 
                 with self.cache_lock:
                     if not self.cache[cache_name].get(type_):
