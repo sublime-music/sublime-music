@@ -864,9 +864,8 @@ class SublimeMusicApp(Gtk.Application):
         self.last_play_queue_update = position
 
         if self.current_server.sync_enabled and self.state.current_song:
-            CacheManager.executor.submit(
-                CacheManager.save_play_queue,
-                id=self.state.play_queue,
+            CacheManager.save_play_queue(
+                play_queue=self.state.play_queue,
                 current=self.state.current_song.id,
                 position=math.floor(position * 1000) if position else None,
             )

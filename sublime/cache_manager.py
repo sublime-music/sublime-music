@@ -261,6 +261,13 @@ class CacheManager(metaclass=Singleton):
 
             return str(abs_path)
 
+        @staticmethod
+        def create_future(fn, *args):
+            """
+            Creates a future on the CacheManager's executor.
+            """
+            return CacheManager.executor.submit(fn, *args)
+
         def delete_cached_cover_art(self, id: int):
             relative_path = f'cover_art/*{id}_*'
 
@@ -283,7 +290,7 @@ class CacheManager(metaclass=Singleton):
                     self.save_cache_info()
                 return self.cache['playlists']
 
-            return CacheManager.executor.submit(do_get_playlists)
+            return CacheManager.create_future(do_get_playlists)
 
         def invalidate_playlists_cache(self):
             if not self.cache.get('playlists'):
@@ -323,13 +330,13 @@ class CacheManager(metaclass=Singleton):
 
                 return playlist_details
 
-            return CacheManager.executor.submit(do_get_playlist)
+            return CacheManager.create_future(do_get_playlist)
 
         def create_playlist(self, name: str) -> Future:
             def do_create_playlist():
                 self.server.create_playlist(name=name)
 
-            return CacheManager.executor.submit(do_create_playlist)
+            return CacheManager.create_future(do_create_playlist)
 
         def update_playlist(self, playlist_id, *args, **kwargs):
             def do_update_playlist():
@@ -337,7 +344,7 @@ class CacheManager(metaclass=Singleton):
                 with self.cache_lock:
                     del self.cache['playlist_details'][playlist_id]
 
-            return CacheManager.executor.submit(do_update_playlist)
+            return CacheManager.create_future(do_update_playlist)
 
         def get_artists(
                 self,
@@ -365,7 +372,7 @@ class CacheManager(metaclass=Singleton):
 
                 return self.cache[cache_name]
 
-            return CacheManager.executor.submit(do_get_artists)
+            return CacheManager.create_future(do_get_artists)
 
         def get_artist(
                 self,
@@ -390,7 +397,7 @@ class CacheManager(metaclass=Singleton):
 
                 return self.cache[cache_name][artist_id]
 
-            return CacheManager.executor.submit(do_get_artist)
+            return CacheManager.create_future(do_get_artist)
 
         def get_artist_info(
                 self,
@@ -416,7 +423,7 @@ class CacheManager(metaclass=Singleton):
 
                 return self.cache[cache_name][artist_id]
 
-            return CacheManager.executor.submit(do_get_artist_info)
+            return CacheManager.create_future(do_get_artist_info)
 
         def get_artist_artwork(
                 self,
@@ -450,7 +457,7 @@ class CacheManager(metaclass=Singleton):
                     force=force,
                 )
 
-            return CacheManager.executor.submit(do_get_artist_artwork_filename)
+            return CacheManager.create_future(do_get_artist_artwork_filename)
 
         def get_albums(
                 self,
@@ -480,7 +487,7 @@ class CacheManager(metaclass=Singleton):
 
                 return self.cache[cache_name][type_]
 
-            return CacheManager.executor.submit(do_get_albums)
+            return CacheManager.create_future(do_get_albums)
 
         def get_album(
                 self,
@@ -505,7 +512,7 @@ class CacheManager(metaclass=Singleton):
 
                 return self.cache[cache_name][album_id]
 
-            return CacheManager.executor.submit(do_get_album)
+            return CacheManager.create_future(do_get_album)
 
         def batch_delete_cached_songs(
                 self,
@@ -527,7 +534,7 @@ class CacheManager(metaclass=Singleton):
 
                     song_details_future.add_done_callback(filename_future_done)
 
-            return CacheManager.executor.submit(do_delete_cached_songs)
+            return CacheManager.create_future(do_delete_cached_songs)
 
         def batch_download_songs(
                 self,
@@ -557,9 +564,9 @@ class CacheManager(metaclass=Singleton):
                     set(song_ids))
                 for song_id in song_ids:
                     self.download_limiter_semaphore.acquire()
-                    CacheManager.executor.submit(do_download_song, song_id)
+                    CacheManager.create_future(do_download_song, song_id)
 
-            return CacheManager.executor.submit(do_batch_download_songs)
+            return CacheManager.create_future(do_batch_download_songs)
 
         def get_cover_art_filename(
                 self,
@@ -579,7 +586,7 @@ class CacheManager(metaclass=Singleton):
                     allow_download=allow_download,
                 )
 
-            return CacheManager.executor.submit(do_get_cover_art_filename)
+            return CacheManager.create_future(do_get_cover_art_filename)
 
         def get_song_details(
                 self,
@@ -597,16 +604,25 @@ class CacheManager(metaclass=Singleton):
 
                 return self.cache['song_details'][song_id]
 
-            return CacheManager.executor.submit(do_get_song_details)
+            return CacheManager.create_future(do_get_song_details)
 
         def get_play_queue(self) -> Future:
-            return CacheManager.executor.submit(self.server.get_play_queue)
+            return CacheManager.create_future(self.server.get_play_queue)
+
+        def save_play_queue(
+                self,
+                play_queue: List[str],
+                current: str,
+                position: float,
+        ):
+            CacheManager.create_future(
+                self.server.save_play_queue, play_queue, current, position)
 
         def scrobble(self, song_id: int) -> Future:
             def do_scrobble():
                 self.server.scrobble(song_id)
 
-            return CacheManager.executor.submit(do_scrobble)
+            return CacheManager.create_future(do_scrobble)
 
         def get_song_filename_or_stream(
                 self,
@@ -638,7 +654,7 @@ class CacheManager(metaclass=Singleton):
 
                 return self.cache['genres']
 
-            return CacheManager.executor.submit(do_get_genres)
+            return CacheManager.create_future(do_get_genres)
 
         def get_cached_status(self, song: Child) -> SongCacheStatus:
             cache_path = self.calculate_abs_path(song.path)
