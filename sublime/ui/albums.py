@@ -179,7 +179,7 @@ class AlbumsPanel(Gtk.Box):
         self.emit(
             'refresh-window',
             {'current_album_sort': new_active_sort},
-            True,
+            False,
         )
 
     def on_alphabetical_type_change(self, combo):
@@ -188,7 +188,7 @@ class AlbumsPanel(Gtk.Box):
         self.emit(
             'refresh-window',
             {'current_album_alphabetical_sort': new_active_alphabetical_sort},
-            True,
+            False,
         )
 
     def on_genre_change(self, combo):
@@ -199,7 +199,7 @@ class AlbumsPanel(Gtk.Box):
         self.emit(
             'refresh-window',
             {'current_album_genre': new_active_genre},
-            True,
+            False,
         )
 
     def on_year_changed(self, entry):
@@ -212,17 +212,17 @@ class AlbumsPanel(Gtk.Box):
 
         if self.to_year_entry == entry:
             self.grid.update_params(to_year=year)
-            self.emit('refresh-window', {'current_album_to_year': year}, True)
+            self.emit('refresh-window', {'current_album_to_year': year}, False)
         else:
             self.grid.update_params(from_year=year)
             self.emit(
-                'refresh-window', {'current_album_from_year': year}, True)
+                'refresh-window', {'current_album_from_year': year}, False)
 
     def on_grid_cover_clicked(self, grid, id):
         self.emit(
             'refresh-window',
             {'selected_album_id': id},
-            True,
+            False,
         )
 
 
@@ -270,7 +270,7 @@ class AlbumsGrid(CoverArtGrid):
     def get_info_text(self, item: AlbumModel) -> Optional[str]:
         return util.dot_join(item.album.artist, item.album.year)
 
-    def get_model_list_future(self, before_download, force=False):
+    def get_new_model_generator(self, before_download=None, force=False):
         type_ = self.type_
         if self.type_ == 'alphabetical':
             type_ += {
@@ -278,17 +278,13 @@ class AlbumsGrid(CoverArtGrid):
                 'artist': 'ByArtist',
             }[self.alphabetical_type]
 
-        return CacheManager.get_albums(
+        yield from CacheManager.get_albums_future_generator(
             type_=type_,
             to_year=self.to_year,
             from_year=self.from_year,
             genre=self.genre,
             before_download=before_download,
-
-            # We handle invalidating the cache manually. Never force. We
-            # invalidate the cache ourselves (force is used when sort params
-            # change).
-            force=False,
+            force=force,
         )
 
     def create_model_from_element(self, album):

@@ -6,6 +6,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, Gtk, GObject, Gio, Pango
 
 from sublime.state_manager import ApplicationState
+from libremsonic.cache_manager import CacheManager
 from .spinner_image import SpinnerImage
 
 
@@ -28,6 +29,8 @@ class CoverArtGrid(Gtk.ScrolledWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.model_list_future_generator = None
 
         # This is the master list.
         self.list_store = Gio.ListStore()
@@ -110,46 +113,56 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             children[0].update(force=force)
 
     def update_grid(self, force=False, selected_id=None):
-        self.download_occurred = False
-
-        def start_loading():
-            self.download_occurred = True
-            self.spinner.show()
-
-        def stop_loading():
+        def reflow_grid(force_reload, selected_index):
+            selection_changed = (selected_index != self.current_selection)
+            self.current_selection = selected_index
+            self.reflow_grids(
+                force_reload_from_master=force_reload,
+                selection_changed=selection_changed,
+            )
             self.spinner.hide()
 
-        def future_done(f):
-            try:
-                result = f.result()
-            except Exception as e:
-                print('fail', e)
-                return
+        # If we don't have a generator yet, then we need to get one.
+        self.model_list_future_generator = (
+            self.get_new_model_generator(
+                before_download=lambda: GLib.idle_add(self.spinner.show),
+                force=force,
+            ))
 
+        def do_update():
             old_len = len(self.list_store)
             self.list_store.remove_all()
+
+            i = 0
             selected_index = None
-            for i, el in enumerate(result or []):
-                model = self.create_model_from_element(el)
+            while True:
+                try:
+                    next_el = next(self.model_list_future_generator)
+                except StopIteration:
+                    break
+
+                # Stop once we hit a network barrier (unless the list hasn't
+                # been loaded).
+                if next_el == 'network barrier':
+                    if len(self.list_store) == 0:
+                        continue
+                    else:
+                        break
+
+                model = self.create_model_from_element(next_el)
                 if model.id == selected_id:
                     selected_index = i
+                i += 1
 
                 self.list_store.append(model)
-            new_len = len(self.list_store)
 
-            self.current_selection = selected_index
+            GLib.idle_add(
+                reflow_grid,
+                old_len != len(self.list_store),
+                selected_index,
+            )
 
-            # Only force if there's a length change.
-            self.reflow_grids(
-                force_reload_from_master=(
-                    old_len != new_len or self.download_occurred))
-            stop_loading()
-
-        future = self.get_model_list_future(
-            before_download=start_loading,
-            force=force,
-        )
-        future.add_done_callback(lambda f: GLib.idle_add(future_done, f))
+        do_update()
 
     def create_widget(self, item):
         widget_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -199,7 +212,11 @@ class CoverArtGrid(Gtk.ScrolledWindow):
         widget_box.show_all()
         return widget_box
 
-    def reflow_grids(self, force_reload_from_master=False):
+    def reflow_grids(
+            self,
+            force_reload_from_master=False,
+            selection_changed=False,
+    ):
         # Determine where the cuttoff is between the top and bottom grids.
         entries_before_fold = len(self.list_store)
         if self.current_selection is not None and self.items_per_row:
@@ -236,6 +253,10 @@ class CoverArtGrid(Gtk.ScrolledWindow):
                     del self.list_store_top[-1]
 
         if self.current_selection is not None:
+            if not selection_changed:
+                return
+
+            # TODO: only do this if the selection actually changed.
             self.grid_top.select_child(
                 self.grid_top.get_child_at_index(self.current_selection))
 
@@ -272,9 +293,9 @@ class CoverArtGrid(Gtk.ScrolledWindow):
             'get_info_text must be implemented by the inheritor of '
             'CoverArtGrid.')
 
-    def get_model_list_future(self, before_download, force=False):
+    def get_new_model_generator(self, before_download, force=False):
         raise NotImplementedError(
-            'get_model_list_future must be implemented by the inheritor of '
+            'get_new_model_generator must be implemented by the inheritor of '
             'CoverArtGrid.')
 
     def create_model_from_element(self, el):

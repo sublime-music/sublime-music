@@ -459,35 +459,56 @@ class CacheManager(metaclass=Singleton):
 
             return CacheManager.create_future(do_get_artist_artwork_filename)
 
-        def get_albums(
+        def get_albums_future_generator(
                 self,
                 type_: str,
-                size: int = 30,
+                page_size: int = 30,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
                 # Look at documentation for get_album_list in server.py:
                 **params,
         ) -> Future:
-            def do_get_albums() -> List[Child]:
-                cache_name = self.id3ify('albums')
-                server_fn = (
-                    self.server.get_album_list2
-                    if self.browse_by_tags else self.server.get_album_list)
+            """
+            Note: We handle invalidating the cache manually. Never force. We
+            invalidate the cache ourselves (force is used when sort params
+            change).
+            """
+            cache_name = self.id3ify('albums')
+            server_fn = (
+                self.server.get_album_list2
+                if self.browse_by_tags else self.server.get_album_list)
 
-                # TODO handle other parameters
-                # TODO handle random.
-                if not self.cache.get(cache_name, {}).get(type_) or force:
-                    before_download()
-                    albums = server_fn(type_, size=size, **params)
+            # TODO make this invalidate instead of delete
+            if force and self.cache.get(cache_name, {}).get(type_):
+                with self.cache_lock:
+                    self.cache[cache_name][type_] = []
+                self.save_cache_info()
 
-                    with self.cache_lock:
-                        self.cache[cache_name][type_] = albums.album
+            cached_values = self.cache.get(cache_name, {}).get(type_, [])
+            offset = len(cached_values)
 
-                    self.save_cache_info()
+            # First, yield whatever's cached.
+            yield from cached_values
 
-                return self.cache[cache_name][type_]
+            while True:
+                yield 'network barrier'
+                before_download()
+                page = server_fn(type_, size=page_size, offset=offset).album
 
-            return CacheManager.create_future(do_get_albums)
+                with self.cache_lock:
+                    if not self.cache[cache_name].get(type_):
+                        self.cache[cache_name][type_] = []
+                    self.cache[cache_name][type_].extend(page)
+                self.save_cache_info()
+
+                yield from page
+
+                # If the length of the page is less than the page size, then it
+                # means that we reached the end of the list somewhere in this
+                # page.
+                if len(page) < page_size:
+                    break
+                offset += page_size
 
         def get_album(
                 self,
