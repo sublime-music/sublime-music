@@ -479,7 +479,8 @@ class CacheManager(metaclass=Singleton):
                 if self.browse_by_tags else self.server.get_album_list)
 
             # TODO make this invalidate instead of delete
-            if force and self.cache.get(cache_name, {}).get(type_):
+            # TODO invalidate if random as well.
+            if False and self.cache.get(cache_name, {}).get(type_):
                 with self.cache_lock:
                     self.cache[cache_name][type_] = []
                 self.save_cache_info()
@@ -494,8 +495,12 @@ class CacheManager(metaclass=Singleton):
                 yield 'network barrier'
                 before_download()
                 page = (
-                    server_fn(type_, size=page_size, offset=offset).album
-                    or [])
+                    server_fn(
+                        type_,
+                        size=page_size,
+                        offset=offset,
+                        **params,
+                    ).album or [])
 
                 with self.cache_lock:
                     if not self.cache[cache_name].get(type_):

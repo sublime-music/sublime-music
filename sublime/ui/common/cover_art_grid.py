@@ -158,7 +158,7 @@ class CoverArtGrid(Gtk.ScrolledWindow):
 
             GLib.idle_add(
                 reflow_grid,
-                old_len != len(self.list_store),
+                old_len != len(self.list_store) or force,
                 selected_index,
             )
 

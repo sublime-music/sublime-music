@@ -179,7 +179,7 @@ class AlbumsPanel(Gtk.Box):
         self.emit(
             'refresh-window',
             {'current_album_sort': new_active_sort},
-            False,
+            True,
         )
 
     def on_alphabetical_type_change(self, combo):
@@ -188,7 +188,7 @@ class AlbumsPanel(Gtk.Box):
         self.emit(
             'refresh-window',
             {'current_album_alphabetical_sort': new_active_alphabetical_sort},
-            False,
+            True,
         )
 
     def on_genre_change(self, combo):
@@ -199,7 +199,7 @@ class AlbumsPanel(Gtk.Box):
         self.emit(
             'refresh-window',
             {'current_album_genre': new_active_genre},
-            False,
+            True,
         )
 
     def on_year_changed(self, entry):
@@ -212,17 +212,17 @@ class AlbumsPanel(Gtk.Box):
 
         if self.to_year_entry == entry:
             self.grid.update_params(to_year=year)
-            self.emit('refresh-window', {'current_album_to_year': year}, False)
+            self.emit('refresh-window', {'current_album_to_year': year}, True)
         else:
             self.grid.update_params(from_year=year)
             self.emit(
-                'refresh-window', {'current_album_from_year': year}, False)
+                'refresh-window', {'current_album_from_year': year}, True)
 
     def on_grid_cover_clicked(self, grid, id):
         self.emit(
             'refresh-window',
             {'selected_album_id': id},
-            False,
+            True,
         )
 
 
