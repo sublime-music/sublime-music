@@ -129,40 +129,37 @@ class CoverArtGrid(Gtk.ScrolledWindow):
                 force=force,
             ))
 
-        def do_update():
-            old_len = len(self.list_store)
-            self.list_store.remove_all()
+        old_len = len(self.list_store)
+        self.list_store.remove_all()
 
-            i = 0
-            selected_index = None
-            while True:
-                try:
-                    next_el = next(self.model_list_future_generator)
-                except StopIteration:
+        i = 0
+        selected_index = None
+        while True:
+            try:
+                next_el = next(self.model_list_future_generator)
+            except StopIteration:
+                break
+
+            # Stop once we hit a network barrier (unless the list hasn't
+            # been loaded).
+            if next_el == 'network barrier':
+                if len(self.list_store) == 0:
+                    continue
+                else:
                     break
 
-                # Stop once we hit a network barrier (unless the list hasn't
-                # been loaded).
-                if next_el == 'network barrier':
-                    if len(self.list_store) == 0:
-                        continue
-                    else:
-                        break
+            model = self.create_model_from_element(next_el)
+            if model.id == selected_id:
+                selected_index = i
+            i += 1
 
-                model = self.create_model_from_element(next_el)
-                if model.id == selected_id:
-                    selected_index = i
-                i += 1
+            self.list_store.append(model)
 
-                self.list_store.append(model)
-
-            GLib.idle_add(
-                reflow_grid,
-                old_len != len(self.list_store) or force,
-                selected_index,
-            )
-
-        do_update()
+        GLib.idle_add(
+            reflow_grid,
+            old_len != len(self.list_store) or force,
+            selected_index,
+        )
 
     def create_widget(self, item):
         widget_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
