@@ -6,13 +6,13 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GObject, Pango, GLib
 
-from libremsonic.state_manager import ApplicationState
-from libremsonic.cache_manager import CacheManager
-from libremsonic.ui import util
+from sublime.state_manager import ApplicationState
+from sublime.cache_manager import CacheManager
+from sublime.ui import util
 from .icon_button import IconButton
 from .spinner_image import SpinnerImage
 
-from libremsonic.server.api_objects import (
+from sublime.server.api_objects import (
     AlbumWithSongsID3,
     Child,
     Directory,

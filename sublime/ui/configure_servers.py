@@ -4,9 +4,9 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GObject
 
-from libremsonic.server import Server
-from libremsonic.config import ServerConfiguration
-from libremsonic.ui.common import EditFormDialog, IconButton
+from sublime.server import Server
+from sublime.config import ServerConfiguration
+from sublime.ui.common import EditFormDialog, IconButton
 
 
 class EditServerDialog(EditFormDialog):

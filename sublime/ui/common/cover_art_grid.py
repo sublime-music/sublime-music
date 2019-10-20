@@ -5,7 +5,7 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, Gtk, GObject, Gio, Pango
 
-from libremsonic.state_manager import ApplicationState
+from sublime.state_manager import ApplicationState
 from .spinner_image import SpinnerImage
 
 

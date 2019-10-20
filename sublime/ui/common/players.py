@@ -12,9 +12,9 @@ import pychromecast
 import mpv
 import bottle
 
-from libremsonic.config import AppConfiguration
-from libremsonic.cache_manager import CacheManager
-from libremsonic.server.api_objects import Child
+from sublime.config import AppConfiguration
+from sublime.cache_manager import CacheManager
+from sublime.server.api_objects import Child
 
 
 class PlayerEvent:

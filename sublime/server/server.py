@@ -69,7 +69,7 @@ class Server:
         return dict(
             u=self.username,
             p=self.password,
-            c='LibremSonic',
+            c='Sublime Music',
             f='json',
             v='1.15.0',
         )

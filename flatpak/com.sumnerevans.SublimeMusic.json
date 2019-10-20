@@ -1,9 +1,9 @@
 {
-    "app-id": "com.sumnerevans.libremsonic",
+    "app-id": "com.sumnerevans.SublimeMusic",
     "runtime": "org.gnome.Platform",
     "runtime-version": "3.32",
     "sdk": "org.gnome.Sdk",
-    "command": "libremsonic",
+    "command": "sublime",
     "finish-args": [
             "--share=ipc",
             "--socket=fallback-x11",
@@ -13,7 +13,7 @@
     ],
     "modules": [
         {
-            "name": "libremsonic",
+            "name": "sublime",
             "buildsystem": "simple",
             "build-commands": [
                 "pip3 install --prefix=/app ."

@@ -73,4 +73,4 @@ class AppConfiguration:
             default_cache_location = (
                 os.environ.get('XDG_DATA_HOME')
                 or os.path.expanduser('~/.local/share'))
-            return os.path.join(default_cache_location, 'libremsonic')
+            return os.path.join(default_cache_location, 'sublime-music')

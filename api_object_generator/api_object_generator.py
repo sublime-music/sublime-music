@@ -275,6 +275,6 @@ with open(output_file, 'w+') as outfile:
                 'from datetime import datetime',
                 'from typing import List',
                 'from enum import Enum',
-                'from libremsonic.server.api_object import APIObject',
+                'from sublime.server.api_object import APIObject',
                 *map(generate_class_for_type, output_order),
             ]) + '\n')

@@ -1,5 +1,5 @@
-libremsonic
-===========
+Sublime Music
+=============
 
 A GTK3 `Revel`_/`Subsonic`_/`Airsonic`_/\*sonic client for the Linux Desktop.
 
@@ -14,7 +14,7 @@ Features
 
 - Connect to multiple Subsonic-API-compliant servers.
 - Play music through Chromecasts on the same LAN.
-- DBus MPRIS interface integration for controlling Libremsonic via
+- DBus MPRIS interface integration for controlling Sublime Music via
   ``playerctl``, ``i3status-rust``, KDE Connect, and other DBus MPRIS clients.
 - Browse Albums, Artists, and Playlists.
 - Play queue.

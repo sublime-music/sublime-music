@@ -4,12 +4,12 @@ from typing import Optional, Union
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GObject, GLib
 
-from libremsonic.state_manager import ApplicationState
-from libremsonic.cache_manager import CacheManager
-from libremsonic.ui import util
-from libremsonic.ui.common import AlbumWithSongs, IconButton, CoverArtGrid
+from sublime.state_manager import ApplicationState
+from sublime.cache_manager import CacheManager
+from sublime.ui import util
+from sublime.ui.common import AlbumWithSongs, IconButton, CoverArtGrid
 
-from libremsonic.server.api_objects import Child, AlbumWithSongsID3
+from sublime.server.api_objects import Child, AlbumWithSongsID3
 
 Album = Union[Child, AlbumWithSongsID3]
 

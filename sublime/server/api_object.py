@@ -5,7 +5,7 @@ Defines the base class for API objects.
 from enum import Enum
 from typing import Any, Dict
 
-from libremsonic.from_json import from_json as _from_json
+from sublime.from_json import from_json as _from_json
 
 
 class APIObject:

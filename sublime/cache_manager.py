@@ -24,10 +24,10 @@ from typing import (
 
 import requests
 
-from libremsonic.config import AppConfiguration, ServerConfiguration
-from libremsonic.server import Server
-from libremsonic.server.api_object import APIObject
-from libremsonic.server.api_objects import (
+from .config import AppConfiguration, ServerConfiguration
+from .server import Server
+from .server.api_object import APIObject
+from .server.api_objects import (
     Playlist,
     PlaylistWithSongs,
     Child,
@@ -204,7 +204,7 @@ class CacheManager(metaclass=Singleton):
                 os.environ.get('XDG_CACHE_HOME')
                 or os.path.expanduser('~/.cache'))
             return Path(xdg_cache_home).joinpath(
-                'libremsonic', *relative_paths)
+                'sublime-music', *relative_paths)
 
         def return_cached_or_download(
                 self,

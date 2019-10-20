@@ -8,11 +8,11 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, Pango, GObject, GLib
 
-from libremsonic.server.api_objects import PlaylistWithSongs
-from libremsonic.state_manager import ApplicationState
-from libremsonic.cache_manager import CacheManager
-from libremsonic.ui import util
-from libremsonic.ui.common import EditFormDialog, IconButton, SpinnerImage
+from sublime.server.api_objects import PlaylistWithSongs
+from sublime.state_manager import ApplicationState
+from sublime.cache_manager import CacheManager
+from sublime.ui import util
+from sublime.ui.common import EditFormDialog, IconButton, SpinnerImage
 
 
 class EditPlaylistDialog(EditFormDialog):

@@ -3,7 +3,7 @@ from enum import Enum
 import json
 from typing import List
 
-from libremsonic.from_json import from_json
+from .from_json import from_json
 from .config import AppConfiguration
 from .cache_manager import CacheManager
 from .server.api_objects import Child
@@ -43,7 +43,7 @@ class ApplicationState:
     Configuration is stored in ``config`` which is an ``AppConfiguration``
     object. UI state is stored as separate properties on this class.
 
-    Configuration is stored to disk in $XDG_CONFIG_HOME/libremsonic. State is
+    Configuration is stored to disk in $XDG_CONFIG_HOME/sublime-music. State is
     stored in $XDG_CACHE_HOME. Nothing in state should be assumed to be
     permanent. State need not be saved, the ``to_json`` and ``from_json``
     functions define what part of the state will be saved across application
@@ -168,7 +168,7 @@ class ApplicationState:
         # away too often...
         state_filename = (
             os.environ.get('XDG_CACHE_HOME') or os.path.expanduser('~/.cache'))
-        return os.path.join(state_filename, 'libremsonic/state.yaml')
+        return os.path.join(state_filename, 'sublime-music/state.yaml')
 
     @property
     def volume(self):

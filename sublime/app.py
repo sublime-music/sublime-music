@@ -22,15 +22,15 @@ from .server.api_objects import Child
 from .ui.common.players import PlayerEvent, MPVPlayer, ChromecastPlayer
 
 
-class LibremsonicApp(Gtk.Application):
+class SublimeMusicApp(Gtk.Application):
     def __init__(self, *args, **kwargs):
         super().__init__(
             *args,
-            application_id="com.sumnerevans.libremsonic",
+            application_id="com.sumnerevans.sublimemusic",
             flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
             **kwargs,
         )
-        Notify.init('LibremSonic')
+        Notify.init('Sublime Music')
 
         self.window = None
         self.state = ApplicationState()
@@ -42,7 +42,7 @@ class LibremsonicApp(Gtk.Application):
             GLib.OptionFlags.NONE,
             GLib.OptionArg.FILENAME,
             'Specify a configuration file. Defaults to '
-            '~/.config/libremsonic/config.json',
+            '~/.config/sublime-music/config.json',
             None,
         )
 
@@ -57,11 +57,11 @@ class LibremsonicApp(Gtk.Application):
         if config_file:
             config_file = config_file.get_bytestring().decode('utf-8')
         else:
-            # Default to ~/.config/libremsonic.
+            # Default to ~/.config/sublime-music.
             config_folder = (
                 environ.get('XDG_CONFIG_HOME') or environ.get('APPDATA')
                 or os.path.join(environ.get('HOME'), '.config'))
-            config_folder = os.path.join(config_folder, 'libremsonic')
+            config_folder = os.path.join(config_folder, 'sublime-music')
             config_file = os.path.join(config_folder, 'config.json')
 
         self.state.config_file = config_file
@@ -117,7 +117,7 @@ class LibremsonicApp(Gtk.Application):
 
         # Windows are associated with the application when the last one is
         # closed the application shuts down.
-        self.window = MainWindow(application=self, title="LibremSonic")
+        self.window = MainWindow(application=self, title="Sublime Music")
 
         # Configure the CSS provider so that we can style elements on the
         # window.
@@ -772,7 +772,7 @@ class LibremsonicApp(Gtk.Application):
                     )
                     song_notification.add_action(
                         'clicked',
-                        'Open LibremSonic',
+                        'Open Sublime Music',
                         on_notification_click,
                     )
                     song_notification.show()

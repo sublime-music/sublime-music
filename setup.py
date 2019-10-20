@@ -9,7 +9,7 @@ with codecs.open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 # Find the version
-with codecs.open(os.path.join(here, 'libremsonic/__init__.py'),
+with codecs.open(os.path.join(here, 'sublime/__init__.py'),
                  encoding='utf-8') as f:
     for line in f:
         if line.startswith('__version__'):
@@ -17,9 +17,9 @@ with codecs.open(os.path.join(here, 'libremsonic/__init__.py'),
             break
 
 setup(
-    name='libremsonic',
+    name='sublime-music',
     version=version,
-    url='https://gitlab.com/robozman/libremsonic',
+    url='https://gitlab.com/sumner/sublime-music',
     description='A native GTK *sonic client.',
     long_description=long_description,
     author='Sumner Evans',
@@ -44,7 +44,7 @@ setup(
     keywords='airsonic subsonic libresonic music',
     packages=find_packages(exclude=['tests']),
     package_data={
-        'libremsonic': [
+        'sublime': [
             'ui/app_styles.css',
             'ui/mpris_specs/org.mpris.MediaPlayer2.xml',
             'ui/mpris_specs/org.mpris.MediaPlayer2.Player.xml',
@@ -73,7 +73,7 @@ setup(
     # platform.
     entry_points={
         'console_scripts': [
-            'libremsonic=libremsonic.__main__:main',
+            'sublime=sublime.__main__:main',
         ],
     },
 )

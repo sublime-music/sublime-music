@@ -73,7 +73,7 @@ class DBusManager:
 
         self.bus_number = Gio.bus_own_name_on_connection(
             connection,
-            'org.mpris.MediaPlayer2.libremsonic',
+            'org.mpris.MediaPlayer2.sublime',
             Gio.BusNameOwnerFlags.NONE,
             dbus_name_acquired,
             dbus_name_lost,
@@ -196,7 +196,7 @@ class DBusManager:
                 'CanQuit': True,
                 'CanRaise': True,
                 'HasTrackList': True,
-                'Identity': 'Libremsonic',
+                'Identity': 'Sublime Music',
                 # TODO should implement in #29
                 'DesktopEntry': 'foo',
                 'SupportedUriSchemes': [],

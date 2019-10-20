@@ -10,7 +10,7 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GLib, Gdk, GObject
 
-from libremsonic.cache_manager import CacheManager, SongCacheStatus
+from sublime.cache_manager import CacheManager, SongCacheStatus
 
 
 def format_song_duration(duration_secs) -> str:

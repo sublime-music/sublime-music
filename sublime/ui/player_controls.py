@@ -4,11 +4,11 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Pango, GObject, Gio, GLib
 
-from libremsonic.cache_manager import CacheManager
-from libremsonic.state_manager import ApplicationState, RepeatType
-from libremsonic.ui import util
-from libremsonic.ui.common import IconButton, SpinnerImage
-from libremsonic.ui.common.players import ChromecastPlayer
+from sublime.cache_manager import CacheManager
+from sublime.state_manager import ApplicationState, RepeatType
+from sublime.ui import util
+from sublime.ui.common import IconButton, SpinnerImage
+from sublime.ui.common.players import ChromecastPlayer
 
 
 class PlayerControls(Gtk.ActionBar):

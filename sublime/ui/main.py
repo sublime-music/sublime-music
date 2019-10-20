@@ -3,11 +3,11 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, GObject
 
 from . import albums, artists, playlists, player_controls
-from libremsonic.state_manager import ApplicationState
+from sublime.state_manager import ApplicationState
 
 
 class MainWindow(Gtk.ApplicationWindow):
-    """Defines the main window for LibremSonic."""
+    """Defines the main window for Sublime Music."""
     __gsignals__ = {
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
@@ -85,7 +85,7 @@ class MainWindow(Gtk.ApplicationWindow):
         """
         header = Gtk.HeaderBar()
         header.set_show_close_button(True)
-        header.props.title = 'LibremSonic'
+        header.props.title = 'Sublime Music'
 
         # Search
         search = Gtk.SearchEntry()

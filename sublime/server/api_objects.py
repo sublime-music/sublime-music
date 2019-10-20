@@ -8,7 +8,7 @@ a new API version.
 from datetime import datetime
 from typing import List
 from enum import Enum
-from libremsonic.server.api_object import APIObject
+from sublime.server.api_object import APIObject
 
 
 class AlbumInfo(APIObject):
