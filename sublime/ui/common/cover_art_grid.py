@@ -6,7 +6,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, Gtk, GObject, Gio, Pango
 
 from sublime.state_manager import ApplicationState
-from libremsonic.cache_manager import CacheManager
+from sublime.cache_manager import CacheManager
 from .spinner_image import SpinnerImage
 
 
