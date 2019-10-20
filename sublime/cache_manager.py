@@ -459,63 +459,74 @@ class CacheManager(metaclass=Singleton):
 
             return CacheManager.create_future(do_get_artist_artwork_filename)
 
-        def get_albums_future_generator(
+        def get_album_list(
                 self,
                 type_: str,
-                page_size: int = 30,
+                min_size_request: int = 30,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
                 # Look at documentation for get_album_list in server.py:
                 **params,
         ) -> Future:
-            """
-            Note: We handle invalidating the cache manually. Never force. We
-            invalidate the cache ourselves (force is used when sort params
-            change).
-            """
             cache_name = self.id3ify('albums')
             server_fn = (
                 self.server.get_album_list2
                 if self.browse_by_tags else self.server.get_album_list)
 
-            # TODO make this invalidate instead of delete
-            # TODO invalidate if random as well.
-            if False and self.cache.get(cache_name, {}).get(type_):
-                with self.cache_lock:
-                    self.cache[cache_name][type_] = []
-                self.save_cache_info()
-
-            cached_values = self.cache.get(cache_name, {}).get(type_, [])
-            offset = len(cached_values)
-
-            # First, yield whatever's cached.
-            yield from cached_values
-
-            while True:
-                yield 'network barrier'
+            def get_page(offset, page_size):
                 before_download()
-                page = (
-                    server_fn(
-                        type_,
-                        size=page_size,
-                        offset=offset,
-                        **params,
-                    ).album or [])
+                page = server_fn(
+                    type_,
+                    size=page_size,
+                    offset=offset,
+                    **params,
+                ).album
 
                 with self.cache_lock:
                     if not self.cache[cache_name].get(type_):
                         self.cache[cache_name][type_] = []
                     self.cache[cache_name][type_].extend(page)
                 self.save_cache_info()
+                return page
 
-                yield from page
+            def do_get_album_list() -> List[Union[Child, AlbumWithSongsID3]]:
+                albums = self.cache.get(cache_name, {}).get(type_, [])
+                offset = len(albums)
 
-                # If the length of the page is less than the page size, then it
-                # means that we reached the end of the list somewhere in this
-                # page.
-                if len(page) < page_size:
-                    break
-                offset += page_size
+                if offset < min_size_request:
+                    page_size = min(min_size_request - offset, 500)
+                    while page_size > 0:
+                        before_download()
+                        page = server_fn(
+                            type_,
+                            size=page_size,
+                            offset=offset,
+                            **params,
+                        ).album or []
+
+                        # Update the cache.
+                        with self.cache_lock:
+                            if not self.cache[cache_name].get(type_):
+                                self.cache[cache_name][type_] = []
+                            self.cache[cache_name][type_].extend(page)
+                        self.save_cache_info()
+
+                        albums.extend(page)
+                        offset += page_size
+                        page_size = min(min_size_request - offset, 500)
+
+                return albums
+
+            return CacheManager.create_future(do_get_album_list)
+
+        def invalidate_album_list(self, type_):
+            # TODO make this invalidate instead of delete
+            cache_name = self.id3ify('albums')
+            if not self.cache.get(cache_name, {}).get(type_):
+                return
+            with self.cache_lock:
+                self.cache[cache_name][type_] = []
+            self.save_cache_info()
 
         def get_album(
                 self,

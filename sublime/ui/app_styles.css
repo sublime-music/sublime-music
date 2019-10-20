@@ -148,6 +148,7 @@
 #grid-spinner {
   min-height: 50px;
   min-width: 50px;
+  margin: 20px;
 }
 
 #grid-header-label {
