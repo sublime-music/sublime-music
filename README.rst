@@ -24,7 +24,20 @@ Features
 Installation
 ------------
 
-TODO
+**Via the AUR**:
+
+Install the ``sublime-music`` package. Example using ``yay``::
+
+    TODO
+
+**Via Flatpak**:
+
+TODO: make a link to the flathub repo so that you can just click on it and go to
+the software center for the app.
+
+**Via PyPi**::
+
+    TODO
 
 Development Setup
 -----------------
@@ -33,6 +46,13 @@ Requirements:
 
 - Python 3.7
 - GTK3
+- GLib
+
+Install the Sublime Music app locally (commands may differ from what is
+described below, this is merely an outline)::
+
+    pip install -e . --user
+    pip install -r dev-requirements.txt
 
 Building the flatpak
 ^^^^^^^^^^^^^^^^^^^^
