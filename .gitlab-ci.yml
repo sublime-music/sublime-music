@@ -8,7 +8,7 @@ stages:
 variables:
     GIT_SUBMODULE_STRATEGY: recursive
 
-image: ubuntu:18.10
+image: registry.gitlab.com/sumner/sublime-music/python-build:latest
 
 lint:
   stage: test
