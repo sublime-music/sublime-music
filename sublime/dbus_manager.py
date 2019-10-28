@@ -208,7 +208,7 @@ class DBusManager:
                     (False, True): 'Stopped',
                     (True, False): 'Paused',
                     (True, True): 'Playing',
-                }[player.song_loaded, state.playing],
+                }[player is not None and player.song_loaded, state.playing],
                 'LoopStatus':
                 state.repeat_type.as_mpris_loop_status(),
                 'Rate':
@@ -250,7 +250,9 @@ class DBusManager:
             'org.mpris.MediaPlayer2.Playlists': {
                 # TODO this may do a network request. This really is a case for
                 # doing the whole thing with caching some data beforehand.
-                'PlaylistCount': len(CacheManager.get_playlists().result()),
+                'PlaylistCount': (
+                    0 if not CacheManager.ready() else len(
+                        CacheManager.get_playlists().result())),
                 'Orderings': ['Alphabetical', 'Created', 'Modified'],
                 'ActivePlaylist': ('(b(oss))', active_playlist),
             },
@@ -323,16 +325,17 @@ class DBusManager:
             if (interface == 'org.mpris.MediaPlayer2.TrackList'
                     and 'Tracks' in changed_props):
                 track_list = changed_props['Tracks']
-                current_track = (
-                    new_property_dict['org.mpris.MediaPlayer2.Player']
-                    ['Metadata'].get('mpris:trackid', ''))
-                self.connection.emit_signal(
-                    None,
-                    '/org/mpris/MediaPlayer2',
-                    interface,
-                    'TrackListReplaced',
-                    GLib.Variant('(aoo)', (track_list, current_track)),
-                )
+                if len(track_list) > 0:
+                    current_track = (
+                        new_property_dict['org.mpris.MediaPlayer2.Player']
+                        ['Metadata'].get('mpris:trackid', track_list[0]))
+                    self.connection.emit_signal(
+                        None,
+                        '/org/mpris/MediaPlayer2',
+                        interface,
+                        'TrackListReplaced',
+                        GLib.Variant('(aoo)', (track_list, current_track)),
+                    )
 
             self.connection.emit_signal(
                 None,

@@ -153,8 +153,9 @@ class SublimeMusicApp(Gtk.Application):
         if (self.state.config.current_server is None
                 or self.state.config.current_server < 0):
             self.show_configure_servers_dialog()
-            if self.state.config.current_server is None:
+            if self.current_server is None:
                 self.window.close()
+                return
 
         self.update_window()
 
@@ -230,11 +231,14 @@ class SublimeMusicApp(Gtk.Application):
 
     # ########## DBUS MANAGMENT ########## #
     def do_dbus_register(self, connection, path):
+        def get_state_and_player():
+            return (self.state, getattr(self, 'player', None))
+
         self.dbus_manager = DBusManager(
             connection,
             self.on_dbus_method_call,
             self.on_dbus_set_property,
-            lambda: (self.state, self.player),
+            get_state_and_player,
         )
         return True
 
@@ -650,6 +654,10 @@ class SublimeMusicApp(Gtk.Application):
 
     def on_app_shutdown(self, app):
         Notify.uninit()
+
+        if self.current_server is None:
+            return
+
         self.player.pause()
         self.chromecast_player.shutdown()
         self.mpv_player.shutdown()
@@ -662,6 +670,8 @@ class SublimeMusicApp(Gtk.Application):
     # ########## PROPERTIES ########## #
     @property
     def current_server(self):
+        if len(self.state.config.servers) < 1:
+            return None
         return self.state.config.servers[self.state.config.current_server]
 
     # ########## HELPER METHODS ########## #
@@ -863,10 +873,9 @@ class SublimeMusicApp(Gtk.Application):
         position = self.state.song_progress
         self.last_play_queue_update = position
 
-        if self.current_server.sync_enabled:
-            CacheManager.executor.submit(
-                CacheManager.save_play_queue,
-                id=self.state.play_queue,
+        if self.current_server.sync_enabled and self.state.current_song:
+            CacheManager.save_play_queue(
+                play_queue=self.state.play_queue,
                 current=self.state.current_song.id,
                 position=math.floor(position * 1000) if position else None,
             )

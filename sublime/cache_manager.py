@@ -73,6 +73,10 @@ class CacheManager(metaclass=Singleton):
     should_exit: bool = False
 
     @staticmethod
+    def ready():
+        return CacheManager._instance is not None
+
+    @staticmethod
     def shutdown():
         # TODO fix this shutdown
         CacheManager.should_exit = True
@@ -153,14 +157,14 @@ class CacheManager(metaclass=Singleton):
                 ('genres', Genre, list),
 
                 # Non-ID3 caches
-                ('albums', Child, list),
+                ('albums', Child, 'dict-list'),
                 ('album_details', Directory, dict),
                 ('artists', Artist, list),
                 ('artist_details', Directory, dict),
                 ('artist_infos', ArtistInfo, dict),
 
                 # ID3 caches
-                ('albums_id3', AlbumWithSongsID3, list),
+                ('albums_id3', AlbumWithSongsID3, 'dict-list'),
                 ('album_details_id3', AlbumWithSongsID3, dict),
                 ('artists_id3', ArtistID3, list),
                 ('artist_details_id3', ArtistWithAlbumsID3, dict),
@@ -176,6 +180,11 @@ class CacheManager(metaclass=Singleton):
                     self.cache[name] = {
                         id: type_name.from_json(x)
                         for id, x in meta_json.get(name, {}).items()
+                    }
+                elif default == 'dict-list':
+                    self.cache[name] = {
+                        n: [type_name.from_json(x) for x in xs]
+                        for n, xs in meta_json.get(name, {}).items()
                     }
 
         def save_cache_info(self):
@@ -257,6 +266,13 @@ class CacheManager(metaclass=Singleton):
 
             return str(abs_path)
 
+        @staticmethod
+        def create_future(fn, *args):
+            """
+            Creates a future on the CacheManager's executor.
+            """
+            return CacheManager.executor.submit(fn, *args)
+
         def delete_cached_cover_art(self, id: int):
             relative_path = f'cover_art/*{id}_*'
 
@@ -279,7 +295,7 @@ class CacheManager(metaclass=Singleton):
                     self.save_cache_info()
                 return self.cache['playlists']
 
-            return CacheManager.executor.submit(do_get_playlists)
+            return CacheManager.create_future(do_get_playlists)
 
         def invalidate_playlists_cache(self):
             if not self.cache.get('playlists'):
@@ -298,7 +314,7 @@ class CacheManager(metaclass=Singleton):
             def do_get_playlist() -> PlaylistWithSongs:
                 cache_name = "playlist_details"
 
-                if playlist_id not in self.cache.get(cache_name) or force:
+                if playlist_id not in self.cache.get(cache_name, {}) or force:
                     before_download()
                     playlist = self.server.get_playlist(playlist_id)
                     with self.cache_lock:
@@ -319,13 +335,13 @@ class CacheManager(metaclass=Singleton):
 
                 return playlist_details
 
-            return CacheManager.executor.submit(do_get_playlist)
+            return CacheManager.create_future(do_get_playlist)
 
         def create_playlist(self, name: str) -> Future:
             def do_create_playlist():
                 self.server.create_playlist(name=name)
 
-            return CacheManager.executor.submit(do_create_playlist)
+            return CacheManager.create_future(do_create_playlist)
 
         def update_playlist(self, playlist_id, *args, **kwargs):
             def do_update_playlist():
@@ -333,7 +349,7 @@ class CacheManager(metaclass=Singleton):
                 with self.cache_lock:
                     del self.cache['playlist_details'][playlist_id]
 
-            return CacheManager.executor.submit(do_update_playlist)
+            return CacheManager.create_future(do_update_playlist)
 
         def get_artists(
                 self,
@@ -361,7 +377,7 @@ class CacheManager(metaclass=Singleton):
 
                 return self.cache[cache_name]
 
-            return CacheManager.executor.submit(do_get_artists)
+            return CacheManager.create_future(do_get_artists)
 
         def get_artist(
                 self,
@@ -386,7 +402,7 @@ class CacheManager(metaclass=Singleton):
 
                 return self.cache[cache_name][artist_id]
 
-            return CacheManager.executor.submit(do_get_artist)
+            return CacheManager.create_future(do_get_artist)
 
         def get_artist_info(
                 self,
@@ -412,7 +428,7 @@ class CacheManager(metaclass=Singleton):
 
                 return self.cache[cache_name][artist_id]
 
-            return CacheManager.executor.submit(do_get_artist_info)
+            return CacheManager.create_future(do_get_artist_info)
 
         def get_artist_artwork(
                 self,
@@ -446,37 +462,63 @@ class CacheManager(metaclass=Singleton):
                     force=force,
                 )
 
-            return CacheManager.executor.submit(do_get_artist_artwork_filename)
+            return CacheManager.create_future(do_get_artist_artwork_filename)
 
-        def get_albums(
+        def get_album_list(
                 self,
                 type_: str,
-                size: int = 30,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
                 # Look at documentation for get_album_list in server.py:
                 **params,
         ) -> Future:
-            def do_get_albums() -> List[Child]:
-                cache_name = self.id3ify('albums')
-                server_fn = (
-                    self.server.get_album_list2
-                    if self.browse_by_tags else self.server.get_album_list)
+            cache_name = self.id3ify('albums')
+            server_fn = (
+                self.server.get_album_list2
+                if self.browse_by_tags else self.server.get_album_list)
 
-                # TODO cache per type.
-                # TODO handle random.
-                if not self.cache.get(cache_name) or force:
+            def get_page(offset, page_size=500):
+                return server_fn(
+                    type_,
+                    size=page_size,
+                    offset=offset,
+                    **params,
+                ).album or []
+
+            def do_get_album_list() -> List[Union[Child, AlbumWithSongsID3]]:
+                if not self.cache.get(cache_name, {}).get(type_, []) or force:
                     before_download()
-                    albums = server_fn(type_, size=size, **params)
 
+                    page_size = 40 if type_ == 'random' else 500
+                    offset = 0
+
+                    next_page = get_page(offset, page_size=page_size)
+                    albums = next_page
+
+                    # If it returns 500 things, then there's more leftover.
+                    while len(next_page) == 500:
+                        next_page = get_page(offset)
+                        albums.extend(next_page)
+
+                    # Update the cache.
                     with self.cache_lock:
-                        self.cache[cache_name] = albums.album
-
+                        if not self.cache[cache_name].get(type_):
+                            self.cache[cache_name][type_] = []
+                        self.cache[cache_name][type_] = albums
                     self.save_cache_info()
 
-                return self.cache[cache_name]
+                return self.cache[cache_name][type_]
 
-            return CacheManager.executor.submit(do_get_albums)
+            return CacheManager.create_future(do_get_album_list)
+
+        def invalidate_album_list(self, type_):
+            # TODO make this invalidate instead of delete
+            cache_name = self.id3ify('albums')
+            if not self.cache.get(cache_name, {}).get(type_):
+                return
+            with self.cache_lock:
+                self.cache[cache_name][type_] = []
+            self.save_cache_info()
 
         def get_album(
                 self,
@@ -501,7 +543,7 @@ class CacheManager(metaclass=Singleton):
 
                 return self.cache[cache_name][album_id]
 
-            return CacheManager.executor.submit(do_get_album)
+            return CacheManager.create_future(do_get_album)
 
         def batch_delete_cached_songs(
                 self,
@@ -523,7 +565,7 @@ class CacheManager(metaclass=Singleton):
 
                     song_details_future.add_done_callback(filename_future_done)
 
-            return CacheManager.executor.submit(do_delete_cached_songs)
+            return CacheManager.create_future(do_delete_cached_songs)
 
         def batch_download_songs(
                 self,
@@ -553,9 +595,9 @@ class CacheManager(metaclass=Singleton):
                     set(song_ids))
                 for song_id in song_ids:
                     self.download_limiter_semaphore.acquire()
-                    CacheManager.executor.submit(do_download_song, song_id)
+                    CacheManager.create_future(do_download_song, song_id)
 
-            return CacheManager.executor.submit(do_batch_download_songs)
+            return CacheManager.create_future(do_batch_download_songs)
 
         def get_cover_art_filename(
                 self,
@@ -575,7 +617,7 @@ class CacheManager(metaclass=Singleton):
                     allow_download=allow_download,
                 )
 
-            return CacheManager.executor.submit(do_get_cover_art_filename)
+            return CacheManager.create_future(do_get_cover_art_filename)
 
         def get_song_details(
                 self,
@@ -593,16 +635,25 @@ class CacheManager(metaclass=Singleton):
 
                 return self.cache['song_details'][song_id]
 
-            return CacheManager.executor.submit(do_get_song_details)
+            return CacheManager.create_future(do_get_song_details)
 
         def get_play_queue(self) -> Future:
-            return CacheManager.executor.submit(self.server.get_play_queue)
+            return CacheManager.create_future(self.server.get_play_queue)
+
+        def save_play_queue(
+                self,
+                play_queue: List[str],
+                current: str,
+                position: float,
+        ):
+            CacheManager.create_future(
+                self.server.save_play_queue, play_queue, current, position)
 
         def scrobble(self, song_id: int) -> Future:
             def do_scrobble():
                 self.server.scrobble(song_id)
 
-            return CacheManager.executor.submit(do_scrobble)
+            return CacheManager.create_future(do_scrobble)
 
         def get_song_filename_or_stream(
                 self,
@@ -634,7 +685,7 @@ class CacheManager(metaclass=Singleton):
 
                 return self.cache['genres']
 
-            return CacheManager.executor.submit(do_get_genres)
+            return CacheManager.create_future(do_get_genres)
 
         def get_cached_status(self, song: Child) -> SongCacheStatus:
             cache_path = self.calculate_abs_path(song.path)

@@ -65,7 +65,14 @@ class ApplicationState:
     selected_album_id: str = None
     selected_artist_id: str = None
     selected_playlist_id: str = None
+
+    # State for Album sort.
     current_album_sort: str = 'random'
+    current_album_genre: str = 'Rock'
+    current_album_alphabetical_sort: str = 'name'
+    current_album_from_year: int = 2010
+    current_album_to_year: int = 2020
+
     active_playlist_id: str = None
 
     def to_json(self):
@@ -73,24 +80,46 @@ class ApplicationState:
             self.current_song.id if
             (hasattr(self, 'current_song')
              and self.current_song is not None) else None)
+        # TODO this really sucks. We should fix this.
         return {
-            'current_song': current_song,
-            'play_queue': getattr(self, 'play_queue', None),
-            'old_play_queue': getattr(self, 'old_play_queue', None),
-            '_volume': getattr(self, '_volume', {}),
-            'is_muted': getattr(self, 'is_muted', None),
-            'repeat_type': getattr(self, 'repeat_type',
-                                   RepeatType.NO_REPEAT).value,
-            'shuffle_on': getattr(self, 'shuffle_on', None),
-            'song_progress': getattr(self, 'song_progress', None),
-            'current_device': getattr(self, 'current_device', 'this device'),
-            'current_tab': getattr(self, 'current_tab', 'albums'),
-            'selected_album_id': getattr(self, 'selected_album_id', None),
-            'selected_artist_id': getattr(self, 'selected_artist_id', None),
+            'current_song':
+            current_song,
+            'play_queue':
+            getattr(self, 'play_queue', None),
+            'old_play_queue':
+            getattr(self, 'old_play_queue', None),
+            '_volume':
+            getattr(self, '_volume', {}),
+            'is_muted':
+            getattr(self, 'is_muted', None),
+            'repeat_type':
+            getattr(self, 'repeat_type', RepeatType.NO_REPEAT).value,
+            'shuffle_on':
+            getattr(self, 'shuffle_on', None),
+            'song_progress':
+            getattr(self, 'song_progress', None),
+            'current_device':
+            getattr(self, 'current_device', 'this device'),
+            'current_tab':
+            getattr(self, 'current_tab', 'albums'),
+            'selected_album_id':
+            getattr(self, 'selected_album_id', None),
+            'selected_artist_id':
+            getattr(self, 'selected_artist_id', None),
             'selected_playlist_id':
             getattr(self, 'selected_playlist_id', None),
-            'current_album_sort': getattr(self, 'current_album_sort', None),
-            'active_playlist_id': getattr(self, 'active_playlist_id', None),
+            'current_album_sort':
+            getattr(self, 'current_album_sort', None),
+            'current_album_genre':
+            getattr(self, 'current_album_genre', None),
+            'current_album_alphabetical_sort':
+            getattr(self, 'current_album_alphabetical_sort', None),
+            'current_album_from_year':
+            getattr(self, 'current_album_from_year', None),
+            'current_album_to_year':
+            getattr(self, 'current_album_to_year', None),
+            'active_playlist_id':
+            getattr(self, 'active_playlist_id', None),
         }
 
     def load_from_json(self, json_object):
@@ -117,6 +146,14 @@ class ApplicationState:
             'selected_playlist_id', None)
         self.current_album_sort = json_object.get(
             'current_album_sort', 'random')
+        self.current_album_genre = json_object.get(
+            'current_album_genre', 'Rock')
+        self.current_album_alphabetical_sort = json_object.get(
+            'current_album_alphabetical_sort', 'name')
+        self.current_album_from_year = json_object.get(
+            'current_album_from_year', 2010)
+        self.current_album_to_year = json_object.get(
+            'current_album_to_year', 2020)
         self.active_playlist_id = json_object.get('active_playlist_id', None)
 
     def load(self):

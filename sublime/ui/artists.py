@@ -246,7 +246,7 @@ class ArtistDetailPanel(Gtk.Box):
         def do_get_model_list() -> List[Child]:
             return self.albums
 
-        return CacheManager.executor.submit(do_get_model_list)
+        return CacheManager.create_future(do_get_model_list)
 
     def update(self, state: ApplicationState):
         if state.selected_artist_id is None:
