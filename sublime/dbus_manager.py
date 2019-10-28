@@ -325,7 +325,7 @@ class DBusManager:
                 track_list = changed_props['Tracks']
                 current_track = (
                     new_property_dict['org.mpris.MediaPlayer2.Player']
-                    ['Metadata']['mpris:trackid'])
+                    ['Metadata'].get('mpris:trackid', ''))
                 self.connection.emit_signal(
                     None,
                     '/org/mpris/MediaPlayer2',
