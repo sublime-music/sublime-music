@@ -33,10 +33,7 @@ class EditServerDialog(EditFormDialog):
         open_in_browser = Gtk.Button(label='Open in Browser')
         open_in_browser.connect('clicked', self.on_open_in_browser_clicked)
 
-        self.extra_buttons = [
-            (test_server, Gtk.ResponseType.OK),
-            (open_in_browser, Gtk.ResponseType.OK),
-        ]
+        self.extra_buttons = [(test_server, None), (open_in_browser, None)]
 
         super().__init__(*args, **kwargs)
 
@@ -48,6 +45,7 @@ class EditServerDialog(EditFormDialog):
             server_address,
             self.data['username'].get_text(),
             self.data['password'].get_text(),
+            self.data['disable_cert_verify'].get_active(),
         )
 
         # Try to ping, and show a message box with whether or not it worked.

@@ -101,10 +101,17 @@ class EditFormDialog(Gtk.Dialog):
             content_grid.attach(spin_button, 1, i, 1, 1)
             i += 1
 
-        content_area.pack_start(content_grid, True, True, 10)
-
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         for button, response_id in self.extra_buttons:
-            self.add_action_widget(button, response_id)
+            if response_id is None:
+                button_box.add(button)
+                button.set_margin_right(10)
+            else:
+                self.add_action_widget(button, response_id)
+
+        content_grid.attach(button_box, 0, i, 2, 1)
+
+        content_area.pack_start(content_grid, True, True, 10)
 
         self.add_buttons(
             Gtk.STOCK_CANCEL,
