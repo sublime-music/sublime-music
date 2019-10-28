@@ -47,6 +47,8 @@ Requirements:
 - Python 3.7
 - GTK3
 - GLib
+- Probably other things... Please create an MR with any other dependencies that
+  you had to install to develop the app.
 
 Install the Sublime Music app locally (commands may differ from what is
 described below, this is merely an outline)::

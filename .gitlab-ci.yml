@@ -1,4 +1,5 @@
 stages:
+  - build-containers
   - test
   - build
   - deploy
@@ -7,7 +8,7 @@ stages:
 variables:
     GIT_SUBMODULE_STRATEGY: recursive
 
-image: ubuntu:18.10
+image: registry.gitlab.com/sumner/sublime-music/python-build:latest
 
 lint:
   stage: test
@@ -47,7 +48,7 @@ build:
       - dist/*
 
 build_flatpak:
-    image: registry.gitlab.com/sumner/sublime-music/sublime-music/build:latest
+    image: registry.gitlab.com/sumner/sublime-music/flatpak-build:latest
     stage: build
     script:
       - cd flatpak
@@ -78,3 +79,33 @@ verify_deploy:
     - master
   script:
     - pip3 install libremsonic
+
+# Create the Docker image for Flatpak builds.
+flatpak_docker:
+  image: docker:1.13
+  stage: build-containers
+  only:
+    variables:
+      - $REBUILD_FLATPAK_DOCKER == "True"
+  services:
+    - docker:dind
+  script:
+    - docker version
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/flatpak-build:latest ./cicd/flatpak-build
+    - docker push $CI_REGISTRY_IMAGE/flatpak-build
+
+# Create the Docker image for Python testing/builds.
+python_docker:
+  image: docker:1.13
+  stage: build-containers
+  only:
+    variables:
+      - $REBUILD_PYTHON_DOCKER == "True"
+  services:
+    - docker:dind
+  script:
+    - docker version
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/python-build:latest ./cicd/python-build
+    - docker push $CI_REGISTRY_IMAGE/python-build:latest
