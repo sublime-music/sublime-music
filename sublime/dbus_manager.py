@@ -208,7 +208,7 @@ class DBusManager:
                     (False, True): 'Stopped',
                     (True, False): 'Paused',
                     (True, True): 'Playing',
-                }[player.song_loaded, state.playing],
+                }[player is not None and player.song_loaded, state.playing],
                 'LoopStatus':
                 state.repeat_type.as_mpris_loop_status(),
                 'Rate':
@@ -250,7 +250,9 @@ class DBusManager:
             'org.mpris.MediaPlayer2.Playlists': {
                 # TODO this may do a network request. This really is a case for
                 # doing the whole thing with caching some data beforehand.
-                'PlaylistCount': len(CacheManager.get_playlists().result()),
+                'PlaylistCount': (
+                    0 if not CacheManager.ready() else len(
+                        CacheManager.get_playlists().result())),
                 'Orderings': ['Alphabetical', 'Created', 'Modified'],
                 'ActivePlaylist': ('(b(oss))', active_playlist),
             },

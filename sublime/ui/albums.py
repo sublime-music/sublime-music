@@ -115,6 +115,9 @@ class AlbumsPanel(Gtk.Box):
             state: ApplicationState,
             force: bool = False,
     ):
+        if not CacheManager.ready():
+            return
+
         def get_genres_done(f):
             new_store = [
                 (genre.value, genre.value) for genre in (f.result() or [])
@@ -404,6 +407,11 @@ class AlbumsGrid(Gtk.ScrolledWindow):
             children[0].update(force=force)
 
     def update_grid(self, force=False, selected_id=None):
+        if not CacheManager.ready():
+            self.spinner.hide()
+            self.continuation_spinner.hide()
+            return
+
         def reflow_grid(force_reload, selected_index):
             selection_changed = (selected_index != self.current_selection)
             self.current_selection = selected_index

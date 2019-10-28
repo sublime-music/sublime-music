@@ -73,6 +73,10 @@ class CacheManager(metaclass=Singleton):
     should_exit: bool = False
 
     @staticmethod
+    def ready():
+        return CacheManager._instance is not None
+
+    @staticmethod
     def shutdown():
         # TODO fix this shutdown
         CacheManager.should_exit = True
