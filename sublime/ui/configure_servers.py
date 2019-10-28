@@ -41,11 +41,11 @@ class EditServerDialog(EditFormDialog):
         # Instantiate the server.
         server_address = self.data['server_address'].get_text()
         server = Server(
-            self.data['name'].get_text(),
-            server_address,
-            self.data['username'].get_text(),
-            self.data['password'].get_text(),
-            self.data['disable_cert_verify'].get_active(),
+            name=self.data['name'].get_text(),
+            hostname=server_address,
+            username=self.data['username'].get_text(),
+            password=self.data['password'].get_text(),
+            disable_cert_verify=self.data['disable_cert_verify'].get_active(),
         )
 
         # Try to ping, and show a message box with whether or not it worked.
