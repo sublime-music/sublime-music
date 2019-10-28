@@ -201,11 +201,10 @@ class ApplicationState:
 
     @property
     def state_filename(self):
-        # TODO: this should probably not be stored in ~/.cache. I blow this
-        # away too often...
-        state_filename = (
-            os.environ.get('XDG_CACHE_HOME') or os.path.expanduser('~/.cache'))
-        return os.path.join(state_filename, 'sublime-music/state.yaml')
+        default_cache_location = (
+            os.environ.get('XDG_DATA_HOME')
+            or os.path.expanduser('~/.local/share'))
+        return os.path.join(default_cache_location, 'sublime-music/state.yaml')
 
     @property
     def volume(self):
