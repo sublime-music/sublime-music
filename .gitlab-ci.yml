@@ -81,7 +81,7 @@ verify_deploy:
     - pip3 install libremsonic
 
 # Create the Docker image for Flatpak builds.
-docker:image:
+flatpak_docker:
   image: docker:1.13
   only:
     variables:
@@ -90,7 +90,9 @@ docker:image:
     - docker:dind
   script:
     - docker version
+    - echo $CI_REGISTRY_IMAGE
+    - echo $CI_REGISTRY
     - docker build -t $CI_REGISTRY_IMAGE/flatpak-build:latest ./cicd/flatpak-build
     - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
-    - docker push $CI_REGISTRY_IMAGE/build
+    - docker push $CI_REGISTRY_IMAGE/flatpak-build
   stage: build-containers
