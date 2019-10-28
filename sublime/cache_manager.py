@@ -130,6 +130,7 @@ class CacheManager(metaclass=Singleton):
                 hostname=server_config.server_address,
                 username=server_config.username,
                 password=server_config.password,
+                disable_cert_verify=server_config.disable_cert_verify,
             )
             self.download_limiter_semaphore = threading.Semaphore(
                 self.app_config.concurrent_download_limit)

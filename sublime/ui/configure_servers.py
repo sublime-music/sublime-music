@@ -23,6 +23,7 @@ class EditServerDialog(EditFormDialog):
     boolean_fields = [
         ('Browse by tags', 'browse_by_tags'),
         ('Sync enabled', 'sync_enabled'),
+        ('Do not verify certificate', 'disable_cert_verify'),
     ]
 
     def __init__(self, *args, **kwargs):
@@ -209,6 +210,8 @@ class ConfigureServersDialog(Gtk.Dialog):
                 password=dialog.data['password'].get_text(),
                 browse_by_tags=dialog.data['browse_by_tags'].get_active(),
                 sync_enabled=dialog.data['sync_enabled'].get_active(),
+                disable_cert_verify=dialog.data['disable_cert_verify']
+                .get_active(),
             )
 
             if add:
