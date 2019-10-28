@@ -58,11 +58,19 @@ class Server:
     * The ``server`` module is stateless. The only thing that it does is allow
       the module's user to query the *sonic server via the API.
     """
-    def __init__(self, name: str, hostname: str, username: str, password: str):
+    def __init__(
+            self,
+            name: str,
+            hostname: str,
+            username: str,
+            password: str,
+            disable_cert_verify: bool,
+    ):
         self.name: str = name
         self.hostname: str = hostname
         self.username: str = username
         self.password: str = password
+        self.disable_cert_verify: bool = disable_cert_verify
 
     def _get_params(self) -> Dict[str, str]:
         """See Subsonic API Introduction for details."""
@@ -89,7 +97,11 @@ class Server:
             if type(v) == datetime:
                 params[k] = int(cast(datetime, v).timestamp() * 1000)
 
-        result = requests.get(url, params=params)
+        result = requests.get(
+            url,
+            params=params,
+            verify=not self.disable_cert_verify,
+        )
         # TODO make better
         if result.status_code != 200:
             raise Exception(f'[FAIL] get: {url} status={result.status_code}')
