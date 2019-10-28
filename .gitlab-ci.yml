@@ -83,6 +83,7 @@ verify_deploy:
 # Create the Docker image for Flatpak builds.
 flatpak_docker:
   image: docker:1.13
+  stage: build-containers
   only:
     variables:
       - $REBUILD_FLATPAK_DOCKER == "True"
@@ -90,9 +91,21 @@ flatpak_docker:
     - docker:dind
   script:
     - docker version
-    - echo $CI_REGISTRY_IMAGE
-    - echo $CI_REGISTRY
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker build -t $CI_REGISTRY_IMAGE/flatpak-build:latest ./cicd/flatpak-build
-    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
     - docker push $CI_REGISTRY_IMAGE/flatpak-build
+
+# Create the Docker image for Python testing/builds.
+python_docker:
+  image: docker:1.13
   stage: build-containers
+  only:
+    variables:
+      - $REBUILD_PYTHON_DOCKER == "True"
+  services:
+    - docker:dind
+  script:
+    - docker version
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/python-build:latest ./cicd/python-build
+    - docker push $CI_REGISTRY_IMAGE/python-build:latest
