@@ -47,15 +47,15 @@ build:
       - dist/*
 
 build_flatpak:
-    image: registry.gitlab.com/robozman/libremsonic/libremsonic/build:latest
+    image: registry.gitlab.com/sumner/sublime-music/sublime-music/build:latest
     stage: build
     script:
       - cd flatpak
       - ./flatpak_build.sh
     artifacts:
-      name: "libremsonic-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
+      name: "sublime-music-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
       paths:
-        - flatpak/libremsonic.flatpak
+        - flatpak/sublime.flatpak
 
 deploy_pypi:
   image: python:3.6-alpine
