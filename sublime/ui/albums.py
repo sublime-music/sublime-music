@@ -119,14 +119,17 @@ class AlbumsPanel(Gtk.Box):
             return
 
         def get_genres_done(f):
-            new_store = [
-                (genre.value, genre.value) for genre in (f.result() or [])
-            ]
+            try:
+                new_store = [
+                    (genre.value, genre.value) for genre in (f.result() or [])
+                ]
 
-            util.diff_song_store(self.genre_combo.get_model(), new_store)
+                util.diff_song_store(self.genre_combo.get_model(), new_store)
 
-            if self.get_id(self.genre_combo) != state.current_album_genre:
-                self.genre_combo.set_active_id(state.current_album_genre)
+                if self.get_id(self.genre_combo) != state.current_album_genre:
+                    self.genre_combo.set_active_id(state.current_album_genre)
+            finally:
+                self.updating_query = False
 
         # Never force. We invalidate the cache ourselves (force is used when
         # sort params change).
@@ -143,8 +146,6 @@ class AlbumsPanel(Gtk.Box):
         self.from_year_entry.set_text(str(state.current_album_from_year))
         self.to_year_entry.set_text(str(state.current_album_to_year))
         self.populate_genre_combo(state, force=force)
-
-        self.updating_query = False
 
         # Show/hide the combo boxes.
         def show_if(sort_type, *elements):
@@ -171,12 +172,6 @@ class AlbumsPanel(Gtk.Box):
             return combo.get_model()[tree_iter][0]
 
     def on_refresh_clicked(self, button):
-        # TODO: Invalidate the appropriate album cache to force the cache
-        # manager to re-fetch.  (Just using force=True is not enough since that
-        # is also used for when we change sort params.)
-        # TODO: If in genre mode, invalidate the genre list.
-        CacheManager.invalidate_album_list(
-            self.sort_type_combo.get_active_id())
         self.emit('refresh-window', {}, True)
 
     def on_type_combo_changed(self, combo):
@@ -207,7 +202,7 @@ class AlbumsPanel(Gtk.Box):
     def on_genre_change(self, combo):
         new_active_genre = self.get_id(combo)
         self.grid.update_params(genre=new_active_genre)
-        self.emit(
+        self.emit_if_not_updating(
             'refresh-window',
             {
                 'current_album_genre': new_active_genre,
@@ -226,7 +221,7 @@ class AlbumsPanel(Gtk.Box):
 
         if self.to_year_entry == entry:
             self.grid.update_params(to_year=year)
-            self.emit(
+            self.emit_if_not_updating(
                 'refresh-window',
                 {
                     'current_album_to_year': year,
@@ -236,7 +231,7 @@ class AlbumsPanel(Gtk.Box):
             )
         else:
             self.grid.update_params(from_year=year)
-            self.emit(
+            self.emit_if_not_updating(
                 'refresh-window',
                 {
                     'current_album_from_year': year,
@@ -271,7 +266,7 @@ class AlbumModel(GObject.Object):
         return f'<AlbumModel {self.album}>'
 
 
-class AlbumsGrid(Gtk.ScrolledWindow):
+class AlbumsGrid(Gtk.Overlay):
     """Defines the albums panel."""
     __gsignals__ = {
         'song-clicked': (
@@ -321,7 +316,7 @@ class AlbumsGrid(Gtk.ScrolledWindow):
 
         self.items_per_row = 4
 
-        overlay = Gtk.Overlay()
+        scrolled_window = Gtk.ScrolledWindow()
         grid_detail_grid_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         self.grid_top = Gtk.FlowBox(
@@ -371,7 +366,8 @@ class AlbumsGrid(Gtk.ScrolledWindow):
 
         grid_detail_grid_box.add(self.grid_bottom)
 
-        overlay.add(grid_detail_grid_box)
+        scrolled_window.add(grid_detail_grid_box)
+        self.add(scrolled_window)
 
         self.spinner = Gtk.Spinner(
             name='grid-spinner',
@@ -379,9 +375,7 @@ class AlbumsGrid(Gtk.ScrolledWindow):
             halign=Gtk.Align.CENTER,
             valign=Gtk.Align.CENTER,
         )
-        overlay.add_overlay(self.spinner)
-
-        self.add(overlay)
+        self.add_overlay(self.spinner)
 
     def update(
             self,
