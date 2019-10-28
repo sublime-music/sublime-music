@@ -466,7 +466,6 @@ class CacheManager(metaclass=Singleton):
         def get_album_list(
                 self,
                 type_: str,
-                min_size_request: int = 30,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
                 # Look at documentation for get_album_list in server.py:
@@ -477,49 +476,37 @@ class CacheManager(metaclass=Singleton):
                 self.server.get_album_list2
                 if self.browse_by_tags else self.server.get_album_list)
 
-            def get_page(offset, page_size):
-                before_download()
-                page = server_fn(
+            def get_page(offset, page_size=500):
+                return server_fn(
                     type_,
                     size=page_size,
                     offset=offset,
                     **params,
-                ).album
-
-                with self.cache_lock:
-                    if not self.cache[cache_name].get(type_):
-                        self.cache[cache_name][type_] = []
-                    self.cache[cache_name][type_].extend(page)
-                self.save_cache_info()
-                return page
+                ).album or []
 
             def do_get_album_list() -> List[Union[Child, AlbumWithSongsID3]]:
-                albums = self.cache.get(cache_name, {}).get(type_, [])
-                offset = len(albums)
+                if not self.cache.get(cache_name, {}).get(type_, []) or force:
+                    before_download()
 
-                if offset < min_size_request:
-                    page_size = min(min_size_request - offset, 500)
-                    while page_size > 0:
-                        before_download()
-                        page = server_fn(
-                            type_,
-                            size=page_size,
-                            offset=offset,
-                            **params,
-                        ).album or []
+                    page_size = 40 if type_ == 'random' else 500
+                    offset = 0
 
-                        # Update the cache.
-                        with self.cache_lock:
-                            if not self.cache[cache_name].get(type_):
-                                self.cache[cache_name][type_] = []
-                            self.cache[cache_name][type_].extend(page)
-                        self.save_cache_info()
+                    next_page = get_page(offset, page_size=page_size)
+                    albums = next_page
 
-                        albums.extend(page)
-                        offset += page_size
-                        page_size = min(min_size_request - offset, 500)
+                    # If it returns 500 things, then there's more leftover.
+                    while len(next_page) == 500:
+                        next_page = get_page(offset)
+                        albums.extend(next_page)
 
-                return albums
+                    # Update the cache.
+                    with self.cache_lock:
+                        if not self.cache[cache_name].get(type_):
+                            self.cache[cache_name][type_] = []
+                        self.cache[cache_name][type_] = albums
+                    self.save_cache_info()
+
+                return self.cache[cache_name][type_]
 
             return CacheManager.create_future(do_get_album_list)
 

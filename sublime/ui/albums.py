@@ -177,7 +177,7 @@ class AlbumsPanel(Gtk.Box):
         # TODO: If in genre mode, invalidate the genre list.
         CacheManager.invalidate_album_list(
             self.sort_type_combo.get_active_id())
-        self.emit('refresh-window', {}, False)
+        self.emit('refresh-window', {}, True)
 
     def on_type_combo_changed(self, combo):
         new_active_sort = self.get_id(combo)
@@ -207,13 +207,13 @@ class AlbumsPanel(Gtk.Box):
     def on_genre_change(self, combo):
         new_active_genre = self.get_id(combo)
         self.grid.update_params(genre=new_active_genre)
-        self.emit_if_not_updating(
+        self.emit(
             'refresh-window',
             {
                 'current_album_genre': new_active_genre,
                 'selected_album_id': None,
             },
-            False,
+            True,
         )
 
     def on_year_changed(self, entry):
@@ -226,23 +226,23 @@ class AlbumsPanel(Gtk.Box):
 
         if self.to_year_entry == entry:
             self.grid.update_params(to_year=year)
-            self.emit_if_not_updating(
+            self.emit(
                 'refresh-window',
                 {
                     'current_album_to_year': year,
                     'selected_album_id': None,
                 },
-                False,
+                True,
             )
         else:
             self.grid.update_params(from_year=year)
-            self.emit_if_not_updating(
+            self.emit(
                 'refresh-window',
                 {
                     'current_album_from_year': year,
                     'selected_album_id': None,
                 },
-                False,
+                True,
             )
 
     def on_grid_cover_clicked(self, grid, id):
@@ -316,8 +316,6 @@ class AlbumsGrid(Gtk.ScrolledWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.connect('edge-overshot', self.on_edge_overshot)
-
         # This is the master list.
         self.list_store = Gio.ListStore()
 
@@ -373,14 +371,6 @@ class AlbumsGrid(Gtk.ScrolledWindow):
 
         grid_detail_grid_box.add(self.grid_bottom)
 
-        self.continuation_spinner = Gtk.Spinner(
-            name='grid-spinner',
-            active=True,
-            halign=Gtk.Align.CENTER,
-            valign=Gtk.Align.CENTER,
-        )
-        grid_detail_grid_box.add(self.continuation_spinner)
-
         overlay.add(grid_detail_grid_box)
 
         self.spinner = Gtk.Spinner(
@@ -406,10 +396,11 @@ class AlbumsGrid(Gtk.ScrolledWindow):
         if len(children) > 0 and hasattr(children[0], 'update'):
             children[0].update(force=force)
 
+    error_dialog = None
+
     def update_grid(self, force=False, selected_id=None):
         if not CacheManager.ready():
             self.spinner.hide()
-            self.continuation_spinner.hide()
             return
 
         def reflow_grid(force_reload, selected_index):
@@ -420,7 +411,6 @@ class AlbumsGrid(Gtk.ScrolledWindow):
                 selection_changed=selection_changed,
             )
             self.spinner.hide()
-            self.continuation_spinner.hide()
             self.overshoot_update_in_progress = False
 
         # Calculate the type.
@@ -431,12 +421,30 @@ class AlbumsGrid(Gtk.ScrolledWindow):
                 'artist': 'ByArtist',
             }[self.alphabetical_type]
 
-        if self.parameters_changed:
-            force = True
-            self.parameters_changed = False
+        require_reflow = self.parameters_changed
+        self.parameters_changed = False
 
         def do_update(f):
-            albums = f.result()
+            try:
+                albums = f.result()
+            except Exception as e:
+                if self.error_dialog:
+                    self.spinner.hide()
+                    return
+                self.error_dialog = Gtk.MessageDialog(
+                    transient_for=self.get_toplevel(),
+                    message_type=Gtk.MessageType.ERROR,
+                    buttons=Gtk.ButtonsType.OK,
+                    text='Failed to retrieve albums',
+                )
+                self.error_dialog.format_secondary_markup(
+                    f'Getting albums by {type_} failed due to the following error\n\n{e}'
+                )
+                self.error_dialog.run()
+                self.error_dialog.destroy()
+                self.error_dialog = None
+                self.spinner.hide()
+                return
 
             old_len = len(self.list_store)
             self.list_store.remove_all()
@@ -451,7 +459,7 @@ class AlbumsGrid(Gtk.ScrolledWindow):
                 self.list_store.append(model)
 
             reflow_grid(
-                force or (old_len != len(self.list_store)),
+                force or require_reflow or (old_len != len(self.list_store)),
                 selected_index,
             )
 
@@ -461,7 +469,6 @@ class AlbumsGrid(Gtk.ScrolledWindow):
             to_year=self.to_year,
             genre=self.genre,
             before_download=lambda: GLib.idle_add(self.spinner.show),
-            min_size_request=self.current_min_size_request,
             force=force,
         )
         future.add_done_callback(lambda f: GLib.idle_add(do_update, f))
@@ -477,21 +484,6 @@ class AlbumsGrid(Gtk.ScrolledWindow):
             self.emit('cover-clicked', None)
         else:
             self.emit('cover-clicked', self.list_store[selected_index].id)
-
-    def on_edge_overshot(self, grid, position_type):
-        if (self.overshoot_update_in_progress
-                or position_type != Gtk.PositionType.BOTTOM
-                or self.type_ == 'random'):
-            return
-
-        self.overshoot_update_in_progress = True
-        self.continuation_spinner.show()
-        self.current_min_size_request = len(self.list_store) + 30
-        self.update_grid(
-            force=True,
-            selected_id=self.list_store[self.current_selection].id
-            if self.current_selection else None,
-        )
 
     def on_grid_resize(self, flowbox, rect):
         # TODO: this doesn't work with themes that add extra padding.
@@ -631,20 +623,3 @@ class AlbumsGrid(Gtk.ScrolledWindow):
         else:
             self.grid_top.unselect_all()
             self.detail_box.hide()
-
-    def list_model_generator(self, before_download=None, force=False):
-        type_ = self.type_
-        if self.type_ == 'alphabetical':
-            type_ += {
-                'name': 'ByName',
-                'artist': 'ByArtist',
-            }[self.alphabetical_type]
-
-        yield from CacheManager.get_albums_future_generator(
-            type_=type_,
-            to_year=self.to_year,
-            from_year=self.from_year,
-            genre=self.genre,
-            before_download=before_download,
-            force=force,
-        )
