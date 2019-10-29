@@ -36,6 +36,14 @@ In the future, you will be able to install via Flathub. For now, if you want to
 try the Flatpak, you will have to install it manually by visiting the Releases_
 page and downloading the ``.flatpak`` file from there.
 
+Then, you can install Sublime Music with::
+
+    sudo flatpak install sublime-music.flatpak
+
+and run it by executing::
+
+    flatpak run sublime-music.flatpak
+
 .. _Releases: https://gitlab.com/sumner/sublime-music/-/releases
 
 **Via PyPi**::
