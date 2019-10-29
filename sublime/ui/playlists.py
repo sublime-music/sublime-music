@@ -60,8 +60,8 @@ class PlaylistsPanel(Gtk.Paned):
         self.pack2(self.playlist_detail_panel, True, False)
 
     def update(self, state: ApplicationState = None, force=False):
-        self.playlist_list.update(state=state)
-        self.playlist_detail_panel.update(state=state)
+        self.playlist_list.update(state=state, force=force)
+        self.playlist_detail_panel.update(state=state, force=force)
 
 
 class PlaylistList(Gtk.Box):
@@ -434,7 +434,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_view_loading_box.add(playlist_view_spinner)
         self.add_overlay(self.playlist_view_loading_box)
 
-    def update(self, state: ApplicationState):
+    def update(self, state: ApplicationState, force=False):
         if state.selected_playlist_id is None:
             self.playlist_artwork.set_from_file(None)
             self.playlist_indicator.set_markup('')
@@ -446,7 +446,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
             self.playlist_view_loading_box.hide()
             self.playlist_artwork.set_loading(False)
         else:
-            self.update_playlist_view(state.selected_playlist_id, state=state)
+            self.update_playlist_view(
+                state.selected_playlist_id,
+                state=state,
+                force=force,
+            )
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_playlist(*a, **k),

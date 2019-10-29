@@ -130,12 +130,11 @@ class ApplicationState:
         else:
             self.current_song = None
 
-        self.play_queue = json_object.get('play_queue') or []
-        self.old_play_queue = json_object.get('old_play_queue') or []
-        self._volume = json_object.get('_volume') or {'this device': 100}
-        self.is_muted = json_object.get('is_muted') or False
-        self.repeat_type = (
-            RepeatType(json_object.get('repeat_type')) or RepeatType.NO_REPEAT)
+        self.play_queue = json_object.get('play_queue', [])
+        self.old_play_queue = json_object.get('old_play_queue', [])
+        self._volume = json_object.get('_volume', {'this device': 100})
+        self.is_muted = json_object.get('is_muted', False)
+        self.repeat_type = RepeatType(json_object.get('repeat_type', 0))
         self.shuffle_on = json_object.get('shuffle_on', False)
         self.song_progress = json_object.get('song_progress', 0.0)
         self.current_device = json_object.get('current_device', 'this device')
@@ -170,6 +169,8 @@ class ApplicationState:
                 except json.decoder.JSONDecodeError:
                     # Who cares, it's just state.
                     pass
+        else:
+            self.load_from_json({})
 
     def save(self):
         # Make the necessary directories before writing the state.
