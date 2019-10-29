@@ -109,7 +109,7 @@ class PlayerControls(Gtk.ActionBar):
         else:
             icon_name = 'high'
 
-        self.volume_mute_toggle.set_icon('audio-volume-' + icon_name)
+        self.volume_mute_toggle.set_icon(f'audio-volume-{icon_name}-symbolic')
 
         self.editing = True
         self.volume_slider.set_value(0 if state.is_muted else state.volume)
@@ -336,7 +336,7 @@ class PlayerControls(Gtk.ActionBar):
         # Device button (for chromecast)
         # TODO need icon
         device_button = IconButton(
-            'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+            'video-display-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         device_button.connect('clicked', self.on_device_click)
         box.pack_start(device_button, False, True, 5)
 
@@ -425,7 +425,7 @@ class PlayerControls(Gtk.ActionBar):
         self.play_queue_popover.add(play_queue_popover_box)
 
         # Volume mute toggle
-        self.volume_mute_toggle = IconButton('audio-volume-high')
+        self.volume_mute_toggle = IconButton('audio-volume-high-symbolic')
         self.volume_mute_toggle.set_action_name('app.mute-toggle')
         box.pack_start(self.volume_mute_toggle, False, True, 0)
 
