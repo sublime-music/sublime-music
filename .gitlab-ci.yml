@@ -90,7 +90,7 @@ publish_release:
   only:
     variables:
       # Only verify the deploy if it's a version tag.
-      - $CI_COMMIT_TAG =~ /^[vt].*/
+      - $CI_COMMIT_TAG =~ /^v.*/
   before_script:
     - apk add bash curl
   script:
