@@ -55,10 +55,10 @@ build_flatpak:
     script:
       - cd flatpak
       - ./flatpak_build.sh
+      - mv flatpak/sublime-music.flatpak sublime-music-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA.flatpak
     artifacts:
-      name: "sublime-music-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
       paths:
-        - flatpak/sublime-music.flatpak
+        - sublime-music-*.flatpak
 
 deploy_pypi:
   image: python:3.6-alpine
