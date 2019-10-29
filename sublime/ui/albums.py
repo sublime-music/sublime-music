@@ -438,7 +438,8 @@ class AlbumsGrid(Gtk.Overlay):
                     text='Failed to retrieve albums',
                 )
                 self.error_dialog.format_secondary_markup(
-                    f'Getting albums by {type_} failed due to the following error\n\n{e}'
+                    f'Getting albums by {type_} failed due to the following'
+                    f' error\n\n{e}'
                 )
                 self.error_dialog.run()
                 self.error_dialog.destroy()

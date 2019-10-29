@@ -270,8 +270,10 @@ class ChromecastPlayer(Player):
         self.time_incrementor_running = False
         self._can_hotswap_source = False
 
-        ChromecastPlayer.cast_status_listener.on_new_cast_status = self.on_new_cast_status
-        ChromecastPlayer.media_status_listener.on_new_media_status = self.on_new_media_status
+        ChromecastPlayer.cast_status_listener.on_new_cast_status = (
+            self.on_new_cast_status)
+        ChromecastPlayer.media_status_listener.on_new_media_status = (
+            self.on_new_media_status)
 
         # Set host_ip
         # TODO should have a mechanism to update this. Maybe it should be

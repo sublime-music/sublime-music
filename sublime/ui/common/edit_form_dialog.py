@@ -87,7 +87,8 @@ class EditFormDialog(Gtk.Dialog):
             i += 1
 
         # Add the spin button entries to the content area.
-        for label, value_field_name, range_config, default_value in self.numeric_fields:
+        for (label, value_field_name, range_config,
+             default_value) in self.numeric_fields:
             entry_label = Gtk.Label(label=label + ':')
             entry_label.set_halign(Gtk.Align.START)
             content_grid.attach(entry_label, 0, i, 1, 1)

@@ -175,7 +175,8 @@ class ConfigureServersDialog(Gtk.Dialog):
 
         # Show them, and select the current server.
         self.show_all()
-        if self.selected_server_index is not None and self.selected_server_index >= 0:
+        if (self.selected_server_index is not None
+                and self.selected_server_index >= 0):
             self.server_list.select_row(
                 self.server_list.get_row_at_index(self.selected_server_index))
 
