@@ -1,10 +1,11 @@
 stages:
+  # TODO move to end once everything is tested
+  - release
   - build-containers
   - test
   - build
   - deploy
   - verify
-  - release
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
