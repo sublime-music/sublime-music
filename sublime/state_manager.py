@@ -162,7 +162,8 @@ class ApplicationState:
             # Reset the CacheManager.
             CacheManager.reset(self.config, self.config.server)
 
-        if os.path.exists(self.state_filename):
+        if (self.config.server is not None
+                and os.path.exists(self.state_filename)):
             with open(self.state_filename, 'r') as f:
                 try:
                     self.load_from_json(json.load(f))
