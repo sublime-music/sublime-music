@@ -10,7 +10,10 @@
             "--socket=wayland",
             "--share=network",
             "--socket=pulseaudio",
-            "--socket=session-bus"
+            "--socket=session-bus",
+            "--filesystem=xdg-config/sublime-music",
+            "--filesystem=xdg-cache/sublime-music",
+            "--filesystem=xdg-data/sublime-music"
     ],
     "modules": [
         {
