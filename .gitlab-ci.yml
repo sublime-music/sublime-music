@@ -4,6 +4,7 @@ stages:
   - build
   - deploy
   - verify
+  - release
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
@@ -54,7 +55,6 @@ build_flatpak:
       - cd flatpak
       - ./flatpak_build.sh
     artifacts:
-      name: "sublime-music-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
       paths:
         - flatpak/sublime-music.flatpak
 
@@ -83,6 +83,18 @@ verify_deploy:
       - $CI_COMMIT_TAG =~ /^v.*/
   script:
     - pip3 install sublime-music
+
+publish_release:
+  image: alpine
+  stage: release
+  only:
+    variables:
+      # Only verify the deploy if it's a version tag.
+      - $CI_COMMIT_TAG =~ /^v.*/
+  before_script:
+    - apk add bash curl
+  script:
+    - ./cicd/publish-gitlab-release.sh
 
 # Scheduled Jobs
 # =============================================================================

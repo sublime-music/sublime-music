@@ -32,8 +32,11 @@ Install the ``sublime-music`` package. Example using ``yay``::
 
 **Via Flatpak**:
 
-TODO: make a link to the flathub repo so that you can just click on it and go to
-the software center for the app.
+In the future, you will be able to install via Flathub. For now, if you want to
+try the Flatpak, you will have to install it manually by visiting the Releases_
+page and downloading the ``.flatpak`` file from there.
+
+.. _Releases: https://gitlab.com/sumner/sublime-music/-/releases
 
 **Via PyPi**::
 
