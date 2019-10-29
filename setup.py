@@ -49,7 +49,7 @@ setup(
             'ui/mpris_specs/org.mpris.MediaPlayer2.xml',
             'ui/mpris_specs/org.mpris.MediaPlayer2.Player.xml',
             'ui/mpris_specs/org.mpris.MediaPlayer2.Playlists.xml',
-            'ui/mpris_specs/org.mpris.MediaPlayer2.Tracklist.xml',
+            'ui/mpris_specs/org.mpris.MediaPlayer2.TrackList.xml',
         ]
     },
     install_requires=[
