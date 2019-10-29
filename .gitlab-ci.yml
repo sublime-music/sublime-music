@@ -62,8 +62,9 @@ deploy_pypi:
   image: python:3.6-alpine
   stage: deploy
   only:
-    # Only do a deploy if it's a version tag.
-    - $CI_COMMIT_TAG =~ /^v.*/
+    variables:
+      # Only do a deploy if it's a version tag.
+      - $CI_COMMIT_TAG =~ /^v.*/
   before_script:
     - 'pip install twine'
     - './create-pypirc.sh'
@@ -79,8 +80,9 @@ deploy_pypi:
 verify_deploy:
   stage: verify
   only:
-    # Only do a deploy if it's a version tag.
-    - $CI_COMMIT_TAG =~ /^v.*/
+    variables:
+      # Only verify the deploy if it's a version tag.
+      - $CI_COMMIT_TAG =~ /^v.*/
   script:
     - pip3 install libremsonic
 
