@@ -45,7 +45,7 @@ echo "$data"
 
 curl \
     --header 'Content-Type: application/json' \
-    --header "PRIVATE-TOKEN: ${CI_JOB_TOKEN}" \
+    --header "PRIVATE-TOKEN: ${RELEASE_PUBLISH_TOKEN}" \
     --data "$data" \
     --request POST \
     ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases
