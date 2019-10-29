@@ -28,7 +28,7 @@ Installation
 
 Install the ``sublime-music`` package. Example using ``yay``::
 
-    TODO
+    yay -S sublime-music
 
 **Via Flatpak**:
 
@@ -37,7 +37,7 @@ the software center for the app.
 
 **Via PyPi**::
 
-    TODO
+    pip install sublime-music
 
 Development Setup
 -----------------
