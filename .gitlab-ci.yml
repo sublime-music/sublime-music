@@ -87,6 +87,7 @@ verify_deploy:
     - pip3 install sublime-music
 
 publish_release:
+  image: alpine
   stage: release
   # only:
   #   variables:
