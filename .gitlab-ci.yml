@@ -1,11 +1,10 @@
 stages:
-  # TODO move to end once everything is tested
-  - release
   - build-containers
   - test
   - build
   - deploy
   - verify
+  - release
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
@@ -55,10 +54,9 @@ build_flatpak:
     script:
       - cd flatpak
       - ./flatpak_build.sh
-      - mv flatpak/sublime-music.flatpak sublime-music-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA.flatpak
     artifacts:
       paths:
-        - sublime-music-*.flatpak
+        - flatpak/sublime-music-*.flatpak
 
 deploy_pypi:
   image: python:3.6-alpine
@@ -92,7 +90,7 @@ publish_release:
   only:
     variables:
       # Only verify the deploy if it's a version tag.
-      - $CI_COMMIT_TAG =~ /^[vt].*/
+      - $CI_COMMIT_TAG =~ /^v.*/
   before_script:
     - apk add bash curl
   script:

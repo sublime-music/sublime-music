@@ -33,7 +33,7 @@ data="
         \"links\": [
             {
                 \"name\": \"sublime-music-${CI_COMMIT_TAG}.flatpak\",
-                \"url\": \"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_REF_SLUG}/raw/sublime-music-${CI_COMMIT_REF_TAG}-${CI_COMMIT_SHORT_SHA}?job=build_flatpak\"
+                \"url\": \"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_REF_SLUG}/raw/sublime-music.flatpak?job=build_flatpak\"
             }
         ]
     }
