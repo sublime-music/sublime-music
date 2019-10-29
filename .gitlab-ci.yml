@@ -70,8 +70,6 @@ deploy_pypi:
     - './create-pypirc.sh'
   script:
     # Upload to the test PyPi instance, then upload to the real one.
-    - echo TESTING not actually deploying
-    - exit 1
     - twine upload -r pypi_test dist/*
     - twine upload dist/*
   after_script:
