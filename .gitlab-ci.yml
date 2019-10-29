@@ -67,7 +67,7 @@ deploy_pypi:
       - $CI_COMMIT_TAG =~ /^v.*/
   before_script:
     - 'pip install twine'
-    - './create-pypirc.sh'
+    - './cicd/create-pypirc.sh'
   script:
     # Upload to the test PyPi instance, then upload to the real one.
     - twine upload -r pypi_test dist/*
