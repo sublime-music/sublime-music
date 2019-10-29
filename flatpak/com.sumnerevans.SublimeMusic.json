@@ -3,7 +3,7 @@
     "runtime": "org.gnome.Platform",
     "runtime-version": "3.32",
     "sdk": "org.gnome.Sdk",
-    "command": "sublime",
+    "command": "sublime-music",
     "finish-args": [
             "--share=ipc",
             "--socket=fallback-x11",

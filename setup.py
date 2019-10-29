@@ -73,7 +73,7 @@ setup(
     # platform.
     entry_points={
         'console_scripts': [
-            'sublime=sublime.__main__:main',
+            'sublime-music=sublime.__main__:main',
         ],
     },
 )

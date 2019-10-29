@@ -9,4 +9,4 @@ mkdir /repo
 
 flatpak-builder --repo=/repo flatpak_build_dir com.sumnerevans.SublimeMusic.json
 
-flatpak build-bundle /repo sublime.flatpak com.sumnerevans.SublimeMusic
+flatpak build-bundle /repo sublime-music.flatpak com.sumnerevans.SublimeMusic

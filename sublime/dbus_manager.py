@@ -73,7 +73,7 @@ class DBusManager:
 
         self.bus_number = Gio.bus_own_name_on_connection(
             connection,
-            'org.mpris.MediaPlayer2.sublime',
+            'org.mpris.MediaPlayer2.sublimemusic',
             Gio.BusNameOwnerFlags.NONE,
             dbus_name_acquired,
             dbus_name_lost,
