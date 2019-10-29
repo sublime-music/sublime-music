@@ -56,7 +56,7 @@ build_flatpak:
       - ./flatpak_build.sh
     artifacts:
       paths:
-        - flatpak/sublime-music-*.flatpak
+        - flatpak/sublime-music.flatpak
 
 deploy_pypi:
   image: python:3.6-alpine
