@@ -6,7 +6,7 @@ stages:
   - verify
 
 variables:
-    GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_STRATEGY: recursive
 
 image: registry.gitlab.com/sumner/sublime-music/python-build:latest
 
@@ -62,12 +62,15 @@ deploy_pypi:
   image: python:3.6-alpine
   stage: deploy
   only:
-    - master
+    # Only do a deploy when on master with a tag similar to vX.X.X.
+    - $CI_COMMIT_REF_NAME == master && $CI_COMMIT_TAG =~ /^v\d.\d.\d$/
   before_script:
     - 'pip install twine'
     - './create-pypirc.sh'
   script:
     # Upload to the test PyPi instance, then upload to the real one.
+    - echo TESTING not actually deploying
+    - exit 1
     - twine upload -r pypi_test dist/*
     - twine upload dist/*
   after_script:
@@ -76,9 +79,13 @@ deploy_pypi:
 verify_deploy:
   stage: verify
   only:
-    - master
+    # Only do a deploy when on master with a tag similar to vX.X.X.
+    - $CI_COMMIT_REF_NAME == master && $CI_COMMIT_TAG =~ /^v\d.\d.\d$/
   script:
     - pip3 install libremsonic
+
+# Scheduled Jobs
+# =============================================================================
 
 # Create the Docker image for Flatpak builds.
 flatpak_docker:
