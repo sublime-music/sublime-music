@@ -15,8 +15,6 @@ lint:
   stage: test
   allow_failure: true
   before_script:
-    - apt update
-    - apt install -y python3-pip libcairo2-dev pkg-config
     - pip3 install -r dev-requirements.txt
     - pip3 install -e .
   script:
@@ -26,8 +24,6 @@ lint:
 test:
   stage: test
   before_script:
-    - apt update
-    - apt install -y python3-pip libcairo2-dev pkg-config libgtk-3-dev libmpv-dev libglib2.0-dev gir1.2-notify-0.7
     - pip3 install -r dev-requirements.txt
     - pip3 install -e .
   script:
@@ -39,8 +35,6 @@ test:
 build:
   stage: build
   before_script:
-    - apt update
-    - apt install -y python3-pip libcairo2-dev pkg-config
     - pip3 install -r dev-requirements.txt
   script:
     - python3 setup.py sdist
