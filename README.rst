@@ -28,7 +28,7 @@ Installation
 
 Install the ``sublime-music`` package. Example using ``yay``::
 
-    TODO
+    yay -S sublime-music
 
 **Via Flatpak**:
 
