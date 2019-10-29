@@ -314,7 +314,6 @@ class ArtistDetailPanel(Gtk.Box):
             cover_art_filename,
             state: ApplicationState,
     ):
-        print(cover_art_filename)
         self.artist_artwork.set_from_file(cover_art_filename)
         self.artist_artwork.set_loading(False)
 

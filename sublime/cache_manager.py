@@ -84,6 +84,11 @@ class CacheManager(metaclass=Singleton):
         CacheManager.executor.shutdown()
         print('Shutdown complete')
 
+    @staticmethod
+    def calculate_server_hash(server: ServerConfiguration):
+        server_info = (server.name + server.server_address + server.username)
+        return hashlib.md5(server_info.encode('utf-8')).hexdigest()[:8]
+
     class CacheEncoder(json.JSONEncoder):
         def default(self, obj):
             if type(obj) == datetime:
@@ -123,8 +128,8 @@ class CacheManager(metaclass=Singleton):
                 server_config: ServerConfiguration,
         ):
             self.app_config = app_config
-            self.browse_by_tags = self.app_config.servers[
-                self.app_config.current_server].browse_by_tags
+            self.browse_by_tags = self.app_config.server.browse_by_tags
+            self.server_config = server_config
             self.server = Server(
                 name=server_config.name,
                 hostname=server_config.server_address,
@@ -191,6 +196,7 @@ class CacheManager(metaclass=Singleton):
             os.makedirs(self.app_config.cache_location, exist_ok=True)
 
             cache_meta_file = self.calculate_abs_path('.cache_meta')
+            os.makedirs(os.path.dirname(cache_meta_file), exist_ok=True)
             with open(cache_meta_file, 'w+') as f, self.cache_lock:
                 f.write(
                     json.dumps(
@@ -203,8 +209,10 @@ class CacheManager(metaclass=Singleton):
                 f.write(data)
 
         def calculate_abs_path(self, *relative_paths):
-            return Path(
-                self.app_config.cache_location).joinpath(*relative_paths)
+            return Path(self.app_config.cache_location).joinpath(
+                CacheManager.calculate_server_hash(self.server_config),
+                *relative_paths,
+            )
 
         def calculate_download_path(self, *relative_paths):
             """
@@ -214,7 +222,10 @@ class CacheManager(metaclass=Singleton):
                 os.environ.get('XDG_CACHE_HOME')
                 or os.path.expanduser('~/.cache'))
             return Path(xdg_cache_home).joinpath(
-                'sublime-music', *relative_paths)
+                'sublime-music',
+                CacheManager.calculate_server_hash(self.server_config),
+                *relative_paths,
+            )
 
         def return_cached_or_download(
                 self,

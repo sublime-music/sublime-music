@@ -159,13 +159,9 @@ class ApplicationState:
     def load(self):
         self.config = self.get_config(self.config_file)
 
-        if self.config.current_server >= 0:
+        if self.config.server is not None:
             # Reset the CacheManager.
-            CacheManager.reset(
-                self.config,
-                self.config.servers[self.config.current_server]
-                if self.config.current_server >= 0 else None,
-            )
+            CacheManager.reset(self.config, self.config.server)
 
         if os.path.exists(self.state_filename):
             with open(self.state_filename, 'r') as f:
@@ -176,18 +172,20 @@ class ApplicationState:
                     pass
 
     def save(self):
-        # Make the necessary directories before writing the config and state.
-        os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
+        # Make the necessary directories before writing the state.
         os.makedirs(os.path.dirname(self.state_filename), exist_ok=True)
-
-        # Save the config
-        with open(self.config_file, 'w+') as f:
-            f.write(
-                json.dumps(self.config.to_json(), indent=2, sort_keys=True))
 
         # Save the state
         with open(self.state_filename, 'w+') as f:
             f.write(json.dumps(self.to_json(), indent=2, sort_keys=True))
+
+    def save_config(self):
+        # Make the necessary directories before writing the config.
+        os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
+
+        with open(self.config_file, 'w+') as f:
+            f.write(
+                json.dumps(self.config.to_json(), indent=2, sort_keys=True))
 
     def get_config(self, filename: str) -> AppConfiguration:
         if not os.path.exists(filename):
@@ -204,7 +202,12 @@ class ApplicationState:
         default_cache_location = (
             os.environ.get('XDG_DATA_HOME')
             or os.path.expanduser('~/.local/share'))
-        return os.path.join(default_cache_location, 'sublime-music/state.yaml')
+        return os.path.join(
+            default_cache_location,
+            'sublime-music',
+            CacheManager.calculate_server_hash(self.config.server),
+            'state.yaml',
+        )
 
     @property
     def volume(self):

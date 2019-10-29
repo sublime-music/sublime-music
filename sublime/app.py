@@ -150,10 +150,11 @@ class SublimeMusicApp(Gtk.Application):
         self.state.load()
 
         # If there is no current server, show the dialog to select a server.
-        if (self.state.config.current_server is None
-                or self.state.config.current_server < 0):
+        if self.state.config.server is None:
             self.show_configure_servers_dialog()
-            if self.current_server is None:
+
+            # If they didn't add one with the dialog, close the window.
+            if self.state.config.server is None:
                 self.window.close()
                 return
 
@@ -161,8 +162,11 @@ class SublimeMusicApp(Gtk.Application):
 
         # Configure the players
         self.last_play_queue_update = 0
+        self.loading_state = False
 
         def time_observer(value):
+            if self.loading_state:
+                return
             self.state.song_progress = value
             GLib.idle_add(
                 self.window.player_controls.update_scrubber,
@@ -223,7 +227,7 @@ class SublimeMusicApp(Gtk.Application):
 
         # Prompt to load the play queue from the server.
         # TODO should this be behind sync enabled?
-        if self.current_server.sync_enabled:
+        if self.state.config.server.sync_enabled:
             self.update_play_state_from_server(prompt_confirm=True)
 
         # Send out to the bus that we exist.
@@ -423,8 +427,8 @@ class SublimeMusicApp(Gtk.Application):
                 'prefetch_amount'].get_value_as_int()
             self.state.config.concurrent_download_limit = dialog.data[
                 'concurrent_download_limit'].get_value_as_int()
-            self.state.save()
-            self.reset_cache_manager()
+            self.state.save_config()
+            self.reset_state()
         dialog.destroy()
 
     @dbus_propagate()
@@ -539,24 +543,25 @@ class SublimeMusicApp(Gtk.Application):
 
     def on_server_list_changed(self, action, servers):
         self.state.config.servers = servers
-        self.state.save()
+        self.state.save_config()
 
     def on_connected_server_changed(self, action, current_server):
-        self.state.config.current_server = current_server
         self.state.save()
+        self.state.config.current_server = current_server
+        self.state.save_config()
 
-        self.reset_cache_manager()
-        self.update_window()
+        self.reset_state()
 
-    def reset_cache_manager(self):
-        CacheManager.reset(
-            self.state.config,
-            self.current_server
-            if self.state.config.current_server >= 0 else None,
-        )
+    def reset_state(self):
+        if self.state.playing:
+            self.on_play_pause()
+        self.loading_state = True
+        self.state.load()
+        self.player.reset()
+        self.loading_state = False
 
         # Update the window according to the new server configuration.
-        self.update_window()
+        self.update_window(force=True)
 
     def on_stack_change(self, stack, child):
         self.state.current_tab = stack.get_visible_child_name()
@@ -655,7 +660,7 @@ class SublimeMusicApp(Gtk.Application):
     def on_app_shutdown(self, app):
         Notify.uninit()
 
-        if self.current_server is None:
+        if self.state.config.server is None:
             return
 
         self.player.pause()
@@ -666,13 +671,6 @@ class SublimeMusicApp(Gtk.Application):
         self.save_play_queue()
         self.dbus_manager.shutdown()
         CacheManager.shutdown()
-
-    # ########## PROPERTIES ########## #
-    @property
-    def current_server(self):
-        if len(self.state.config.servers) < 1:
-            return None
-        return self.state.config.servers[self.state.config.current_server]
 
     # ########## HELPER METHODS ########## #
     def show_configure_servers_dialog(self):
@@ -817,10 +815,11 @@ class SublimeMusicApp(Gtk.Application):
                 # Switch to the local media if the player can hotswap (MPV can,
                 # Chromecast cannot hotswap without lag).
                 if self.player.can_hotswap_source:
-                    downloaded_filename = (
-                        CacheManager.get_song_filename_or_stream(song)[0])
                     self.player.play_media(
-                        downloaded_filename, self.state.song_progress, song)
+                        CacheManager.get_song_filename_or_stream(song)[0],
+                        self.state.song_progress,
+                        song,
+                    )
                 GLib.idle_add(self.update_window)
 
             # If streaming, also download the song, unless configured not to,
@@ -859,7 +858,7 @@ class SublimeMusicApp(Gtk.Application):
                         self.update_window),
                 )
 
-            if self.current_server.sync_enabled:
+            if self.state.config.server.sync_enabled:
                 CacheManager.scrobble(song.id)
 
         song_details_future = CacheManager.get_song_details(song_id)
@@ -873,7 +872,7 @@ class SublimeMusicApp(Gtk.Application):
         position = self.state.song_progress
         self.last_play_queue_update = position
 
-        if self.current_server.sync_enabled and self.state.current_song:
+        if self.state.config.server.sync_enabled and self.state.current_song:
             CacheManager.save_play_queue(
                 play_queue=self.state.play_queue,
                 current=self.state.current_song.id,

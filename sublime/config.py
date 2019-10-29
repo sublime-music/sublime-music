@@ -77,3 +77,9 @@ class AppConfiguration:
                 os.environ.get('XDG_DATA_HOME')
                 or os.path.expanduser('~/.local/share'))
             return os.path.join(default_cache_location, 'sublime-music')
+
+    @property
+    def server(self) -> ServerConfiguration:
+        return (
+            None if self.current_server < 0 or len(self.servers) < 1 else
+            self.servers[self.current_server])
