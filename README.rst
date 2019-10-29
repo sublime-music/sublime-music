@@ -37,7 +37,7 @@ the software center for the app.
 
 **Via PyPi**::
 
-    TODO
+    pip install sublime-music
 
 Development Setup
 -----------------
