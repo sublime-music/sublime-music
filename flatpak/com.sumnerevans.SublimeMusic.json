@@ -9,7 +9,8 @@
             "--socket=fallback-x11",
             "--socket=wayland",
             "--share=network",
-            "--socket=pulseaudio"
+            "--socket=pulseaudio",
+            "--socket=session-bus"
     ],
     "modules": [
         {
