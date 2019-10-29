@@ -3,7 +3,7 @@
 set -e
 
 # The release notes for this version should be the first line of the CHANGELOG.
-if [[ $(head -n 1 CHANGELOG) == "${CI_COMMIT_TAG}" ]]; then
+if [[ $(head -n 1 CHANGELOG.rst) == "${CI_COMMIT_TAG}" ]]; then
     # Extract all of the bullet points and other things until the next header.
     i=0
     first=1
@@ -15,12 +15,12 @@ if [[ $(head -n 1 CHANGELOG) == "${CI_COMMIT_TAG}" ]]; then
             fi
             first=0
         fi
-    done < CHANGELOG
+    done < CHANGELOG.rst
 
     # i is now the index of the line below the second header.
 
     description="**Release Notes:**
-$(head -n $(( $i - 2 )) CHANGELOG | tail -n $(( $i - 5 )))"
+$(head -n $(( $i - 2 )) CHANGELOG.rst | tail -n $(( $i - 5 )))"
 fi
 
 if [[ "${description}" == "" ]]; then
