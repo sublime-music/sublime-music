@@ -291,6 +291,7 @@ class AlbumsGrid(Gtk.Overlay):
     parameters_changed = False
     current_min_size_request = 30
     overshoot_update_in_progress = False
+    server_hash = None
 
     def update_params(
             self,
@@ -383,6 +384,11 @@ class AlbumsGrid(Gtk.Overlay):
             force: bool = False,
             selected_id: str = None,
     ):
+        new_hash = CacheManager.calculate_server_hash(state.config.server)
+        if self.server_hash != new_hash:
+            self.parameters_changed = True
+        self.server_hash = new_hash
+
         self.update_grid(force=force, selected_id=selected_id)
 
         # Update the detail panel.

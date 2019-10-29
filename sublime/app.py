@@ -561,7 +561,7 @@ class SublimeMusicApp(Gtk.Application):
         self.loading_state = False
 
         # Update the window according to the new server configuration.
-        self.update_window(force=True)
+        self.update_window()
 
     def on_stack_change(self, stack, child):
         self.state.current_tab = stack.get_visible_child_name()

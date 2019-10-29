@@ -251,7 +251,20 @@ class ArtistDetailPanel(Gtk.Box):
     def update(self, state: ApplicationState):
         if state.selected_artist_id is None:
             self.artist_action_buttons.hide()
+            self.artist_id = None
+            self.artist_indicator.set_text('')
+            self.artist_name.set_markup('')
+            self.artist_stats.set_markup('')
+
+            self.artist_bio.set_markup('')
+            self.similar_artists_box.hide()
+
+            self.artist_artwork.set_from_file(None)
+
+            self.albums = []
+            self.albums_list.update(None)
         else:
+            self.artist_action_buttons.show()
             self.update_artist_view(state.selected_artist_id, state=state)
 
     # TODO need to handle when this is force updated. Need to delete a bunch of
@@ -401,6 +414,9 @@ class AlbumsListWithSongs(Gtk.Overlay):
         # TODO this introduces a flicker. Fix this. Need to do some diffing.
         for c in self.box.get_children():
             self.box.remove(c)
+
+        if artist is None:
+            return
 
         for album in artist.get('album', artist.get('child', [])):
             album_with_songs = AlbumWithSongs(album, show_artist_name=False)

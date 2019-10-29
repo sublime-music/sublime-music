@@ -86,6 +86,8 @@ class CacheManager(metaclass=Singleton):
 
     @staticmethod
     def calculate_server_hash(server: ServerConfiguration):
+        if server is None:
+            return None
         server_info = (server.name + server.server_address + server.username)
         return hashlib.md5(server_info.encode('utf-8')).hexdigest()[:8]
 
@@ -145,14 +147,13 @@ class CacheManager(metaclass=Singleton):
         def load_cache_info(self):
             cache_meta_file = self.calculate_abs_path('.cache_meta')
 
-            if not cache_meta_file.exists():
-                return
-
-            with open(cache_meta_file, 'r') as f:
-                try:
-                    meta_json = json.load(f)
-                except json.decoder.JSONDecodeError:
-                    return
+            meta_json = {}
+            if cache_meta_file.exists():
+                with open(cache_meta_file, 'r') as f:
+                    try:
+                        meta_json = json.load(f)
+                    except json.decoder.JSONDecodeError:
+                        return
 
             cache_configs = [
                 # Playlists
