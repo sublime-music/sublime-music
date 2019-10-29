@@ -93,9 +93,9 @@ publish_release:
     variables:
       # Only verify the deploy if it's a version tag.
       - $CI_COMMIT_TAG =~ /^[vt].*/
+  before_script:
+    - apk add curl
   script:
-    - ls -lah ./cicd
-    - ls -lah ./cicd/publish-gitlab-release.sh
     - ./cicd/publish-gitlab-release.sh
 
 # Scheduled Jobs
