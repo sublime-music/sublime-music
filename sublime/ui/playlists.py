@@ -91,7 +91,7 @@ class PlaylistList(Gtk.Box):
         new_playlist_button.connect('clicked', self.on_new_playlist_clicked)
         playlist_list_actions.pack_start(new_playlist_button)
 
-        list_refresh_button = IconButton('view-refresh')
+        list_refresh_button = IconButton('view-refresh-symbolic')
         list_refresh_button.connect('clicked', self.on_list_refresh_click)
         playlist_list_actions.pack_end(list_refresh_button)
 

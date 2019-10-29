@@ -69,7 +69,7 @@ class ArtistList(Gtk.Box):
 
         list_actions = Gtk.ActionBar()
 
-        refresh = IconButton('view-refresh')
+        refresh = IconButton('view-refresh-symbolic')
         refresh.connect('clicked', lambda *a: self.update(force=True))
         list_actions.pack_end(refresh)
 

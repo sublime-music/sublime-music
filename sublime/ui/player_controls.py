@@ -353,7 +353,7 @@ class PlayerControls(Gtk.ActionBar):
         )
         device_popover_header.add(self.popover_label)
 
-        refresh_devices = IconButton('view-refresh')
+        refresh_devices = IconButton('view-refresh-symbolic')
         refresh_devices.connect('clicked', self.on_device_refresh_click)
         device_popover_header.pack_end(refresh_devices, False, False, 0)
 
