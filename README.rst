@@ -45,7 +45,7 @@ Then, you can install Sublime Music with::
 
 and run it by executing::
 
-    flatpak run sublime-music.flatpak
+    flatpak run com.sumnerevans.SublimeMusic
 
 .. _Releases: https://gitlab.com/sumner/sublime-music/-/releases
 
