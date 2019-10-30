@@ -26,9 +26,12 @@ Installation
 
 **Via the AUR**:
 
-Install the ``sublime-music`` package. Example using ``yay``::
+Install the |AUR Package|_. Example using ``yay``::
 
     yay -S sublime-music
+
+.. |AUR Package| replace:: ``sublime-music`` package
+.. _AUR Package: https://aur.archlinux.org/packages/sublime-music/
 
 **Via Flatpak**:
 
