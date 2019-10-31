@@ -163,10 +163,12 @@ class SublimeMusicApp(Gtk.Application):
         # Configure the players
         self.last_play_queue_update = 0
         self.loading_state = False
+        self.should_scrobble_song = False
 
         def time_observer(value):
             if self.loading_state:
                 return
+
             self.state.song_progress = value
             GLib.idle_add(
                 self.window.player_controls.update_scrubber,
@@ -177,6 +179,10 @@ class SublimeMusicApp(Gtk.Application):
                 self.last_play_queue_update = 0
             elif self.last_play_queue_update + 15 <= value:
                 self.save_play_queue()
+
+            if value and value > 5 and self.should_scrobble_song:
+                CacheManager.scrobble(self.state.current_song.id)
+                self.should_scrobble_song = False
 
         def on_track_end():
             current_idx = self.state.play_queue.index(
@@ -462,7 +468,6 @@ class SublimeMusicApp(Gtk.Application):
         self.play_song(self.state.play_queue[current_idx + 1], reset=True)
 
     def on_prev_track(self, *args):
-        # TODO there is a bug where you can't go back multiple songs fast
         current_idx = self.state.play_queue.index(self.state.current_song.id)
         # Go back to the beginning of the song if we are past 5 seconds.
         # Otherwise, go to the previous song.
@@ -807,6 +812,7 @@ class SublimeMusicApp(Gtk.Application):
             if reset:
                 self.player.reset()
                 self.state.song_progress = 0
+                self.should_scrobble_song = True
 
             def on_song_download_complete(song_id):
                 if self.state.current_song != song.id:
@@ -857,9 +863,6 @@ class SublimeMusicApp(Gtk.Application):
                     on_song_download_complete=lambda _: GLib.idle_add(
                         self.update_window),
                 )
-
-            if self.state.config.server.sync_enabled:
-                CacheManager.scrobble(song.id)
 
         song_details_future = CacheManager.get_song_details(song_id)
         song_details_future.add_done_callback(
