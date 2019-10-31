@@ -1,4 +1,5 @@
 import math
+from datetime import datetime
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -56,6 +57,8 @@ class PlayerControls(Gtk.ActionBar):
         song_display = self.create_song_display()
         playback_controls = self.create_playback_controls()
         play_queue_volume = self.create_play_queue_volume()
+
+        self.last_device_list_update = None
 
         self.pack_start(song_display)
         self.set_center_widget(playback_controls)
@@ -191,6 +194,11 @@ class PlayerControls(Gtk.ActionBar):
         self.play_queue_popover.show_all()
 
     def update_device_list(self, clear=False):
+        if not clear and self.last_device_list_update:
+            if (datetime.now() - self.last_device_list_update).seconds < 60:
+                self.device_list_loading.hide()
+                return
+
         self.device_list_loading.show()
 
         def clear_list():
@@ -213,6 +221,7 @@ class PlayerControls(Gtk.ActionBar):
                 self.chromecast_device_list.show_all()
 
             self.device_list_loading.hide()
+            self.last_device_list_update = datetime.now()
 
         if clear:
             clear_list()
@@ -222,10 +231,10 @@ class PlayerControls(Gtk.ActionBar):
             lambda f: GLib.idle_add(chromecast_callback, f))
 
     def on_device_click(self, button):
-        self.update_device_list()
         self.device_popover.set_relative_to(button)
         self.device_popover.popup()
         self.device_popover.show_all()
+        self.update_device_list()
 
     def on_device_refresh_click(self, button):
         self.update_device_list(clear=True)
@@ -342,7 +351,10 @@ class PlayerControls(Gtk.ActionBar):
 
         self.device_popover = Gtk.PopoverMenu(name='device-popover')
 
-        device_popover_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        device_popover_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            name='device-popover-box',
+        )
         device_popover_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         self.popover_label = Gtk.Label(
