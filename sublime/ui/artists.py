@@ -1,4 +1,5 @@
 from typing import List, Union
+from random import randint
 
 import gi
 
@@ -229,6 +230,28 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_stats = self.make_label(name='artist-stats')
         artist_details_box.add(self.artist_stats)
 
+        self.play_shuffle_buttons = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            name='playlist-play-shuffle-buttons',
+        )
+
+        play_button = IconButton(
+            'media-playback-start-symbolic',
+            label='Play All',
+            relief=True,
+        )
+        play_button.connect('clicked', self.on_play_all_clicked)
+        self.play_shuffle_buttons.pack_start(play_button, False, False, 0)
+
+        shuffle_button = IconButton(
+            'media-playlist-shuffle-symbolic',
+            label='Shuffle All',
+            relief=True,
+        )
+        shuffle_button.connect('clicked', self.on_shuffle_all_button)
+        self.play_shuffle_buttons.pack_start(shuffle_button, False, False, 5)
+        artist_details_box.add(self.play_shuffle_buttons)
+
         self.big_info_panel.pack_start(artist_details_box, True, True, 10)
 
         artist_info_box.pack_start(self.big_info_panel, False, True, 0)
@@ -258,6 +281,7 @@ class ArtistDetailPanel(Gtk.Box):
 
             self.artist_bio.set_markup('')
             self.similar_artists_box.hide()
+            self.play_shuffle_buttons.hide()
 
             self.artist_artwork.set_from_file(None)
 
@@ -299,6 +323,7 @@ class ArtistDetailPanel(Gtk.Box):
             state: ApplicationState,
     ):
         self.artist_bio.set_markup(util.esc(''.join(artist_info.biography)))
+        self.play_shuffle_buttons.show_all()
 
         if len(artist_info.similarArtist or []) > 0:
             self.similar_artists_label.set_markup('<b>Similar Artists:</b> ')
@@ -336,19 +361,30 @@ class ArtistDetailPanel(Gtk.Box):
         self.update_artist_view(self.artist_id, force=True)
 
     def on_download_all_click(self, btn):
-        songs_for_download = []
-        artist = CacheManager.get_artist(self.artist_id).result()
-        for album in (artist.get('album', artist.get('child', []))):
-            album_songs = CacheManager.get_album(album.id).result()
-            album_songs = album_songs.get('child', album_songs.get('song', []))
-            for song in album_songs:
-                songs_for_download.append(song.id)
-
         CacheManager.batch_download_songs(
-            songs_for_download,
+            self.get_artist_songs(),
             before_download=lambda: self.update_artist_view(self.artist_id),
             on_song_download_complete=lambda i: self.update_artist_view(
                 self.artist_id),
+        )
+
+    def on_play_all_clicked(self, btn):
+        songs = self.get_artist_songs()
+        self.emit(
+            'song-clicked',
+            songs[0],
+            songs,
+            {'force_shuffle_state': False},
+        )
+
+    def on_shuffle_all_button(self, btn):
+        songs = self.get_artist_songs()
+        rand_idx = randint(0, len(songs) - 1)
+        self.emit(
+            'song-clicked',
+            songs[rand_idx],
+            songs,
+            {'force_shuffle_state': True},
         )
 
     # Helper Methods
@@ -382,6 +418,17 @@ class ArtistDetailPanel(Gtk.Box):
             ]
 
         return util.dot_join(*components)
+
+    def get_artist_songs(self):
+        songs = []
+        artist = CacheManager.get_artist(self.artist_id).result()
+        for album in artist.get('album', artist.get('child', [])):
+            album_songs = CacheManager.get_album(album.id).result()
+            album_songs = album_songs.get('child', album_songs.get('song', []))
+            for song in album_songs:
+                songs.append(song.id)
+
+        return songs
 
 
 class AlbumsListWithSongs(Gtk.Overlay):
