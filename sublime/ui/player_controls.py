@@ -40,6 +40,8 @@ class PlayerControls(Gtk.ActionBar):
     }
     editing: bool = False
     current_song = None
+    current_device = None
+    chromecasts = []
 
     class PlayQueueSong(GObject.GObject):
         song_id = GObject.Property(type=str)
@@ -65,6 +67,8 @@ class PlayerControls(Gtk.ActionBar):
         self.pack_end(play_queue_volume)
 
     def update(self, state: ApplicationState):
+        self.current_device = state.current_device
+
         self.update_scrubber(
             getattr(state, 'song_progress', None),
             getattr(state.current_song, 'duration', None),
@@ -135,6 +139,8 @@ class PlayerControls(Gtk.ActionBar):
             self.artist_name.set_text('')
             self.album_art.set_loading(False)
 
+        self.update_device_list()
+
         # Set the Play Queue button popup.
         if hasattr(state, 'play_queue'):
             play_queue_len = len(state.play_queue)
@@ -193,24 +199,25 @@ class PlayerControls(Gtk.ActionBar):
         self.play_queue_popover.popup()
         self.play_queue_popover.show_all()
 
-    def update_device_list(self, clear=False):
-        if not clear and self.last_device_list_update:
-            if (datetime.now() - self.last_device_list_update).seconds < 60:
-                self.device_list_loading.hide()
-                return
-
+    def update_device_list(self, force=False):
         self.device_list_loading.show()
 
-        def clear_list():
+        def chromecast_callback(chromecasts):
+            self.chromecasts = chromecasts
             for c in self.chromecast_device_list.get_children():
                 self.chromecast_device_list.remove(c)
 
-        def chromecast_callback(f):
-            clear_list()
-            chromecasts = f.result()
+            if self.current_device == 'this device':
+                self.this_device.set_icon('audio-volume-high-symbolic')
+            else:
+                self.this_device.set_icon(None)
+
             chromecasts.sort(key=lambda c: c.device.friendly_name)
             for cc in chromecasts:
-                btn = Gtk.ModelButton(text=cc.device.friendly_name)
+                icon = (
+                    'audio-volume-high-symbolic'
+                    if str(cc.device.uuid) == self.current_device else None)
+                btn = IconButton(icon, label=cc.device.friendly_name)
                 btn.get_style_context().add_class('menu-button')
                 btn.connect(
                     'clicked',
@@ -223,12 +230,14 @@ class PlayerControls(Gtk.ActionBar):
             self.device_list_loading.hide()
             self.last_device_list_update = datetime.now()
 
-        if clear:
-            clear_list()
-
-        future = ChromecastPlayer.get_chromecasts()
-        future.add_done_callback(
-            lambda f: GLib.idle_add(chromecast_callback, f))
+        if (force or len(self.chromecasts) == 0 or
+            (self.last_device_list_update and
+             (datetime.now() - self.last_device_list_update).seconds > 60)):
+            future = ChromecastPlayer.get_chromecasts()
+            future.add_done_callback(
+                lambda f: GLib.idle_add(chromecast_callback, f.result()))
+        else:
+            chromecast_callback(self.chromecasts)
 
     def on_device_click(self, button):
         self.device_popover.set_relative_to(button)
@@ -237,7 +246,7 @@ class PlayerControls(Gtk.ActionBar):
         self.update_device_list()
 
     def on_device_refresh_click(self, button):
-        self.update_device_list(clear=True)
+        self.update_device_list(force=True)
 
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -343,7 +352,6 @@ class PlayerControls(Gtk.ActionBar):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         # Device button (for chromecast)
-        # TODO need icon
         device_button = IconButton(
             'video-display-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         device_button.connect('clicked', self.on_device_click)
@@ -373,11 +381,14 @@ class PlayerControls(Gtk.ActionBar):
 
         device_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-        this_device = Gtk.ModelButton(text='This Device')
-        this_device.get_style_context().add_class('menu-button')
-        this_device.connect(
+        self.this_device = IconButton(
+            'audio-volume-high-symbolic',
+            label='This Device',
+        )
+        self.this_device.get_style_context().add_class('menu-button')
+        self.this_device.connect(
             'clicked', lambda *a: self.emit('device-update', 'this device'))
-        device_list.add(this_device)
+        device_list.add(self.this_device)
 
         device_list.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
 

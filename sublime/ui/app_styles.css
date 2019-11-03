@@ -6,6 +6,7 @@
 
 #icon-button-box image {
   margin: 5px 2px;
+  min-width: 15px;
 }
 
 #icon-button-box label {
