@@ -88,7 +88,7 @@ class ConfigureServersDialog(Gtk.Dialog):
     def __init__(self, parent, config):
         Gtk.Dialog.__init__(
             self,
-            title='Conigure Servers',
+            title='Configure Servers',
             transient_for=parent,
             flags=0,
             add_buttons=(),
