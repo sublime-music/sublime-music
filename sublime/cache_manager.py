@@ -78,7 +78,6 @@ class CacheManager(metaclass=Singleton):
 
     @staticmethod
     def shutdown():
-        # TODO fix this shutdown
         CacheManager.should_exit = True
         print('Shutdown start')
         CacheManager.executor.shutdown()
@@ -105,9 +104,6 @@ class CacheManager(metaclass=Singleton):
             return json.JSONEncoder.default(self, obj)
 
     class __CacheManagerInternal:
-        # TODO don't blow all of this away when the new cache manager is
-        # created on reset.
-
         # Thread lock for preventing threads from overriding the state while
         # it's being saved.
         cache_lock = threading.Lock()

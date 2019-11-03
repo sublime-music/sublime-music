@@ -1,8 +1,7 @@
 import math
 from urllib.parse import urlencode
-from time import sleep
 from deprecated import deprecated
-from typing import Any, Optional, Dict, List, Union, Iterator, cast
+from typing import Optional, Dict, List, Union, cast
 from datetime import datetime
 
 import requests

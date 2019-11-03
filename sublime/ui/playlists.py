@@ -255,7 +255,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
         playlist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Playlist info panel
-        # TODO shrink when playlist is is scrolled down.
         self.big_info_panel = Gtk.Box(
             name='playlist-info-panel',
             orientation=Gtk.Orientation.HORIZONTAL,
@@ -389,9 +388,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_songs.set_search_equal_func(playlist_song_list_search_fn)
         self.playlist_songs.get_selection().set_mode(
             Gtk.SelectionMode.MULTIPLE)
-
-        # TODO: add playing/menu column which shows whether a song is playing,
-        # and when hovered shows a 3-dot menu (the same as right click menu).
 
         # Song status column.
         renderer = Gtk.CellRendererPixbuf()

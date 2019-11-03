@@ -69,13 +69,13 @@ class AlbumsPanel(Gtk.Box):
 
         self.from_year_label = Gtk.Label(label='from')
         actionbar.pack_start(self.from_year_label)
-        self.from_year_entry = Gtk.Entry()
+        self.from_year_entry = Gtk.Entry(input_purpose=Gtk.InputPurpose.DIGITS)
         self.from_year_entry.connect('changed', self.on_year_changed)
         actionbar.pack_start(self.from_year_entry)
 
         self.to_year_label = Gtk.Label(label='to')
         actionbar.pack_start(self.to_year_label)
-        self.to_year_entry = Gtk.Entry()
+        self.to_year_entry = Gtk.Entry(input_purpose=Gtk.InputPurpose.DIGITS)
         self.to_year_entry.connect('changed', self.on_year_changed)
         actionbar.pack_start(self.to_year_entry)
 
@@ -439,8 +439,7 @@ class AlbumsGrid(Gtk.Overlay):
                 )
                 self.error_dialog.format_secondary_markup(
                     f'Getting albums by {type_} failed due to the following'
-                    f' error\n\n{e}'
-                )
+                    f' error\n\n{e}')
                 self.error_dialog.run()
                 self.error_dialog.destroy()
                 self.error_dialog = None
