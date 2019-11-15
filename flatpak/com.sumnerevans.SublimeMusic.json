@@ -1,9 +1,16 @@
 {
     "app-id": "com.sumnerevans.SublimeMusic",
     "runtime": "org.gnome.Platform",
-    "runtime-version": "3.32",
+    "runtime-version": "3.34",
     "sdk": "org.gnome.Sdk",
     "command": "sublime-music",
+    "add-extentions": {
+      "org.freedesktop.Platform.ffmpeg-full": {
+        "directory": "lib/ffmpeg",
+        "version": "19.08",
+        "add-ld-path": "."
+      }
+    },
     "finish-args": [
             "--share=ipc",
             "--socket=fallback-x11",
@@ -35,15 +42,15 @@
                     "cleanup": [ "/include", "/lib/pkgconfig", "/share/man" ],
                     "buildsystem": "simple",
                     "build-commands": [
-                      "python3 waf configure --prefix=/app --enable-libmpv-shared --disable-cplayer --disable-build-date --disable-oss-audio --disable-alsa --enable-tv",
+                      "python3 waf configure --prefix=/app --enable-libmpv-shared --disable-cplayer --disable-build-date --disable-oss-audio --disable-alsa",
                       "python3 waf build",
                       "python3 waf install"
                     ],
                     "sources": [
                       {
                         "type": "archive",
-                        "url": "https://github.com/mpv-player/mpv/archive/v0.29.1.tar.gz",
-                        "sha256": "f9f9d461d1990f9728660b4ccb0e8cb5dce29ccaa6af567bec481b79291ca623"
+                        "url": "https://github.com/mpv-player/mpv/archive/v0.30.0.tar.gz",
+                        "sha256": "33a1bcb7e74ff17f070e754c15c52228cf44f2cefbfd8f34886ae81df214ca35"
                       },
                       {
                         "type": "file",
@@ -53,7 +60,6 @@
                       }
                     ],
                     "modules": [
-                      "shared-modules/udev/udev-175.json",
                       {
                         "name": "luajit",
                         "no-autogen": true,
@@ -71,51 +77,6 @@
                         ]
                       },
                       {
-                        "name": "libv4l2",
-                        "cleanup": [ "/sbin", "/bin", "/include", "/lib/*.la", "/lib/*/*.la", "/lib*/*/*/*.la", "/lib/pkgconfig", "/share/man" ],
-                        "config-opts": [ "--disable-static", "--disable-bpf" ],
-                        "sources": [{
-                          "type": "archive",
-                          "url": "https://linuxtv.org/downloads/v4l-utils/v4l-utils-1.16.2.tar.bz2",
-                          "sha256": "6c3208c9a1c73455d30bae83096d161e57bec5008594f270a2a67df8c86d8e47"
-                        }]
-                      },
-                      {
-                        "name": "ffmpeg",
-                        "cleanup": [ "/include", "/lib/pkgconfig", "/share/ffmpeg/examples" ],
-                        "config-opts": [
-                          "--enable-shared",
-                          "--disable-static",
-                          "--enable-gnutls",
-                          "--disable-doc",
-                          "--disable-programs",
-                          "--disable-encoders",
-                          "--disable-muxers",
-                          "--enable-encoder=png",
-                          "--enable-libv4l2",
-                          "--enable-libdav1d"
-                        ],
-                        "sources": [{
-                          "type": "archive",
-                          "url": "https://ffmpeg.org/releases/ffmpeg-4.2.tar.xz",
-                          "sha256": "023f10831a97ad93d798f53a3640e55cd564abfeba807ecbe8524dac4fedecd5"
-                        }],
-                        "modules": [{
-                          "name": "libdav1d",
-                          "buildsystem": "meson",
-                          "config-opts": ["-Denable_tools=false"],
-                          "cleanup": [
-                            "/include",
-                            "/lib/pkgconfig"
-                          ],
-                          "sources": [{
-                            "type": "archive",
-                            "url": "https://code.videolan.org/videolan/dav1d/-/archive/0.4.0/dav1d-0.4.0.tar.gz",
-                            "sha256": "f3a825bce590778b4959807470cd853bbcbd0d3c10d98958a3a1eea09ce64544"
-                          }]
-                        }]
-                      },
-                      {
                         "name": "libass",
                         "cleanup": [ "/include", "/lib/*.la", "/lib/pkgconfig" ],
                         "config-opts": [ "--disable-static" ],
@@ -123,15 +84,6 @@
                           "type": "archive",
                           "url": "https://github.com/libass/libass/releases/download/0.14.0/libass-0.14.0.tar.xz",
                           "sha256": "881f2382af48aead75b7a0e02e65d88c5ebd369fe46bc77d9270a94aa8fd38a2"
-                        }],
-                        "modules": [{
-                          "name": "fribidi",
-                          "cleanup": [ "/bin", "/include", "/lib/pkgconfig", "/lib/*.la", "/share/man" ],
-                          "sources": [{
-                            "type": "archive",
-                            "url": "https://github.com/fribidi/fribidi/releases/download/v1.0.5/fribidi-1.0.5.tar.bz2",
-                            "sha256": "6a64f2a687f5c4f203a46fa659f43dd43d1f8b845df8d723107e8a7e6158e4ce"
-                          }]
                         }]
                       },
                       {
