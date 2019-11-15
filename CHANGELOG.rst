@@ -1,3 +1,16 @@
+v0.8.8
+======
+
+* Removed the ``gobject`` dependency from ``setup.py`` which hopefully fixes the
+  issue with AUR installs.
+* Don't scrobble songs until 5 seconds into the song.
+* Added "Play All" and "Shuffle All" to the Artists view.
+* Don't load the device list every single time the Devices button is pressed.
+* Indicator for the currently active device in the Devices list.
+* **Bug Fixes:**
+
+  * Fixed a few of the icons.
+
 v0.8.7
 ======
 
