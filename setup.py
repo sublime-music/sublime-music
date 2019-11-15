@@ -57,7 +57,6 @@ setup(
         'deepdiff',
         'Deprecated',
         'fuzzywuzzy',
-        'gobject',
         'pychromecast',
         'PyGObject',
         'python-dateutil',
