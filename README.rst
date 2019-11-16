@@ -74,10 +74,8 @@ Building the flatpak
 ^^^^^^^^^^^^^^^^^^^^
 
 - A flatpak-builder environment must be setup on the build machine to do a
-  flatpak build. This includes ``org.gnome.SDK//3.32`` and
-  ``org.gnome.Platform//3.32``.
+  flatpak build. This includes ``org.gnome.SDK//3.34`` and
+  ``org.gnome.Platform//3.34``.
 - The ``flatpak`` folder contains the required files to build a flatpak package.
-- The repository must be cloned to include submodules as they are used to manage
-  some flatpak dependencies.
 - The script ``flatpak_build.sh`` will run the required commands to grab the
   remaining dependencies and build the flatpak.
