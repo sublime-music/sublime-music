@@ -8,7 +8,7 @@ from deepdiff import DeepDiff
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib, Gdk, GObject
+from gi.repository import Gtk, GLib, Gdk
 
 from sublime.cache_manager import CacheManager, SongCacheStatus
 

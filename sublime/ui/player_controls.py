@@ -230,9 +230,11 @@ class PlayerControls(Gtk.ActionBar):
             self.device_list_loading.hide()
             self.last_device_list_update = datetime.now()
 
-        if (force or len(self.chromecasts) == 0 or
-            (self.last_device_list_update and
-             (datetime.now() - self.last_device_list_update).seconds > 60)):
+        update_diff = (
+            None if not self.last_device_list_update else
+            (datetime.now() - self.last_device_list_update).seconds)
+        if (force or len(self.chromecasts) == 0
+                or (self.last_device_list_update and update_diff > 60)):
             future = ChromecastPlayer.get_chromecasts()
             future.add_done_callback(
                 lambda f: GLib.idle_add(chromecast_callback, f.result()))

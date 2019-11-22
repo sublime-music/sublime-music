@@ -705,11 +705,12 @@ class SublimeMusicApp(Gtk.Application):
 
             if prompt_confirm:
                 # If there's not a significant enough difference, don't prompt.
+                progress_diff = abs(
+                    self.state.song_progress - new_song_progress)
                 if (self.state.play_queue == new_play_queue
                         and self.state.current_song
                         and self.state.current_song.id == new_current_song_id
-                        and abs(self.state.song_progress - new_song_progress) <
-                        15):
+                        and progress_diff < 15):
                     return
 
                 dialog = Gtk.MessageDialog(
@@ -801,7 +802,7 @@ class SublimeMusicApp(Gtk.Application):
                         song.coverArt, size=70)
                     cover_art_future.add_done_callback(
                         lambda f: on_cover_art_download_complete(f.result()))
-                except:
+                except Exception:
                     print(
                         'Unable to display notification.',
                         'Is a notification daemon running?',
@@ -854,8 +855,8 @@ class SublimeMusicApp(Gtk.Application):
                 for i in range(self.state.config.prefetch_amount):
                     prefetch_idx = song_idx + 1 + i
                     play_queue_len = len(self.state.play_queue)
-                    if (prefetch_idx < play_queue_len or
-                            self.state.repeat_type == RepeatType.REPEAT_QUEUE):
+                    if (self.state.repeat_type == RepeatType.REPEAT_QUEUE
+                            or prefetch_idx < play_queue_len):
                         prefetch_idxs.append(prefetch_idx % play_queue_len)
                 CacheManager.batch_download_songs(
                     [self.state.play_queue[i] for i in prefetch_idxs],

@@ -339,10 +339,14 @@ class ChromecastPlayer(Player):
 
     def wait_for_playing(self, callback, url=None):
         def do_wait_for_playing():
-            while (not self.playing
-                   or (url is not None and url !=
-                       self.chromecast.media_controller.status.content_id)):
+            while True:
                 sleep(0.1)
+                if self.playing:
+                    break
+                if url is not None:
+                    if (url == self.chromecast.media_controller.status
+                            .content_id):
+                        break
 
             callback()
 

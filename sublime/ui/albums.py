@@ -214,7 +214,7 @@ class AlbumsPanel(Gtk.Box):
     def on_year_changed(self, entry):
         try:
             year = int(entry.get_text())
-        except:
+        except Exception:
             # TODO prevent input of non-numerals
             print('failed, should do something to prevent non-numeric input')
             return
