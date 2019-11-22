@@ -1,5 +1,5 @@
 import gi
-from typing import Optional, Union
+from typing import Union
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GObject, GLib, Gio, Pango
@@ -161,7 +161,7 @@ class AlbumsPanel(Gtk.Box):
         show_if('byYear', self.to_year_label, self.to_year_entry)
 
         self.grid.update(
-            state=state,
+            state,
             force=force,
             selected_id=state.selected_album_id,
         )
@@ -380,7 +380,7 @@ class AlbumsGrid(Gtk.Overlay):
 
     def update(
             self,
-            state: ApplicationState = None,
+            state: ApplicationState,
             force: bool = False,
             selected_id: str = None,
     ):

@@ -4,6 +4,8 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
+NumericFieldDescription = Tuple[str, str, Tuple[int, int, int], int]
+
 
 class EditFormDialog(Gtk.Dialog):
     entity_name: str
@@ -11,7 +13,7 @@ class EditFormDialog(Gtk.Dialog):
     initial_size: Tuple[int, int]
     text_fields: List[Tuple[str, str, bool]] = []
     boolean_fields: List[Tuple[str, str]] = []
-    numeric_fields: List[Tuple[str, str]] = []
+    numeric_fields: List[NumericFieldDescription] = []
     extra_buttons: List[Gtk.Button] = []
 
     def get_object_name(self, obj):

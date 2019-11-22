@@ -1,6 +1,6 @@
 import os
 
-from typing import List
+from typing import List, Optional
 
 
 class ServerConfiguration:
@@ -79,7 +79,7 @@ class AppConfiguration:
             return os.path.join(default_cache_location, 'sublime-music')
 
     @property
-    def server(self) -> ServerConfiguration:
+    def server(self) -> Optional[ServerConfiguration]:
         return (
             None if self.current_server < 0 or len(self.servers) < 1 else
             self.servers[self.current_server])

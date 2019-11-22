@@ -19,7 +19,8 @@ lint:
     - pip3 install -e .
   script:
     - python3 setup.py check -mrs
-    - pycodestyle
+    - flake8
+    - mypy sublime
 
 test:
   stage: test
