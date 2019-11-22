@@ -1,6 +1,0 @@
-pytest
-pytest-cov
-docutils
-flake8
-mypy
-lxml
