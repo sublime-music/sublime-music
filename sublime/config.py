@@ -1,4 +1,5 @@
 import os
+import keyring
 
 from typing import List, Optional
 
@@ -9,7 +10,6 @@ class ServerConfiguration:
     local_network_address: str
     local_network_ssid: str
     username: str
-    password: str
     browse_by_tags: bool
     sync_enabled: bool
     disable_cert_verify: bool
@@ -31,10 +31,21 @@ class ServerConfiguration:
         self.local_network_address = local_network_address
         self.local_network_ssid = local_network_ssid
         self.username = username
-        self.password = password
+        keyring.set_password(
+            'com.sumnerevans.SublimeMusic',
+            f'{self.username}@{self.server_address}',
+            password,
+        )
         self.browse_by_tags = browse_by_tags
         self.sync_enabled = sync_enabled
         self.disable_cert_verify = disable_cert_verify
+
+    @property
+    def password(self):
+        return keyring.get_password(
+            'com.sumnerevans.SublimeMusic',
+            f'{self.username}@{self.server_address}',
+        )
 
 
 class AppConfiguration:
