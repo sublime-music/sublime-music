@@ -11,6 +11,8 @@ pytest = "*"
 pytest-cov = "*"
 docutils = "*"
 lxml = "*"
+jedi = "*"
+rope = "*"
 
 [packages]
 sublime-music = {editable = true,path = "."}
