@@ -8,6 +8,8 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
+  LC_ALL: "C.UTF-8"
+  LANG: "C.UTF-8"
 
 image: registry.gitlab.com/sumner/sublime-music/python-build:latest
 
@@ -15,20 +17,18 @@ lint:
   stage: test
   allow_failure: true
   before_script:
-    - pip3 install -r dev-requirements.txt
-    - pip3 install -e .
+    - ./cicd/install-project-deps.sh
   script:
-    - python3 setup.py check -mrs
-    - flake8
-    - mypy sublime
+    - pipenv run python setup.py check -mrs
+    - pipenv run flake8
+    - pipenv run mypy sublime
 
 test:
   stage: test
   before_script:
-    - pip3 install -r dev-requirements.txt
-    - pip3 install -e .
+    - ./cicd/install-project-deps.sh
   script:
-    - ./cicd/pytest.sh
+    - pipenv run ./cicd/pytest.sh
   artifacts:
     paths:
       - htmlcov
@@ -36,9 +36,9 @@ test:
 build:
   stage: build
   before_script:
-    - pip3 install -r dev-requirements.txt
+    - ./cicd/install-project-deps.sh
   script:
-    - python3 setup.py sdist
+    - pipenv run python setup.py sdist
   artifacts:
     paths:
       - dist/*
