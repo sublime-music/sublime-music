@@ -1,3 +1,15 @@
+v0.8.9
+======
+
+* Enabled storing passwords in the system keyring.
+* **Infrastructure**:
+
+  * Added a ``Pipfile`` and made the CI/CD build use it for testing.
+  * Upgraded the Flatpak dependencies on ``org.gnome.Platform`` and
+    ``org.gnome.Sdk`` to ``3.34`` which allows us to have much faster Flatpak
+    build times.
+  * Added ``mypy`` tests to the build process.
+
 v0.8.8
 ======
 
