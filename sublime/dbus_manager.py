@@ -196,7 +196,7 @@ class DBusManager:
         for song_id in state.play_queue:
             suffix = ''
             if (id_ := seen_counts.get(song_id)) is not None:
-                suffix = '-' + id_
+                suffix = '/' + str(id_)
 
             tracks.append(f'/song/{song_id}{suffix}')
             seen_counts[song_id] += 1

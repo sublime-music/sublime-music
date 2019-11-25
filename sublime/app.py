@@ -260,7 +260,7 @@ class SublimeMusicApp(Gtk.Application):
             invocation,
     ):
         second_microsecond_conversion = 1000000
-        track_id_re = re.compile(r'/song/(.*)(?:-(.*))')
+        track_id_re = re.compile(r'/song/(.*)(?:/(.*))')
         playlist_id_re = re.compile(r'/playlist/(.*)')
 
         def seek_fn(offset):
