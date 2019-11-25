@@ -29,6 +29,7 @@ fi
 
 description=$(echo "$description" | sed ':a;N;$!ba;s/\n/\\n/g')
 
+url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
 data="
 {
     \"name\": \"${CI_COMMIT_TAG}\",
@@ -45,6 +46,8 @@ data="
 }
 "
 
+echo "URL:"
+echo "$url"
 echo "DATA:"
 echo "$data"
 
@@ -53,4 +56,4 @@ curl \
     --header "PRIVATE-TOKEN: ${RELEASE_PUBLISH_TOKEN}" \
     --data "$data" \
     --request POST \
-    ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases
+    $url
