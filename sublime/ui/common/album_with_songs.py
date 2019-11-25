@@ -29,7 +29,7 @@ class AlbumWithSongs(Gtk.Box):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object, object),
+            (int, object, object),
         ),
     }
 
@@ -187,10 +187,12 @@ class AlbumWithSongs(Gtk.Box):
 
     def on_song_activated(self, treeview, idx, column):
         # The song ID is in the last column of the model.
-        song_id = self.album_song_store[idx][-1]
         self.emit(
-            'song-clicked', song_id, [m[-1] for m in self.album_song_store],
-            {})
+            'song-clicked',
+            idx.get_indices()[0],
+            [m[-1] for m in self.album_song_store],
+            {},
+        )
 
     def on_song_button_press(self, tree, event):
         if event.button == 3:  # Right click
@@ -241,17 +243,17 @@ class AlbumWithSongs(Gtk.Box):
         song_ids = [x[-1] for x in self.album_song_store]
         self.emit(
             'song-clicked',
-            song_ids[0],
+            0,
             song_ids,
             {'force_shuffle_state': False},
         )
 
     def shuffle_btn_clicked(self, btn):
-        rand_idx = randint(0, len(self.album_song_store) - 1)
         song_ids = [x[-1] for x in self.album_song_store]
         self.emit(
             'song-clicked',
-            song_ids[rand_idx],
+            randint(0,
+                    len(self.album_song_store) - 1),
             song_ids,
             {'force_shuffle_state': True},
         )

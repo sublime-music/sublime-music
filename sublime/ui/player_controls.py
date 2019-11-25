@@ -1,5 +1,7 @@
 import math
+
 from datetime import datetime
+from typing import List
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -35,20 +37,22 @@ class PlayerControls(Gtk.ActionBar):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object, object),
+            (int, object, object),
         ),
     }
     editing: bool = False
     current_song = None
     current_device = None
-    chromecasts = []
+    chromecasts: List[ChromecastPlayer] = []
 
     class PlayQueueSong(GObject.GObject):
+        song_index = GObject.Property(type=int)
         song_id = GObject.Property(type=str)
         playing = GObject.Property(type=str)
 
-        def __init__(self, song_id: str, playing: bool):
+        def __init__(self, song_index: int, song_id: str, playing: bool):
             GObject.GObject.__init__(self)
+            self.song_index = song_index
             self.song_id = song_id
             self.playing = str(playing)
 
@@ -77,15 +81,14 @@ class PlayerControls(Gtk.ActionBar):
         icon = 'pause' if state.playing else 'start'
         self.play_button.set_icon(f"media-playback-{icon}-symbolic")
 
-        has_current_song = (
-            hasattr(state, 'current_song') and state.current_song is not None)
+        has_current_song = state.current_song is not None
         has_next_song = False
         if state.repeat_type in (RepeatType.REPEAT_QUEUE,
                                  RepeatType.REPEAT_SONG):
             has_next_song = True
-        elif has_current_song and state.current_song.id in state.play_queue:
-            current = state.play_queue.index(state.current_song.id)
-            has_next_song = current < len(state.play_queue) - 1
+        elif has_current_song:
+            has_next_song = (
+                state.current_song_index < len(state.play_queue) - 1)
 
         # Repeat button state
         # TODO: it's not correct to use symboloc vs. not symbolic icons for
@@ -153,8 +156,8 @@ class PlayerControls(Gtk.ActionBar):
 
             new_model = [
                 PlayerControls.PlayQueueSong(
-                    s, has_current_song and s == state.current_song.id)
-                for s in state.play_queue
+                    i, s, has_current_song and i == state.current_song_index)
+                for i, s in enumerate(state.play_queue)
             ]
             util.diff_model_store(self.play_queue_store, new_model)
 
@@ -469,7 +472,7 @@ class PlayerControls(Gtk.ActionBar):
     def create_play_queue_row(self, model: PlayQueueSong):
         row = Gtk.ListBoxRow(
             action_name='app.play-queue-click',
-            action_target=GLib.Variant('s', model.song_id),
+            action_target=GLib.Variant('i', model.song_index),
         )
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, margin=3)
 

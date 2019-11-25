@@ -167,9 +167,9 @@ class DBusManager:
         if state.repeat_type in (RepeatType.REPEAT_QUEUE,
                                  RepeatType.REPEAT_SONG):
             has_next_song = True
-        elif has_current_song and state.current_song.id in state.play_queue:
-            current = state.play_queue.index(state.current_song.id)
-            has_next_song = current < len(state.play_queue) - 1
+        elif has_current_song:
+            has_next_song = (
+                state.current_song_index < len(state.play_queue) - 1)
 
         if state.active_playlist_id is None:
             active_playlist = (False, GLib.Variant('(oss)', ('/', '', '')))
@@ -190,6 +190,16 @@ class DBusManager:
                     ),
                 ),
             )
+
+        seen_counts = defaultdict(int)
+        tracks = []
+        for song_id in state.play_queue:
+            suffix = ''
+            if (id_ := seen_counts.get(song_id)) is not None:
+                suffix = '-' + id_
+
+            tracks.append(f'/song/{song_id}{suffix}')
+            seen_counts[song_id] += 1
 
         return {
             'org.mpris.MediaPlayer2': {
@@ -244,7 +254,7 @@ class DBusManager:
                 True,
             },
             'org.mpris.MediaPlayer2.TrackList': {
-                'Tracks': ['/song/' + i for i in state.play_queue],
+                'Tracks': tracks,
                 'CanEditTracks': False,
             },
             'org.mpris.MediaPlayer2.Playlists': {

@@ -26,7 +26,7 @@ class ArtistsPanel(Gtk.Paned):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object, object),
+            (int, object, object),
         ),
         'refresh-window': (
             GObject.SignalFlags.RUN_FIRST,
@@ -156,7 +156,7 @@ class ArtistDetailPanel(Gtk.Box):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object, object),
+            (int, object, object),
         ),
     }
 
@@ -372,17 +372,16 @@ class ArtistDetailPanel(Gtk.Box):
         songs = self.get_artist_songs()
         self.emit(
             'song-clicked',
-            songs[0],
+            0,
             songs,
             {'force_shuffle_state': False},
         )
 
     def on_shuffle_all_button(self, btn):
         songs = self.get_artist_songs()
-        rand_idx = randint(0, len(songs) - 1)
         self.emit(
             'song-clicked',
-            songs[rand_idx],
+            randint(0, len(songs) - 1),
             songs,
             {'force_shuffle_state': True},
         )
@@ -436,7 +435,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object, object),
+            (int, object, object),
         ),
     }
 

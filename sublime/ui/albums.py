@@ -19,7 +19,7 @@ class AlbumsPanel(Gtk.Box):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object, object),
+            (int, object, object),
         ),
         'refresh-window': (
             GObject.SignalFlags.RUN_FIRST,
@@ -272,7 +272,7 @@ class AlbumsGrid(Gtk.Overlay):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object, object),
+            (int, object, object),
         ),
         'cover-clicked': (
             GObject.SignalFlags.RUN_FIRST,
@@ -609,8 +609,7 @@ class AlbumsGrid(Gtk.Overlay):
             detail_element = AlbumWithSongs(model.album, cover_art_size=300)
             detail_element.connect(
                 'song-clicked',
-                lambda _, song, queue, metadata: self.emit(
-                    'song-clicked', song, queue, metadata),
+                lambda _, *args: self.emit('song-clicked', *args),
             )
             detail_element.connect('song-selected', lambda *a: None)
 

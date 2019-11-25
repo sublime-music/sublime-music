@@ -12,7 +12,7 @@ class MainWindow(Gtk.ApplicationWindow):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object, object),
+            (int, object, object),
         ),
         'refresh-window': (
             GObject.SignalFlags.RUN_FIRST,

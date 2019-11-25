@@ -1,7 +1,7 @@
 import os
 from enum import Enum
 import json
-from typing import List
+from typing import List, Optional
 
 from .from_json import from_json
 from .config import AppConfiguration
@@ -50,9 +50,9 @@ class ApplicationState:
     loads.
     """
     config: AppConfiguration = AppConfiguration()
-    current_song: Child = None
     config_file: str = None
     playing: bool = False
+    current_song_index: int = -1
     play_queue: List[str] = []
     old_play_queue: List[str] = []
     _volume: dict = {'this device': 100}
@@ -76,60 +76,21 @@ class ApplicationState:
     active_playlist_id: str = None
 
     def to_json(self):
-        current_song = (
-            self.current_song.id if
-            (hasattr(self, 'current_song')
-             and self.current_song is not None) else None)
-        # TODO this really sucks. We should fix this.
-        return {
-            'current_song':
-            current_song,
-            'play_queue':
-            getattr(self, 'play_queue', None),
-            'old_play_queue':
-            getattr(self, 'old_play_queue', None),
-            '_volume':
-            getattr(self, '_volume', {}),
-            'is_muted':
-            getattr(self, 'is_muted', None),
-            'repeat_type':
-            getattr(self, 'repeat_type', RepeatType.NO_REPEAT).value,
-            'shuffle_on':
-            getattr(self, 'shuffle_on', None),
-            'song_progress':
-            getattr(self, 'song_progress', None),
-            'current_device':
-            getattr(self, 'current_device', 'this device'),
-            'current_tab':
-            getattr(self, 'current_tab', 'albums'),
-            'selected_album_id':
-            getattr(self, 'selected_album_id', None),
-            'selected_artist_id':
-            getattr(self, 'selected_artist_id', None),
-            'selected_playlist_id':
-            getattr(self, 'selected_playlist_id', None),
-            'current_album_sort':
-            getattr(self, 'current_album_sort', None),
-            'current_album_genre':
-            getattr(self, 'current_album_genre', None),
-            'current_album_alphabetical_sort':
-            getattr(self, 'current_album_alphabetical_sort', None),
-            'current_album_from_year':
-            getattr(self, 'current_album_from_year', None),
-            'current_album_to_year':
-            getattr(self, 'current_album_to_year', None),
-            'active_playlist_id':
-            getattr(self, 'active_playlist_id', None),
+        exclude = ('config', 'repeat_type')
+        json_object = {
+            k: getattr(self, k)
+            for k in self.__annotations__.keys()
+            if k not in exclude
         }
+        json_object.update(
+            {
+                'repeat_type':
+                getattr(self, 'repeat_type', RepeatType.NO_REPEAT).value,
+            })
+        return json_object
 
     def load_from_json(self, json_object):
-        current_song_id = json_object.get('current_song') or None
-        if current_song_id and CacheManager.cache:
-            self.current_song = CacheManager.cache['song_details'].get(
-                current_song_id)
-        else:
-            self.current_song = None
-
+        self.current_song_index = json_object.get('current_song_index', -1)
         self.play_queue = json_object.get('play_queue', [])
         self.old_play_queue = json_object.get('old_play_queue', [])
         self._volume = json_object.get('_volume', {'this device': 100})
@@ -210,6 +171,15 @@ class ApplicationState:
             CacheManager.calculate_server_hash(self.config.server),
             'state.yaml',
         )
+
+    @property
+    def current_song(self) -> Optional[Child]:
+        if (not self.play_queue or self.current_song_index < 0
+                or not CacheManager.ready()):
+            return None
+
+        current_song_id = self.play_queue[self.current_song_index]
+        return CacheManager.get_song_details(current_song_id).result()
 
     @property
     def volume(self):

@@ -93,7 +93,7 @@ class SublimeMusicApp(Gtk.Application):
         add_action('repeat-press', self.on_repeat_press)
         add_action('shuffle-press', self.on_shuffle_press)
         add_action(
-            'play-queue-click', self.on_play_queue_click, parameter_type='s')
+            'play-queue-click', self.on_play_queue_click, parameter_type='i')
 
         # Navigation actions.
         add_action('play-next', self.on_play_next, parameter_type='as')
@@ -185,13 +185,10 @@ class SublimeMusicApp(Gtk.Application):
                 self.should_scrobble_song = False
 
         def on_track_end():
-            current_idx = self.state.play_queue.index(
-                self.state.current_song.id)
-
-            if (current_idx == len(self.state.play_queue) - 1
+            if (self.state.current_song_index == len(self.state.play_queue) - 1
                     and self.state.repeat_type == RepeatType.NO_REPEAT):
                 self.state.playing = False
-                self.state.current_song = None
+                self.state.current_song_index = -1
                 GLib.idle_add(self.update_window)
                 return
 
@@ -263,7 +260,7 @@ class SublimeMusicApp(Gtk.Application):
             invocation,
     ):
         second_microsecond_conversion = 1000000
-        track_id_re = re.compile(r'/song/(.*)')
+        track_id_re = re.compile(r'/song/(.*)(?:-(.*))')
         playlist_id_re = re.compile(r'/playlist/(.*)')
 
         def seek_fn(offset):
@@ -277,7 +274,16 @@ class SublimeMusicApp(Gtk.Application):
                 self.on_play_pause()
             pos_seconds = position / second_microsecond_conversion
             self.state.song_progress = pos_seconds
-            self.play_song(track_id_re.match(track_id).group(1))
+            track_id_match = track_id_re.match(track_id)
+
+            # Find the (N-1)th time that the track id shows up in the list. (N
+            # is the -*** suffix on the track id.)
+            song_index = [
+                i for i, x in enumerate(self.state.play_queue)
+                if x == track_id_match.group(1)
+            ][track_id_match.group(2) or 0]
+
+            self.play_song(song_index)
 
         def get_track_metadata(track_ids):
             metadatas = []
@@ -439,7 +445,7 @@ class SublimeMusicApp(Gtk.Application):
 
     @dbus_propagate()
     def on_play_pause(self, *args):
-        if self.state.current_song is None:
+        if self.state.current_song_index < 0:
             return
 
         if self.player.song_loaded:
@@ -447,42 +453,42 @@ class SublimeMusicApp(Gtk.Application):
             self.save_play_queue()
         else:
             # This is from a restart, start playing the file.
-            self.play_song(self.state.current_song.id)
+            self.play_song(self.state.current_song_index)
 
         self.state.playing = not self.state.playing
         self.update_window()
 
     def on_next_track(self, *args):
-        current_idx = self.state.play_queue.index(self.state.current_song.id)
-
         # Handle song repeating
         if self.state.repeat_type == RepeatType.REPEAT_SONG:
-            current_idx = current_idx - 1
+            song_index_to_play = self.state.current_song_index
         # Wrap around the play queue if at the end.
-        elif current_idx == len(self.state.play_queue) - 1:
+        elif self.state.current_song_index == len(self.state.play_queue) - 1:
             # This may happen due to D-Bus.
             if self.state.repeat_type == RepeatType.NO_REPEAT:
                 return
-            current_idx = -1
+            song_index_to_play = 0
+        else:
+            song_index_to_play = self.state.current_song_index + 1
 
-        self.play_song(self.state.play_queue[current_idx + 1], reset=True)
+        self.play_song(song_index_to_play, reset=True)
 
     def on_prev_track(self, *args):
-        current_idx = self.state.play_queue.index(self.state.current_song.id)
         # Go back to the beginning of the song if we are past 5 seconds.
         # Otherwise, go to the previous song.
         if self.state.repeat_type == RepeatType.REPEAT_SONG:
-            song_to_play = current_idx
+            song_index_to_play = self.state.current_song_index
         elif self.state.song_progress < 5:
-            if (current_idx == 0
+            if (self.state.current_song_index == 0
                     and self.state.repeat_type == RepeatType.NO_REPEAT):
-                song_to_play = 0
+                song_index_to_play = 0
             else:
-                song_to_play = current_idx - 1
+                song_index_to_play = (self.state.current_song_index - 1) % len(
+                    self.state.play_queue)
         else:
-            song_to_play = current_idx
+            song_index_to_play = self.state.current_song_index
 
-        self.play_song(self.state.play_queue[song_to_play], reset=True)
+        self.play_song(song_index_to_play, reset=True)
 
     @dbus_propagate()
     def on_repeat_press(self, action, params):
@@ -495,29 +501,31 @@ class SublimeMusicApp(Gtk.Application):
     def on_shuffle_press(self, action, params):
         if self.state.shuffle_on:
             # Revert to the old play queue.
-            self.state.play_queue = self.state.old_play_queue
+            self.state.current_song_index = self.state.old_play_queue.index(
+                self.state.current_song.id)
+            self.state.play_queue = self.state.old_play_queue.copy()
         else:
             self.state.old_play_queue = self.state.play_queue.copy()
 
             # Remove the current song, then shuffle and put the song back.
             song_id = self.state.current_song.id
-            self.state.play_queue.remove(song_id)
+            del self.state.play_queue[self.state.current_song_index]
             random.shuffle(self.state.play_queue)
             self.state.play_queue = [song_id] + self.state.play_queue
+            self.state.current_song_index = 0
 
         self.state.shuffle_on = not self.state.shuffle_on
         self.update_window()
 
-    def on_play_queue_click(self, action, song_id):
-        self.play_song(song_id.get_string(), reset=True)
+    def on_play_queue_click(self, action, song_index):
+        self.play_song(song_index.get_int32(), reset=True)
 
     @dbus_propagate()
     def on_play_next(self, action, song_ids):
         if self.state.current_song is None:
             insert_at = 0
         else:
-            insert_at = (
-                self.state.play_queue.index(self.state.current_song.id) + 1)
+            insert_at = self.state.current_song_index + 1
 
         self.state.play_queue = (
             self.state.play_queue[:insert_at] + list(song_ids)
@@ -572,7 +580,7 @@ class SublimeMusicApp(Gtk.Application):
         self.state.current_tab = stack.get_visible_child_name()
         self.update_window()
 
-    def on_song_clicked(self, win, song_id, song_queue, metadata):
+    def on_song_clicked(self, win, song_index, song_queue, metadata):
         # Reset the play queue so that we don't ever revert back to the
         # previous one.
         old_play_queue = song_queue.copy()
@@ -587,12 +595,15 @@ class SublimeMusicApp(Gtk.Application):
 
         # If shuffle is enabled, then shuffle the playlist.
         if self.state.shuffle_on:
-            song_queue.remove(song_id)
+            song_id = song_queue[song_index]
+
+            del song_queue[song_index]
             random.shuffle(song_queue)
             song_queue = [song_id] + song_queue
+            song_index = 0
 
         self.play_song(
-            song_id,
+            song_index,
             reset=True,
             old_play_queue=old_play_queue,
             play_queue=song_queue,
@@ -733,8 +744,8 @@ class SublimeMusicApp(Gtk.Application):
             self.state.play_queue = new_play_queue
             self.state.song_progress = play_queue.position / 1000
 
-            current_song_idx = self.state.play_queue.index(new_current_song_id)
-            self.state.current_song = play_queue.entry[current_song_idx]
+            self.state.current_song_index = self.state.play_queue.index(
+                new_current_song_id)
 
             self.player.reset()
             self.update_window()
@@ -748,7 +759,7 @@ class SublimeMusicApp(Gtk.Application):
 
     def play_song(
             self,
-            song_id: str,
+            song_index: int,
             reset=False,
             old_play_queue=None,
             play_queue=None,
@@ -761,10 +772,12 @@ class SublimeMusicApp(Gtk.Application):
                 song,
                 force_stream=self.state.config.always_stream,
             )
-
-            self.state.current_song = song
-            self.state.playing = True
-            self.update_window()
+            # Prevent it from doing the thing where it continually loads
+            # songs when it has to download.
+            if reset:
+                self.player.reset()
+                self.state.song_progress = 0
+                self.should_scrobble_song = True
 
             # Show a song play notification.
             if self.state.config.song_play_notification:
@@ -808,15 +821,8 @@ class SublimeMusicApp(Gtk.Application):
                         'Is a notification daemon running?',
                     )
 
-            # Prevent it from doing the thing where it continually loads
-            # songs when it has to download.
-            if reset:
-                self.player.reset()
-                self.state.song_progress = 0
-                self.should_scrobble_song = True
-
             def on_song_download_complete(song_id):
-                if self.state.current_song != song.id:
+                if self.state.current_song.id != song.id:
                     return
 
                 # Switch to the local media if the player can hotswap (MPV can,
@@ -840,13 +846,8 @@ class SublimeMusicApp(Gtk.Application):
                 )
 
             self.player.play_media(uri, self.state.song_progress, song)
-
-            if old_play_queue:
-                self.state.old_play_queue = old_play_queue
-
-            if play_queue:
-                self.state.play_queue = play_queue
-                self.save_play_queue()
+            self.state.playing = True
+            self.update_window()
 
             # Prefetch songs
             if self.state.repeat_type != RepeatType.REPEAT_SONG:
@@ -865,7 +866,19 @@ class SublimeMusicApp(Gtk.Application):
                         self.update_window),
                 )
 
-        song_details_future = CacheManager.get_song_details(song_id)
+        if old_play_queue:
+            self.state.old_play_queue = old_play_queue
+
+        if play_queue:
+            self.state.play_queue = play_queue
+
+        self.state.current_song_index = song_index
+
+        if play_queue:
+            self.save_play_queue()
+
+        song_details_future = CacheManager.get_song_details(
+            self.state.play_queue[self.state.current_song_index])
         song_details_future.add_done_callback(
             lambda f: GLib.idle_add(do_play_song, f.result()), )
 
