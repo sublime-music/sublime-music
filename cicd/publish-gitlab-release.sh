@@ -20,6 +20,7 @@ if [[ $(head -n 1 CHANGELOG.rst) == "${CI_COMMIT_TAG}" ]]; then
     # i is now the index of the line below the second header.
 
     description="**Release Notes:**
+
 $(head -n $(( $i - 2 )) CHANGELOG.rst | tail -n $(( $i - 5 )))"
 fi
 
@@ -27,7 +28,7 @@ if [[ "${description}" == "" ]]; then
     description="No description provided for this release."
 fi
 
-description=$(echo "$description" | sed ':a;N;$!ba;s/\n/\\n/g')
+description=$(echo "$description" | rst2html5 --no-indent --template "{body}" | sed -e 's/\"/\\\"/g')
 
 url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
 data="

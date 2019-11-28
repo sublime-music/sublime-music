@@ -2,8 +2,13 @@ v0.8.9
 ======
 
 * Passwords are now stored in the system keyring rather than in plain text.
+
+  **Note:** You will have to re-enter your password in the *Configure Servers*
+  dialog to make Sublime Music successfully connect to your server again.
+
 * The play queue now behaves properly when there are many instances of the same
   song in the play queue.
+
 * **Infrastructure**:
 
   * Added a ``Pipfile`` and made the CI/CD build use it for testing.
