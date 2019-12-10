@@ -218,8 +218,6 @@ class SublimeMusicApp(Gtk.Application):
         )
         self.player = self.mpv_player
 
-        self.player.volume = self.state.volume
-
         if self.state.current_device != 'this device':
             # TODO figure out how to activate the chromecast if possible
             # without blocking the main thread. Also, need to make it obvious
@@ -227,6 +225,9 @@ class SublimeMusicApp(Gtk.Application):
             pass
 
         self.state.current_device = 'this device'
+
+        # Need to do this after we set the current device.
+        self.player.volume = self.state.volume
 
         # Prompt to load the play queue from the server.
         # TODO should this be behind sync enabled?
@@ -260,7 +261,7 @@ class SublimeMusicApp(Gtk.Application):
             invocation,
     ):
         second_microsecond_conversion = 1000000
-        track_id_re = re.compile(r'/song/(.*)(?:/(.*))')
+        track_id_re = re.compile(r'/song/(.*)(?:/(.*))?')
         playlist_id_re = re.compile(r'/playlist/(.*)')
 
         def seek_fn(offset):
@@ -288,6 +289,7 @@ class SublimeMusicApp(Gtk.Application):
         def get_track_metadata(track_ids):
             metadatas = []
 
+            # TODO fix
             song_details_futures = [
                 CacheManager.get_song_details(track_id) for track_id in (
                     track_id_re.match(tid).group(1) for tid in track_ids)
