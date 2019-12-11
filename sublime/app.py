@@ -1,10 +1,8 @@
 import os
-import re
 import math
 import random
 
 from os import environ
-import concurrent.futures
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -261,8 +259,6 @@ class SublimeMusicApp(Gtk.Application):
             invocation,
     ):
         second_microsecond_conversion = 1000000
-        track_id_re = re.compile(r'/song/(.*)(?:/(.*))?')
-        playlist_id_re = re.compile(r'/playlist/(.*)')
 
         def seek_fn(offset):
             offset_seconds = offset / second_microsecond_conversion
@@ -275,37 +271,38 @@ class SublimeMusicApp(Gtk.Application):
                 self.on_play_pause()
             pos_seconds = position / second_microsecond_conversion
             self.state.song_progress = pos_seconds
-            track_id_match = track_id_re.match(track_id)
+            track_id, occurrence = track_id.split('/')[-2:]
 
             # Find the (N-1)th time that the track id shows up in the list. (N
             # is the -*** suffix on the track id.)
             song_index = [
-                i for i, x in enumerate(self.state.play_queue)
-                if x == track_id_match.group(1)
-            ][track_id_match.group(2) or 0]
+                i for i, x in enumerate(self.state.play_queue) if x == track_id
+            ][int(occurrence) or 0]
 
             self.play_song(song_index)
 
-        def get_track_metadata(track_ids):
-            metadatas = []
-
-            # TODO fix
-            song_details_futures = [
-                CacheManager.get_song_details(track_id) for track_id in (
-                    track_id_re.match(tid).group(1) for tid in track_ids)
+        def get_tracks_metadata(track_ids):
+            # Have to calculate all of the metadatas so that we can deal with
+            # repeat song IDs.
+            metadatas = [
+                self.dbus_manager.get_mpris_metadata(i, self.state.play_queue)
+                for i in range(len(self.state.play_queue))
             ]
-            for f in concurrent.futures.wait(song_details_futures).done:
-                metadata = self.dbus_manager.get_mpris_metadata(f.result())
-                metadatas.append(
-                    {
-                        k: DBusManager.to_variant(v)
-                        for k, v in metadata.items()
-                    })
+            metadatas = filter(
+                lambda m: m['mpris:trackid'] in track_ids, metadatas)
+            metadatas = sorted(
+                metadatas, key=lambda m: track_ids.index(m['mpris:trackid']))
 
-            return GLib.Variant('(aa{sv})', (metadatas, ))
+            metadatas = map(
+                lambda m: {k: DBusManager.to_variant(v)
+                           for k, v in m.items()},
+                metadatas,
+            )
+
+            return GLib.Variant('(aa{sv})', (list(metadatas), ))
 
         def activate_playlist(playlist_id):
-            playlist_id = playlist_id_re.match(playlist_id).group(1)
+            playlist_id = playlist_id.split('/')[-1]
             playlist = CacheManager.get_playlist(playlist_id).result()
 
             # Calculate the song id to play.
@@ -365,7 +362,7 @@ class SublimeMusicApp(Gtk.Application):
             },
             'org.mpris.MediaPlayer2.TrackList': {
                 'GoTo': set_pos_fn,
-                'GetTracksMetadata': get_track_metadata,
+                'GetTracksMetadata': get_tracks_metadata,
             },
             'org.mpris.MediaPlayer2.Playlists': {
                 'ActivatePlaylist': activate_playlist,

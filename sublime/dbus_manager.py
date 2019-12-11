@@ -261,7 +261,7 @@ class DBusManager:
         }
 
     def get_mpris_metadata(self, idx: int, play_queue):
-        song = CacheManager.get_song_details(play_queue[idx]).result
+        song = CacheManager.get_song_details(play_queue[idx]).result()
         trackid = self.get_dbus_playlist(play_queue)[idx]
         duration = (
             'x',
@@ -281,12 +281,8 @@ class DBusManager:
         seen_counts = defaultdict(int)
         tracks = []
         for song_id in play_queue:
-            suffix = ''
-            id_ = seen_counts.get(song_id)
-            if id_ is not None:
-                suffix = '/' + str(id_)
-
-            tracks.append(f'/song/{song_id}{suffix}')
+            id_ = seen_counts[song_id]
+            tracks.append(f'/song/{song_id}/{id_}')
             seen_counts[song_id] += 1
 
         return tracks

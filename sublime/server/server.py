@@ -143,7 +143,11 @@ class Server:
 
     def do_download(self, url, **params) -> bytes:
         print('download', url)
-        return self._get(url, **params).content
+        download = self._get(url, **params)
+        if 'json' in download.get('Content-Type'):
+            # TODO make better
+            raise Exception("Didn't expect JSON.")
+        return download.content
 
     def ping(self) -> Response:
         """
