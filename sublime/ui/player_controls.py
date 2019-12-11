@@ -253,6 +253,23 @@ class PlayerControls(Gtk.ActionBar):
     def on_device_refresh_click(self, button):
         self.update_device_list(force=True)
 
+    def on_play_queue_button_press(self, listbox, event):
+        if event.button == 3:  # Right click
+            rows = listbox.get_selected_rows()
+            allow_deselect = False
+
+            def on_download_state_change(song_id=None):
+                print('todo')
+                # GLib.idle_add(self.update_playlist_view, self.playlist_id)
+
+            ids = [
+                self.play_queue_store[row.get_index()].song_id for row in rows
+            ]
+
+            # If the click was on a selected row, don't deselect anything.
+            if not allow_deselect:
+                return True
+
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
@@ -442,6 +459,9 @@ class PlayerControls(Gtk.ActionBar):
 
         self.play_queue_store = Gio.ListStore()
         self.play_queue_list = Gtk.ListBox(activate_on_single_click=False)
+        self.play_queue_list.connect(
+            'button-press-event', self.on_play_queue_button_press)
+        self.play_queue_list.set_selection_mode(Gtk.SelectionMode.MULTIPLE)
         self.play_queue_list.bind_model(
             self.play_queue_store,
             self.create_play_queue_row,
