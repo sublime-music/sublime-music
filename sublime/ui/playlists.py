@@ -33,7 +33,7 @@ class PlaylistsPanel(Gtk.Paned):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object, object),
+            (int, object, object),
         ),
         'refresh-window': (
             GObject.SignalFlags.RUN_FIRST,
@@ -236,7 +236,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
-            (str, object, object),
+            (int, object, object),
         ),
         'refresh-window': (
             GObject.SignalFlags.RUN_FIRST,
@@ -566,10 +566,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
     def on_play_all_clicked(self, btn):
-        song_id = self.playlist_song_store[0][-1]
         self.emit(
             'song-clicked',
-            song_id,
+            0,
             [m[-1] for m in self.playlist_song_store],
             {
                 'force_shuffle_state': False,
@@ -578,10 +577,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
     def on_shuffle_all_button(self, btn):
-        rand_idx = randint(0, len(self.playlist_song_store) - 1)
         self.emit(
             'song-clicked',
-            self.playlist_song_store[rand_idx][-1],
+            randint(0, len(self.playlist_song_store) - 1),
             [m[-1] for m in self.playlist_song_store],
             {
                 'force_shuffle_state': True,
@@ -593,7 +591,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         # The song ID is in the last column of the model.
         self.emit(
             'song-clicked',
-            self.playlist_song_store[idx][-1],
+            idx.get_indices()[0],
             [m[-1] for m in self.playlist_song_store],
             {
                 'active_playlist_id': self.playlist_id,

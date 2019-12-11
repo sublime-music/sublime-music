@@ -87,6 +87,7 @@ class Server:
     def _subsonic_error_to_exception(self, error) -> Exception:
         return Exception(f'{error.code}: {error.message}')
 
+    # def _get(self, url, timeout=(3.05, 2), **params):
     def _get(self, url, **params):
         params = {**self._get_params(), **params}
         print(f'[START] get: {url}')
@@ -100,6 +101,7 @@ class Server:
             url,
             params=params,
             verify=not self.disable_cert_verify,
+            # timeout=timeout,
         )
         # TODO make better
         if result.status_code != 200:
@@ -128,9 +130,12 @@ class Server:
         if not subsonic_response:
             raise Exception('Fail!')
 
-        # Debug
-        # TODO: logging
-        # print(subsonic_response)
+        if subsonic_response['status'] == 'failed':
+            code, message = (
+                subsonic_response['error'].get('code'),
+                subsonic_response['error'].get('message'),
+            )
+            raise Exception(f'Subsonic API Error #{code}: {message}')
 
         response = Response.from_json(subsonic_response)
 
@@ -142,7 +147,11 @@ class Server:
 
     def do_download(self, url, **params) -> bytes:
         print('download', url)
-        return self._get(url, **params).content
+        download = self._get(url, **params)
+        if 'json' in download.headers.get('Content-Type'):
+            # TODO make better
+            raise Exception("Didn't expect JSON.")
+        return download.content
 
     def ping(self) -> Response:
         """

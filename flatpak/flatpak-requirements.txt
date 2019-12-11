@@ -1,7 +1,9 @@
 bottle==0.12.17
+cffi==1.13.2
 deepdiff==4.0.7
 Deprecated==1.2.6
 fuzzywuzzy==0.17.0
+keyring==19.2.0
 PyChromecast==3.2.3
 python-dateutil==2.8.0
 python-Levenshtein==0.12.0

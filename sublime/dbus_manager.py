@@ -167,9 +167,9 @@ class DBusManager:
         if state.repeat_type in (RepeatType.REPEAT_QUEUE,
                                  RepeatType.REPEAT_SONG):
             has_next_song = True
-        elif has_current_song and state.current_song.id in state.play_queue:
-            current = state.play_queue.index(state.current_song.id)
-            has_next_song = current < len(state.play_queue) - 1
+        elif has_current_song:
+            has_next_song = (
+                state.current_song_index < len(state.play_queue) - 1)
 
         if state.active_playlist_id is None:
             active_playlist = (False, GLib.Variant('(oss)', ('/', '', '')))
@@ -216,8 +216,10 @@ class DBusManager:
                 'Shuffle':
                 state.shuffle_on,
                 'Metadata':
-                self.get_mpris_metadata(state.current_song)
-                if state.current_song else {},
+                self.get_mpris_metadata(
+                    state.current_song_index,
+                    state.play_queue,
+                ) if state.current_song else {},
                 'Volume':
                 0.0 if state.is_muted else state.volume / 100,
                 'Position': (
@@ -244,7 +246,7 @@ class DBusManager:
                 True,
             },
             'org.mpris.MediaPlayer2.TrackList': {
-                'Tracks': ['/song/' + i for i in state.play_queue],
+                'Tracks': self.get_dbus_playlist(state.play_queue),
                 'CanEditTracks': False,
             },
             'org.mpris.MediaPlayer2.Playlists': {
@@ -258,13 +260,15 @@ class DBusManager:
             },
         }
 
-    def get_mpris_metadata(self, song: Child):
+    def get_mpris_metadata(self, idx: int, play_queue):
+        song = CacheManager.get_song_details(play_queue[idx]).result()
+        trackid = self.get_dbus_playlist(play_queue)[idx]
         duration = (
             'x',
             (song.duration or 0) * self.second_microsecond_conversion,
         )
         return {
-            'mpris:trackid': '/song/' + song.id,
+            'mpris:trackid': trackid,
             'mpris:length': duration,
             'mpris:artUrl': CacheManager.get_cover_art_url(song.id, 1000),
             'xesam:album': song.album or '',
@@ -272,6 +276,16 @@ class DBusManager:
             'xesam:artist': [song.artist or ''],
             'xesam:title': song.title,
         }
+
+    def get_dbus_playlist(self, play_queue):
+        seen_counts = defaultdict(int)
+        tracks = []
+        for song_id in play_queue:
+            id_ = seen_counts[song_id]
+            tracks.append(f'/song/{song_id}/{id_}')
+            seen_counts[song_id] += 1
+
+        return tracks
 
     diff_parse_re = re.compile(r"root\['(.*?)'\]\['(.*?)'\](?:\[.*\])?")
 

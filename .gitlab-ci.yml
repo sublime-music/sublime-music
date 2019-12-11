@@ -80,16 +80,15 @@ verify_deploy:
     - pip3 install sublime-music
 
 publish_release:
-  image: alpine
   stage: release
   only:
     variables:
       # Only verify the deploy if it's a version tag.
       - $CI_COMMIT_TAG =~ /^v.*/
   before_script:
-    - apk add bash curl
+    - ./cicd/install-project-deps.sh
   script:
-    - ./cicd/publish-gitlab-release.sh
+    - pipenv run ./cicd/publish-gitlab-release.sh
 
 # Scheduled Jobs
 # =============================================================================

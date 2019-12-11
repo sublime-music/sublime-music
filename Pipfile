@@ -13,6 +13,7 @@ docutils = "*"
 lxml = "*"
 jedi = "*"
 rope = "*"
+rst2html5 = "*"
 
 [packages]
 sublime-music = {editable = true,path = "."}
