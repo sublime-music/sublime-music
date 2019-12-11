@@ -130,9 +130,12 @@ class Server:
         if not subsonic_response:
             raise Exception('Fail!')
 
-        # Debug
-        # TODO: logging
-        # print(subsonic_response)
+        if subsonic_response['status'] == 'failed':
+            code, message = (
+                subsonic_response['error'].get('code'),
+                subsonic_response['error'].get('message'),
+            )
+            raise Exception(f'Subsonic API Error #{code}: {message}')
 
         response = Response.from_json(subsonic_response)
 
