@@ -306,14 +306,13 @@ class SublimeMusicApp(Gtk.Application):
             playlist = CacheManager.get_playlist(playlist_id).result()
 
             # Calculate the song id to play.
-            song_id = playlist.entry[0].id
+            song_idx = 0
             if self.state.shuffle_on:
-                rand_idx = random.randint(0, len(playlist.entry) - 1)
-                song_id = playlist.entry[rand_idx].id
+                song_idx = random.randint(0, len(playlist.entry) - 1)
 
             self.on_song_clicked(
                 None,
-                song_id,
+                song_idx,
                 [s.id for s in playlist.entry],
                 {'active_playlist_id': playlist_id},
             )
