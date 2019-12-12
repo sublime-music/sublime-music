@@ -132,6 +132,7 @@ class SublimeMusicApp(Gtk.Application):
             self.on_stack_change,
         )
         self.window.connect('song-clicked', self.on_song_clicked)
+        self.window.connect('songs-removed', self.on_songs_removed)
         self.window.connect('refresh-window', self.on_refresh_window)
         self.window.player_controls.connect('song-scrub', self.on_song_scrub)
         self.window.player_controls.connect(
@@ -606,6 +607,24 @@ class SublimeMusicApp(Gtk.Application):
             old_play_queue=old_play_queue,
             play_queue=song_queue,
         )
+
+    def on_songs_removed(self, win, song_indexes_to_remove):
+        self.state.play_queue = [
+            song_id for i, song_id in enumerate(self.state.play_queue)
+            if i not in song_indexes_to_remove
+        ]
+        before_current = [
+            i for i in song_indexes_to_remove
+            if i < self.state.current_song_index
+        ]
+
+        if self.state.current_song_index in song_indexes_to_remove:
+            self.state.current_song_index -= len(before_current)
+            self.play_song(self.state.current_song_index, reset=True)
+        else:
+            self.state.current_song_index -= len(before_current)
+            self.update_window()
+            self.save_play_queue()
 
     @dbus_propagate()
     def on_song_scrub(self, _, scrub_value):

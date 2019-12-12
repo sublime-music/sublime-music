@@ -14,6 +14,11 @@ class MainWindow(Gtk.ApplicationWindow):
             GObject.TYPE_NONE,
             (int, object, object),
         ),
+        'songs-removed': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, ),
+        ),
         'refresh-window': (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
@@ -40,6 +45,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.player_controls = player_controls.PlayerControls()
         self.player_controls.connect(
             'song-clicked', lambda _, *a: self.emit('song-clicked', *a))
+        self.player_controls.connect(
+            'songs-removed', lambda _, *a: self.emit('songs-removed', *a))
 
         flowbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         flowbox.pack_start(self.stack, True, True, 0)

@@ -39,6 +39,11 @@ class PlayerControls(Gtk.ActionBar):
             GObject.TYPE_NONE,
             (int, object, object),
         ),
+        'songs-removed': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, ),
+        ),
     }
     editing: bool = False
     current_song = None
@@ -127,7 +132,7 @@ class PlayerControls(Gtk.ActionBar):
 
         # Update the current song information.
         # TODO add popup of bigger cover art photo here
-        if has_current_song:
+        if state.current_song is not None:
             self.update_cover_art(state.current_song.coverArt, size='70')
 
             self.song_title.set_text(util.esc(state.current_song.title))
@@ -255,20 +260,42 @@ class PlayerControls(Gtk.ActionBar):
 
     def on_play_queue_button_press(self, listbox, event):
         if event.button == 3:  # Right click
-            rows = listbox.get_selected_rows()
-            allow_deselect = False
-
-            def on_download_state_change(song_id=None):
-                print('todo')
-                # GLib.idle_add(self.update_playlist_view, self.playlist_id)
-
-            ids = [
-                self.play_queue_store[row.get_index()].song_id for row in rows
+            clicked_row = listbox.get_row_at_y(event.y)
+            clicked_row_index = clicked_row.get_index()
+            selected_indexes = [
+                r.get_index() for r in listbox.get_selected_rows()
             ]
 
-            # If the click was on a selected row, don't deselect anything.
-            if not allow_deselect:
-                return True
+            if clicked_row_index not in selected_indexes:
+                listbox.unselect_all()
+                listbox.select_row(clicked_row)
+                selected_indexes = [clicked_row_index]
+
+            def on_download_state_change(song_id=None):
+                # TODO should probably refresh the entire window here.
+                pass
+
+            song_ids = [
+                self.play_queue_store[idx].song_id for idx in selected_indexes
+            ]
+
+            remove_text = (
+                'Remove ' + util.pluralize('song', len(song_ids))
+                + ' from queue')
+
+            def on_remove_songs_click(_):
+                self.emit('songs-removed', selected_indexes)
+
+            util.show_song_popover(
+                song_ids,
+                event.x,
+                event.y,
+                listbox,
+                on_download_state_change=on_download_state_change,
+                extra_menu_items=[
+                    (Gtk.ModelButton(text=remove_text), on_remove_songs_click),
+                ],
+            )
 
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
