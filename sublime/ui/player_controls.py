@@ -5,7 +5,7 @@ from typing import List
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Pango, GObject, Gio, GLib
+from gi.repository import Gtk, Gdk, Pango, GObject, Gio, GLib
 
 from sublime.cache_manager import CacheManager
 from sublime.state_manager import ApplicationState, RepeatType
@@ -499,6 +499,13 @@ class PlayerControls(Gtk.ActionBar):
             self.play_queue_store,
             self.create_play_queue_row,
         )
+        self.play_queue_list.drag_dest_set(
+            Gtk.DestDefaults.ALL, [], Gdk.DragAction.MOVE)
+        self.play_queue_list.connect('drag-data-received', lambda *a: print(a))
+        self.play_queue_list.connect(
+            'drag-data-get', lambda *args: print(args), None)
+        self.play_queue_list.connect(
+            'drag-data-received', lambda *args: print(args), None)
 
         play_queue_scrollbox.add(self.play_queue_list)
         play_queue_popover_box.pack_end(play_queue_scrollbox, True, True, 0)
@@ -523,6 +530,7 @@ class PlayerControls(Gtk.ActionBar):
         return vbox
 
     def create_play_queue_row(self, model: PlayQueueSong):
+        draggable_container = Gtk.EventBox()
         row = Gtk.ListBoxRow(
             action_name='app.play-queue-click',
             action_target=GLib.Variant('i', model.song_index),
@@ -581,5 +589,12 @@ class PlayerControls(Gtk.ActionBar):
         song_details_future.add_done_callback(
             lambda f: GLib.idle_add(update_row, f.result()))
 
-        row.show_all()
-        return row
+        draggable_container.add(row)
+
+        draggable_container.drag_source_set(
+            Gdk.ModifierType.BUTTON1_MASK,
+            [Gtk.TargetEntry('GTK_LIST_BOX_ROW', Gtk.TargetFlags.SAME_APP, 0)],
+            Gdk.DragAction.MOVE)
+
+        draggable_container.show_all()
+        return draggable_container
