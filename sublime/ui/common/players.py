@@ -124,6 +124,8 @@ class MPVPlayer(Player):
         self.mpv = mpv.MPV()
         self.progress_value_lock = threading.Lock()
         self.progress_value_count = 0
+        self._muted = False
+        self._volume = 100
         self._can_hotswap_source = True
 
         @self.mpv.property_observer('time-pos')
@@ -170,16 +172,18 @@ class MPVPlayer(Player):
         self.mpv.seek(str(value), 'absolute')
 
     def _set_volume(self, value):
-        self.mpv.volume = value
+        self._volume = value
+        self.mpv.volume = self._volume
 
     def _get_volume(self):
-        return self.mpv.volume
+        return self._volume
 
     def _get_is_muted(self):
-        return self.mpv.ao_mute
+        return self._muted
 
     def _set_is_muted(self, value):
-        self.mpv.ao_mute = value
+        self._muted = value
+        self.mpv.volume = 0 if value else self._volume
 
     def shutdown(self):
         pass
