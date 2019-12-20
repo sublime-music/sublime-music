@@ -47,6 +47,10 @@ class MainWindow(Gtk.ApplicationWindow):
             'song-clicked', lambda _, *a: self.emit('song-clicked', *a))
         self.player_controls.connect(
             'songs-removed', lambda _, *a: self.emit('songs-removed', *a))
+        self.player_controls.connect(
+            'refresh-window',
+            lambda _, *args: self.emit('refresh-window', *args),
+        )
 
         flowbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         flowbox.pack_start(self.stack, True, True, 0)

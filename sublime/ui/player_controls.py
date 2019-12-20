@@ -44,6 +44,11 @@ class PlayerControls(Gtk.ActionBar):
             GObject.TYPE_NONE,
             (object, ),
         ),
+        'refresh-window': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, bool),
+        ),
     }
     editing: bool = False
     current_song = None
@@ -272,8 +277,9 @@ class PlayerControls(Gtk.ActionBar):
                 selected_indexes = [clicked_row_index]
 
             def on_download_state_change(song_id=None):
-                # TODO should probably refresh the entire window here.
-                pass
+                # Refresh the entire window (no force) because the song could
+                # be in a list anywhere in the window.
+                self.emit('refresh-window', {}, False)
 
             song_ids = [
                 self.play_queue_store[idx].song_id for idx in selected_indexes
