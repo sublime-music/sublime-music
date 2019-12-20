@@ -23,7 +23,7 @@ class EditPlaylistDialog(EditFormDialog):
 
     def __init__(self, *args, playlist_id=None, **kwargs):
         delete_playlist = Gtk.Button(label='Delete Playlist')
-        self.extra_buttons = [(delete_playlist, Gtk.ResponseType.DELETE_EVENT)]
+        self.extra_buttons = [(delete_playlist, Gtk.ResponseType.NO)]
         super().__init__(*args, **kwargs)
 
 
@@ -527,7 +527,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
         result = dialog.run()
-        if result in (Gtk.ResponseType.OK, Gtk.ResponseType.DELETE_EVENT):
+        # Using ResponseType.NO as the delete event.
+        if result in (Gtk.ResponseType.OK, Gtk.ResponseType.NO):
             if result == Gtk.ResponseType.OK:
                 CacheManager.update_playlist(
                     self.playlist_id,
@@ -535,7 +536,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                     comment=dialog.data['comment'].get_text(),
                     public=dialog.data['public'].get_active(),
                 )
-            elif result == Gtk.ResponseType.DELETE_EVENT:
+            elif result == Gtk.ResponseType.NO:
                 # Delete the playlist.
                 CacheManager.delete_playlist(self.playlist_id)
 
@@ -546,7 +547,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 'refresh-window',
                 {
                     'selected_playlist_id':
-                    None if result == Gtk.ResponseType.DELETE_EVENT else
+                    None if result == Gtk.ResponseType.NO else
                     self.playlist_id
                 },
                 True,
