@@ -500,12 +500,8 @@ class PlayerControls(Gtk.ActionBar):
             self.create_play_queue_row,
         )
         self.play_queue_list.drag_dest_set(
-            Gtk.DestDefaults.ALL, [], Gdk.DragAction.MOVE)
+            Gtk.DestDefaults.ALL, None, Gdk.DragAction.MOVE)
         self.play_queue_list.connect('drag-data-received', lambda *a: print(a))
-        self.play_queue_list.connect(
-            'drag-data-get', lambda *args: print(args), None)
-        self.play_queue_list.connect(
-            'drag-data-received', lambda *args: print(args), None)
 
         play_queue_scrollbox.add(self.play_queue_list)
         play_queue_popover_box.pack_end(play_queue_scrollbox, True, True, 0)
@@ -591,10 +587,11 @@ class PlayerControls(Gtk.ActionBar):
 
         draggable_container.add(row)
 
-        draggable_container.drag_source_set(
-            Gdk.ModifierType.BUTTON1_MASK,
-            [Gtk.TargetEntry('GTK_LIST_BOX_ROW', Gtk.TargetFlags.SAME_APP, 0)],
-            Gdk.DragAction.MOVE)
+        def on_drag_data_get(widget, drag_context, data, info, time):
+            data.set_text(str(model.song_index))
 
-        draggable_container.show_all()
+        draggable_container.drag_source_set(
+            Gdk.ModifierType.BUTTON1_MASK, None, Gdk.DragAction.MOVE)
+        draggable_container.connect('drag-data-get', on_drag_data_get)
+
         return draggable_container
