@@ -139,8 +139,6 @@ class SublimeMusicApp(Gtk.Application):
             'device-update', self.on_device_update)
         self.window.player_controls.connect(
             'volume-change', self.on_volume_change)
-        self.window.player_controls.connect(
-            'play-queue-reorder', self.on_play_queue_reorder)
         self.window.connect('key-press-event', self.on_window_key_press)
 
         self.window.show_all()
@@ -237,11 +235,6 @@ class SublimeMusicApp(Gtk.Application):
 
         # Send out to the bus that we exist.
         self.dbus_manager.property_diff()
-
-    def on_play_queue_reorder(self, _, new_queue):
-        self.state.play_queue = new_queue
-        self.save_play_queue()
-        self.update_window()
 
     # ########## DBUS MANAGMENT ########## #
     def do_dbus_register(self, connection, path):

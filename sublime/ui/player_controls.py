@@ -50,11 +50,6 @@ class PlayerControls(Gtk.ActionBar):
             GObject.TYPE_NONE,
             (object, bool),
         ),
-        'play-queue-reorder': (
-            GObject.SignalFlags.RUN_FIRST,
-            GObject.TYPE_NONE,
-            (object, ),
-        ),
     }
     editing: bool = False
     editing_play_queue_song_list: bool = False
@@ -360,9 +355,16 @@ class PlayerControls(Gtk.ActionBar):
         # which one comes first, but just in case, we have this
         # reordering_play_queue_song_list flag.
         if self.reordering_play_queue_song_list:
+            currently_playing_index = [
+                i for i, s in enumerate(self.play_queue_store) if s[2]
+            ][0]
             self.emit(
-                'play-queue-reorder',
-                [s[-1] for s in self.play_queue_store],
+                'refresh-window',
+                {
+                    'current_song_index': currently_playing_index,
+                    'play_queue': [s[-1] for s in self.play_queue_store],
+                },
+                False,
             )
             self.reordering_play_queue_song_list = False
         else:
