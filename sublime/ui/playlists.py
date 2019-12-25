@@ -409,9 +409,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
         # Set up drag-and-drop on the song list for editing the order of the
         # playlist.
         self.playlist_song_store.connect(
-            'row-inserted', self.playlist_model_row_move)
+            'row-inserted', self.on_playlist_model_row_move)
         self.playlist_song_store.connect(
-            'row-deleted', self.playlist_model_row_move)
+            'row-deleted', self.on_playlist_model_row_move)
 
         playlist_view_scroll_window.add(self.playlist_songs)
 
@@ -547,8 +547,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 'refresh-window',
                 {
                     'selected_playlist_id':
-                    None if result == Gtk.ResponseType.NO else
-                    self.playlist_id
+                    None if result == Gtk.ResponseType.NO else self.playlist_id
                 },
                 True,
             )
@@ -580,7 +579,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
     def on_shuffle_all_button(self, btn):
         self.emit(
             'song-clicked',
-            randint(0, len(self.playlist_song_store) - 1),
+            randint(0,
+                    len(self.playlist_song_store) - 1),
             [m[-1] for m in self.playlist_song_store],
             {
                 'force_shuffle_state': True,
@@ -650,15 +650,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             if not allow_deselect:
                 return True
 
-    def make_label(self, text=None, name=None, **params):
-        return Gtk.Label(
-            label=text,
-            name=name,
-            halign=Gtk.Align.START,
-            **params,
-        )
-
-    def playlist_model_row_move(self, *args):
+    def on_playlist_model_row_move(self, *args):
         # If we are programatically editing the song list, don't do anything.
         if self.editing_playlist_song_list:
             return
@@ -671,6 +663,14 @@ class PlaylistDetailPanel(Gtk.Overlay):
             self.reordering_playlist_song_list = False
         else:
             self.reordering_playlist_song_list = True
+
+    def make_label(self, text=None, name=None, **params):
+        return Gtk.Label(
+            label=text,
+            name=name,
+            halign=Gtk.Align.START,
+            **params,
+        )
 
     @util.async_callback(lambda *a, **k: CacheManager.get_playlist(*a, **k))
     def update_playlist_order(self, playlist, state: ApplicationState):

@@ -9,6 +9,13 @@ v0.8.9
 * The play queue now behaves properly when there are many instances of the same
   song in the play queue.
 
+* The play queue can now be reordered, and songs can be added and removed from
+  it. Right click also works on the play queue.
+
+* **Bug Fixes:**
+
+  * Pressing ESC on the Playlist edit dialog no longer deletes the playlist.
+
 * **Infrastructure**:
 
   * Added a ``Pipfile`` and made the CI/CD build use it for testing.
