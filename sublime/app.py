@@ -9,6 +9,8 @@ gi.require_version('Gtk', '3.0')
 gi.require_version('Notify', '0.7')
 from gi.repository import Gdk, Gio, GLib, Gtk, Notify, GdkPixbuf
 
+import Levenshtein
+
 from .ui.main import MainWindow
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.settings import SettingsDialog
@@ -90,8 +92,6 @@ class SublimeMusicApp(Gtk.Application):
         add_action('prev-track', self.on_prev_track)
         add_action('repeat-press', self.on_repeat_press)
         add_action('shuffle-press', self.on_shuffle_press)
-        add_action(
-            'play-queue-click', self.on_play_queue_click, parameter_type='i')
 
         # Navigation actions.
         add_action('play-next', self.on_play_next, parameter_type='as')
@@ -139,6 +139,8 @@ class SublimeMusicApp(Gtk.Application):
             'device-update', self.on_device_update)
         self.window.player_controls.connect(
             'volume-change', self.on_volume_change)
+        self.window.player_controls.connect(
+            'play-queue-reorder', self.on_play_queue_reorder)
         self.window.connect('key-press-event', self.on_window_key_press)
 
         self.window.show_all()
@@ -235,6 +237,11 @@ class SublimeMusicApp(Gtk.Application):
 
         # Send out to the bus that we exist.
         self.dbus_manager.property_diff()
+
+    def on_play_queue_reorder(self, _, new_queue):
+        self.state.play_queue = new_queue
+        self.save_play_queue()
+        self.update_window()
 
     # ########## DBUS MANAGMENT ########## #
     def do_dbus_register(self, connection, path):
@@ -516,9 +523,6 @@ class SublimeMusicApp(Gtk.Application):
         self.state.shuffle_on = not self.state.shuffle_on
         self.update_window()
 
-    def on_play_queue_click(self, action, song_index):
-        self.play_song(song_index.get_int32(), reset=True)
-
     @dbus_propagate()
     def on_play_next(self, action, song_ids):
         if self.state.current_song is None:
@@ -593,7 +597,7 @@ class SublimeMusicApp(Gtk.Application):
             self.state.active_playlist_id = None
 
         # If shuffle is enabled, then shuffle the playlist.
-        if self.state.shuffle_on:
+        if self.state.shuffle_on and not metadata.get('no_reshuffle'):
             song_id = song_queue[song_index]
 
             del song_queue[song_index]

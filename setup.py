@@ -46,6 +46,7 @@ setup(
     package_data={
         'sublime': [
             'ui/app_styles.css',
+            'ui/images/play-queue-play.png',
             'ui/mpris_specs/org.mpris.MediaPlayer2.xml',
             'ui/mpris_specs/org.mpris.MediaPlayer2.Player.xml',
             'ui/mpris_specs/org.mpris.MediaPlayer2.Playlists.xml',

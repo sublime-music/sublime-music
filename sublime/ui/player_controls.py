@@ -1,11 +1,12 @@
 import math
 
 from datetime import datetime
+from pathlib import Path
 from typing import List
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, Pango, GObject, Gio, GLib
+from gi.repository import Gtk, GdkPixbuf, Pango, GObject, Gio, GLib
 
 from sublime.cache_manager import CacheManager
 from sublime.state_manager import ApplicationState, RepeatType
@@ -49,22 +50,18 @@ class PlayerControls(Gtk.ActionBar):
             GObject.TYPE_NONE,
             (object, bool),
         ),
+        'play-queue-reorder': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, ),
+        ),
     }
     editing: bool = False
+    editing_play_queue_song_list: bool = False
+    reordering_play_queue_song_list: bool = False
     current_song = None
     current_device = None
     chromecasts: List[ChromecastPlayer] = []
-
-    class PlayQueueSong(GObject.GObject):
-        song_index = GObject.Property(type=int)
-        song_id = GObject.Property(type=str)
-        playing = GObject.Property(type=str)
-
-        def __init__(self, song_index: int, song_id: str, playing: bool):
-            GObject.GObject.__init__(self)
-            self.song_index = song_index
-            self.song_id = song_id
-            self.playing = str(playing)
 
     def __init__(self):
         Gtk.ActionBar.__init__(self)
@@ -164,12 +161,52 @@ class PlayerControls(Gtk.ActionBar):
                 self.popover_label.set_markup(
                     f'<b>Play Queue:</b> {play_queue_len} {song_label}')
 
-            new_model = [
-                PlayerControls.PlayQueueSong(
-                    i, s, has_current_song and i == state.current_song_index)
-                for i, s in enumerate(state.play_queue)
-            ]
-            util.diff_model_store(self.play_queue_store, new_model)
+            self.editing_play_queue_song_list = True
+
+            new_store = []
+
+            # Use this so that we can have a closure around the index
+            # variables.
+            def make_play_queue_updater(idx):
+                def on_cover_art_future_done(cover_art_filename):
+                    self.play_queue_store[idx][0] = cover_art_filename
+
+                def on_song_details_future_done(song_details):
+                    title = util.esc(song_details.title)
+                    album = util.esc(song_details.album)
+                    artist = util.esc(song_details.artist)
+                    label = f'<b>{title}</b>\n{util.dot_join(album, artist)}'
+                    self.play_queue_store[idx][1] = label
+
+                    # Cover Art
+                    cover_art_future = CacheManager.get_cover_art_filename(
+                        song_details.coverArt,
+                        size=50,
+                    )
+                    cover_art_future.add_done_callback(
+                        lambda f: GLib.idle_add(
+                            on_cover_art_future_done, f.result()))
+
+                return lambda f: GLib.idle_add(
+                    on_song_details_future_done, f.result())
+
+            for i, song_id in enumerate(state.play_queue):
+                new_store.append(
+                    [
+                        '',
+                        '\n',
+                        i == state.current_song_index,
+                        song_id,
+                    ])
+
+                # Get the song details.
+                song_details_future = CacheManager.get_song_details(song_id)
+                song_details_future.add_done_callback(
+                    make_play_queue_updater(i))
+
+            util.diff_song_store(self.play_queue_store, new_store)
+
+            self.editing_play_queue_song_list = False
 
     @util.async_callback(
         lambda *k, **v: CacheManager.get_cover_art_filename(*k, **v),
@@ -211,6 +248,15 @@ class PlayerControls(Gtk.ActionBar):
         # TODO scroll the currently playing song into view.
         self.play_queue_popover.popup()
         self.play_queue_popover.show_all()
+
+    def on_song_activated(self, treeview, idx, column):
+        # The song ID is in the last column of the model.
+        self.emit(
+            'song-clicked',
+            idx.get_indices()[0],
+            [m[-1] for m in self.play_queue_store],
+            {'no_reshuffle': True},
+        )
 
     def update_device_list(self, force=False):
         self.device_list_loading.show()
@@ -263,45 +309,64 @@ class PlayerControls(Gtk.ActionBar):
     def on_device_refresh_click(self, button):
         self.update_device_list(force=True)
 
-    def on_play_queue_button_press(self, listbox, event):
+    def on_play_queue_button_press(self, tree, event):
         if event.button == 3:  # Right click
-            clicked_row = listbox.get_row_at_y(event.y)
-            clicked_row_index = clicked_row.get_index()
-            selected_indexes = [
-                r.get_index() for r in listbox.get_selected_rows()
-            ]
+            clicked_path = tree.get_path_at_pos(event.x, event.y)
 
-            if clicked_row_index not in selected_indexes:
-                listbox.unselect_all()
-                listbox.select_row(clicked_row)
-                selected_indexes = [clicked_row_index]
+            store, paths = tree.get_selection().get_selected_rows()
+            allow_deselect = False
 
             def on_download_state_change(song_id=None):
                 # Refresh the entire window (no force) because the song could
                 # be in a list anywhere in the window.
                 self.emit('refresh-window', {}, False)
 
-            song_ids = [
-                self.play_queue_store[idx].song_id for idx in selected_indexes
-            ]
+            # Use the new selection instead of the old one for calculating what
+            # to do the right click on.
+            if clicked_path[0] not in paths:
+                paths = [clicked_path[0]]
+                allow_deselect = True
+
+            song_ids = [self.play_queue_store[p][-1] for p in paths]
 
             remove_text = (
                 'Remove ' + util.pluralize('song', len(song_ids))
                 + ' from queue')
 
             def on_remove_songs_click(_):
-                self.emit('songs-removed', selected_indexes)
+                self.emit('songs-removed', [p.get_indices()[0] for p in paths])
 
             util.show_song_popover(
                 song_ids,
                 event.x,
                 event.y,
-                listbox,
+                tree,
                 on_download_state_change=on_download_state_change,
                 extra_menu_items=[
                     (Gtk.ModelButton(text=remove_text), on_remove_songs_click),
                 ],
             )
+
+            # If the click was on a selected row, don't deselect anything.
+            if not allow_deselect:
+                return True
+
+    def on_play_queue_model_row_move(self, *args):
+        # If we are programatically editing the song list, don't do anything.
+        if self.editing_play_queue_song_list:
+            return
+
+        # We get both a delete and insert event, I think it's deterministic
+        # which one comes first, but just in case, we have this
+        # reordering_play_queue_song_list flag.
+        if self.reordering_play_queue_song_list:
+            self.emit(
+                'play-queue-reorder',
+                [s[-1] for s in self.play_queue_store],
+            )
+            self.reordering_play_queue_song_list = False
+        else:
+            self.reordering_play_queue_song_list = True
 
     def create_song_display(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -490,18 +555,65 @@ class PlayerControls(Gtk.ActionBar):
             min_content_width=400,
         )
 
-        self.play_queue_store = Gio.ListStore()
-        self.play_queue_list = Gtk.ListBox(activate_on_single_click=False)
+        self.play_queue_store = Gtk.ListStore(
+            str,  # image filename
+            str,  # title, album, artist
+            bool,  # playing
+            str,  # song ID
+        )
+        self.play_queue_list = Gtk.TreeView(
+            model=self.play_queue_store,
+            reorderable=True,
+            headers_visible=False,
+        )
+        self.play_queue_list.get_selection().set_mode(
+            Gtk.SelectionMode.MULTIPLE)
+
+        # Album Art column.
+        def filename_to_pixbuf(column, cell, model, iter, flags):
+            filename = model.get_value(iter, 0)
+            if not filename:
+                cell.set_property('icon_name', '')
+                return
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file(filename)
+
+            # If this is the playing song, then overlay the play icon.
+            if model.get_value(iter, 2):
+                play_overlay_pixbuf = GdkPixbuf.Pixbuf.new_from_file(
+                    str(
+                        Path(__file__).parent.joinpath(
+                            'images/play-queue-play.png')))
+
+                play_overlay_pixbuf.composite(
+                    pixbuf, 0, 0, 50, 50, 0, 0, 1, 1,
+                    GdkPixbuf.InterpType.NEAREST, 255)
+
+            cell.set_property('pixbuf', pixbuf)
+
+        renderer = Gtk.CellRendererPixbuf()
+        renderer.set_fixed_size(55, 60)
+        column = Gtk.TreeViewColumn('', renderer)
+        column.set_cell_data_func(renderer, filename_to_pixbuf)
+        column.set_resizable(True)
+        self.play_queue_list.append_column(column)
+
+        renderer = Gtk.CellRendererText(
+            markup=True,
+            ellipsize=Pango.EllipsizeMode.END,
+        )
+        column = Gtk.TreeViewColumn('', renderer, markup=1)
+        self.play_queue_list.append_column(column)
+
+        self.play_queue_list.connect('row-activated', self.on_song_activated)
         self.play_queue_list.connect(
             'button-press-event', self.on_play_queue_button_press)
-        self.play_queue_list.set_selection_mode(Gtk.SelectionMode.MULTIPLE)
-        self.play_queue_list.bind_model(
-            self.play_queue_store,
-            self.create_play_queue_row,
-        )
-        self.play_queue_list.drag_dest_set(
-            Gtk.DestDefaults.ALL, None, Gdk.DragAction.MOVE)
-        self.play_queue_list.connect('drag-data-received', lambda *a: print(a))
+
+        # Set up drag-and-drop on the song list for editing the order of the
+        # playlist.
+        self.play_queue_store.connect(
+            'row-inserted', self.on_play_queue_model_row_move)
+        self.play_queue_store.connect(
+            'row-deleted', self.on_play_queue_model_row_move)
 
         play_queue_scrollbox.add(self.play_queue_list)
         play_queue_popover_box.pack_end(play_queue_scrollbox, True, True, 0)
@@ -524,74 +636,3 @@ class PlayerControls(Gtk.ActionBar):
         vbox.pack_start(box, False, True, 0)
         vbox.pack_start(Gtk.Box(), True, True, 0)
         return vbox
-
-    def create_play_queue_row(self, model: PlayQueueSong):
-        draggable_container = Gtk.EventBox()
-        row = Gtk.ListBoxRow(
-            action_name='app.play-queue-click',
-            action_target=GLib.Variant('i', model.song_index),
-        )
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, margin=3)
-
-        overlay = Gtk.Overlay()
-        image = SpinnerImage(image_name='play-queue-row-image')
-        overlay.add(image)
-        box.add(overlay)
-
-        # Add a play icon overlay if this is the currently playing song.
-        if model.playing == 'True':
-            # TODO style this with a a border so that it is visible when the
-            # cover art looks similar.
-            play_icon = Gtk.Image(
-                name='play-queue-playing-icon',
-                halign=Gtk.Align.CENTER,
-                valign=Gtk.Align.CENTER,
-            )
-            play_icon.set_from_icon_name(
-                'media-playback-start-symbolic',
-                Gtk.IconSize.DIALOG,
-            )
-            overlay.add_overlay(play_icon)
-
-        label = Gtk.Label(
-            label='\n',
-            use_markup=True,
-            margin=10,
-            halign=Gtk.Align.START,
-            ellipsize=Pango.EllipsizeMode.END,
-            max_width_chars=35,
-        )
-        box.add(label)
-        row.add(box)
-
-        def update_image(image_filename):
-            image.set_from_file(image_filename)
-            image.set_loading(False)
-            row.show_all()
-
-        def update_row(song_details):
-            title = util.esc(song_details.title)
-            album = util.esc(song_details.album)
-            artist = util.esc(song_details.artist)
-            label.set_markup(f'<b>{title}</b>\n{util.dot_join(album, artist)}')
-            row.show_all()
-
-            cover_art_future = CacheManager.get_cover_art_filename(
-                song_details.coverArt, size=50)
-            cover_art_future.add_done_callback(
-                lambda f: GLib.idle_add(update_image, f.result()))
-
-        song_details_future = CacheManager.get_song_details(model.song_id)
-        song_details_future.add_done_callback(
-            lambda f: GLib.idle_add(update_row, f.result()))
-
-        draggable_container.add(row)
-
-        def on_drag_data_get(widget, drag_context, data, info, time):
-            data.set_text(str(model.song_index))
-
-        draggable_container.drag_source_set(
-            Gdk.ModifierType.BUTTON1_MASK, None, Gdk.DragAction.MOVE)
-        draggable_container.connect('drag-data-get', on_drag_data_get)
-
-        return draggable_container
