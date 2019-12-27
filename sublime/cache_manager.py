@@ -251,6 +251,8 @@ class CacheManager(metaclass=Singleton):
                     # The resource is already being downloaded. Busy loop until
                     # it has completed. Then, just return the path to the
                     # resource.
+                    # TODO: figure out a way to determine if the download we
+                    # are waiting on failed.
                     while abs_path in self.current_downloads:
                         sleep(0.5)
 
@@ -281,7 +283,7 @@ class CacheManager(metaclass=Singleton):
             """
             return CacheManager.executor.submit(fn, *args)
 
-        def delete_cached_cover_art(self, id: int):
+        def delete_cached_cover_art(self, id: str):
             relative_path = f'cover_art/*{id}_*'
 
             abs_path = self.calculate_abs_path(relative_path)
