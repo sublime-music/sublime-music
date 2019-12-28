@@ -98,7 +98,7 @@ class Server:
         if os.environ.get('SUBLIME_MUSIC_DEBUG_DELAY'):
             print(
                 "SUBLIME_MUSIC_DEBUG_DELAY enabled. Pausing for",
-                "{os.environ['SUBLIME_MUSIC_DEBUG_DELAY']} seconds.",
+                f"{os.environ['SUBLIME_MUSIC_DEBUG_DELAY']} seconds.",
             )
             sleep(int(os.environ['SUBLIME_MUSIC_DEBUG_DELAY']))
 

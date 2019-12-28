@@ -6,7 +6,7 @@ from typing import List
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GdkPixbuf, Pango, GObject, Gio, GLib
+from gi.repository import Gtk, GdkPixbuf, Pango, GObject, GLib
 
 from sublime.cache_manager import CacheManager
 from sublime.state_manager import ApplicationState, RepeatType
@@ -160,46 +160,83 @@ class PlayerControls(Gtk.ActionBar):
 
             new_store = []
 
-            # Use this so that we can have a closure around the index
-            # variables.
-            def make_play_queue_updater(idx):
-                def on_cover_art_future_done(cover_art_filename):
-                    self.play_queue_store[idx][0] = cover_art_filename
+            def calculate_label(song_details):
+                title = util.esc(song_details.title)
+                album = util.esc(song_details.album)
+                artist = util.esc(song_details.artist)
+                return f'<b>{title}</b>\n{util.dot_join(album, artist)}'
 
-                def on_song_details_future_done(song_details):
-                    title = util.esc(song_details.title)
-                    album = util.esc(song_details.album)
-                    artist = util.esc(song_details.artist)
-                    label = f'<b>{title}</b>\n{util.dot_join(album, artist)}'
-                    self.play_queue_store[idx][1] = label
+            def make_idle_index_capturing_function(idx, fn):
+                return lambda *args: GLib.idle_add(fn, idx, *args)
 
-                    # Cover Art
-                    cover_art_future = CacheManager.get_cover_art_filename(
+            def on_cover_art_future_done(idx, cover_art_filename):
+                self.play_queue_store[idx][0] = cover_art_filename
+
+            def on_song_details_future_done(idx, song_details):
+                self.play_queue_store[idx][1] = calculate_label(song_details)
+
+                # Cover Art
+                cover_art_future = CacheManager.get_cover_art_filename(
+                    song_details.coverArt,
+                    size=50,
+                )
+                if cover_art_result.is_future:
+                    # We don't have the cover art already cached.
+                    cover_art_result.add_done_callback(
+                        make_idle_index_capturing_function(
+                            i,
+                            on_cover_art_future_done,
+                        ))
+                else:
+                    # We have the cover art already cached.
+                    self.play_queue_store[idx][0] = cover_art_future.result()
+
+            song_details_results = []
+            for i, song_id in enumerate(state.play_queue):
+                song_details_result = CacheManager.get_song_details(song_id)
+
+                cover_art_filename = ''
+                label = '\n'
+
+                if song_details_result.is_future:
+                    song_details_results.append((i, song_details_result))
+                else:
+                    # We have the details of the song already cached.
+                    song_details = song_details_result.result()
+                    label = calculate_label(song_details)
+
+                    cover_art_result = CacheManager.get_cover_art_filename(
                         song_details.coverArt,
                         size=50,
                     )
-                    cover_art_future.add_done_callback(
-                        lambda f: GLib.idle_add(
-                            on_cover_art_future_done, f.result()))
+                    if cover_art_result.is_future:
+                        # We don't have the cover art already cached.
+                        cover_art_result.add_done_callback(
+                            make_idle_index_capturing_function(
+                                i,
+                                on_cover_art_future_done,
+                            ))
+                    else:
+                        # We have the cover art already cached.
+                        cover_art_filename = cover_art_result.result()
 
-                return lambda f: GLib.idle_add(
-                    on_song_details_future_done, f.result())
-
-            for i, song_id in enumerate(state.play_queue):
                 new_store.append(
                     [
-                        '',
-                        '\n',
+                        cover_art_filename,
+                        label,
                         i == state.current_song_index,
                         song_id,
                     ])
 
-                # Get the song details.
-                song_details_future = CacheManager.get_song_details(song_id)
-                song_details_future.add_done_callback(
-                    make_play_queue_updater(i))
-
             util.diff_song_store(self.play_queue_store, new_store)
+
+            # Do this after the diff to avoid race conditions.
+            for idx, song_details_result in song_details_results:
+                song_details_result.add_done_callback(
+                    make_idle_index_capturing_function(
+                        idx,
+                        on_song_details_future_done,
+                    ))
 
             self.editing_play_queue_song_list = False
 
