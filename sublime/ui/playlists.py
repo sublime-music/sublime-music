@@ -450,7 +450,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_playlist(*a, **k),
-        before_download=lambda self: self.playlist_view_loading_box.show_all(),
+        before_download=lambda self: self.show_loading_all(),
         on_failure=lambda self, e: self.playlist_view_loading_box.hide(),
     )
     def update_playlist_view(
@@ -663,6 +663,12 @@ class PlaylistDetailPanel(Gtk.Overlay):
             self.reordering_playlist_song_list = False
         else:
             self.reordering_playlist_song_list = True
+
+    # Helper Methods
+    # =========================================================================
+    def show_loading_all(self):
+        self.playlist_artwork.set_loading(True)
+        self.playlist_view_loading_box.show_all()
 
     def make_label(self, text=None, name=None, **params):
         return Gtk.Label(
