@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import (
     Any,
+    Generic,
     List,
     Optional,
     Union,
@@ -20,6 +21,7 @@ from typing import (
     Set,
     DefaultDict,
     Tuple,
+    TypeVar,
 )
 
 import requests
@@ -68,9 +70,66 @@ class SongCacheStatus(Enum):
     DOWNLOADING = 3
 
 
+T = TypeVar('T')
+
+
 class CacheManager(metaclass=Singleton):
     executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=50)
     should_exit: bool = False
+
+    class Result(Generic[T]):
+        """A result from a CacheManager function."""
+        data = None
+        future = None
+
+        @staticmethod
+        def from_data(data: T) -> 'CacheManager.Result[T]':
+            result: 'CacheManager.Result[T]' = CacheManager.Result()
+            result.data = data
+            return result
+
+        @staticmethod
+        def from_server(
+                download_fn,
+                before_download=None,
+                after_download=None,
+        ) -> 'CacheManager.Result[T]':
+            result: 'CacheManager.Result[T]' = CacheManager.Result()
+
+            def future_fn() -> T:
+                if before_download:
+                    before_download()
+                return download_fn()
+
+            result.future = CacheManager.executor.submit(future_fn)
+
+            if after_download:
+                result.future.add_done_callback(
+                    lambda f: after_download(f.result()))
+
+            return result
+
+        def result(self) -> T:
+            if self.data is not None:
+                return self.data
+            if self.future is not None:
+                return self.future.result()
+
+            raise Exception(
+                'CacheManager.Result did not have either a data or future '
+                'member.')
+
+        def add_done_callback(self, fn, *args):
+            if self.is_future:
+                print('isfuture')
+                self.future.add_done_callback(fn, *args)
+            else:
+                # Run the function immediately if it's not a future.
+                fn(self, *args)
+
+        @property
+        def is_future(self) -> bool:
+            return self.future is not None
 
     @staticmethod
     def ready():
@@ -283,7 +342,7 @@ class CacheManager(metaclass=Singleton):
             """
             return CacheManager.executor.submit(fn, *args)
 
-        def delete_cached_cover_art(self, id: str):
+        def delete_cached_cover_art(self, id: int):
             relative_path = f'cover_art/*{id}_*'
 
             abs_path = self.calculate_abs_path(relative_path)
@@ -295,17 +354,20 @@ class CacheManager(metaclass=Singleton):
                 self,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
-        ) -> Future:
-            def do_get_playlists() -> List[Playlist]:
-                if not self.cache.get('playlists') or force:
-                    before_download()
-                    playlists = self.server.get_playlists().playlist
-                    with self.cache_lock:
-                        self.cache['playlists'] = playlists
-                    self.save_cache_info()
-                return self.cache['playlists']
+        ) -> 'CacheManager.Result[List[Playlist]]':
+            if self.cache.get('playlists') and not force:
+                return CacheManager.Result.from_data(self.cache['playlists'])
 
-            return CacheManager.create_future(do_get_playlists)
+            def after_download(playlists):
+                with self.cache_lock:
+                    self.cache['playlists'] = playlists
+                self.save_cache_info()
+
+            return CacheManager.Result.from_server(
+                lambda: self.server.get_playlists().playlist,
+                before_download=before_download,
+                after_download=after_download,
+            )
 
         def invalidate_playlists_cache(self):
             if not self.cache.get('playlists'):
@@ -320,32 +382,32 @@ class CacheManager(metaclass=Singleton):
                 playlist_id: int,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
-        ) -> Future:
-            def do_get_playlist() -> PlaylistWithSongs:
-                cache_name = "playlist_details"
+        ) -> 'CacheManager.Result[PlaylistWithSongs]':
+            playlist_details = self.cache.get('playlist_details', {})
+            if playlist_id in playlist_details and not force:
+                return CacheManager.Result.from_data(
+                    playlist_details[playlist_id])
 
-                if playlist_id not in self.cache.get(cache_name, {}) or force:
-                    before_download()
-                    playlist = self.server.get_playlist(playlist_id)
-                    with self.cache_lock:
-                        self.cache['playlist_details'][playlist_id] = playlist
+            def after_download(playlist):
+                with self.cache_lock:
+                    self.cache['playlist_details'][playlist_id] = playlist
 
-                        # Playlists have the song details, so save those too.
-                        for song in (playlist.entry or []):
-                            self.cache['song_details'][song.id] = song
+                    # Playlists have the song details, so save those too.
+                    for song in (playlist.entry or []):
+                        self.cache['song_details'][song.id] = song
 
-                    self.save_cache_info()
+                self.save_cache_info()
 
-                playlist_details = self.cache['playlist_details'][playlist_id]
+            # Invalidate the cached photo if we are forcing a retrieval
+            # from the server.
+            if force:
+                self.delete_cached_cover_art(playlist_id)
 
-                # Invalidate the cached photo if we are forcing a retrieval
-                # from the server.
-                if force:
-                    self.delete_cached_cover_art(playlist.id)
-
-                return playlist_details
-
-            return CacheManager.create_future(do_get_playlist)
+            return CacheManager.Result.from_server(
+                lambda: self.server.get_playlist(playlist_id),
+                before_download=before_download,
+                after_download=after_download,
+            )
 
         def create_playlist(self, name: str) -> Future:
             def do_create_playlist():
@@ -353,7 +415,7 @@ class CacheManager(metaclass=Singleton):
 
             return CacheManager.create_future(do_create_playlist)
 
-        def update_playlist(self, playlist_id, *args, **kwargs):
+        def update_playlist(self, playlist_id, *args, **kwargs) -> Future:
             def do_update_playlist():
                 self.server.update_playlist(playlist_id, *args, **kwargs)
                 with self.cache_lock:
