@@ -816,7 +816,7 @@ class CacheManager(metaclass=Singleton):
 
     _instance: Optional[__CacheManagerInternal] = None
 
-    def __init__(self, server_config: ServerConfiguration):
+    def __init__(self):
         raise Exception('Do not instantiate the CacheManager.')
 
     @classmethod

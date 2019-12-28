@@ -5,6 +5,7 @@ from typing import List, Optional
 
 
 class ServerConfiguration:
+    version: int
     name: str
     server_address: str
     local_network_address: str
@@ -40,6 +41,9 @@ class ServerConfiguration:
         self.sync_enabled = sync_enabled
         self.disable_cert_verify = disable_cert_verify
 
+    def migrate(self):
+        pass
+
     @property
     def password(self):
         return keyring.get_password(
@@ -60,22 +64,23 @@ class AppConfiguration:
     prefetch_amount: int = 3
     concurrent_download_limit: int = 5
     port_number: int = 8080
+    version: int = 1
 
     def to_json(self):
-        # TODO can we simplify?
-        return {
-            'servers': [s.__dict__ for s in self.servers],
-            'current_server': self.current_server,
-            '_cache_location': getattr(self, '_cache_location', None),
-            'max_cache_size_mb': self.max_cache_size_mb,
-            'show_headers': self.show_headers,
-            'always_stream': self.always_stream,
-            'download_on_stream': self.download_on_stream,
-            'song_play_notification': self.song_play_notification,
-            'prefetch_amount': self.prefetch_amount,
-            'concurrent_download_limit': self.concurrent_download_limit,
-            'port_number': self.port_number,
+        exclude = ('servers')
+        json_object = {
+            k: getattr(self, k)
+            for k in self.__annotations__.keys()
+            if k not in exclude
         }
+        json_object.update({
+            'servers': [s.__dict__ for s in self.servers],
+        })
+        return json_object
+
+    def migrate(self):
+        for server in self.servers:
+            server.migrate()
 
     @property
     def cache_location(self):

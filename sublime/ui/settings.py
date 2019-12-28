@@ -8,7 +8,12 @@ class SettingsDialog(EditFormDialog):
     title: str = 'Settings'
     initial_size = (450, 250)
     text_fields = [
-        ('Port Number (will take effect on restart)', 'port_number', False),
+        (
+            'Port Number (for streaming to Chromecasts on the local network, '
+            'will take effect on restart)',
+            'port_number',
+            False,
+        ),
     ]
     boolean_fields = [
         ('Show headers on song lists', 'show_headers'),

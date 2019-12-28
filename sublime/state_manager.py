@@ -49,6 +49,7 @@ class ApplicationState:
     functions define what part of the state will be saved across application
     loads.
     """
+    version: int = 1
     config: AppConfiguration = AppConfiguration()
     config_file: str = None
     playing: bool = False
@@ -90,6 +91,7 @@ class ApplicationState:
         return json_object
 
     def load_from_json(self, json_object):
+        self.version = json_object.get('version', 0)
         self.current_song_index = json_object.get('current_song_index', -1)
         self.play_queue = json_object.get('play_queue', [])
         self.old_play_queue = json_object.get('old_play_queue', [])
@@ -130,9 +132,15 @@ class ApplicationState:
                     self.load_from_json(json.load(f))
                 except json.decoder.JSONDecodeError:
                     # Who cares, it's just state.
-                    pass
+                    self.load_from_json({})
         else:
             self.load_from_json({})
+
+        self.migrate()
+
+    def migrate(self):
+        """Use this function to migrate any state storage that has changed."""
+        self.config.migrate()
 
     def save(self):
         # Make the necessary directories before writing the state.
