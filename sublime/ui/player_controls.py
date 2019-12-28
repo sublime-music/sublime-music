@@ -167,7 +167,7 @@ class PlayerControls(Gtk.ActionBar):
                 return f'<b>{title}</b>\n{util.dot_join(album, artist)}'
 
             def make_idle_index_capturing_function(idx, fn):
-                return lambda *args: GLib.idle_add(fn, idx, *args)
+                return lambda f: GLib.idle_add(fn, idx, f.result())
 
             def on_cover_art_future_done(idx, cover_art_filename):
                 self.play_queue_store[idx][0] = cover_art_filename
