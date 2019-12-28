@@ -173,22 +173,33 @@ class DBusManager:
         if state.active_playlist_id is None:
             active_playlist = (False, GLib.Variant('(oss)', ('/', '', '')))
         else:
-            playlist = CacheManager.get_playlist(
-                state.active_playlist_id).result()
-            active_playlist = (
-                True,
-                GLib.Variant(
-                    '(oss)',
-                    (
-                        '/playlist/' + playlist.id,
-                        playlist.name,
-                        CacheManager.get_cover_art_filename(
-                            playlist.coverArt,
-                            allow_download=False,
-                        ).result() or '',
+            playlist_result = CacheManager.get_playlist(
+                state.active_playlist_id)
+
+            if playlist_result.is_future:
+                # If we have to wait for the playlist result, just return
+                # no playlist.
+                active_playlist = (False, GLib.Variant('(oss)', ('/', '', '')))
+            else:
+                playlist = playlist_result.result()
+
+                active_playlist = (
+                    True,
+                    GLib.Variant(
+                        '(oss)',
+                        (
+                            '/playlist/' + playlist.id,
+                            playlist.name,
+                            CacheManager.get_cover_art_url(playlist.coverArt),
+                        ),
                     ),
-                ),
-            )
+                )
+
+        get_playlists_result = CacheManager.get_playlists()
+        if get_playlists_result.is_future:
+            playlist_count = 0
+        else:
+            playlist_count = len(get_playlists_result.result())
 
         return {
             'org.mpris.MediaPlayer2': {
@@ -251,16 +262,18 @@ class DBusManager:
             'org.mpris.MediaPlayer2.Playlists': {
                 # TODO this may do a network request. This really is a case for
                 # doing the whole thing with caching some data beforehand.
-                'PlaylistCount': (
-                    0 if not CacheManager.ready() else len(
-                        CacheManager.get_playlists().result())),
+                'PlaylistCount': playlist_count,
                 'Orderings': ['Alphabetical', 'Created', 'Modified'],
                 'ActivePlaylist': ('(b(oss))', active_playlist),
             },
         }
 
     def get_mpris_metadata(self, idx: int, play_queue):
-        song = CacheManager.get_song_details(play_queue[idx]).result()
+        song_result = CacheManager.get_song_details(play_queue[idx])
+        if song_result.is_future:
+            return {}
+        song = song_result.result()
+
         trackid = self.get_dbus_playlist(play_queue)[idx]
         duration = (
             'x',

@@ -317,7 +317,14 @@ class SublimeMusicApp(Gtk.Application):
             )
 
         def get_playlists(index, max_count, order, reverse_order):
-            playlists = CacheManager.get_playlists().result()
+            playlists_result = CacheManager.get_playlists()
+            if playlists_result.is_future:
+                # We don't want to wait for the response in this case, so just
+                # return an empty array.
+                return GLib.Variant('(a(oss))', ([], ))
+
+            playlists = playlists_result.result()
+
             sorters = {
                 'Alphabetical': lambda p: p.name,
                 'Created': lambda p: p.created,
