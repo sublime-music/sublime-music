@@ -530,7 +530,8 @@ class CacheManager(metaclass=Singleton):
 
                 # If it is the placeholder LastFM image, try and use the cover
                 # art filename given by the server.
-                if lastfm_url.endswith('2a96cbd8b46e442fc41c2b86b821562f.png'):
+                if (lastfm_url == '' or lastfm_url.endswith(
+                        '2a96cbd8b46e442fc41c2b86b821562f.png')):
                     if isinstance(artist, ArtistWithAlbumsID3):
                         return CacheManager.get_cover_art_filename(
                             artist.coverArt, size=300)

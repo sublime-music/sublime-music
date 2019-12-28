@@ -458,14 +458,26 @@ class AlbumsListWithSongs(Gtk.Overlay):
         self.albums = []
 
     def update(self, artist):
-        # TODO this introduces a flicker. Fix this. Need to do some diffing.
-        for c in self.box.get_children():
-            self.box.remove(c)
+        def remove_all():
+            for c in self.box.get_children():
+                self.box.remove(c)
 
         if artist is None:
+            remove_all()
+            self.spinner.hide()
             return
 
-        for album in artist.get('album', artist.get('child', [])):
+        new_albums = artist.get('album', artist.get('child', []))
+
+        if self.albums == new_albums:
+            # No need to do anything.
+            return
+
+        self.albums = new_albums
+
+        remove_all()
+
+        for album in self.albums:
             album_with_songs = AlbumWithSongs(album, show_artist_name=False)
             album_with_songs.connect(
                 'song-clicked',

@@ -141,9 +141,7 @@ class AlbumWithSongs(Gtk.Box):
             return column
 
         self.loading_indicator = Gtk.Spinner(
-            name='album-list-song-list-spinner',
-            active=True,
-        )
+            name='album-list-song-list-spinner')
         album_details.add(self.loading_indicator)
 
         self.album_songs = Gtk.TreeView(
@@ -266,10 +264,18 @@ class AlbumWithSongs(Gtk.Box):
     def update(self, force=False):
         self.update_album_songs(self.album.id)
 
+    def set_loading(self, loading):
+        if loading:
+            self.loading_indicator.start()
+            self.loading_indicator.show()
+        else:
+            self.loading_indicator.stop()
+            self.loading_indicator.hide()
+
     @util.async_callback(
         lambda *a, **k: CacheManager.get_album(*a, **k),
-        before_download=lambda self: self.loading_indicator.show(),
-        on_failure=lambda self, e: self.loading_indicator.hide(),
+        before_download=lambda self: self.set_loading(True),
+        on_failure=lambda self, e: self.set_loading(False),
     )
     def update_album_songs(
             self,
