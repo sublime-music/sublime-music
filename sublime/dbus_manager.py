@@ -9,7 +9,6 @@ from gi.repository import Gio, GLib
 
 from .state_manager import RepeatType
 from .cache_manager import CacheManager
-from .server.api_objects import Child
 
 
 def dbus_propagate(param_self=None):

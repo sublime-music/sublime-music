@@ -9,8 +9,6 @@ gi.require_version('Gtk', '3.0')
 gi.require_version('Notify', '0.7')
 from gi.repository import Gdk, Gio, GLib, Gtk, Notify, GdkPixbuf
 
-import Levenshtein
-
 from .ui.main import MainWindow
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.settings import SettingsDialog
