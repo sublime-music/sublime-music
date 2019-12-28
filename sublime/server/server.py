@@ -1,4 +1,6 @@
 import math
+import os
+
 from time import sleep
 from urllib.parse import urlencode
 from deprecated import deprecated
@@ -92,7 +94,13 @@ class Server:
     def _get(self, url, **params):
         params = {**self._get_params(), **params}
         print(f'[START] get: {url}')
-        sleep(1)
+
+        if os.environ.get('SUBLIME_MUSIC_DEBUG_DELAY'):
+            print(
+                "SUBLIME_MUSIC_DEBUG_DELAY enabled. Pausing for",
+                "{os.environ['SUBLIME_MUSIC_DEBUG_DELAY']} seconds.",
+            )
+            sleep(int(os.environ['SUBLIME_MUSIC_DEBUG_DELAY']))
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():
