@@ -265,12 +265,6 @@ class ArtistDetailPanel(Gtk.Box):
 
         self.add(artist_info_box)
 
-    def get_model_list_future(self, before_download):
-        def do_get_model_list() -> List[Child]:
-            return self.albums
-
-        return CacheManager.create_future(do_get_model_list)
-
     def update(self, state: ApplicationState):
         if state.selected_artist_id is None:
             self.artist_action_buttons.hide()
@@ -295,13 +289,14 @@ class ArtistDetailPanel(Gtk.Box):
     # stuff and un-cache things.
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist(*a, **k),
-        before_download=lambda self: self.artist_artwork.set_loading(True),
+        before_download=lambda self: self.set_all_loading(),
         on_failure=lambda self, e: print('fail a', e),
     )
     def update_artist_view(
             self,
             artist: ArtistWithAlbumsID3,
             state: ApplicationState,
+            force=False,
     ):
         self.artist_id = artist.id
         self.artist_indicator.set_text('ARTIST')
@@ -381,13 +376,19 @@ class ArtistDetailPanel(Gtk.Box):
         songs = self.get_artist_songs()
         self.emit(
             'song-clicked',
-            randint(0, len(songs) - 1),
+            randint(0,
+                    len(songs) - 1),
             songs,
             {'force_shuffle_state': True},
         )
 
     # Helper Methods
     # =========================================================================
+    def set_all_loading(self):
+        self.albums_list.spinner.start()
+        self.albums_list.spinner.show()
+        self.artist_artwork.set_loading(True)
+
     def make_label(self, text=None, name=None, **params):
         return Gtk.Label(
             label=text,
@@ -473,6 +474,9 @@ class AlbumsListWithSongs(Gtk.Overlay):
             album_with_songs.connect('song-selected', self.on_song_selected)
             album_with_songs.show_all()
             self.box.add(album_with_songs)
+
+        self.spinner.stop()
+        self.spinner.hide()
 
     def on_song_selected(self, album_component):
         for child in self.box.get_children():

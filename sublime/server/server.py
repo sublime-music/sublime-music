@@ -1,4 +1,5 @@
 import math
+from time import sleep
 from urllib.parse import urlencode
 from deprecated import deprecated
 from typing import Optional, Dict, List, Union, cast
@@ -91,6 +92,7 @@ class Server:
     def _get(self, url, **params):
         params = {**self._get_params(), **params}
         print(f'[START] get: {url}')
+        sleep(1)
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():

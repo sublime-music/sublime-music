@@ -38,7 +38,10 @@
   margin: 5px 10px 10px 0;
 }
 
-#playlist-artwork-spinner, #artist-artwork-spinner, #album-artwork-spinner {
+#playlist-artwork-spinner,
+#artist-artwork-spinner,
+#album-artwork-spinner,
+#albumslist-with-songs-spinner {
   min-height: 35px;
   min-width: 35px;
 }

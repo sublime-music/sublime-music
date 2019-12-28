@@ -121,7 +121,6 @@ class CacheManager(metaclass=Singleton):
 
         def add_done_callback(self, fn, *args):
             if self.is_future:
-                print('isfuture')
                 self.future.add_done_callback(fn, *args)
             else:
                 # Run the function immediately if it's not a future.
@@ -290,20 +289,25 @@ class CacheManager(metaclass=Singleton):
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
                 allow_download: bool = True,
-        ):
+        ) -> 'CacheManager.Result[Optional[str]]':
             abs_path = self.calculate_abs_path(relative_path)
+            abs_path_str = str(abs_path)
             download_path = self.calculate_download_path(relative_path)
-            if not abs_path.exists() or force:
-                if not allow_download:
-                    return None
 
-                before_download()
+            if abs_path.exists() and not force:
+                return CacheManager.Result.from_data(abs_path_str)
+
+            if not allow_download:
+                return CacheManager.Result.from_data(None)
+
+            def do_download() -> str:
+                # TODO
                 resource_downloading = False
                 with self.download_set_lock:
-                    if abs_path in self.current_downloads:
+                    if abs_path_str in self.current_downloads:
                         resource_downloading = True
 
-                    self.current_downloads.add(abs_path)
+                    self.current_downloads.add(abs_path_str)
 
                 if resource_downloading:
                     print(abs_path, 'already being downloaded.')
@@ -312,11 +316,8 @@ class CacheManager(metaclass=Singleton):
                     # resource.
                     # TODO: figure out a way to determine if the download we
                     # are waiting on failed.
-                    while abs_path in self.current_downloads:
+                    while abs_path_str in self.current_downloads:
                         sleep(0.5)
-
-                    return str(abs_path)
-
                 else:
                     print(abs_path, 'not found. Downloading...')
 
@@ -328,12 +329,18 @@ class CacheManager(metaclass=Singleton):
                     if download_path.exists():
                         shutil.move(download_path, abs_path)
 
-                    with self.download_set_lock:
-                        self.current_downloads.discard(abs_path)
-
                 print(abs_path, 'downloaded. Returning.')
+                return abs_path_str
 
-            return str(abs_path)
+            def after_download(path):
+                with self.download_set_lock:
+                    self.current_downloads.discard(path)
+
+            return CacheManager.Result.from_server(
+                do_download,
+                before_download=before_download,
+                after_download=after_download,
+            )
 
         @staticmethod
         def create_future(fn, *args):
@@ -427,104 +434,111 @@ class CacheManager(metaclass=Singleton):
                 self,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
-        ) -> Future:
-            def do_get_artists() -> List[Union[Artist, ArtistID3]]:
-                cache_name = self.id3ify('artists')
-                server_fn = (
+        ) -> 'CacheManager.Result[List[Union[Artist, ArtistID3]]]':
+            cache_name = self.id3ify('artists')
+
+            if self.cache.get(cache_name) and not force:
+                return CacheManager.Result.from_data(self.cache[cache_name])
+
+            def download_fn():
+                raw_artists = (
                     self.server.get_artists
-                    if self.browse_by_tags else self.server.get_indexes)
+                    if self.browse_by_tags else self.server.get_indexes)()
 
-                if not self.cache.get(cache_name) or force:
-                    before_download()
-                    raw_artists = server_fn()
+                artists: List[Union[Artist, ArtistID3]] = []
+                for index in raw_artists.index:
+                    artists.extend(index.artist)
 
-                    artists: List[Union[Artist, ArtistID3]] = []
-                    for index in raw_artists.index:
-                        artists.extend(index.artist)
+                return artists
 
-                    with self.cache_lock:
-                        self.cache[cache_name] = artists
+            def after_download(artists):
+                with self.cache_lock:
+                    self.cache[cache_name] = artists
+                self.save_cache_info()
 
-                    self.save_cache_info()
-
-                return self.cache[cache_name]
-
-            return CacheManager.create_future(do_get_artists)
+            return CacheManager.Result.from_server(
+                download_fn,
+                before_download=before_download,
+                after_download=after_download,
+            )
 
         def get_artist(
                 self,
                 artist_id,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
-        ) -> Future:
-            def do_get_artist() -> Union[ArtistWithAlbumsID3, Child]:
-                cache_name = self.id3ify('artist_details')
-                server_fn = (
-                    self.server.get_artist if self.browse_by_tags else
-                    self.server.get_music_directory)
+        ) -> 'CacheManager.Result[Union[ArtistWithAlbumsID3, Child]]':
+            cache_name = self.id3ify('artist_details')
 
-                if artist_id not in self.cache.get(cache_name, {}) or force:
-                    before_download()
-                    artist = server_fn(artist_id)
+            if artist_id in self.cache.get(cache_name, {}) and not force:
+                return CacheManager.Result.from_data(
+                    self.cache[cache_name][artist_id])
 
-                    with self.cache_lock:
-                        self.cache[cache_name][artist_id] = artist
+            server_fn = (
+                self.server.get_artist
+                if self.browse_by_tags else self.server.get_music_directory)
 
-                    self.save_cache_info()
+            def after_download(artist):
+                with self.cache_lock:
+                    self.cache[cache_name][artist_id] = artist
+                self.save_cache_info()
 
-                return self.cache[cache_name][artist_id]
-
-            return CacheManager.create_future(do_get_artist)
+            return CacheManager.Result.from_server(
+                lambda: server_fn(artist_id),
+                before_download=before_download,
+                after_download=after_download,
+            )
 
         def get_artist_info(
                 self,
                 artist_id,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
-        ) -> Future:
-            def do_get_artist_info() -> Union[ArtistInfo, ArtistInfo2]:
-                cache_name = self.id3ify('artist_infos')
-                server_fn = (
-                    self.server.get_artist_info2
-                    if self.browse_by_tags else self.server.get_artist_info)
+        ) -> 'CacheManager.Result[Union[ArtistInfo, ArtistInfo2]]':
+            cache_name = self.id3ify('artist_infos')
 
-                if artist_id not in self.cache.get(cache_name, {}) or force:
-                    before_download()
-                    artist_info = server_fn(id=artist_id)
+            if artist_id in self.cache.get(cache_name, {}) and not force:
+                return CacheManager.Result.from_data(
+                    self.cache[cache_name][artist_id])
 
-                    if artist_info:
-                        with self.cache_lock:
-                            self.cache[cache_name][artist_id] = artist_info
+            server_fn = (
+                self.server.get_artist_info2
+                if self.browse_by_tags else self.server.get_artist_info)
 
-                        self.save_cache_info()
+            def after_download(artist_info):
+                if not artist_info:
+                    return
 
-                return self.cache[cache_name][artist_id]
+                with self.cache_lock:
+                    self.cache[cache_name][artist_id] = artist_info
+                self.save_cache_info()
 
-            return CacheManager.create_future(do_get_artist_info)
+            return CacheManager.Result.from_server(
+                lambda: server_fn(id=artist_id),
+                before_download=before_download,
+                after_download=after_download,
+            )
 
         def get_artist_artwork(
                 self,
                 artist: Union[Artist, ArtistID3],
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
-        ) -> Future:
-            def do_get_artist_artwork_filename() -> str:
-                artist_info = CacheManager.get_artist_info(artist.id).result()
+        ) -> 'CacheManager.Result[Optional[str]]':
+            def do_get_artist_artwork(artist_info):
                 lastfm_url = ''.join(artist_info.largeImageUrl)
-                placeholder_image_url = 'https://lastfm-img2.akamaized.net' \
-                    '/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png'
 
-                # If it is the placeholder LastFM URL, then just use the cover
+                # If it is the placeholder LastFM image, try and use the cover
                 # art filename given by the server.
-                if lastfm_url == placeholder_image_url:
+                if lastfm_url.endswith('2a96cbd8b46e442fc41c2b86b821562f.png'):
                     if isinstance(artist, ArtistWithAlbumsID3):
                         return CacheManager.get_cover_art_filename(
-                            artist.coverArt, size=300).result()
+                            artist.coverArt, size=300)
                     elif (isinstance(artist, Directory)
                           and len(artist.child) > 0):
                         # Retrieve the first album's cover art
                         return CacheManager.get_cover_art_filename(
-                            artist.child[0].coverArt, size=300).result()
+                            artist.child[0].coverArt, size=300)
 
                 url_hash = hashlib.md5(lastfm_url.encode('utf-8')).hexdigest()
                 return self.return_cached_or_download(
@@ -534,7 +548,20 @@ class CacheManager(metaclass=Singleton):
                     force=force,
                 )
 
-            return CacheManager.create_future(do_get_artist_artwork_filename)
+            def download_fn(artist_info):
+                # In this case, artist_info is a future, so we have to wait for
+                # its result before calculating. Then, immediately unwrap the
+                # result() because we are already within a future.
+                return do_get_artist_artwork(artist_info.result()).result()
+
+            artist_info = CacheManager.get_artist_info(artist.id)
+            if artist_info.is_future:
+                return CacheManager.Result.from_server(
+                    lambda: download_fn(artist_info),
+                    before_download=before_download,
+                )
+            else:
+                return do_get_artist_artwork(artist_info.result())
 
         def get_album_list(
                 self,
@@ -646,19 +673,21 @@ class CacheManager(metaclass=Singleton):
                 on_song_download_complete: Callable[[int], None],
         ) -> Future:
             def do_download_song(song_id):
-                # Prevents further songs from being downloaded.
+                # If a song download is already in the queue and then the ap is
+                # exited, this prevents the download.
                 if CacheManager.should_exit:
                     return
 
-                # Do the actual download.
-                song_details_future = CacheManager.get_song_details(song_id)
-                song = song_details_future.result()
+                # Do the actual download. Call .result() because we are already
+                # inside of a future.
+                song = CacheManager.get_song_details(song_id).result()
                 self.return_cached_or_download(
                     song.path,
                     lambda: self.server.download(song.id),
                     before_download=before_download,
-                )
+                ).result()
 
+                # Allow the next song in the queue to be downloaded.
                 self.download_limiter_semaphore.release()
                 on_song_download_complete(song_id)
 
@@ -666,7 +695,13 @@ class CacheManager(metaclass=Singleton):
                 self.current_downloads = self.current_downloads.union(
                     set(song_ids))
                 for song_id in song_ids:
+                    # Only allow a certain number of songs ot be downloaded
+                    # simultaneously.
                     self.download_limiter_semaphore.acquire()
+
+                    # Prevents further songs from being downloaded.
+                    if CacheManager.should_exit:
+                        break
                     CacheManager.create_future(do_download_song, song_id)
 
             return CacheManager.create_future(do_batch_download_songs)
@@ -678,18 +713,15 @@ class CacheManager(metaclass=Singleton):
                 size: Union[str, int] = 200,
                 force: bool = False,
                 allow_download: bool = True,
-        ) -> Future:
-            def do_get_cover_art_filename() -> str:
-                tag = 'tag_' if self.browse_by_tags else ''
-                return self.return_cached_or_download(
-                    f'cover_art/{tag}{id}_{size}',
-                    lambda: self.server.get_cover_art(id, str(size)),
-                    before_download=before_download,
-                    force=force,
-                    allow_download=allow_download,
-                )
-
-            return CacheManager.create_future(do_get_cover_art_filename)
+        ) -> 'CacheManager.Result[Optional[str]]':
+            tag = 'tag_' if self.browse_by_tags else ''
+            return self.return_cached_or_download(
+                f'cover_art/{tag}{id}_{size}',
+                lambda: self.server.get_cover_art(id, str(size)),
+                before_download=before_download,
+                force=force,
+                allow_download=allow_download,
+            )
 
         def get_song_details(
                 self,
