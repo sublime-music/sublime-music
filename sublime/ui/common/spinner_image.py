@@ -27,6 +27,8 @@ class SpinnerImage(Gtk.Overlay):
         self.add_overlay(self.spinner)
 
     def set_from_file(self, filename):
+        if filename == '':
+            filename = None
         if self.image_size is not None and filename:
             pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
                 filename,

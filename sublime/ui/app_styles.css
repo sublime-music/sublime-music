@@ -161,6 +161,8 @@
 
 #search-artwork {
   margin-right: 5px;
+  min-width: 30px;
+  min-height: 30px;
 }
 
 /* ********** Artists & Albums ********** */

@@ -76,6 +76,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.connect('button-release-event', self.on_button_release)
 
     def update(self, state: ApplicationState, force=False):
+        self.browse_by_tags = state.config.server.browse_by_tags
+
         # Update the Connected to label on the popup menu.
         if state.config.current_server >= 0:
             server_name = state.config.servers[
@@ -337,7 +339,7 @@ class MainWindow(Gtk.ApplicationWindow):
             widget.remove(c)
 
     def create_search_result_row(
-            self, text, action_name, value, artwork_future):
+        self, text, action_name, value, artwork_future):
         row = Gtk.Button(relief=Gtk.ReliefStyle.NONE)
         row.connect(
             'button-press-event',
@@ -370,9 +372,10 @@ class MainWindow(Gtk.ApplicationWindow):
                 )
                 cover_art_future = CacheManager.get_cover_art_filename(
                     song.coverArt, size=50)
+                album_id = song.albumId if self.browse_by_tags else song.parent
                 self.song_results.add(
                     self.create_search_result_row(
-                        label_text, 'album', song.albumId, cover_art_future))
+                        label_text, 'album', album_id, cover_art_future))
 
             self.song_results.show_all()
 

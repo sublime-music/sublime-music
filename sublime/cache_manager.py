@@ -482,8 +482,7 @@ class CacheManager(metaclass=Singleton):
 
                     # Playlists have the song details, so save those too.
                     for song in (playlist.entry or []):
-                        self.cache['song_details'][song.id] = song
-                        self.cache['song_details_id3'][song.id] = song
+                        self.cache[self.id3ify('song_details')][song.id] = song
 
                 self.save_cache_info()
 
@@ -608,7 +607,7 @@ class CacheManager(metaclass=Singleton):
                 force: bool = False,
         ) -> 'CacheManager.Result[Optional[str]]':
             def do_get_artist_artwork(artist_info):
-                lastfm_url = ''.join(artist_info.largeImageUrl)
+                lastfm_url = ''.join(artist_info.largeImageUrl or [])
 
                 # If it is the placeholder LastFM image, try and use the cover
                 # art filename given by the server.
@@ -622,6 +621,9 @@ class CacheManager(metaclass=Singleton):
                         # Retrieve the first album's cover art
                         return CacheManager.get_cover_art_filename(
                             artist.child[0].coverArt, size=300)
+
+                if lastfm_url == '':
+                    return CacheManager.Result.from_data('')
 
                 url_hash = hashlib.md5(lastfm_url.encode('utf-8')).hexdigest()
                 return self.return_cached_or_download(
@@ -730,9 +732,9 @@ class CacheManager(metaclass=Singleton):
                     self.cache[cache_name][album_id] = album
 
                     # Albums have the song details as well, so save those too.
-                    for song in (album.song or []):
-                        self.cache['song_details'][song.id] = song
-                        self.cache['song_details_id3'][song.id] = song
+                    for song in (album.get('song') or album.get('child')
+                                 or []):
+                        self.cache[self.id3ify('song_details')][song.id] = song
                 self.save_cache_info()
 
             return CacheManager.Result.from_server(
@@ -940,8 +942,11 @@ class CacheManager(metaclass=Singleton):
 
                 for i, f in enumerate(as_completed(map(
                         CacheManager.create_future, search_future_fns))):
-                    for member, result in f.result():
-                        search_result.add_results(member, result)
+                    try:
+                        for member, result in f.result():
+                            search_result.add_results(member, result)
+                    except Exception as e:
+                        print(e)
 
                     search_callback(
                         search_result,

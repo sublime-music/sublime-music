@@ -549,13 +549,23 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     def on_go_to_album(self, action, album_id):
-        # Switch to the By Year view to guarantee that the album is there.
+        # Switch to the By Year view (or genre, if year is not available) to
+        # guarantee that the album is there.
         album = CacheManager.get_album(album_id.get_string()).result()
-        self.state.current_album_sort = 'byYear'
-        self.state.current_album_from_year = album.year
-        self.state.current_album_to_year = album.year
-        self.state.selected_album_id = album_id.get_string()
+        if album.get('year'):
+            self.state.current_album_sort = 'byYear'
+            self.state.current_album_from_year = album.year
+            self.state.current_album_to_year = album.year
+        elif album.get('genre'):
+            self.state.current_album_sort = 'byGenre'
+            self.state.current_album_genre = album.genre
+        else:
+            # TODO message?
+            print(album)
+            return
+
         self.state.current_tab = 'albums'
+        self.state.selected_album_id = album_id.get_string()
         self.update_window(force=True)
 
     def on_go_to_artist(self, action, artist_id):
