@@ -681,6 +681,15 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     def on_window_key_press(self, window, event):
+        if (event.keyval == 102
+                and event.state == Gdk.ModifierType.CONTROL_MASK):
+            # Ctrl + F
+            window.search_entry.grab_focus()
+            return
+
+        if window.search_entry.has_focus():
+            return False
+
         keymap = {
             32: self.on_play_pause,
             65360: self.on_prev_track,

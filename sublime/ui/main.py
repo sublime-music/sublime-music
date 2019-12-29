@@ -1,6 +1,6 @@
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, GObject
+from gi.repository import Gio, Gtk, GObject, Gdk
 
 from . import albums, artists, playlists, player_controls
 from sublime.state_manager import ApplicationState
@@ -57,6 +57,8 @@ class MainWindow(Gtk.ApplicationWindow):
         flowbox.pack_start(self.player_controls, False, True, 0)
         self.add(flowbox)
 
+        self.connect('button-release-event', self.on_button_release)
+
     def update(self, state: ApplicationState, force=False):
         # Update the Connected to label on the popup menu.
         if state.config.current_server >= 0:
@@ -99,24 +101,32 @@ class MainWindow(Gtk.ApplicationWindow):
         header.props.title = 'Sublime Music'
 
         # Search
-        search = Gtk.SearchEntry()
-        header.pack_start(search)
+        self.search_entry = Gtk.SearchEntry()
+        self.search_entry.connect('focus-in-event', self.on_search_entry_focus)
+        self.search_entry.connect('changed', self.on_search_entry_changed)
+        self.search_entry.connect(
+            'stop-search', self.on_search_entry_stop_search)
+        header.pack_start(self.search_entry)
+
+        # Search popup
+        self.create_search_popup()
 
         # Stack switcher
         switcher = Gtk.StackSwitcher(stack=stack)
         header.set_custom_title(switcher)
 
         # Menu button
-        button = Gtk.MenuButton()
-        button.set_use_popover(True)
-        button.set_popover(self.create_menu())
-        button.connect('clicked', self.on_menu_click)
+        menu_button = Gtk.MenuButton()
+        menu_button.set_use_popover(True)
+        menu_button.set_popover(self.create_menu())
+        menu_button.connect('clicked', self.on_menu_clicked)
+        self.menu.set_relative_to(menu_button)
 
-        icon = Gio.ThemedIcon(name="open-menu-symbolic")
+        icon = Gio.ThemedIcon(name='open-menu-symbolic')
         image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
-        button.add(image)
+        menu_button.add(image)
 
-        header.pack_end(button)
+        header.pack_end(menu_button)
 
         return header
 
@@ -146,8 +156,61 @@ class MainWindow(Gtk.ApplicationWindow):
 
         return self.menu
 
-    # ========== Event Listeners ==========
-    def on_menu_click(self, button):
-        self.menu.set_relative_to(button)
-        self.menu.show_all()
+    def create_search_popup(self):
+        self.search_popup = Gtk.PopoverMenu(modal=False)
+
+        self.search_results_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        self.search_popup.add(self.search_results_box)
+
+        self.search_popup.set_relative_to(self.search_entry)
+        rect = Gdk.Rectangle()
+        rect.x = 18
+        rect.y = 30
+        rect.width = 1
+        rect.height = 1
+        self.search_popup.set_pointing_to(rect)
+        self.search_popup.set_position(Gtk.PositionType.BOTTOM)
+
+    # Event Listeners
+    # =========================================================================
+    def on_button_release(self, win, event):
+        if not self.event_in_widget(event, self.search_entry):
+            self.search_popup.popdown()
+
+        if not self.event_in_widget(event, self.player_controls.device_button):
+            self.player_controls.device_popover.popdown()
+
+        if not self.event_in_widget(event,
+                                    self.player_controls.play_queue_button):
+            self.player_controls.play_queue_popover.popdown()
+
+    def on_menu_clicked(self, button):
         self.menu.popup()
+        self.menu.show_all()
+
+    def on_search_entry_focus(self, entry, event):
+        self.search_popup.show_all()
+        self.search_popup.popup()
+
+    def on_search_entry_changed(self, entry):
+        print('changed', entry.get_text())
+        self.search_results_box.add(Gtk.Label(label=entry.get_text()))
+        self.search_results_box.show_all()
+
+    def on_search_entry_stop_search(self, entry):
+        self.search_popup.popdown()
+
+    # Helper Functions
+    # =========================================================================
+    def event_in_widget(self, event, widget):
+        _, win_x, win_y = Gdk.Window.get_origin(self.get_window())
+        widget_x, widget_y = widget.translate_coordinates(self, 0, 0)
+        allocation = widget.get_allocation()
+
+        bound_x = (win_x + widget_x, win_x + widget_x + allocation.width)
+        bound_y = (win_y + widget_y, win_y + widget_y + allocation.height)
+
+        return (
+            (bound_x[0] <= event.x_root <= bound_x[1])
+            and (bound_y[0] <= event.y_root <= bound_y[1]))
