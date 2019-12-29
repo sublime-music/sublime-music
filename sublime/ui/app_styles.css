@@ -136,9 +136,22 @@
   min-width: 50px;
 }
 
-/* General */
+/* ********** General ********** */
 .menu-button {
   padding: 5px;
+}
+
+/* ********** Search ********** */
+#search-results {
+  min-width: 400px;
+}
+
+.search-result-row {
+  padding: 5px;
+}
+
+.search-result-header {
+  font-weight: bold;
 }
 
 /* ********** Artists & Albums ********** */

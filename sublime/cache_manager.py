@@ -39,12 +39,14 @@ from .server.api_objects import (
     Artist,
     ArtistInfo,
     Directory,
+    SearchResult2,
 
     # ID3 versions
     ArtistID3,
     ArtistInfo2,
     ArtistWithAlbumsID3,
     AlbumWithSongsID3,
+    SearchResult3,
 )
 
 
@@ -798,6 +800,18 @@ class CacheManager(metaclass=Singleton):
                 before_download=before_download,
                 after_download=after_download,
             )
+
+        def search2(self, *args, **kwargs):
+            def do_search2() -> SearchResult2:
+                return self.server.search2(*args, **kwargs)
+
+            return CacheManager.create_future(do_search2)
+
+        def search3(self, *args, **kwargs):
+            def do_search3() -> SearchResult3:
+                return self.server.search3(*args, **kwargs)
+
+            return CacheManager.create_future(do_search3)
 
         def get_cached_status(self, song: Child) -> SongCacheStatus:
             cache_path = self.calculate_abs_path(song.path)

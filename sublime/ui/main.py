@@ -1,9 +1,11 @@
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, GObject, Gdk
+from gi.repository import Gio, Gtk, GObject, Gdk, GLib
 
 from . import albums, artists, playlists, player_controls
 from sublime.state_manager import ApplicationState
+from sublime.cache_manager import CacheManager
+from sublime.server.api_objects import Child, AlbumWithSongsID3
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -101,8 +103,11 @@ class MainWindow(Gtk.ApplicationWindow):
         header.props.title = 'Sublime Music'
 
         # Search
-        self.search_entry = Gtk.SearchEntry()
+        self.search_entry = Gtk.SearchEntry(
+            placeholder_text='Search everything...')
         self.search_entry.connect('focus-in-event', self.on_search_entry_focus)
+        self.search_entry.connect(
+            'focus-out-event', self.on_search_entry_loose_focus)
         self.search_entry.connect('changed', self.on_search_entry_changed)
         self.search_entry.connect(
             'stop-search', self.on_search_entry_stop_search)
@@ -129,6 +134,14 @@ class MainWindow(Gtk.ApplicationWindow):
         header.pack_end(menu_button)
 
         return header
+
+    def create_label(self, text):
+        label = Gtk.Label(
+            label=text,
+            halign=Gtk.Align.START,
+        )
+        label.get_style_context().add_class('search-result-row')
+        return label
 
     def create_menu(self):
         self.menu = Gtk.PopoverMenu()
@@ -159,9 +172,33 @@ class MainWindow(Gtk.ApplicationWindow):
     def create_search_popup(self):
         self.search_popup = Gtk.PopoverMenu(modal=False)
 
-        self.search_results_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        def make_search_result_header(text):
+            label = self.create_label(text)
+            label.get_style_context().add_class('search-result-header')
+            return label
 
-        self.search_popup.add(self.search_results_box)
+        search_results_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            name='search-results',
+        )
+
+        search_results_box.add(make_search_result_header('Songs'))
+        self.song_results = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        search_results_box.add(self.song_results)
+
+        search_results_box.add(make_search_result_header('Album'))
+        self.album_results = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        search_results_box.add(self.album_results)
+
+        search_results_box.add(make_search_result_header('Artists'))
+        self.artist_results = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        search_results_box.add(self.artist_results)
+
+        search_results_box.add(make_search_result_header('Playlists'))
+        self.playlists_results = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        search_results_box.add(self.playlists_results)
+
+        self.search_popup.add(search_results_box)
 
         self.search_popup.set_relative_to(self.search_entry)
         rect = Gdk.Rectangle()
@@ -204,16 +241,62 @@ class MainWindow(Gtk.ApplicationWindow):
         self.search_popup.show_all()
         self.search_popup.popup()
 
+    def on_search_entry_loose_focus(self, entry, event):
+        self.search_popup.popdown()
+
+    search_idx = 0
+    latest_returned_search_idx = 0
+
     def on_search_entry_changed(self, entry):
-        print('changed', entry.get_text())
-        self.search_results_box.add(Gtk.Label(label=entry.get_text()))
-        self.search_results_box.show_all()
+        if not self.search_popup.is_visible():
+            self.search_popup.show_all()
+            self.search_popup.popup()
+
+        def create_search_callback(idx):
+            def search_done(f):
+                # Ignore slow returned searches.
+                if idx < self.latest_returned_search_idx:
+                    return
+                self.latest_returned_search_idx = idx
+
+                self.update_search_results(f.result())
+
+            return lambda f: GLib.idle_add(search_done, f)
+
+        search_future = CacheManager.search2(entry.get_text())
+        search_future.add_done_callback(
+            create_search_callback(self.search_idx))
+
+        self.search_idx += 1
 
     def on_search_entry_stop_search(self, entry):
         self.search_popup.popdown()
 
     # Helper Functions
     # =========================================================================
+    def remove_all_from_widget(self, widget):
+        for c in widget.get_children():
+            widget.remove(c)
+
+    def update_search_results(self, search_results):
+        # Albums
+        self.remove_all_from_widget(self.album_results)
+        for album in search_results.album or []:
+            name = album.title if type(album) == Child else album.name
+            self.album_results.add(self.create_label(name))
+
+        # Artists
+        self.remove_all_from_widget(self.artist_results)
+        for artist in search_results.artist or []:
+            self.artist_results.add(self.create_label(artist.name))
+
+        # Songs
+        self.remove_all_from_widget(self.song_results)
+        for song in search_results.song or []:
+            self.song_results.add(self.create_label(song.title))
+
+        self.search_popup.show_all()
+
     def event_in_widgets(self, event, *widgets):
         for widget in widgets:
             if not widget.is_visible():
