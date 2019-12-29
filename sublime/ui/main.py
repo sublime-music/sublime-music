@@ -175,14 +175,25 @@ class MainWindow(Gtk.ApplicationWindow):
     # Event Listeners
     # =========================================================================
     def on_button_release(self, win, event):
-        if not self.event_in_widget(event, self.search_entry):
+        if not self.event_in_widgets(
+                event,
+                self.search_entry,
+                self.search_popup,
+        ):
             self.search_popup.popdown()
 
-        if not self.event_in_widget(event, self.player_controls.device_button):
+        if not self.event_in_widgets(
+                event,
+                self.player_controls.device_button,
+                self.player_controls.device_popover,
+        ):
             self.player_controls.device_popover.popdown()
 
-        if not self.event_in_widget(event,
-                                    self.player_controls.play_queue_button):
+        if not self.event_in_widgets(
+                event,
+                self.player_controls.play_queue_button,
+                self.player_controls.play_queue_popover,
+        ):
             self.player_controls.play_queue_popover.popdown()
 
     def on_menu_clicked(self, button):
@@ -203,14 +214,21 @@ class MainWindow(Gtk.ApplicationWindow):
 
     # Helper Functions
     # =========================================================================
-    def event_in_widget(self, event, widget):
-        _, win_x, win_y = Gdk.Window.get_origin(self.get_window())
-        widget_x, widget_y = widget.translate_coordinates(self, 0, 0)
-        allocation = widget.get_allocation()
+    def event_in_widgets(self, event, *widgets):
+        for widget in widgets:
+            if not widget.is_visible():
+                continue
 
-        bound_x = (win_x + widget_x, win_x + widget_x + allocation.width)
-        bound_y = (win_y + widget_y, win_y + widget_y + allocation.height)
+            _, win_x, win_y = Gdk.Window.get_origin(self.get_window())
+            widget_x, widget_y = widget.translate_coordinates(self, 0, 0)
+            allocation = widget.get_allocation()
 
-        return (
-            (bound_x[0] <= event.x_root <= bound_x[1])
-            and (bound_y[0] <= event.y_root <= bound_y[1]))
+            bound_x = (win_x + widget_x, win_x + widget_x + allocation.width)
+            bound_y = (win_y + widget_y, win_y + widget_y + allocation.height)
+
+            # If the event is in this widget, return True immediately.
+            if ((bound_x[0] <= event.x_root <= bound_x[1])
+                    and (bound_y[0] <= event.y_root <= bound_y[1])):
+                return True
+
+        return False
