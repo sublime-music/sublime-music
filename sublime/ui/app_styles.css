@@ -146,6 +146,10 @@
   min-width: 400px;
 }
 
+#search-spinner {
+  margin: 15px;
+}
+
 .search-result-row {
   padding: 5px;
 }

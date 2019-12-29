@@ -801,14 +801,26 @@ class CacheManager(metaclass=Singleton):
                 after_download=after_download,
             )
 
-        def search2(self, *args, **kwargs):
+        def search2(
+                self,
+                *args,
+                before_download: Callable[[], None] = lambda: None,
+                **kwargs,
+        ):
             def do_search2() -> SearchResult2:
+                before_download()
                 return self.server.search2(*args, **kwargs)
 
             return CacheManager.create_future(do_search2)
 
-        def search3(self, *args, **kwargs):
+        def search3(
+                self,
+                *args,
+                before_download: Callable[[], None] = lambda: None,
+                **kwargs,
+        ):
             def do_search3() -> SearchResult3:
+                before_download()
                 return self.server.search3(*args, **kwargs)
 
             return CacheManager.create_future(do_search3)
