@@ -323,6 +323,9 @@ class MainWindow(Gtk.ApplicationWindow):
     # =========================================================================
     def create_search_future(self, query):
         def do_search():
+            if query == '':
+                return SearchResult()
+
             search_fn = (
                 CacheManager.search3
                 if self.browse_by_tags else CacheManager.search2)
