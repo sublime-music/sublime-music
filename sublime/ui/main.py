@@ -1,7 +1,6 @@
 import concurrent
 
 from concurrent.futures import Future
-from typing import List, Union
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -10,18 +9,10 @@ from fuzzywuzzy import fuzz
 
 from . import albums, artists, playlists, player_controls
 from sublime.state_manager import ApplicationState
-from sublime.cache_manager import CacheManager
-from sublime.server.api_objects import (
-    Artist, ArtistID3, AlbumID3, Child, Playlist, SearchResult2, SearchResult3)
+from sublime.cache_manager import CacheManager, SearchResult
+from sublime.server.api_objects import Child
 from sublime.ui import util
 from sublime.ui.common import SpinnerImage
-
-
-class SearchResult:
-    artist: List[Union[Artist, ArtistID3]] = []
-    album: List[Union[Child, AlbumID3]] = []
-    song: List[Child] = []
-    playlist: List[Playlist] = []
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -85,8 +76,6 @@ class MainWindow(Gtk.ApplicationWindow):
         self.connect('button-release-event', self.on_button_release)
 
     def update(self, state: ApplicationState, force=False):
-        self.browse_by_tags = state.config.server.browse_by_tags
-
         # Update the Connected to label on the popup menu.
         if state.config.current_server >= 0:
             server_name = state.config.servers[
@@ -298,24 +287,26 @@ class MainWindow(Gtk.ApplicationWindow):
             self.search_popup.popup()
 
         def create_search_callback(idx):
-            def search_done(f):
+            def search_result_calback(result, is_last_in_batch):
                 # Ignore slow returned searches.
                 if idx < self.latest_returned_search_idx:
                     return
 
                 # If all results are back, the stop the loading indicator.
-                if idx == self.search_idx - 1:
+                if is_last_in_batch:
                     self.set_search_loading(False)
 
                 self.latest_returned_search_idx = idx
 
-                self.update_search_results(f.result())
+                self.update_search_results(result)
 
-            return lambda f: GLib.idle_add(search_done, f)
+            return lambda *a: GLib.idle_add(search_result_calback, *a)
 
-        search_future = self.create_search_future(entry.get_text())
-        search_future.add_done_callback(
-            create_search_callback(self.search_idx))
+        CacheManager.search(
+            entry.get_text(),
+            search_callback=create_search_callback(self.search_idx),
+            before_download=lambda: self.set_search_loading(True),
+        )
 
         self.search_idx += 1
 
@@ -333,60 +324,6 @@ class MainWindow(Gtk.ApplicationWindow):
     def hide_search(self):
         self.search_popup.popdown()
         self.search_entry.set_size_request(-1, -1)
-
-    def create_search_future(self, query):
-        def do_search():
-            if query == '':
-                return SearchResult()
-
-            search_fn = (
-                CacheManager.search3
-                if self.browse_by_tags else CacheManager.search2)
-            search_future = search_fn(
-                query,
-                before_download=lambda: self.set_search_loading(True),
-            )
-            playlist_search_future = self.playlist_search(query)
-
-            search_result = SearchResult()
-            done, not_done = concurrent.futures.wait(
-                [search_future, playlist_search_future],
-                return_when=concurrent.futures.ALL_COMPLETED,
-            )
-            for f in done:
-                result = f.result()
-                if isinstance(result, (SearchResult2, SearchResult3)):
-                    search_result.album = result.album
-                    search_result.artist = result.artist
-                    search_result.song = result.song
-                else:
-                    search_result.playlist = result
-
-            return search_result
-
-        return CacheManager.executor.submit(do_search)
-
-    def playlist_search(self, query) -> Future:
-        def do_playlist_search():
-            playlists = sorted(
-                [
-                    (fuzz.partial_ratio(query.lower(), p.name.lower()), p)
-                    for p in CacheManager.get_playlists().result()
-                ],
-                key=lambda rp: rp[0],
-                reverse=True,
-            )
-            result = []
-            for ratio, p in playlists:
-                if ratio > 70:
-                    result.append(p)
-                else:
-                    # No use going on, all the rest are less.
-                    break
-
-            return result
-
-        return CacheManager.executor.submit(do_playlist_search)
 
     def set_search_loading(self, loading_state):
         if loading_state:
@@ -425,58 +362,62 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def update_search_results(self, search_results):
         # Songs
-        self.remove_all_from_widget(self.song_results)
-        for song in search_results.song or []:
-            label_text = util.dot_join(
-                f'<b>{util.esc(song.title)}</b>',
-                util.esc(song.artist),
-            )
-            cover_art_future = CacheManager.get_cover_art_filename(
-                song.coverArt, size=50)
-            self.song_results.add(
-                self.create_search_result_row(
-                    label_text, 'album', song.albumId, cover_art_future))
+        if search_results.song is not None:
+            self.remove_all_from_widget(self.song_results)
+            for song in search_results.song or []:
+                label_text = util.dot_join(
+                    f'<b>{util.esc(song.title)}</b>',
+                    util.esc(song.artist),
+                )
+                cover_art_future = CacheManager.get_cover_art_filename(
+                    song.coverArt, size=50)
+                self.song_results.add(
+                    self.create_search_result_row(
+                        label_text, 'album', song.albumId, cover_art_future))
 
-        self.song_results.show_all()
+            self.song_results.show_all()
 
         # Albums
-        self.remove_all_from_widget(self.album_results)
-        for album in search_results.album or []:
-            name = album.title if type(album) == Child else album.name
-            label_text = util.dot_join(
-                f'<b>{util.esc(name)}</b>',
-                util.esc(album.artist),
-            )
-            cover_art_future = CacheManager.get_cover_art_filename(
-                album.coverArt, size=50)
-            self.album_results.add(
-                self.create_search_result_row(
-                    label_text, 'album', album.id, cover_art_future))
+        if search_results.album is not None:
+            self.remove_all_from_widget(self.album_results)
+            for album in search_results.album or []:
+                name = album.title if type(album) == Child else album.name
+                label_text = util.dot_join(
+                    f'<b>{util.esc(name)}</b>',
+                    util.esc(album.artist),
+                )
+                cover_art_future = CacheManager.get_cover_art_filename(
+                    album.coverArt, size=50)
+                self.album_results.add(
+                    self.create_search_result_row(
+                        label_text, 'album', album.id, cover_art_future))
 
-        self.album_results.show_all()
+            self.album_results.show_all()
 
         # Artists
-        self.remove_all_from_widget(self.artist_results)
-        for artist in search_results.artist or []:
-            label_text = util.esc(artist.name)
-            cover_art_future = CacheManager.get_artist_artwork(artist)
-            self.artist_results.add(
-                self.create_search_result_row(
-                    label_text, 'artist', artist.id, cover_art_future))
+        if search_results.artist is not None:
+            self.remove_all_from_widget(self.artist_results)
+            for artist in search_results.artist or []:
+                label_text = util.esc(artist.name)
+                cover_art_future = CacheManager.get_artist_artwork(artist)
+                self.artist_results.add(
+                    self.create_search_result_row(
+                        label_text, 'artist', artist.id, cover_art_future))
 
-        self.artist_results.show_all()
+            self.artist_results.show_all()
 
         # Playlists
-        self.remove_all_from_widget(self.playlist_results)
-        for playlist in search_results.playlist or []:
-            label_text = util.esc(playlist.name)
-            cover_art_future = CacheManager.get_cover_art_filename(
-                playlist.coverArt)
-            self.playlist_results.add(
-                self.create_search_result_row(
-                    label_text, 'playlist', playlist.id, cover_art_future))
+        if search_results.playlist is not None:
+            self.remove_all_from_widget(self.playlist_results)
+            for playlist in search_results.playlist or []:
+                label_text = util.esc(playlist.name)
+                cover_art_future = CacheManager.get_cover_art_filename(
+                    playlist.coverArt)
+                self.playlist_results.add(
+                    self.create_search_result_row(
+                        label_text, 'playlist', playlist.id, cover_art_future))
 
-        self.playlist_results.show_all()
+            self.playlist_results.show_all()
 
     def event_in_widgets(self, event, *widgets):
         for widget in widgets:

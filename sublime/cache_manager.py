@@ -26,6 +26,8 @@ from typing import (
 
 import requests
 
+from fuzzywuzzy import fuzz
+
 from .config import AppConfiguration, ServerConfiguration
 from .server import Server
 from .server.api_object import APIObject
@@ -45,6 +47,7 @@ from .server.api_objects import (
     ArtistID3,
     ArtistInfo2,
     ArtistWithAlbumsID3,
+    AlbumID3,
     AlbumWithSongsID3,
     SearchResult3,
 )
@@ -70,6 +73,85 @@ class SongCacheStatus(Enum):
     CACHED = 1
     PERMANENTLY_CACHED = 2
     DOWNLOADING = 3
+
+
+class SearchResult:
+    _artist: Optional[Set[Union[Artist, ArtistID3]]] = None
+    _album: Optional[Set[Union[Child, AlbumID3]]] = None
+    _song: Optional[Set[Child]] = None
+    _playlist: Optional[Set[Playlist]] = None
+
+    @staticmethod
+    def empty():
+        result = SearchResult('')
+        result._artist = []
+        result._album = []
+        result._song = []
+        result._playlist = []
+        return result
+
+    def __init__(self, query):
+        self.query = query
+
+    def add_results(self, result_type, results):
+        member = f'_{result_type}'
+        if getattr(self, member) is None:
+            setattr(self, member, set())
+
+        setattr(
+            self,
+            member,
+            getattr(getattr(self, member, set()), 'union')(set(results)),
+        )
+
+    def _to_result(self, it, transform):
+        all_results = sorted(
+            (
+                (
+                    fuzz.partial_ratio(
+                        self.query.lower(),
+                        transform(x).lower(),
+                    ),
+                    x,
+                ) for x in it),
+            key=lambda rx: rx[0],
+            reverse=True,
+        )
+        result = []
+        for ratio, x in all_results:
+            if ratio > 60 and len(result) < 20:
+                result.append(x)
+            else:
+                # No use going on, all the rest are less.
+                break
+        return result
+
+    @property
+    def artist(self) -> Optional[List[Union[Artist, ArtistID3]]]:
+        if self._artist is None:
+            return None
+        return self._to_result(self._artist, lambda a: a.name)
+
+    @property
+    def album(self) -> Optional[List[Union[Child, AlbumID3]]]:
+        if self._album is None:
+            return None
+        return self._to_result(
+            self._album,
+            lambda a: a.title if type(a) == Child else a.name,
+        )
+
+    @property
+    def song(self) -> Optional[List[Child]]:
+        if self._song is None:
+            return None
+        return self._to_result(self._song, lambda s: s.title)
+
+    @property
+    def playlist(self) -> Optional[List[Playlist]]:
+        if self._playlist is None:
+            return None
+        return self._to_result(self._playlist, lambda p: p.name)
 
 
 T = TypeVar('T')
@@ -801,29 +883,50 @@ class CacheManager(metaclass=Singleton):
                 after_download=after_download,
             )
 
-        def search2(
+        def search(
                 self,
-                *args,
+                query,
+                search_callback: Callable[[SearchResult, bool], None],
                 before_download: Callable[[], None] = lambda: None,
-                **kwargs,
         ):
-            def do_search2() -> SearchResult2:
-                before_download()
-                return self.server.search2(*args, **kwargs)
+            if query == '':
+                search_callback(SearchResult.empty(), True)
+                return
 
-            return CacheManager.create_future(do_search2)
+            # Server search function
+            server_search = (
+                self.server.search3
+                if self.browse_by_tags else self.server.search2)
 
-        def search3(
-                self,
-                *args,
-                before_download: Callable[[], None] = lambda: None,
-                **kwargs,
-        ):
-            def do_search3() -> SearchResult3:
-                before_download()
-                return self.server.search3(*args, **kwargs)
+            def playlist_search(_):
+                return ('playlist', CacheManager.get_playlists().result())
 
-            return CacheManager.create_future(do_search3)
+            before_download()
+
+            def do_search():
+                search_future_fns = [
+                    server_search,
+                    playlist_search,
+                ]
+                search_result = SearchResult(query)
+
+                for i, f in enumerate(as_completed(
+                        CacheManager.create_future(lambda: fn(query))
+                        for fn in search_future_fns)):
+                    result = f.result()
+                    if isinstance(result, (SearchResult2, SearchResult3)):
+                        search_result.add_results('album', result.album)
+                        search_result.add_results('artist', result.artist)
+                        search_result.add_results('song', result.song)
+                    elif isinstance(result, tuple):
+                        search_result.add_results(*result)
+
+                    search_callback(
+                        search_result,
+                        i == len(search_future_fns) - 1,
+                    )
+
+            CacheManager.create_future(do_search)
 
         def get_cached_status(self, song: Child) -> SongCacheStatus:
             cache_path = self.calculate_abs_path(song.path)
