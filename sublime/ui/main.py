@@ -258,7 +258,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 self.search_entry,
                 self.search_popup,
         ):
-            self.search_popup.popdown()
+            self.hide_search()
 
         if not self.event_in_widgets(
                 event,
@@ -287,7 +287,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.show_search()
 
     def on_search_entry_loose_focus(self, entry, event):
-        self.search_popup.popdown()
+        self.hide_search()
 
     search_idx = 0
     latest_returned_search_idx = 0
@@ -325,9 +325,14 @@ class MainWindow(Gtk.ApplicationWindow):
     # Helper Functions
     # =========================================================================
     def show_search(self):
+        self.search_entry.set_size_request(300, -1)
         self.search_popup.show_all()
         self.search_results_loading.hide()
         self.search_popup.popup()
+
+    def hide_search(self):
+        self.search_popup.popdown()
+        self.search_entry.set_size_request(-1, -1)
 
     def create_search_future(self, query):
         def do_search():
