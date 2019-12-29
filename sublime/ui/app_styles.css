@@ -152,6 +152,11 @@
 
 .search-result-header {
   font-weight: bold;
+  font-size: 1.2em;
+}
+
+#search-artwork {
+  margin-right: 5px;
 }
 
 /* ********** Artists & Albums ********** */

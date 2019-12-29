@@ -516,6 +516,7 @@ class AlbumsGrid(Gtk.Overlay):
             loading=False,
             image_name='grid-artwork',
             spinner_name='grid-artwork-spinner',
+            image_size=200,
         )
         widget_box.pack_start(artwork, False, False, 0)
 

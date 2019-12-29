@@ -5,7 +5,9 @@ from gi.repository import Gio, Gtk, GObject, Gdk, GLib
 from . import albums, artists, playlists, player_controls
 from sublime.state_manager import ApplicationState
 from sublime.cache_manager import CacheManager
-from sublime.server.api_objects import Child, AlbumWithSongsID3
+from sublime.server.api_objects import Child
+from sublime.ui import util
+from sublime.ui.common import SpinnerImage
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -146,11 +148,12 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def create_label(self, text, *args, **kwargs):
         label = Gtk.Label(
-            label=text,
+            use_markup=True,
             halign=Gtk.Align.START,
             *args,
             **kwargs,
         )
+        label.set_markup(text)
         label.get_style_context().add_class('search-result-row')
         return label
 
@@ -198,7 +201,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.song_results = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         search_results_box.add(self.song_results)
 
-        search_results_box.add(make_search_result_header('Album'))
+        search_results_box.add(make_search_result_header('Albums'))
         self.album_results = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         search_results_box.add(self.album_results)
 
@@ -214,8 +217,8 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self.search_popup.set_relative_to(self.search_entry)
         rect = Gdk.Rectangle()
-        rect.x = 18
-        rect.y = 30
+        rect.x = 22
+        rect.y = 28
         rect.width = 1
         rect.height = 1
         self.search_popup.set_pointing_to(rect)
@@ -295,13 +298,33 @@ class MainWindow(Gtk.ApplicationWindow):
         for c in widget.get_children():
             widget.remove(c)
 
-    def create_search_result_row(self, text, action_name, value):
+    def create_search_result_row(self, text, action_name, value, artwork):
         row = Gtk.Button(relief=Gtk.ReliefStyle.NONE)
-        row.add(self.create_label(text))
         row.connect(
             'button-press-event',
             lambda *a: self.emit('go-to', action_name, value),
         )
+
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        image = SpinnerImage(image_name='search-artwork', image_size=30)
+        box.add(image)
+        box.add(self.create_label(text))
+        row.add(box)
+
+        if artwork is None:
+            image.set_from_file(None)
+            image.set_loading(False)
+
+        def image_callback(f):
+            image.set_from_file(f.result())
+            image.set_loading(False)
+
+        if artwork is not None:
+            cover_art_future = CacheManager.get_cover_art_filename(
+                artwork, size=50)
+            cover_art_future.add_done_callback(
+                lambda f: GLib.idle_add(image_callback, f))
+
         return row
 
     def update_search_results(self, search_results):
@@ -309,22 +332,31 @@ class MainWindow(Gtk.ApplicationWindow):
         self.remove_all_from_widget(self.album_results)
         for album in search_results.album or []:
             name = album.title if type(album) == Child else album.name
+            label_text = util.dot_join(
+                f'<b>{util.esc(name)}</b>',
+                util.esc(album.artist),
+            )
             self.album_results.add(
-                self.create_search_result_row(name, 'album', album.id))
+                self.create_search_result_row(
+                    label_text, 'album', album.id, album.coverArt))
 
         # Artists
         self.remove_all_from_widget(self.artist_results)
         for artist in search_results.artist or []:
             self.artist_results.add(
                 self.create_search_result_row(
-                    artist.name, 'artist', artist.id))
+                    artist.name, 'artist', artist.id, None))
 
         # Songs
         self.remove_all_from_widget(self.song_results)
         for song in search_results.song or []:
+            label_text = util.dot_join(
+                f'<b>{util.esc(song.title)}</b>',
+                util.esc(song.artist),
+            )
             self.song_results.add(
                 self.create_search_result_row(
-                    song.title, 'album', song.albumId))
+                    label_text, 'album', song.albumId, song.coverArt))
 
         self.search_popup.show_all()
 
