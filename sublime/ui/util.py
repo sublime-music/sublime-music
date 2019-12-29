@@ -117,14 +117,14 @@ def diff_model_store(store_to_edit, new_store):
 
 
 def show_song_popover(
-        song_ids,
-        x: int,
-        y: int,
-        relative_to: Any,
-        position: Gtk.PositionType = Gtk.PositionType.BOTTOM,
-        on_download_state_change: Callable[[int], None] = lambda x: None,
-        show_remove_from_playlist_button: bool = False,
-        extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = [],
+    song_ids,
+    x: int,
+    y: int,
+    relative_to: Any,
+    position: Gtk.PositionType = Gtk.PositionType.BOTTOM,
+    on_download_state_change: Callable[[int], None] = lambda x: None,
+    show_remove_from_playlist_button: bool = False,
+    extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = [],
 ):
     def on_download_songs_click(button):
         CacheManager.batch_download_songs(
@@ -192,31 +192,38 @@ def show_song_popover(
             action_name='app.add-to-queue',
             action_target=GLib.Variant('as', song_ids),
         ),
-        Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
-        go_to_album_button,
-        go_to_artist_button,
-        Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
-        (
-            Gtk.ModelButton(
-                text=f"Download {pluralize('song', song_count)}",
-                sensitive=download_sensitive,
-            ),
-            on_download_songs_click,
-        ),
-        (
-            Gtk.ModelButton(
-                text=f"Remove {pluralize('download', song_count)}",
-                sensitive=remove_download_sensitive,
-            ),
-            on_remove_downloads_click,
-        ),
-        Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
-        Gtk.ModelButton(
-            text=f"Add {pluralize('song', song_count)} to playlist",
-            menu_name='add-to-playlist',
-        ),
-        *extra_menu_items,
     ]
+    if CacheManager.browse_by_tags:
+        menu_items.extend(
+            [
+                Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
+                go_to_album_button,
+                go_to_artist_button,
+            ])
+    menu_items.extend(
+        [
+            Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
+            (
+                Gtk.ModelButton(
+                    text=f"Download {pluralize('song', song_count)}",
+                    sensitive=download_sensitive,
+                ),
+                on_download_songs_click,
+            ),
+            (
+                Gtk.ModelButton(
+                    text=f"Remove {pluralize('download', song_count)}",
+                    sensitive=remove_download_sensitive,
+                ),
+                on_remove_downloads_click,
+            ),
+            Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
+            Gtk.ModelButton(
+                text=f"Add {pluralize('song', song_count)} to playlist",
+                menu_name='add-to-playlist',
+            ),
+            *extra_menu_items,
+        ])
 
     for item in menu_items:
         if type(item) == tuple:
@@ -263,9 +270,9 @@ def show_song_popover(
 
 
 def async_callback(
-        future_fn,
-        before_download=None,
-        on_failure=None,
+    future_fn,
+    before_download=None,
+    on_failure=None,
 ):
     """
     Defines the ``async_callback`` decorator.

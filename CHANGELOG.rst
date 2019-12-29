@@ -1,6 +1,12 @@
 v0.8.9
 ======
 
+* Global Search (works best in Browse by Tags mode)
+
+  * Search for and go to Songs, Artists, Albums, and Playlists.
+  * Works online and offline (when online, the search results from the server
+    are included).
+
 * Passwords are now stored in the system keyring rather than in plain text.
 
   **Note:** You will have to re-enter your password in the *Configure Servers*

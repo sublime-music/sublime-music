@@ -136,9 +136,33 @@
   min-width: 50px;
 }
 
-/* General */
+/* ********** General ********** */
 .menu-button {
   padding: 5px;
+}
+
+/* ********** Search ********** */
+#search-results {
+  min-width: 400px;
+}
+
+#search-spinner {
+  margin: 15px;
+}
+
+.search-result-row {
+  padding: 5px;
+}
+
+.search-result-header {
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+#search-artwork {
+  margin-right: 5px;
+  min-width: 30px;
+  min-height: 30px;
 }
 
 /* ********** Artists & Albums ********** */

@@ -132,6 +132,7 @@ class SublimeMusicApp(Gtk.Application):
         self.window.connect('song-clicked', self.on_song_clicked)
         self.window.connect('songs-removed', self.on_songs_removed)
         self.window.connect('refresh-window', self.on_refresh_window)
+        self.window.connect('go-to', self.on_window_go_to)
         self.window.player_controls.connect('song-scrub', self.on_song_scrub)
         self.window.player_controls.connect(
             'device-update', self.on_device_update)
@@ -447,6 +448,13 @@ class SublimeMusicApp(Gtk.Application):
             self.reset_state()
         dialog.destroy()
 
+    def on_window_go_to(self, win, action, value):
+        {
+            'album': self.on_go_to_album,
+            'artist': self.on_go_to_artist,
+            'playlist': self.on_go_to_playlist,
+        }[action](None, GLib.Variant('s', value))
+
     @dbus_propagate()
     def on_play_pause(self, *args):
         if self.state.current_song_index < 0:
@@ -541,9 +549,24 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     def on_go_to_album(self, action, album_id):
-        # TODO
+        # Switch to the By Year view (or genre, if year is not available) to
+        # guarantee that the album is there.
+        album = CacheManager.get_album(album_id.get_string()).result()
+        if album.get('year'):
+            self.state.current_album_sort = 'byYear'
+            self.state.current_album_from_year = album.year
+            self.state.current_album_to_year = album.year
+        elif album.get('genre'):
+            self.state.current_album_sort = 'byGenre'
+            self.state.current_album_genre = album.genre
+        else:
+            # TODO message?
+            print(album)
+            return
+
         self.state.current_tab = 'albums'
-        self.update_window()
+        self.state.selected_album_id = album_id.get_string()
+        self.update_window(force=True)
 
     def on_go_to_artist(self, action, artist_id):
         self.state.current_tab = 'artists'
@@ -681,6 +704,15 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     def on_window_key_press(self, window, event):
+        if (event.keyval == 102
+                and event.state == Gdk.ModifierType.CONTROL_MASK):
+            # Ctrl + F
+            window.search_entry.grab_focus()
+            return
+
+        if window.search_entry.has_focus():
+            return False
+
         keymap = {
             32: self.on_play_pause,
             65360: self.on_prev_track,

@@ -132,16 +132,16 @@ class PlayerControls(Gtk.ActionBar):
         if state.current_song is not None:
             self.update_cover_art(state.current_song.coverArt, size='70')
 
-            self.song_title.set_text(util.esc(state.current_song.title))
-            self.album_name.set_text(util.esc(state.current_song.album))
+            self.song_title.set_markup(util.esc(state.current_song.title))
+            self.album_name.set_markup(util.esc(state.current_song.album))
             artist_name = util.esc(state.current_song.artist)
-            self.artist_name.set_text(artist_name or '')
+            self.artist_name.set_markup(artist_name or '')
         else:
             # Clear out the cover art and song tite if no song
             self.album_art.set_from_file(None)
-            self.song_title.set_text('')
-            self.album_name.set_text('')
-            self.artist_name.set_text('')
+            self.song_title.set_markup('')
+            self.album_name.set_markup('')
+            self.artist_name.set_markup('')
             self.album_art.set_loading(False)
 
         self.update_device_list()
@@ -276,10 +276,12 @@ class PlayerControls(Gtk.ActionBar):
             self.emit('volume-change', scale.get_value())
 
     def on_play_queue_click(self, button):
-        self.play_queue_popover.set_relative_to(button)
-        # TODO scroll the currently playing song into view.
-        self.play_queue_popover.popup()
-        self.play_queue_popover.show_all()
+        if self.play_queue_popover.is_visible():
+            self.play_queue_popover.popdown()
+        else:
+            # TODO scroll the currently playing song into view.
+            self.play_queue_popover.popup()
+            self.play_queue_popover.show_all()
 
     def on_song_activated(self, treeview, idx, column):
         # The song ID is in the last column of the model.
@@ -333,10 +335,12 @@ class PlayerControls(Gtk.ActionBar):
             chromecast_callback(self.chromecasts)
 
     def on_device_click(self, button):
-        self.device_popover.set_relative_to(button)
-        self.device_popover.popup()
-        self.device_popover.show_all()
-        self.update_device_list()
+        if self.device_popover.is_visible():
+            self.device_popover.popdown()
+        else:
+            self.device_popover.popup()
+            self.device_popover.show_all()
+            self.update_device_list()
 
     def on_device_refresh_click(self, button):
         self.update_device_list(force=True)
@@ -511,12 +515,16 @@ class PlayerControls(Gtk.ActionBar):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         # Device button (for chromecast)
-        device_button = IconButton(
+        self.device_button = IconButton(
             'video-display-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
-        device_button.connect('clicked', self.on_device_click)
-        box.pack_start(device_button, False, True, 5)
+        self.device_button.connect('clicked', self.on_device_click)
+        box.pack_start(self.device_button, False, True, 5)
 
-        self.device_popover = Gtk.PopoverMenu(name='device-popover')
+        self.device_popover = Gtk.PopoverMenu(
+            modal=False,
+            name='device-popover',
+        )
+        self.device_popover.set_relative_to(self.device_button)
 
         device_popover_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
@@ -564,12 +572,16 @@ class PlayerControls(Gtk.ActionBar):
         self.device_popover.add(device_popover_box)
 
         # Play Queue button
-        play_queue_button = IconButton(
+        self.play_queue_button = IconButton(
             'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
-        play_queue_button.connect('clicked', self.on_play_queue_click)
-        box.pack_start(play_queue_button, False, True, 5)
+        self.play_queue_button.connect('clicked', self.on_play_queue_click)
+        box.pack_start(self.play_queue_button, False, True, 5)
 
-        self.play_queue_popover = Gtk.PopoverMenu(name='up-next-popover')
+        self.play_queue_popover = Gtk.PopoverMenu(
+            modal=False,
+            name='up-next-popover',
+        )
+        self.play_queue_popover.set_relative_to(self.play_queue_button)
 
         play_queue_popover_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         play_queue_popover_header = Gtk.Box(

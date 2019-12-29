@@ -42,6 +42,7 @@ class AlbumWithSongs(Gtk.Box):
             loading=False,
             image_name='artist-album-list-artwork',
             spinner_name='artist-artwork-spinner',
+            image_size=cover_art_size,
         )
         # Account for 10px margin on all sides with "+ 20".
         artist_artwork.set_size_request(
