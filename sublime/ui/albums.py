@@ -160,6 +160,13 @@ class AlbumsPanel(Gtk.Box):
         show_if('byYear', self.from_year_label, self.from_year_entry)
         show_if('byYear', self.to_year_label, self.to_year_entry)
 
+        self.grid.update_params(
+            type_=state.current_album_sort,
+            alphabetical_type=state.current_album_alphabetical_sort,
+            from_year=state.current_album_from_year,
+            to_year=state.current_album_to_year,
+            genre=state.current_album_genre,
+        )
         self.grid.update(
             state,
             force=force,

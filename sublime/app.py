@@ -541,9 +541,13 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     def on_go_to_album(self, action, album_id):
-        # TODO
+        # Switch to the By Genre view to guarantee that the album is there.
+        album = CacheManager.get_album(album_id.get_string()).result()
+        self.state.current_album_sort = 'byGenre'
+        self.state.current_album_genre = album.genre
+        self.state.selected_album_id = album_id.get_string()
         self.state.current_tab = 'albums'
-        self.update_window()
+        self.update_window(force=True)
 
     def on_go_to_artist(self, action, artist_id):
         self.state.current_tab = 'artists'
