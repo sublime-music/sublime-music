@@ -63,7 +63,7 @@ class AppConfiguration:
     song_play_notification: bool = True
     prefetch_amount: int = 3
     concurrent_download_limit: int = 5
-    port_number: int = 8080
+    port_number: int = 8282
     version: int = 1
 
     def to_json(self):
