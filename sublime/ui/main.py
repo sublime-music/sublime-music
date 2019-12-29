@@ -132,6 +132,8 @@ class MainWindow(Gtk.ApplicationWindow):
             placeholder_text='Search everything...')
         self.search_entry.connect('focus-in-event', self.on_search_entry_focus)
         self.search_entry.connect(
+            'button-press-event', self.on_search_entry_button_press)
+        self.search_entry.connect(
             'focus-out-event', self.on_search_entry_loose_focus)
         self.search_entry.connect('changed', self.on_search_entry_changed)
         self.search_entry.connect(
@@ -279,9 +281,10 @@ class MainWindow(Gtk.ApplicationWindow):
         self.menu.show_all()
 
     def on_search_entry_focus(self, entry, event):
-        self.search_popup.show_all()
-        self.search_results_loading.hide()
-        self.search_popup.popup()
+        self.show_search()
+
+    def on_search_entry_button_press(self, *args):
+        self.show_search()
 
     def on_search_entry_loose_focus(self, entry, event):
         self.search_popup.popdown()
@@ -321,6 +324,11 @@ class MainWindow(Gtk.ApplicationWindow):
 
     # Helper Functions
     # =========================================================================
+    def show_search(self):
+        self.search_popup.show_all()
+        self.search_results_loading.hide()
+        self.search_popup.popup()
+
     def create_search_future(self, query):
         def do_search():
             if query == '':

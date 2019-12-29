@@ -2,7 +2,6 @@ import os
 import math
 import random
 
-from collections import namedtuple
 from os import environ
 
 import gi
