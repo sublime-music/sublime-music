@@ -295,8 +295,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 # If all results are back, the stop the loading indicator.
                 if is_last_in_batch:
                     self.set_search_loading(False)
-
-                self.latest_returned_search_idx = idx
+                    self.latest_returned_search_idx = idx
 
                 self.update_search_results(result)
 

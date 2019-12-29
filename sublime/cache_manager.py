@@ -94,6 +94,9 @@ class SearchResult:
         self.query = query
 
     def add_results(self, result_type, results):
+        if results is None:
+            return
+
         member = f'_{result_type}'
         if getattr(self, member) is None:
             setattr(self, member, set())
@@ -894,12 +897,17 @@ class CacheManager(metaclass=Singleton):
                 return
 
             # Server search function
-            server_search = (
-                self.server.search3
-                if self.browse_by_tags else self.server.search2)
+            def server_search():
+                search_fn = (
+                    self.server.search3
+                    if self.browse_by_tags else self.server.search2)
+                result = search_fn(query)
+                yield ('album', result.album)
+                yield ('artist', result.artist)
+                yield ('song', result.song)
 
-            def playlist_search(_):
-                return ('playlist', CacheManager.get_playlists().result())
+            def playlist_search():
+                yield ('playlist', CacheManager.get_playlists().result())
 
             before_download()
 
@@ -910,16 +918,10 @@ class CacheManager(metaclass=Singleton):
                 ]
                 search_result = SearchResult(query)
 
-                for i, f in enumerate(as_completed(
-                        CacheManager.create_future(lambda: fn(query))
-                        for fn in search_future_fns)):
-                    result = f.result()
-                    if isinstance(result, (SearchResult2, SearchResult3)):
-                        search_result.add_results('album', result.album)
-                        search_result.add_results('artist', result.artist)
-                        search_result.add_results('song', result.song)
-                    elif isinstance(result, tuple):
-                        search_result.add_results(*result)
+                for i, f in enumerate(as_completed(map(
+                        CacheManager.create_future, search_future_fns))):
+                    for member, result in f.result():
+                        search_result.add_results(member, result)
 
                     search_callback(
                         search_result,
