@@ -255,8 +255,21 @@ def generate_class_for_type(type_name):
         code.append(format_str.format(key, value))
         has_properties = True
 
+    indent_str = '    {}'
     if not has_properties:
-        code.append('    pass')
+        code.append(indent_str.format('pass'))
+
+    # Auto-generated __eq__ and  __hash__ functions if there's an ID field.
+    if not is_enum and has_properties and 'id' in fields:
+        code.append('')
+        code.append(indent_str.format('def __eq__(self, other):'))
+        code.append(indent_str.format('    return hash(self) == hash(other)'))
+
+        hash_name = inherits or type_name
+        code.append('')
+        code.append(indent_str.format('def __hash__(self):'))
+        code.append(
+            indent_str.format(f"    return hash(f'{hash_name}.{{self.id}}')"))
 
     return '\n'.join(code)
 
