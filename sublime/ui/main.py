@@ -26,7 +26,14 @@ class MainWindow(Gtk.ApplicationWindow):
             GObject.TYPE_NONE,
             (object, bool),
         ),
+        'go-to': (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (str, str),
+        ),
     }
+
+    browse_by_tags: bool = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -62,6 +69,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.connect('button-release-event', self.on_button_release)
 
     def update(self, state: ApplicationState, force=False):
+        self.browse_by_tags = state.config.server.browse_by_tags
+
         # Update the Connected to label on the popup menu.
         if state.config.current_server >= 0:
             server_name = state.config.servers[
@@ -135,10 +144,12 @@ class MainWindow(Gtk.ApplicationWindow):
 
         return header
 
-    def create_label(self, text):
+    def create_label(self, text, *args, **kwargs):
         label = Gtk.Label(
             label=text,
             halign=Gtk.Align.START,
+            *args,
+            **kwargs,
         )
         label.get_style_context().add_class('search-result-row')
         return label
@@ -146,7 +157,8 @@ class MainWindow(Gtk.ApplicationWindow):
     def create_menu(self):
         self.menu = Gtk.PopoverMenu()
 
-        self.connected_to_label = Gtk.Label(name='connected-to-label')
+        self.connected_to_label = self.create_label(
+            '', name='connected-to-label')
         self.connected_to_label.set_markup(
             f'<span style="italic">Not Connected to a Server</span>')
 
@@ -233,6 +245,8 @@ class MainWindow(Gtk.ApplicationWindow):
         ):
             self.player_controls.play_queue_popover.popdown()
 
+        return False
+
     def on_menu_clicked(self, button):
         self.menu.popup()
         self.menu.show_all()
@@ -263,7 +277,10 @@ class MainWindow(Gtk.ApplicationWindow):
 
             return lambda f: GLib.idle_add(search_done, f)
 
-        search_future = CacheManager.search2(entry.get_text())
+        search_fn = (
+            CacheManager.search3
+            if self.browse_by_tags else CacheManager.search2)
+        search_future = search_fn(entry.get_text())
         search_future.add_done_callback(
             create_search_callback(self.search_idx))
 
@@ -278,22 +295,36 @@ class MainWindow(Gtk.ApplicationWindow):
         for c in widget.get_children():
             widget.remove(c)
 
+    def create_search_result_row(self, text, action_name, value):
+        row = Gtk.Button(relief=Gtk.ReliefStyle.NONE)
+        row.add(self.create_label(text))
+        row.connect(
+            'button-press-event',
+            lambda *a: self.emit('go-to', action_name, value),
+        )
+        return row
+
     def update_search_results(self, search_results):
         # Albums
         self.remove_all_from_widget(self.album_results)
         for album in search_results.album or []:
             name = album.title if type(album) == Child else album.name
-            self.album_results.add(self.create_label(name))
+            self.album_results.add(
+                self.create_search_result_row(name, 'album', album.id))
 
         # Artists
         self.remove_all_from_widget(self.artist_results)
         for artist in search_results.artist or []:
-            self.artist_results.add(self.create_label(artist.name))
+            self.artist_results.add(
+                self.create_search_result_row(
+                    artist.name, 'artist', artist.id))
 
         # Songs
         self.remove_all_from_widget(self.song_results)
         for song in search_results.song or []:
-            self.song_results.add(self.create_label(song.title))
+            self.song_results.add(
+                self.create_search_result_row(
+                    song.title, 'album', song.albumId))
 
         self.search_popup.show_all()
 

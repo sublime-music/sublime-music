@@ -2,6 +2,7 @@ import os
 import math
 import random
 
+from collections import namedtuple
 from os import environ
 
 import gi
@@ -132,6 +133,7 @@ class SublimeMusicApp(Gtk.Application):
         self.window.connect('song-clicked', self.on_song_clicked)
         self.window.connect('songs-removed', self.on_songs_removed)
         self.window.connect('refresh-window', self.on_refresh_window)
+        self.window.connect('go-to', self.on_window_go_to)
         self.window.player_controls.connect('song-scrub', self.on_song_scrub)
         self.window.player_controls.connect(
             'device-update', self.on_device_update)
@@ -447,6 +449,13 @@ class SublimeMusicApp(Gtk.Application):
             self.reset_state()
         dialog.destroy()
 
+    def on_window_go_to(self, win, action, value):
+        {
+            'album': self.on_go_to_album,
+            'artist': self.on_go_to_artist,
+            'playlist': self.on_go_to_playlist,
+        }[action](None, GLib.Variant('s', value))
+
     @dbus_propagate()
     def on_play_pause(self, *args):
         if self.state.current_song_index < 0:
@@ -541,10 +550,11 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     def on_go_to_album(self, action, album_id):
-        # Switch to the By Genre view to guarantee that the album is there.
+        # Switch to the By Year view to guarantee that the album is there.
         album = CacheManager.get_album(album_id.get_string()).result()
-        self.state.current_album_sort = 'byGenre'
-        self.state.current_album_genre = album.genre
+        self.state.current_album_sort = 'byYear'
+        self.state.current_album_from_year = album.year
+        self.state.current_album_to_year = album.year
         self.state.selected_album_id = album_id.get_string()
         self.state.current_tab = 'albums'
         self.update_window(force=True)
