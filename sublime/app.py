@@ -249,14 +249,14 @@ class SublimeMusicApp(Gtk.Application):
         return True
 
     def on_dbus_method_call(
-            self,
-            connection,
-            sender,
-            path,
-            interface,
-            method,
-            params,
-            invocation,
+        self,
+        connection,
+        sender,
+        path,
+        interface,
+        method,
+        params,
+        invocation,
     ):
         second_microsecond_conversion = 1000000
 
@@ -381,13 +381,13 @@ class SublimeMusicApp(Gtk.Application):
         invocation.return_value(method(*params) if callable(method) else None)
 
     def on_dbus_set_property(
-            self,
-            connection,
-            sender,
-            path,
-            interface,
-            property_name,
-            value,
+        self,
+        connection,
+        sender,
+        path,
+        interface,
+        property_name,
+        value,
     ):
         def change_loop(new_loop_status):
             self.state.repeat_type = RepeatType.from_mpris_loop_status(
@@ -432,8 +432,8 @@ class SublimeMusicApp(Gtk.Application):
         dialog = SettingsDialog(self.window, self.state.config)
         result = dialog.run()
         if result == Gtk.ResponseType.OK:
-            self.state.config.show_headers = dialog.data[
-                'show_headers'].get_active()
+            self.state.config.port_number = int(
+                dialog.data['port_number'].get_text())
             self.state.config.always_stream = dialog.data[
                 'always_stream'].get_active()
             self.state.config.download_on_stream = dialog.data[
@@ -809,11 +809,11 @@ class SublimeMusicApp(Gtk.Application):
             lambda f: GLib.idle_add(do_update, f))
 
     def play_song(
-            self,
-            song_index: int,
-            reset=False,
-            old_play_queue=None,
-            play_queue=None,
+        self,
+        song_index: int,
+        reset=False,
+        old_play_queue=None,
+        play_queue=None,
     ):
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.

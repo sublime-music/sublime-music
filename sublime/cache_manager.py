@@ -6,6 +6,7 @@ import shutil
 import json
 import hashlib
 
+from functools import lru_cache
 from collections import defaultdict
 from time import sleep
 
@@ -75,6 +76,12 @@ class SongCacheStatus(Enum):
     DOWNLOADING = 3
 
 
+# This may end up being called a lot, so cache the similarity ratios.
+@lru_cache(maxsize=8192)
+def similarity_ratio(query, string):
+    return fuzz.partial_ratio(query.lower(), string.lower())
+
+
 class SearchResult:
     _artist: Set[Union[Artist, ArtistID3]] = set()
     _album: Set[Union[Child, AlbumID3]] = set()
@@ -100,14 +107,7 @@ class SearchResult:
 
     def _to_result(self, it, transform):
         all_results = sorted(
-            (
-                (
-                    fuzz.partial_ratio(
-                        self.query.lower(),
-                        transform(x).lower(),
-                    ),
-                    x,
-                ) for x in it),
+            ((similarity_ratio(self.query, transform(x)), x) for x in it),
             key=lambda rx: rx[0],
             reverse=True,
         )
