@@ -187,6 +187,11 @@ class MainWindow(Gtk.ApplicationWindow):
     def create_search_popup(self):
         self.search_popup = Gtk.PopoverMenu(modal=False)
 
+        results_scrollbox = Gtk.ScrolledWindow(
+            min_content_width=400,
+            min_content_height=700,
+        )
+
         def make_search_result_header(text):
             label = self.create_label(text)
             label.get_style_context().add_class('search-result-header')
@@ -213,7 +218,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.playlists_results = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         search_results_box.add(self.playlists_results)
 
-        self.search_popup.add(search_results_box)
+        results_scrollbox.add(search_results_box)
+        self.search_popup.add(results_scrollbox)
 
         self.search_popup.set_relative_to(self.search_entry)
         rect = Gdk.Rectangle()
@@ -298,7 +304,8 @@ class MainWindow(Gtk.ApplicationWindow):
         for c in widget.get_children():
             widget.remove(c)
 
-    def create_search_result_row(self, text, action_name, value, artwork):
+    def create_search_result_row(
+            self, text, action_name, value, artwork_future):
         row = Gtk.Button(relief=Gtk.ReliefStyle.NONE)
         row.connect(
             'button-press-event',
@@ -311,19 +318,12 @@ class MainWindow(Gtk.ApplicationWindow):
         box.add(self.create_label(text))
         row.add(box)
 
-        if artwork is None:
-            image.set_from_file(None)
-            image.set_loading(False)
-
         def image_callback(f):
-            image.set_from_file(f.result())
             image.set_loading(False)
+            image.set_from_file(f.result())
 
-        if artwork is not None:
-            cover_art_future = CacheManager.get_cover_art_filename(
-                artwork, size=50)
-            cover_art_future.add_done_callback(
-                lambda f: GLib.idle_add(image_callback, f))
+        artwork_future.add_done_callback(
+            lambda f: GLib.idle_add(image_callback, f))
 
         return row
 
@@ -336,16 +336,20 @@ class MainWindow(Gtk.ApplicationWindow):
                 f'<b>{util.esc(name)}</b>',
                 util.esc(album.artist),
             )
+            cover_art_future = CacheManager.get_cover_art_filename(
+                album.coverArt, size=50)
             self.album_results.add(
                 self.create_search_result_row(
-                    label_text, 'album', album.id, album.coverArt))
+                    label_text, 'album', album.id, cover_art_future))
 
         # Artists
         self.remove_all_from_widget(self.artist_results)
         for artist in search_results.artist or []:
+            label_text = util.esc(artist.name)
+            cover_art_future = CacheManager.get_artist_artwork(artist)
             self.artist_results.add(
                 self.create_search_result_row(
-                    artist.name, 'artist', artist.id, None))
+                    label_text, 'artist', artist.id, cover_art_future))
 
         # Songs
         self.remove_all_from_widget(self.song_results)
@@ -354,9 +358,11 @@ class MainWindow(Gtk.ApplicationWindow):
                 f'<b>{util.esc(song.title)}</b>',
                 util.esc(song.artist),
             )
+            cover_art_future = CacheManager.get_cover_art_filename(
+                song.coverArt, size=50)
             self.song_results.add(
                 self.create_search_result_row(
-                    label_text, 'album', song.albumId, song.coverArt))
+                    label_text, 'album', song.albumId, cover_art_future))
 
         self.search_popup.show_all()
 
