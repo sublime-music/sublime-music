@@ -84,7 +84,7 @@ class ApplicationState:
     _current_ssids: Set[str] = set()
 
     def to_json(self):
-        exclude = ('config', 'repeat_type')
+        exclude = ('config', 'repeat_type', '_current_ssids')
         json_object = {
             k: getattr(self, k)
             for k in self.__annotations__.keys()
