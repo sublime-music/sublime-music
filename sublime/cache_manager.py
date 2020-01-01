@@ -262,13 +262,21 @@ class CacheManager(metaclass=Singleton):
             self,
             app_config: AppConfiguration,
             server_config: ServerConfiguration,
+            current_ssids: Set[str],
         ):
             self.app_config = app_config
             self.browse_by_tags = self.app_config.server.browse_by_tags
             self.server_config = server_config
+
+            # If connected to the "Local Network SSID", use the "Local Network
+            # Address" instead of the "Server Address".
+            hostname = server_config.server_address
+            if self.server_config.local_network_ssid in current_ssids:
+                hostname = self.server_config.local_network_address
+
             self.server = Server(
                 name=server_config.name,
-                hostname=server_config.server_address,
+                hostname=hostname,
                 username=server_config.username,
                 password=server_config.password,
                 disable_cert_verify=server_config.disable_cert_verify,
@@ -975,9 +983,11 @@ class CacheManager(metaclass=Singleton):
     def __init__(self):
         raise Exception('Do not instantiate the CacheManager.')
 
-    @classmethod
-    def reset(cls, app_config, server_config):
+    @staticmethod
+    def reset(app_config, server_config, current_ssids: Set[str]):
         CacheManager._instance = CacheManager.__CacheManagerInternal(
             app_config,
             server_config,
+            current_ssids,
         )
+        similarity_ratio.cache_clear()

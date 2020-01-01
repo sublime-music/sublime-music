@@ -78,14 +78,6 @@ class DBusManager:
             dbus_name_lost,
         )
 
-        def system_bus_ready(_, task):
-            connection = Gio.bus_get_finish(task)
-            print(connection.signal_subscribe(
-                None, 'org.freedesktop.DBus.Properties', None, None, None,
-                Gio.DBusSignalFlags.NONE, lambda *a: print(a), None))
-
-        Gio.bus_get(Gio.BusType.SYSTEM, None, system_bus_ready)
-
     def shutdown(self):
         Gio.bus_unown_name(self.bus_number)
 
