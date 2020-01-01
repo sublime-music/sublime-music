@@ -167,18 +167,21 @@ class SublimeMusicApp(Gtk.Application):
             if self.loading_state:
                 return
 
+            if value is None:
+                self.last_play_queue_update = 0
+                return
+
             self.state.song_progress = value
             GLib.idle_add(
                 self.window.player_controls.update_scrubber,
                 self.state.song_progress,
                 self.state.current_song.duration,
             )
-            if not value:
-                self.last_play_queue_update = 0
-            elif self.last_play_queue_update + 15 <= value:
+
+            if self.last_play_queue_update + 15 <= value:
                 self.save_play_queue()
 
-            if value and value > 5 and self.should_scrobble_song:
+            if value > 5 and self.should_scrobble_song:
                 CacheManager.scrobble(self.state.current_song.id)
                 self.should_scrobble_song = False
 
@@ -767,8 +770,11 @@ class SublimeMusicApp(Gtk.Application):
 
             if prompt_confirm:
                 # If there's not a significant enough difference, don't prompt.
-                progress_diff = abs(
-                    self.state.song_progress - new_song_progress)
+                progress_diff = 15
+                if self.state.song_progress:
+                    progress_diff = abs(
+                        self.state.song_progress - new_song_progress)
+
                 if (self.state.play_queue == new_play_queue
                         and self.state.current_song
                         and self.state.current_song.id == new_current_song_id
