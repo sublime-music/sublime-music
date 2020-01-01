@@ -293,10 +293,10 @@ class ArtistDetailPanel(Gtk.Box):
         on_failure=lambda self, e: print('fail a', e),
     )
     def update_artist_view(
-            self,
-            artist: ArtistWithAlbumsID3,
-            state: ApplicationState,
-            force=False,
+        self,
+        artist: ArtistWithAlbumsID3,
+        state: ApplicationState,
+        force=False,
     ):
         self.artist_id = artist.id
         self.artist_indicator.set_text('ARTIST')
@@ -313,9 +313,9 @@ class ArtistDetailPanel(Gtk.Box):
         lambda *a, **k: CacheManager.get_artist_info(*a, **k),
     )
     def update_artist_info(
-            self,
-            artist_info: ArtistInfo2,
-            state: ApplicationState,
+        self,
+        artist_info: ArtistInfo2,
+        state: ApplicationState,
     ):
         self.artist_bio.set_markup(util.esc(''.join(artist_info.biography)))
         self.play_shuffle_buttons.show_all()
@@ -343,9 +343,9 @@ class ArtistDetailPanel(Gtk.Box):
         on_failure=lambda self, e: self.artist_artwork.set_loading(False),
     )
     def update_artist_artwork(
-            self,
-            cover_art_filename,
-            state: ApplicationState,
+        self,
+        cover_art_filename,
+        state: ApplicationState,
     ):
         self.artist_artwork.set_from_file(cover_art_filename)
         self.artist_artwork.set_loading(False)
@@ -399,7 +399,7 @@ class ArtistDetailPanel(Gtk.Box):
         )
 
     def format_stats(self, artist):
-        album_count = artist.get('albumCount', len(artist.get('child', [])))
+        album_count = artist.get('albumCount', len(artist.get('child') or []))
         components = [
             '{} {}'.format(album_count, util.pluralize('album', album_count)),
         ]

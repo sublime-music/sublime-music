@@ -302,6 +302,7 @@ class CacheManager(metaclass=Singleton):
                 ('playlists', Playlist, list),
                 ('playlist_details', PlaylistWithSongs, dict),
                 ('genres', Genre, list),
+                ('song_details', Child, dict),
 
                 # Non-ID3 caches
                 ('albums', Child, 'dict-list'),
@@ -309,7 +310,6 @@ class CacheManager(metaclass=Singleton):
                 ('artists', Artist, list),
                 ('artist_details', Directory, dict),
                 ('artist_infos', ArtistInfo, dict),
-                ('song_details', Child, dict),
 
                 # ID3 caches
                 ('albums_id3', AlbumWithSongsID3, 'dict-list'),
@@ -317,7 +317,6 @@ class CacheManager(metaclass=Singleton):
                 ('artists_id3', ArtistID3, list),
                 ('artist_details_id3', ArtistWithAlbumsID3, dict),
                 ('artist_infos_id3', ArtistInfo2, dict),
-                ('song_details_id3', Child, dict),
             ]
             for name, type_name, default in cache_configs:
                 if default == list:
@@ -490,7 +489,7 @@ class CacheManager(metaclass=Singleton):
 
                     # Playlists have the song details, so save those too.
                     for song in (playlist.entry or []):
-                        self.cache[self.id3ify('song_details')][song.id] = song
+                        self.cache['song_details'][song.id] = song
 
                 self.save_cache_info()
 
@@ -742,7 +741,7 @@ class CacheManager(metaclass=Singleton):
                     # Albums have the song details as well, so save those too.
                     for song in (album.get('song') or album.get('child')
                                  or []):
-                        self.cache[self.id3ify('song_details')][song.id] = song
+                        self.cache['song_details'][song.id] = song
                 self.save_cache_info()
 
             return CacheManager.Result.from_server(
@@ -829,7 +828,7 @@ class CacheManager(metaclass=Singleton):
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
         ) -> 'CacheManager.Result[Child]':
-            cache_name = self.id3ify('song_details')
+            cache_name = 'song_details'
             if self.cache[cache_name].get(song_id) and not force:
                 return CacheManager.Result.from_data(
                     self.cache[cache_name][song_id])
@@ -930,8 +929,7 @@ class CacheManager(metaclass=Singleton):
                 yield ('artist', self.cache[self.id3ify('artists')])
 
             def song_search():
-                yield (
-                    'song', self.cache[self.id3ify('song_details')].values())
+                yield ('song', self.cache['song_details'].values())
 
             def playlist_search():
                 yield ('playlist', self.cache['playlists'])

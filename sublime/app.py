@@ -16,7 +16,7 @@ from .ui.settings import SettingsDialog
 from .dbus_manager import DBusManager, dbus_propagate
 from .state_manager import ApplicationState, RepeatType
 from .cache_manager import CacheManager
-from .server.api_objects import Child
+from .server.api_objects import Child, Directory
 from .ui.common.players import PlayerEvent, MPVPlayer, ChromecastPlayer
 
 
@@ -555,6 +555,10 @@ class SublimeMusicApp(Gtk.Application):
         # Switch to the By Year view (or genre, if year is not available) to
         # guarantee that the album is there.
         album = CacheManager.get_album(album_id.get_string()).result()
+        if isinstance(album, Directory):
+            if len(album.child) > 0:
+                album = album.child[0]
+
         if album.get('year'):
             self.state.current_album_sort = 'byYear'
             self.state.current_album_from_year = album.year
@@ -564,6 +568,7 @@ class SublimeMusicApp(Gtk.Application):
             self.state.current_album_genre = album.genre
         else:
             # TODO message?
+            print('unable to go to album')
             print(album)
             return
 
