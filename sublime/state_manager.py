@@ -1,9 +1,10 @@
 import os
-from enum import Enum
 import json
 
+from enum import Enum
+from typing import List, Optional, Set
+
 from gi.repository import NetworkManager, NMClient
-from typing import List, Optional
 
 from .from_json import from_json
 from .config import AppConfiguration
@@ -80,7 +81,7 @@ class ApplicationState:
 
     networkmanager_client = NMClient.Client.new()
     nmclient_initialized = False
-    current_ssids = set()
+    _current_ssids: Set[str] = set()
 
     def to_json(self):
         exclude = ('config', 'repeat_type')
@@ -132,7 +133,7 @@ class ApplicationState:
             self.migrate()
             return
 
-        CacheManager.reset(self.config, self.config.server, self.get_ssids())
+        CacheManager.reset(self.config, self.config.server, self.current_ssids)
 
         if os.path.exists(self.state_filename):
             with open(self.state_filename, 'r') as f:
@@ -174,14 +175,11 @@ class ApplicationState:
             except json.decoder.JSONDecodeError:
                 return AppConfiguration()
 
-    def on_ssid_change(self, *args):
-        print(args)
-
-    def get_ssids(self):
+    @property
+    def current_ssids(self):
         if not self.nmclient_initialized:
-            # Find all of the SSIDs
+            # Only look at the active WiFi connections.
             for ac in self.networkmanager_client.get_active_connections():
-                # If not WiFi, ignore.
                 if ac.get_connection_type() != '802-11-wireless':
                     continue
                 devs = ac.get_devices()
@@ -190,9 +188,9 @@ class ApplicationState:
                 if devs[0].get_device_type() != NetworkManager.DeviceType.WIFI:
                     continue
 
-                self.current_ssids.add(ac.get_id())
+                self._current_ssids.add(ac.get_id())
 
-        return self.current_ssids
+        return self._current_ssids
 
     @property
     def state_filename(self):
