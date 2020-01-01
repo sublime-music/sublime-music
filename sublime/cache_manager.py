@@ -215,6 +215,12 @@ class CacheManager(metaclass=Singleton):
         return CacheManager._instance is not None
 
     @staticmethod
+    def browse_by_tags():
+        return (
+            CacheManager._instance is not None
+            and CacheManager._instance.browse_by_tags)
+
+    @staticmethod
     def shutdown():
         CacheManager.should_exit = True
         print('Shutdown start')
@@ -523,6 +529,7 @@ class CacheManager(metaclass=Singleton):
             before_download: Callable[[], None] = lambda: None,
             force: bool = False,
         ) -> 'CacheManager.Result[List[Union[Artist, ArtistID3]]]':
+            # TODO: no need to id3ify I think.
             cache_name = self.id3ify('artists')
 
             if self.cache.get(cache_name) and not force:
@@ -556,6 +563,7 @@ class CacheManager(metaclass=Singleton):
             before_download: Callable[[], None] = lambda: None,
             force: bool = False,
         ) -> 'CacheManager.Result[Union[ArtistWithAlbumsID3, Child]]':
+            # TODO: no need to id3ify I think.
             cache_name = self.id3ify('artist_details')
 
             if artist_id in self.cache.get(cache_name, {}) and not force:
@@ -583,6 +591,7 @@ class CacheManager(metaclass=Singleton):
             before_download: Callable[[], None] = lambda: None,
             force: bool = False,
         ) -> 'CacheManager.Result[Union[ArtistInfo, ArtistInfo2]]':
+            # TODO: no need to id3ify I think.
             cache_name = self.id3ify('artist_infos')
 
             if artist_id in self.cache.get(cache_name, {}) and not force:
@@ -663,6 +672,7 @@ class CacheManager(metaclass=Singleton):
             # Look at documentation for get_album_list in server.py:
             **params,
         ) -> 'CacheManager.Result[List[Union[Child, AlbumWithSongsID3]]]':
+            # TODO: no need to id3ify I think.
             cache_name = self.id3ify('albums')
 
             if (len(self.cache.get(cache_name, {}).get(type_, [])) > 0

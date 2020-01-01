@@ -1,15 +1,10 @@
-import concurrent
-
-from concurrent.futures import Future
-
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, GObject, Gdk, GLib, Pango
-from fuzzywuzzy import fuzz
 
-from . import albums, artists, playlists, player_controls
+from . import albums, artists, browse, playlists, player_controls
 from sublime.state_manager import ApplicationState
-from sublime.cache_manager import CacheManager, SearchResult
+from sublime.cache_manager import CacheManager
 from sublime.server.api_objects import Child
 from sublime.ui import util
 from sublime.ui.common import SpinnerImage
@@ -47,9 +42,13 @@ class MainWindow(Gtk.ApplicationWindow):
         self.set_default_size(1150, 768)
 
         # Create the stack
+        self.albums_panel = albums.AlbumsPanel()
+        self.artists_panel = artists.ArtistsPanel()
+        self.browse_panel = browse.BrowsePanel()
         self.stack = self.create_stack(
-            Albums=albums.AlbumsPanel(),
-            Artists=artists.ArtistsPanel(),
+            Albums=self.albums_panel,
+            Browse=self.browse_panel,
+            Artists=self.artists_panel,
             Playlists=playlists.PlaylistsPanel(),
         )
         self.stack.set_transition_type(
@@ -76,7 +75,19 @@ class MainWindow(Gtk.ApplicationWindow):
         self.connect('button-release-event', self.on_button_release)
 
     def update(self, state: ApplicationState, force=False):
+        # Have to do this before hiding/showing the panels to avoid issues with
+        # the current_tab being overridden.
+        self.stack.set_visible_child_name(state.current_tab)
+
         self.browse_by_tags = state.config.server.browse_by_tags
+        if self.browse_by_tags:
+            self.browse_panel.hide()
+            self.albums_panel.show()
+            self.artists_panel.show()
+        else:
+            self.browse_panel.show()
+            self.albums_panel.hide()
+            self.artists_panel.hide()
 
         # Update the Connected to label on the popup menu.
         if state.config.current_server >= 0:
@@ -87,8 +98,6 @@ class MainWindow(Gtk.ApplicationWindow):
         else:
             self.connected_to_label.set_markup(
                 f'<span style="italic">Not Connected to a Server</span>')
-
-        self.stack.set_visible_child_name(state.current_tab)
 
         active_panel = self.stack.get_visible_child()
         if hasattr(active_panel, 'update'):
@@ -339,7 +348,12 @@ class MainWindow(Gtk.ApplicationWindow):
             widget.remove(c)
 
     def create_search_result_row(
-        self, text, action_name, value, artwork_future):
+        self,
+        text,
+        action_name,
+        value,
+        artwork_future,
+    ):
         row = Gtk.Button(relief=Gtk.ReliefStyle.NONE)
         row.connect(
             'button-press-event',
