@@ -6,6 +6,7 @@ v0.8.9
   * Search for and go to Songs, Artists, Albums, and Playlists.
   * Works online and offline (when online, the search results from the server
     are included).
+  * Uses a fuzzy matching algorithm for ranking results.
 
 * Passwords are now stored in the system keyring rather than in plain text.
 
@@ -18,9 +19,19 @@ v0.8.9
 * The play queue can now be reordered, and songs can be added and removed from
   it. Right click also works on the play queue.
 
+* Go to Album now works in Browse by Tag mode.
+
+* The Local Network SSID and Local Network Address settings now actually work.
+  It only checks the SSID on startup or new server connect for now.
+
+* ``CacheManager`` now returns RAM results immediately instead of using a
+  future. This means it returns data faster to the UI if it's already cached.
+
 * **Bug Fixes:**
 
   * Pressing ESC on the Playlist edit dialog no longer deletes the playlist.
+  * DBus functions no longer block on `CacheManager` results which was causing
+    long startup times.
 
 * **Infrastructure**:
 
