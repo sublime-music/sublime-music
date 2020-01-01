@@ -148,7 +148,7 @@ class AlbumWithSongs(Gtk.Box):
         self.album_songs = Gtk.TreeView(
             model=self.album_song_store,
             name='album-songs-list',
-            headers_visible=False,  # TODO use the config value for this
+            headers_visible=False,
             margin_top=15,
             margin_left=10,
             margin_right=10,

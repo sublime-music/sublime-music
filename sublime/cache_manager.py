@@ -6,6 +6,7 @@ import shutil
 import json
 import hashlib
 
+from functools import lru_cache
 from collections import defaultdict
 from time import sleep
 
@@ -75,6 +76,12 @@ class SongCacheStatus(Enum):
     DOWNLOADING = 3
 
 
+# This may end up being called a lot, so cache the similarity ratios.
+@lru_cache(maxsize=8192)
+def similarity_ratio(query, string):
+    return fuzz.partial_ratio(query.lower(), string.lower())
+
+
 class SearchResult:
     _artist: Set[Union[Artist, ArtistID3]] = set()
     _album: Set[Union[Child, AlbumID3]] = set()
@@ -100,14 +107,7 @@ class SearchResult:
 
     def _to_result(self, it, transform):
         all_results = sorted(
-            (
-                (
-                    fuzz.partial_ratio(
-                        self.query.lower(),
-                        transform(x).lower(),
-                    ),
-                    x,
-                ) for x in it),
+            ((similarity_ratio(self.query, transform(x)), x) for x in it),
             key=lambda rx: rx[0],
             reverse=True,
         )
@@ -262,13 +262,21 @@ class CacheManager(metaclass=Singleton):
             self,
             app_config: AppConfiguration,
             server_config: ServerConfiguration,
+            current_ssids: Set[str],
         ):
             self.app_config = app_config
             self.browse_by_tags = self.app_config.server.browse_by_tags
             self.server_config = server_config
+
+            # If connected to the "Local Network SSID", use the "Local Network
+            # Address" instead of the "Server Address".
+            hostname = server_config.server_address
+            if self.server_config.local_network_ssid in current_ssids:
+                hostname = self.server_config.local_network_address
+
             self.server = Server(
                 name=server_config.name,
-                hostname=server_config.server_address,
+                hostname=hostname,
                 username=server_config.username,
                 password=server_config.password,
                 disable_cert_verify=server_config.disable_cert_verify,
@@ -975,9 +983,11 @@ class CacheManager(metaclass=Singleton):
     def __init__(self):
         raise Exception('Do not instantiate the CacheManager.')
 
-    @classmethod
-    def reset(cls, app_config, server_config):
+    @staticmethod
+    def reset(app_config, server_config, current_ssids: Set[str]):
         CacheManager._instance = CacheManager.__CacheManagerInternal(
             app_config,
             server_config,
+            current_ssids,
         )
+        similarity_ratio.cache_clear()

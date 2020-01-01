@@ -16,7 +16,6 @@ class SettingsDialog(EditFormDialog):
         ),
     ]
     boolean_fields = [
-        ('Show headers on song lists', 'show_headers'),
         ('Always stream songs', 'always_stream'),
         ('When streaming, also download song', 'download_on_stream'),
         (

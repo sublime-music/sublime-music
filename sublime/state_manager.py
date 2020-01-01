@@ -1,7 +1,10 @@
 import os
-from enum import Enum
 import json
-from typing import List, Optional
+
+from enum import Enum
+from typing import List, Optional, Set
+
+from gi.repository import NetworkManager, NMClient
 
 from .from_json import from_json
 from .config import AppConfiguration
@@ -76,6 +79,10 @@ class ApplicationState:
 
     active_playlist_id: str = None
 
+    networkmanager_client = NMClient.Client.new()
+    nmclient_initialized = False
+    _current_ssids: Set[str] = set()
+
     def to_json(self):
         exclude = ('config', 'repeat_type')
         json_object = {
@@ -121,20 +128,20 @@ class ApplicationState:
     def load(self):
         self.config = self.get_config(self.config_file)
 
-        if self.config.server is not None:
-            # Reset the CacheManager.
-            CacheManager.reset(self.config, self.config.server)
+        if self.config.server is None:
+            self.load_from_json({})
+            self.migrate()
+            return
 
-        if (self.config.server is not None
-                and os.path.exists(self.state_filename)):
+        CacheManager.reset(self.config, self.config.server, self.current_ssids)
+
+        if os.path.exists(self.state_filename):
             with open(self.state_filename, 'r') as f:
                 try:
                     self.load_from_json(json.load(f))
                 except json.decoder.JSONDecodeError:
                     # Who cares, it's just state.
                     self.load_from_json({})
-        else:
-            self.load_from_json({})
 
         self.migrate()
 
@@ -167,6 +174,23 @@ class ApplicationState:
                 return from_json(AppConfiguration, json.load(f))
             except json.decoder.JSONDecodeError:
                 return AppConfiguration()
+
+    @property
+    def current_ssids(self):
+        if not self.nmclient_initialized:
+            # Only look at the active WiFi connections.
+            for ac in self.networkmanager_client.get_active_connections():
+                if ac.get_connection_type() != '802-11-wireless':
+                    continue
+                devs = ac.get_devices()
+                if len(devs) != 1:
+                    continue
+                if devs[0].get_device_type() != NetworkManager.DeviceType.WIFI:
+                    continue
+
+                self._current_ssids.add(ac.get_id())
+
+        return self._current_ssids
 
     @property
     def state_filename(self):

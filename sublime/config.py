@@ -16,16 +16,16 @@ class ServerConfiguration:
     disable_cert_verify: bool
 
     def __init__(
-            self,
-            name='Default',
-            server_address='http://yourhost',
-            local_network_address='',
-            local_network_ssid='',
-            username='',
-            password='',
-            browse_by_tags=False,
-            sync_enabled=True,
-            disable_cert_verify=False,
+        self,
+        name='Default',
+        server_address='http://yourhost',
+        local_network_address='',
+        local_network_ssid='',
+        username='',
+        password='',
+        browse_by_tags=False,
+        sync_enabled=True,
+        disable_cert_verify=False,
     ):
         self.name = name
         self.server_address = server_address
@@ -57,7 +57,6 @@ class AppConfiguration:
     current_server: int = -1
     _cache_location: str = ''
     max_cache_size_mb: int = -1  # -1 means unlimited
-    show_headers: bool = True  # show the headers on song lists
     always_stream: bool = False  # always stream instead of downloading songs
     download_on_stream: bool = True  # also download when streaming a song
     song_play_notification: bool = True
