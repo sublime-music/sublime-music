@@ -215,6 +215,7 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_bio.set_line_wrap(True)
         artist_details_box.add(self.artist_bio)
 
+        similar_artists_scrolledwindow = Gtk.ScrolledWindow()
         self.similar_artists_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL)
 
@@ -224,8 +225,9 @@ class ArtistDetailPanel(Gtk.Box):
         self.similar_artists_button_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL)
         self.similar_artists_box.add(self.similar_artists_button_box)
+        similar_artists_scrolledwindow.add(self.similar_artists_box)
 
-        artist_details_box.add(self.similar_artists_box)
+        artist_details_box.add(similar_artists_scrolledwindow)
 
         self.artist_stats = self.make_label(name='artist-stats')
         artist_details_box.add(self.artist_stats)
