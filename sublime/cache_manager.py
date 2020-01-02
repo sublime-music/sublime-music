@@ -395,7 +395,6 @@ class CacheManager(metaclass=Singleton):
                 return CacheManager.Result.from_data('')
 
             def do_download() -> str:
-                # TODO
                 resource_downloading = False
                 with self.download_set_lock:
                     if abs_path_str in self.current_downloads:
@@ -411,7 +410,7 @@ class CacheManager(metaclass=Singleton):
                     # TODO: figure out a way to determine if the download we
                     # are waiting on failed.
                     while abs_path_str in self.current_downloads:
-                        sleep(0.5)
+                        sleep(0.2)
                 else:
                     print(abs_path, 'not found. Downloading...')
 
