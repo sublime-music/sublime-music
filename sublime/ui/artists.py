@@ -57,7 +57,7 @@ class ArtistList(Gtk.Box):
     class ArtistModel(GObject.GObject):
         artist_id = GObject.Property(type=str)
         name = GObject.Property(type=str)
-        album_count = GObject.Property(type=str)
+        album_count = GObject.Property(type=int)
 
         def __init__(self, artist_id, name, album_count):
             GObject.GObject.__init__(self)
@@ -473,6 +473,8 @@ class AlbumsListWithSongs(Gtk.Overlay):
 
         if self.albums == new_albums:
             # No need to do anything.
+            self.spinner.stop()
+            self.spinner.hide()
             return
 
         self.albums = new_albums

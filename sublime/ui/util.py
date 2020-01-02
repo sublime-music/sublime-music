@@ -18,6 +18,16 @@ def format_song_duration(duration_secs) -> str:
 
 
 def pluralize(string: str, number: int, pluralized_form=None):
+    """
+    Pluralize the given string given the count as a number.
+
+    >>> pluralize('foo', 1)
+    'foo'
+    >>> pluralize('foo', 2)
+    'foos'
+    >>> pluralize('foo', 0)
+    'foos'
+    """
     if number != 1:
         return pluralized_form or f'{string}s'
     return string
