@@ -473,7 +473,6 @@ class AlbumsListWithSongs(Gtk.Overlay):
 
         if self.albums == new_albums:
             # No need to do anything.
-            self.spinner.stop()
             self.spinner.hide()
             return
 
@@ -491,7 +490,6 @@ class AlbumsListWithSongs(Gtk.Overlay):
             album_with_songs.show_all()
             self.box.add(album_with_songs)
 
-        self.spinner.stop()
         self.spinner.hide()
 
     def on_song_selected(self, album_component):
