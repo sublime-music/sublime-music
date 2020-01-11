@@ -161,6 +161,7 @@ class CacheManager(metaclass=Singleton):
         """A result from a CacheManager function."""
         data = None
         future = None
+        on_cancel = None
 
         @staticmethod
         def from_data(data: T) -> 'CacheManager.Result[T]':
@@ -173,6 +174,7 @@ class CacheManager(metaclass=Singleton):
                 download_fn,
                 before_download=None,
                 after_download=None,
+                on_cancel=None,
         ) -> 'CacheManager.Result[T]':
             result: 'CacheManager.Result[T]' = CacheManager.Result()
 
@@ -182,6 +184,7 @@ class CacheManager(metaclass=Singleton):
                 return download_fn()
 
             result.future = CacheManager.executor.submit(future_fn)
+            result.on_cancel = on_cancel
 
             if after_download:
                 result.future.add_done_callback(
@@ -205,6 +208,14 @@ class CacheManager(metaclass=Singleton):
             else:
                 # Run the function immediately if it's not a future.
                 fn(self, *args)
+
+        def cancel(self) -> bool:
+            if self.on_cancel is not None:
+                self.on_cancel()
+
+            if self.future is not None:
+                return self.future.cancel()
+            return True
 
         @property
         def is_future(self) -> bool:
@@ -945,18 +956,28 @@ class CacheManager(metaclass=Singleton):
 
             before_download()
 
-            def do_search():
-                search_future_fns = [
+            # Keep track of if the result is cancelled and if it is, then don't
+            # do anything with any results.
+            cancelled = False
+            search_futures = [
+                CacheManager.create_future(fn) for fn in [
+                    server_search,
                     server_search,
                     album_search,
                     artist_search,
                     song_search,
                     playlist_search,
                 ]
+            ]
+
+            # This future actually does the search and calls the
+            # search_callback when each of the futures completes.
+            def do_search():
                 search_result = SearchResult(query)
 
-                for i, f in enumerate(as_completed(map(
-                        CacheManager.create_future, search_future_fns))):
+                for i, f in enumerate(as_completed(search_futures)):
+                    if cancelled:
+                        return
                     try:
                         for member, result in f.result():
                             search_result.add_results(member, result)
@@ -965,10 +986,21 @@ class CacheManager(metaclass=Singleton):
 
                     search_callback(
                         search_result,
-                        i == len(search_future_fns) - 1,
+                        i == len(search_futures) - 1,
                     )
 
-            CacheManager.create_future(do_search)
+            # When the future is cancelled (this will happen if a new search is
+            # created).
+            def on_cancel():
+                nonlocal cancelled
+                cancelled = True
+                for f in search_futures:
+                    f.cancel()
+
+            return CacheManager.Result.from_server(
+                do_search,
+                on_cancel=on_cancel,
+            )
 
         def get_cached_status(self, song: Child) -> SongCacheStatus:
             cache_path = self.calculate_abs_path(song.path)

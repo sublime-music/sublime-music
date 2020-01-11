@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, GObject, Gdk, GLib, Pango
@@ -291,8 +293,18 @@ class MainWindow(Gtk.ApplicationWindow):
 
     search_idx = 0
     latest_returned_search_idx = 0
+    last_search_change_time = datetime.now()
+    searches = set()
 
     def on_search_entry_changed(self, entry):
+        now = datetime.now()
+        if (now - self.last_search_change_time).seconds < 0.5:
+            while len(self.searches) > 0:
+                search = self.searches.pop()
+                if search:
+                    search.cancel()
+        self.last_search_change_time = now
+
         if not self.search_popup.is_visible():
             self.search_popup.show_all()
             self.search_popup.popup()
@@ -312,11 +324,12 @@ class MainWindow(Gtk.ApplicationWindow):
 
             return lambda *a: GLib.idle_add(search_result_calback, *a)
 
-        CacheManager.search(
-            entry.get_text(),
-            search_callback=create_search_callback(self.search_idx),
-            before_download=lambda: self.set_search_loading(True),
-        )
+        self.searches.add(
+            CacheManager.search(
+                entry.get_text(),
+                search_callback=create_search_callback(self.search_idx),
+                before_download=lambda: self.set_search_loading(True),
+            ))
 
         self.search_idx += 1
 
