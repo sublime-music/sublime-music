@@ -926,76 +926,71 @@ class CacheManager(metaclass=Singleton):
                 search_callback(SearchResult(''), True)
                 return
 
-            # Server search function
-            def server_search():
-                # TODO: if offline, return immediately
-
-                search_fn = (
-                    self.server.search3
-                    if self.browse_by_tags else self.server.search2)
-                result = search_fn(query)
-                yield ('album', result.album)
-                yield ('artist', result.artist)
-                yield ('song', result.song)
-
-            # Local cache search functions
-            def album_search():
-                yield (
-                    'album',
-                    itertools.chain(
-                        *self.cache[self.id3ify('albums')].values()))
-
-            def artist_search():
-                yield ('artist', self.cache[self.id3ify('artists')])
-
-            def song_search():
-                yield ('song', self.cache['song_details'].values())
-
-            def playlist_search():
-                yield ('playlist', self.cache['playlists'])
-
             before_download()
 
             # Keep track of if the result is cancelled and if it is, then don't
             # do anything with any results.
             cancelled = False
-            search_futures = [
-                CacheManager.create_future(fn) for fn in [
-                    server_search,
-                    server_search,
-                    album_search,
-                    artist_search,
-                    song_search,
-                    playlist_search,
-                ]
-            ]
 
             # This future actually does the search and calls the
             # search_callback when each of the futures completes.
             def do_search():
+                # Sleep far a little while before returning the local results.
+                # They are less expensive to retrieve (but they still incur
+                # some overhead due to the GTK UI main loop queue).
+                sleep(0.2)
+                if cancelled:
+                    return
+
+                # Local Results
                 search_result = SearchResult(query)
+                search_result.add_results(
+                    'album',
+                    itertools.chain(
+                        *self.cache[self.id3ify('albums')].values()),
+                )
+                search_result.add_results(
+                    'artist',
+                    self.cache[self.id3ify('artists')],
+                )
+                search_result.add_results(
+                    'song',
+                    self.cache['song_details'].values(),
+                )
+                search_result.add_results('playlist', self.cache['playlists'])
+                search_callback(search_result, False)
 
-                for i, f in enumerate(as_completed(search_futures)):
-                    if cancelled:
-                        return
-                    try:
-                        for member, result in f.result():
-                            search_result.add_results(member, result)
-                    except Exception as e:
-                        print(e)
+                # Wait longer to see if the user types anything else so we
+                # don't peg the server with tons of requests.
+                sleep(0.2)
+                if cancelled:
+                    return
 
-                    search_callback(
-                        search_result,
-                        i == len(search_futures) - 1,
-                    )
+                # Server Results
+                search_fn = (
+                    self.server.search3
+                    if self.browse_by_tags else self.server.search2)
+                try:
+                    # Attempt to add the server search results to the
+                    # SearchResult. If it fails, that's fine, we will use the
+                    # finally to always return a final SearchResult to the UI.
+                    server_result = search_fn(query)
+                    search_result.add_results('album', server_result.album)
+                    search_result.add_results('artist', server_result.artist)
+                    search_result.add_results('song', server_result.song)
+                except Exception:
+                    # We really don't care about what the exception was (could
+                    # be connection error, could be invalid JSON, etc.) because
+                    # we will always have returned local results.
+                    return
+                finally:
+                    search_callback(search_result, True)
 
             # When the future is cancelled (this will happen if a new search is
             # created).
             def on_cancel():
                 nonlocal cancelled
                 cancelled = True
-                for f in search_futures:
-                    f.cancel()
 
             return CacheManager.Result.from_server(
                 do_search,

@@ -719,8 +719,9 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     def on_window_key_press(self, window, event):
+        # Need to use bitwise & here to see if CTRL is pressed.
         if (event.keyval == 102
-                and event.state == Gdk.ModifierType.CONTROL_MASK):
+                and event.state & Gdk.ModifierType.CONTROL_MASK):
             # Ctrl + F
             window.search_entry.grab_focus()
             return
