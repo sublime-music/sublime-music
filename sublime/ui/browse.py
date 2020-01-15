@@ -61,10 +61,11 @@ class DirectoryListAndDrilldown(Gtk.Paned):
         self.pack2(self.listing_drilldown_panel, True, False)
 
     def update(self, state: ApplicationState, force=False):
-        if self.is_root:
-            self.directory_listing.update_root(state=state, force=force)
-        else:
-            self.directory_listing.update_not_root(state=state, force=force)
+        self.directory_listing.update(
+            state=state,
+            force=force,
+            is_root=self.is_root,
+        )
 
 
 class DirectoryList(Gtk.Box):
@@ -117,6 +118,18 @@ class DirectoryList(Gtk.Box):
 
         self.pack_start(list_scroll_window, True, True, 0)
 
+    def update(
+        self,
+        state: ApplicationState = None,
+        force=False,
+        is_root=False,
+    ):
+        self.is_root = is_root
+        if self.is_root:
+            self.update_root(state=state, force=force)
+        else:
+            self.update_not_root(state=state, force=force)
+
     def update_store(self, elements):
         new_store = []
         selected_idx = None
@@ -124,8 +137,7 @@ class DirectoryList(Gtk.Box):
             # if state and state.selected_artist_id == el.id:
             #     selected_idx = i
 
-            new_store.append(
-                DirectoryList.SubelementModel(el.id, el.name))
+            new_store.append(DirectoryList.SubelementModel(el.id, el.name))
 
         util.diff_model_store(self.directory_list_store, new_store)
 
