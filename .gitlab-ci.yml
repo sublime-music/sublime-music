@@ -27,6 +27,7 @@ test:
   stage: test
   before_script:
     - ./cicd/install-project-deps.sh
+    - ./cicd/start-dbus.sh
   script:
     - pipenv run ./cicd/pytest.sh
   artifacts:
