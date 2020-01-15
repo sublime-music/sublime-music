@@ -153,7 +153,7 @@ class PlaylistList(Gtk.Box):
                 Gtk.Label(
                     label=f'<b>{model.name}</b>',
                     use_markup=True,
-                    margin=12,
+                    margin=10,
                     halign=Gtk.Align.START,
                     ellipsize=Pango.EllipsizeMode.END,
                     max_width_chars=30,

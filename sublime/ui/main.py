@@ -37,20 +37,15 @@ class MainWindow(Gtk.ApplicationWindow):
         ),
     }
 
-    browse_by_tags: bool = False
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.set_default_size(1150, 768)
 
         # Create the stack
-        self.albums_panel = albums.AlbumsPanel()
-        self.artists_panel = artists.ArtistsPanel()
-        self.browse_panel = browse.BrowsePanel()
         self.stack = self.create_stack(
-            Albums=self.albums_panel,
-            Browse=self.browse_panel,
-            Artists=self.artists_panel,
+            Albums=albums.AlbumsPanel(),
+            Artists=artists.ArtistsPanel(),
+            Browse=browse.BrowsePanel(),
             Playlists=playlists.PlaylistsPanel(),
         )
         self.stack.set_transition_type(
@@ -80,16 +75,6 @@ class MainWindow(Gtk.ApplicationWindow):
         # Have to do this before hiding/showing the panels to avoid issues with
         # the current_tab being overridden.
         self.stack.set_visible_child_name(state.current_tab)
-
-        self.browse_by_tags = state.config.server.browse_by_tags
-        if self.browse_by_tags:
-            self.browse_panel.hide()
-            self.albums_panel.show()
-            self.artists_panel.show()
-        else:
-            self.browse_panel.show()
-            self.albums_panel.hide()
-            self.artists_panel.hide()
 
         # Update the Connected to label on the popup menu.
         if state.config.current_server >= 0:
@@ -400,10 +385,9 @@ class MainWindow(Gtk.ApplicationWindow):
                 )
                 cover_art_future = CacheManager.get_cover_art_filename(
                     song.coverArt, size=50)
-                album_id = song.albumId if self.browse_by_tags else song.parent
                 self.song_results.add(
                     self.create_search_result_row(
-                        label_text, 'album', album_id, cover_art_future))
+                        label_text, 'album', song.albumId, cover_art_future))
 
             self.song_results.show_all()
 

@@ -215,19 +215,19 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_bio.set_line_wrap(True)
         artist_details_box.add(self.artist_bio)
 
-        similar_artists_scrolledwindow = Gtk.ScrolledWindow()
-        self.similar_artists_box = Gtk.Box(
+        self.similar_artists_scrolledwindow = Gtk.ScrolledWindow()
+        similar_artists_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL)
 
         self.similar_artists_label = self.make_label(name='similar-artists')
-        self.similar_artists_box.add(self.similar_artists_label)
+        similar_artists_box.add(self.similar_artists_label)
 
         self.similar_artists_button_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL)
-        self.similar_artists_box.add(self.similar_artists_button_box)
-        similar_artists_scrolledwindow.add(self.similar_artists_box)
+        similar_artists_box.add(self.similar_artists_button_box)
+        self.similar_artists_scrolledwindow.add(similar_artists_box)
 
-        artist_details_box.add(similar_artists_scrolledwindow)
+        artist_details_box.add(self.similar_artists_scrolledwindow)
 
         self.artist_stats = self.make_label(name='artist-stats')
         artist_details_box.add(self.artist_stats)
@@ -276,7 +276,7 @@ class ArtistDetailPanel(Gtk.Box):
             self.artist_stats.set_markup('')
 
             self.artist_bio.set_markup('')
-            self.similar_artists_box.hide()
+            self.similar_artists_scrolledwindow.hide()
             self.play_shuffle_buttons.hide()
 
             self.artist_artwork.set_from_file(None)
@@ -335,9 +335,9 @@ class ArtistDetailPanel(Gtk.Box):
                         action_name='app.go-to-artist',
                         action_target=GLib.Variant('s', artist.id),
                     ))
-            self.similar_artists_box.show_all()
+            self.similar_artists_scrolledwindow.show_all()
         else:
-            self.similar_artists_box.hide()
+            self.similar_artists_scrolledwindow.hide()
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist_artwork(*a, **k),
@@ -490,6 +490,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
             album_with_songs.show_all()
             self.box.add(album_with_songs)
 
+        self.spinner.stop()
         self.spinner.hide()
 
     def on_song_selected(self, album_component):

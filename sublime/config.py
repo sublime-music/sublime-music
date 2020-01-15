@@ -11,7 +11,6 @@ class ServerConfiguration:
     local_network_address: str
     local_network_ssid: str
     username: str
-    browse_by_tags: bool
     sync_enabled: bool
     disable_cert_verify: bool
 
@@ -23,7 +22,6 @@ class ServerConfiguration:
         local_network_ssid='',
         username='',
         password='',
-        browse_by_tags=False,
         sync_enabled=True,
         disable_cert_verify=False,
     ):
@@ -37,7 +35,6 @@ class ServerConfiguration:
             f'{self.username}@{self.server_address}',
             password,
         )
-        self.browse_by_tags = browse_by_tags
         self.sync_enabled = sync_enabled
         self.disable_cert_verify = disable_cert_verify
 

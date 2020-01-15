@@ -212,37 +212,31 @@ def show_song_popover(
             action_target=GLib.Variant('as', song_ids),
         ),
         Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
-    ]
-
-    if CacheManager.browse_by_tags():
-        menu_items.extend([go_to_album_button, go_to_artist_button])
-    else:
-        menu_items.extend([browse_to_song])
-
-    menu_items.extend(
-        [
-            Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
-            (
-                Gtk.ModelButton(
-                    text=f"Download {pluralize('song', song_count)}",
-                    sensitive=download_sensitive,
-                ),
-                on_download_songs_click,
-            ),
-            (
-                Gtk.ModelButton(
-                    text=f"Remove {pluralize('download', song_count)}",
-                    sensitive=remove_download_sensitive,
-                ),
-                on_remove_downloads_click,
-            ),
-            Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
+        go_to_album_button,
+        go_to_artist_button,
+        browse_to_song,
+        Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
+        (
             Gtk.ModelButton(
-                text=f"Add {pluralize('song', song_count)} to playlist",
-                menu_name='add-to-playlist',
+                text=f"Download {pluralize('song', song_count)}",
+                sensitive=download_sensitive,
             ),
-            *extra_menu_items,
-        ])
+            on_download_songs_click,
+        ),
+        (
+            Gtk.ModelButton(
+                text=f"Remove {pluralize('download', song_count)}",
+                sensitive=remove_download_sensitive,
+            ),
+            on_remove_downloads_click,
+        ),
+        Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
+        Gtk.ModelButton(
+            text=f"Add {pluralize('song', song_count)} to playlist",
+            menu_name='add-to-playlist',
+        ),
+        *extra_menu_items,
+    ]
 
     for item in menu_items:
         if type(item) == tuple:

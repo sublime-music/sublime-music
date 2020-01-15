@@ -52,6 +52,7 @@ class DirectoryListAndDrilldown(Gtk.Paned):
 
     def __init__(self, is_root=False):
         Gtk.Paned.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
+        self.is_root = is_root
 
         self.directory_listing = DirectoryList()
         self.pack1(self.directory_listing, False, False)
@@ -60,7 +61,6 @@ class DirectoryListAndDrilldown(Gtk.Paned):
         self.pack2(self.listing_drilldown_panel, True, False)
 
     def update(self, state: ApplicationState, force=False):
-        print('directory list and drilldown update')
         if self.is_root:
             self.directory_listing.update_root(state=state, force=force)
         else:
@@ -104,7 +104,7 @@ class DirectoryList(Gtk.Box):
             return Gtk.Label(
                 label=f'<b>{util.esc(model.name)}</b>',
                 use_markup=True,
-                margin=8,
+                margin=10,
                 halign=Gtk.Align.START,
                 ellipsize=Pango.EllipsizeMode.END,
                 max_width_chars=30,
@@ -117,6 +117,25 @@ class DirectoryList(Gtk.Box):
 
         self.pack_start(list_scroll_window, True, True, 0)
 
+    def update_store(self, elements):
+        new_store = []
+        selected_idx = None
+        for i, el in enumerate(elements):
+            # if state and state.selected_artist_id == el.id:
+            #     selected_idx = i
+
+            new_store.append(
+                DirectoryList.SubelementModel(el.id, el.name))
+
+        util.diff_model_store(self.directory_list_store, new_store)
+
+        # Preserve selection
+        if selected_idx is not None:
+            row = self.list.get_row_at_index(selected_idx)
+            self.list.select_row(row)
+
+        self.loading_indicator.hide()
+
     @util.async_callback(
         lambda *a, **k: CacheManager.get_indexes(*a, **k),
         before_download=lambda self: self.loading_indicator.show_all(),
@@ -128,23 +147,7 @@ class DirectoryList(Gtk.Box):
         state: ApplicationState = None,
         force=False,
     ):
-        new_store = []
-        selected_idx = None
-        for i, artist in enumerate(artists):
-            # if state and state.selected_artist_id == artist.id:
-            #     selected_idx = i
-
-            new_store.append(
-                DirectoryList.SubelementModel(artist.id, artist.name))
-
-        util.diff_model_store(self.directory_list_store, new_store)
-
-        # Preserve selection
-        if selected_idx is not None:
-            row = self.list.get_row_at_index(selected_idx)
-            self.list.select_row(row)
-
-        self.loading_indicator.hide()
+        self.update_store(artists)
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_music_directory(*a, **k),
@@ -153,24 +156,8 @@ class DirectoryList(Gtk.Box):
     )
     def update_not_root(
         self,
-        artists,
+        directory,
         state: ApplicationState = None,
         force=False,
     ):
-        new_store = []
-        selected_idx = None
-        for i, artist in enumerate(artists):
-            # if state and state.selected_artist_id == artist.id:
-            #     selected_idx = i
-
-            new_store.append(
-                DirectoryList.SubelementModel(artist.id, artist.name))
-
-        util.diff_model_store(self.directory_list_store, new_store)
-
-        # Preserve selection
-        if selected_idx is not None:
-            row = self.list.get_row_at_index(selected_idx)
-            self.list.select_row(row)
-
-        self.loading_indicator.hide()
+        self.update_store(directory.child)
