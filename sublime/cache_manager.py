@@ -538,22 +538,18 @@ class CacheManager(metaclass=Singleton):
             self,
             before_download: Callable[[], None] = lambda: None,
             force: bool = False,
-        ) -> 'CacheManager.Result[List[Union[Artist, ArtistID3]]]':
-            # TODO: no need to id3ify I think.
+        ) -> 'CacheManager.Result[List[ArtistID3]]':
+            # This will always end up being artists_id3, but do this for
+            # consistency.
             cache_name = self.id3ify('artists')
 
             if self.cache.get(cache_name) and not force:
                 return CacheManager.Result.from_data(self.cache[cache_name])
 
-            def download_fn():
-                raw_artists = (
-                    self.server.get_artists
-                    if self.browse_by_tags else self.server.get_indexes)()
-
-                artists: List[Union[Artist, ArtistID3]] = []
-                for index in raw_artists.index:
+            def download_fn() -> List[ArtistID3]:
+                artists: List[ArtistID3] = []
+                for index in self.server.get_artists().index:
                     artists.extend(index.artist)
-
                 return artists
 
             def after_download(artists):
@@ -573,16 +569,13 @@ class CacheManager(metaclass=Singleton):
             before_download: Callable[[], None] = lambda: None,
             force: bool = False,
         ) -> 'CacheManager.Result[Union[ArtistWithAlbumsID3, Child]]':
-            # TODO: no need to id3ify I think.
+            # This will always end up being artist_details_id3, but do this for
+            # consistency.
             cache_name = self.id3ify('artist_details')
 
             if artist_id in self.cache.get(cache_name, {}) and not force:
                 return CacheManager.Result.from_data(
                     self.cache[cache_name][artist_id])
-
-            server_fn = (
-                self.server.get_artist
-                if self.browse_by_tags else self.server.get_music_directory)
 
             def after_download(artist):
                 with self.cache_lock:
@@ -590,7 +583,61 @@ class CacheManager(metaclass=Singleton):
                 self.save_cache_info()
 
             return CacheManager.Result.from_server(
-                lambda: server_fn(artist_id),
+                lambda: self.server.get_artist(artist_id),
+                before_download=before_download,
+                after_download=after_download,
+            )
+
+        def get_indexes(
+                self,
+                before_download: Callable[[], None] = lambda: None,
+                force: bool = False,
+        ) -> 'CacheManager.Result[List[Artist]]':
+            # This will always end up being artists, but do this for
+            # consistency.
+            cache_name = self.id3ify('artists')
+
+            if self.cache.get(cache_name) and not force:
+                return CacheManager.Result.from_data(self.cache[cache_name])
+
+            def download_fn() -> List[Artist]:
+                artists: List[Artist] = []
+                for index in self.server.get_indexes().index:
+                    artists.extend(index.artist)
+                return artists
+
+            def after_download(artists):
+                with self.cache_lock:
+                    self.cache[cache_name] = artists
+                self.save_cache_info()
+
+            return CacheManager.Result.from_server(
+                download_fn,
+                before_download=before_download,
+                after_download=after_download,
+            )
+
+        def get_music_directory(
+                self,
+                id,
+                before_download: Callable[[], None] = lambda: None,
+                force: bool = False,
+        ) -> 'CacheManager.Result[Child]':
+            # This will always end up being artist_details, but do this for
+            # consistency.
+            cache_name = self.id3ify('artist_details')
+
+            if id in self.cache.get(cache_name, {}) and not force:
+                return CacheManager.Result.from_data(
+                    self.cache[cache_name][id])
+
+            def after_download(artist):
+                with self.cache_lock:
+                    self.cache[cache_name][id] = artist
+                self.save_cache_info()
+
+            return CacheManager.Result.from_server(
+                lambda: self.server.get_music_directory(id),
                 before_download=before_download,
                 after_download=after_download,
             )

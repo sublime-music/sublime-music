@@ -21,7 +21,8 @@
 }
 
 #playlist-list-spinner:checked,
-#artist-list-spinner:checked {
+#artist-list-spinner:checked,
+#directory-list-spinner:checked {
   margin: 10px;
   padding: 0px;
 }
