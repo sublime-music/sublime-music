@@ -27,10 +27,7 @@ test:
   stage: test
   before_script:
     - ./cicd/install-project-deps.sh
-    - apt install -y gir1.2-networkmanager-1.0 dbus
-    - dbus-uuidgen > /var/lib/dbus/machine-id
-    - mkdir -p /var/run/dbus
-    - dbus-daemon --config-file=/usr/share/dbus-1/system.conf --print-address
+    - ./cicd/start-dbus.sh
   script:
     - pipenv run ./cicd/pytest.sh
   artifacts:
