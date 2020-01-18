@@ -1,12 +1,14 @@
 v0.8.9
 ======
 
-* Global Search (works best in Browse by Tags mode)
+* Global Search
 
   * Search for and go to Songs, Artists, Albums, and Playlists.
   * Works online and offline (when online, the search results from the server
     are included).
   * Uses a fuzzy matching algorithm for ranking results.
+
+* Browse by filesystem structure via the "Browse" tab.
 
 * Passwords are now stored in the system keyring rather than in plain text.
 
@@ -18,8 +20,6 @@ v0.8.9
 
 * The play queue can now be reordered, and songs can be added and removed from
   it. Right click also works on the play queue.
-
-* Go to Album now works in Browse by Tag mode.
 
 * The Local Network SSID and Local Network Address settings now actually work.
   It only checks the SSID on startup or new server connect for now.

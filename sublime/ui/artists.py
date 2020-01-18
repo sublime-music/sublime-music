@@ -77,14 +77,8 @@ class ArtistList(Gtk.Box):
         self.add(list_actions)
 
         self.loading_indicator = Gtk.ListBox()
-        spinner_row = Gtk.ListBoxRow(
-            activatable=False,
-            selectable=False,
-        )
-        spinner = Gtk.Spinner(
-            name='artist-list-spinner',
-            active=True,
-        )
+        spinner_row = Gtk.ListBoxRow(activatable=False, selectable=False)
+        spinner = Gtk.Spinner(name='artist-list-spinner', active=True)
         spinner_row.add(spinner)
         self.loading_indicator.add(spinner_row)
         self.pack_start(self.loading_indicator, False, False, 0)

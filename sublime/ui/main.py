@@ -72,10 +72,6 @@ class MainWindow(Gtk.ApplicationWindow):
         self.connect('button-release-event', self.on_button_release)
 
     def update(self, state: ApplicationState, force=False):
-        # Have to do this before hiding/showing the panels to avoid issues with
-        # the current_tab being overridden.
-        self.stack.set_visible_child_name(state.current_tab)
-
         # Update the Connected to label on the popup menu.
         if state.config.current_server >= 0:
             server_name = state.config.servers[
@@ -85,6 +81,8 @@ class MainWindow(Gtk.ApplicationWindow):
         else:
             self.connected_to_label.set_markup(
                 f'<span style="italic">Not Connected to a Server</span>')
+
+        self.stack.set_visible_child_name(state.current_tab)
 
         active_panel = self.stack.get_visible_child()
         if hasattr(active_panel, 'update'):

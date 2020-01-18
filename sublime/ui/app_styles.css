@@ -47,6 +47,11 @@
   min-width: 35px;
 }
 
+#browse-spinner {
+  min-height: 100px;
+  min-width: 100px;
+}
+
 #playlist-album-artwork {
   min-height: 200px;
   min-width: 200px;
