@@ -42,7 +42,6 @@ from .server.api_objects import (
 
     # Non-ID3 versions
     Artist,
-    ArtistInfo,
     Directory,
 
     # ID3 versions
@@ -314,7 +313,7 @@ class CacheManager(metaclass=Singleton):
                 ('song_details', Child, dict),
 
                 # Non-ID3 caches
-                ('music_directories', Child, 'dict-list'),
+                ('music_directories', Directory, dict),
                 ('indexes', Artist, list),
 
                 # ID3 caches
@@ -331,6 +330,7 @@ class CacheManager(metaclass=Singleton):
                         for x in meta_json.get(name, [])
                     ]
                 elif default == dict:
+                    print('dict', name)
                     self.cache[name] = {
                         id: type_name.from_json(x)
                         for id, x in meta_json.get(name, {}).items()
@@ -605,16 +605,16 @@ class CacheManager(metaclass=Singleton):
                 id,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
-        ) -> 'CacheManager.Result[Child]':
+        ) -> 'CacheManager.Result[Directory]':
             cache_name = 'music_directories'
 
             if id in self.cache.get(cache_name, {}) and not force:
                 return CacheManager.Result.from_data(
                     self.cache[cache_name][id])
 
-            def after_download(artist):
+            def after_download(album):
                 with self.cache_lock:
-                    self.cache[cache_name][id] = artist
+                    self.cache[cache_name][id] = album
                 self.save_cache_info()
 
             return CacheManager.Result.from_server(
@@ -957,8 +957,7 @@ class CacheManager(metaclass=Singleton):
                 # Local Results
                 search_result = SearchResult(query)
                 search_result.add_results(
-                    'album',
-                    itertools.chain(*self.cache['albums'].values()))
+                    'album', itertools.chain(*self.cache['albums'].values()))
                 search_result.add_results('artist', self.cache['artists'])
                 search_result.add_results(
                     'song', self.cache['song_details'].values())

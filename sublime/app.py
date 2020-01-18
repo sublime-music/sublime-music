@@ -96,8 +96,7 @@ class SublimeMusicApp(Gtk.Application):
         add_action('add-to-queue', self.on_add_to_queue, parameter_type='as')
         add_action('go-to-album', self.on_go_to_album, parameter_type='s')
         add_action('go-to-artist', self.on_go_to_artist, parameter_type='s')
-        add_action(
-            'browse-to-song', self.on_browse_to_song, parameter_type='s')
+        add_action('browse-to', self.browse_to, parameter_type='s')
         add_action(
             'go-to-playlist', self.on_go_to_playlist, parameter_type='s')
 
@@ -583,9 +582,9 @@ class SublimeMusicApp(Gtk.Application):
         self.state.selected_artist_id = artist_id.get_string()
         self.update_window()
 
-    def on_browse_to_song(self, action, song_id):
-        # Really, we want to browse to the song's parent.
+    def browse_to(self, action, item_id):
         self.state.current_tab = 'browse'
+        self.state.selected_browse_element_id = item_id.get_string()
         self.update_window()
 
     def on_go_to_playlist(self, action, playlist_id):

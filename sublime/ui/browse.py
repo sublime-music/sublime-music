@@ -1,3 +1,5 @@
+from typing import Union
+
 import gi
 
 gi.require_version('Gtk', '3.0')
@@ -8,8 +10,10 @@ from sublime.cache_manager import CacheManager
 from sublime.ui import util
 from sublime.ui.common import IconButton
 
+from sublime.server.api_objects import Child, Artist
 
-class BrowsePanel(Gtk.ScrolledWindow):
+
+class BrowsePanel(Gtk.Overlay):
     """Defines the arist panel."""
 
     __gsignals__ = {
@@ -25,18 +29,39 @@ class BrowsePanel(Gtk.ScrolledWindow):
         ),
     }
 
+    id_stack = None
+
     def __init__(self):
         super().__init__()
+        scrolled_window = Gtk.ScrolledWindow()
+        self.root_directory_listing = ListAndDrilldown(IndexList)
+        scrolled_window.add(self.root_directory_listing)
+        self.add(scrolled_window)
 
-        self.root_directory_listing = DirectoryListAndDrilldown(is_root=True)
-
-        self.add(self.root_directory_listing)
+        self.spinner = Gtk.Spinner(
+            active=True,
+            halign=Gtk.Align.CENTER,
+            valign=Gtk.Align.CENTER,
+        )
+        self.add_overlay(self.spinner)
 
     def update(self, state: ApplicationState, force=False):
-        self.root_directory_listing.update(state=state, force=force)
+        id_stack = []
+        # TODO make async
+        if CacheManager.ready:
+            directory = None
+            current_dir_id = state.selected_browse_element_id
+            while directory is None or directory.parent is not None:
+                directory = CacheManager.get_music_directory(
+                    current_dir_id).result()
+                id_stack.append(directory.id)
+                current_dir_id = directory.parent
+
+        self.root_directory_listing.update(id_stack, state=state, force=force)
+        self.spinner.hide()
 
 
-class DirectoryListAndDrilldown(Gtk.Paned):
+class ListAndDrilldown(Gtk.Paned):
     __gsignals__ = {
         'song-clicked': (
             GObject.SignalFlags.RUN_FIRST,
@@ -50,33 +75,60 @@ class DirectoryListAndDrilldown(Gtk.Paned):
         ),
     }
 
-    def __init__(self, is_root=False):
+    id_stack = None
+
+    def __init__(self, list_type):
         Gtk.Paned.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
-        self.is_root = is_root
 
-        self.directory_listing = DirectoryList()
-        self.pack1(self.directory_listing, False, False)
+        self.list = list_type()
+        self.pack1(self.list, False, False)
 
-        self.listing_drilldown_panel = Gtk.Box()
-        self.pack2(self.listing_drilldown_panel, True, False)
+        self.drilldown = Gtk.Box()
+        self.pack2(self.drilldown, True, False)
 
-    def update(self, state: ApplicationState, force=False):
-        self.directory_listing.update(
+    def update(
+        self,
+        id_stack,
+        state: ApplicationState,
+        force=False,
+        directory_id=None,
+    ):
+        if self.id_stack == id_stack:
+            return
+        self.id_stack = id_stack
+
+        if len(id_stack) > 0:
+            self.remove(self.drilldown)
+            self.drilldown = ListAndDrilldown(MusicDirectoryList)
+            self.drilldown.update(
+                id_stack[:-1],
+                state,
+                force=force,
+                directory_id=id_stack[-1],
+            )
+            self.drilldown.show_all()
+            self.pack2(self.drilldown, True, False)
+
+        self.list.update(
+            None if len(id_stack) == 0 else id_stack[-1],
             state=state,
             force=force,
-            is_root=self.is_root,
+            directory_id=directory_id,
         )
 
 
-class DirectoryList(Gtk.Box):
-    class SubelementModel(GObject.GObject):
+class DrilldownList(Gtk.Box):
+    class DrilldownElement(GObject.GObject):
         id = GObject.Property(type=str)
         name = GObject.Property(type=str)
+        is_dir = GObject.Property(type=bool, default=True)
 
-        def __init__(self, id, name):
+        def __init__(self, element: Union[Child, Artist]):
             GObject.GObject.__init__(self)
-            self.id = id
-            self.name = name
+            self.id = element.id
+            self.name = (
+                element.name if isinstance(element, Artist) else element.title)
+            self.is_dir = isinstance(element, Artist) or element.isDir
 
     def __init__(self):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
@@ -84,15 +136,18 @@ class DirectoryList(Gtk.Box):
         list_actions = Gtk.ActionBar()
 
         refresh = IconButton('view-refresh-symbolic')
-        refresh.connect('clicked', lambda *a: self.update(force=True))
+        refresh.connect('clicked', self.on_refresh_clicked)
         list_actions.pack_end(refresh)
 
         self.add(list_actions)
 
         self.loading_indicator = Gtk.ListBox()
-        spinner_row = Gtk.ListBoxRow()
+        spinner_row = Gtk.ListBoxRow(
+            activatable=False,
+            selectable=False,
+        )
         spinner = Gtk.Spinner(
-            name='directory-list-spinner',
+            name='drilldown-list-spinner',
             active=True,
         )
         spinner_row.add(spinner)
@@ -101,45 +156,22 @@ class DirectoryList(Gtk.Box):
 
         list_scroll_window = Gtk.ScrolledWindow(min_content_width=250)
 
-        def create_row(model: DirectoryList.SubelementModel):
-            return Gtk.Label(
-                label=f'<b>{util.esc(model.name)}</b>',
-                use_markup=True,
-                margin=10,
-                halign=Gtk.Align.START,
-                ellipsize=Pango.EllipsizeMode.END,
-                max_width_chars=30,
-            )
-
-        self.directory_list_store = Gio.ListStore()
-        self.list = Gtk.ListBox(name='directory-list')
-        self.list.bind_model(self.directory_list_store, create_row)
+        self.drilldown_list_store = Gio.ListStore()
+        self.list = Gtk.ListBox()
+        self.list.bind_model(self.drilldown_list_store, self.create_row)
         list_scroll_window.add(self.list)
 
         self.pack_start(list_scroll_window, True, True, 0)
 
-    def update(
-        self,
-        state: ApplicationState = None,
-        force=False,
-        is_root=False,
-    ):
-        self.is_root = is_root
-        if self.is_root:
-            self.update_root(state=state, force=force)
-        else:
-            self.update_not_root(state=state, force=force)
-
-    def update_store(self, elements):
+    def do_update_store(self, elements):
         new_store = []
         selected_idx = None
-        for i, el in enumerate(elements):
-            # if state and state.selected_artist_id == el.id:
-            #     selected_idx = i
+        for idx, el in enumerate(elements):
+            if el.id == self.selected_id:
+                selected_idx = idx
+            new_store.append(DrilldownList.DrilldownElement(el))
 
-            new_store.append(DirectoryList.SubelementModel(el.id, el.name))
-
-        util.diff_model_store(self.directory_list_store, new_store)
+        util.diff_model_store(self.drilldown_list_store, new_store)
 
         # Preserve selection
         if selected_idx is not None:
@@ -148,28 +180,95 @@ class DirectoryList(Gtk.Box):
 
         self.loading_indicator.hide()
 
+
+class IndexList(DrilldownList):
+    def update(
+        self,
+        selected_id,
+        state: ApplicationState = None,
+        force=False,
+        **kwargs,
+    ):
+        self.selected_id = selected_id
+        self.update_store(force=force, state=state)
+
+    def on_refresh_clicked(self, _):
+        self.update(self.selected_id, force=True)
+
     @util.async_callback(
         lambda *a, **k: CacheManager.get_indexes(*a, **k),
         before_download=lambda self: self.loading_indicator.show_all(),
         on_failure=lambda self, e: self.loading_indicator.hide(),
     )
-    def update_root(
+    def update_store(
         self,
         artists,
         state: ApplicationState = None,
         force=False,
     ):
-        self.update_store(artists)
+        self.do_update_store(artists)
+
+    def create_row(self, model: DrilldownList.DrilldownElement):
+        row = Gtk.ListBoxRow(
+            action_name='app.browse-to',
+            action_target=GLib.Variant('s', model.id),
+        )
+        row.add(
+            Gtk.Label(
+                label=f'<b>{util.esc(model.name)}</b>',
+                use_markup=True,
+                margin=10,
+                halign=Gtk.Align.START,
+                ellipsize=Pango.EllipsizeMode.END,
+                max_width_chars=30,
+            ))
+        row.show_all()
+        return row
+
+
+class MusicDirectoryList(DrilldownList):
+    def update(
+        self,
+        selected_id,
+        state: ApplicationState = None,
+        force=False,
+        directory_id=None,
+    ):
+        self.directory_id = directory_id
+        self.selected_id = selected_id
+        self.update_store(directory_id, force=force, state=state)
+
+    def on_refresh_clicked(self, _):
+        self.update(
+            self.selected_id, force=True, directory_id=self.directory_id)
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_music_directory(*a, **k),
         before_download=lambda self: self.loading_indicator.show_all(),
         on_failure=lambda self, e: self.loading_indicator.hide(),
     )
-    def update_not_root(
+    def update_store(
         self,
         directory,
         state: ApplicationState = None,
         force=False,
     ):
-        self.update_store(directory.child)
+        self.do_update_store(directory.child)
+
+    def create_row(self, model: DrilldownList.DrilldownElement):
+        row = Gtk.ListBoxRow()
+        if model.is_dir:
+            row.set_action_name('app.browse-to')
+            row.set_action_target_value(GLib.Variant('s', model.id))
+
+        row.add(
+            Gtk.Label(
+                label=f'<b>{util.esc(model.name)}</b>',
+                use_markup=True,
+                margin=10,
+                halign=Gtk.Align.START,
+                ellipsize=Pango.EllipsizeMode.END,
+                max_width_chars=30,
+            ))
+        row.show_all()
+        return row

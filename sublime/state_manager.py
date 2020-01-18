@@ -68,6 +68,7 @@ class ApplicationState:
     current_tab: str = 'albums'
     selected_album_id: str = None
     selected_artist_id: str = None
+    selected_browse_element_id: str = None
     selected_playlist_id: str = None
 
     # State for Album sort.
@@ -111,6 +112,8 @@ class ApplicationState:
         self.current_tab = json_object.get('current_tab', 'albums')
         self.selected_album_id = json_object.get('selected_album_id', None)
         self.selected_artist_id = json_object.get('selected_artist_id', None)
+        self.selected_browse_element_id = json_object.get(
+            'selected_browse_element_id', None)
         self.selected_playlist_id = json_object.get(
             'selected_playlist_id', None)
         self.current_album_sort = json_object.get(

@@ -77,7 +77,10 @@ class ArtistList(Gtk.Box):
         self.add(list_actions)
 
         self.loading_indicator = Gtk.ListBox()
-        spinner_row = Gtk.ListBoxRow()
+        spinner_row = Gtk.ListBoxRow(
+            activatable=False,
+            selectable=False,
+        )
         spinner = Gtk.Spinner(
             name='artist-list-spinner',
             active=True,
@@ -216,8 +219,7 @@ class ArtistDetailPanel(Gtk.Box):
         artist_details_box.add(self.artist_bio)
 
         self.similar_artists_scrolledwindow = Gtk.ScrolledWindow()
-        similar_artists_box = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL)
+        similar_artists_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         self.similar_artists_label = self.make_label(name='similar-artists')
         similar_artists_box.add(self.similar_artists_label)

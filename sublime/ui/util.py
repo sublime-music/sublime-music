@@ -194,7 +194,7 @@ def show_song_popover(
 
     browse_to_song = Gtk.ModelButton(
         text=f"Browse to {pluralize('song', song_count)}",
-        action_name='app.browse-to-song',
+        action_name='app.browse-to',
     )
     if len(parents) == 1 and list(parents)[0] is not None:
         parent_value = GLib.Variant('s', list(parents)[0])
