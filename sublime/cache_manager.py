@@ -790,8 +790,7 @@ class CacheManager(metaclass=Singleton):
         ) -> Future:
             def do_delete_cached_songs():
                 # Do the actual download.
-                for f in as_completed(map(CacheManager.get_song_details,
-                                          song_ids)):
+                for f in map(CacheManager.get_song_details, song_ids):
                     relative_path = f.result().path
                     abs_path = self.calculate_abs_path(relative_path)
                     if abs_path.exists():

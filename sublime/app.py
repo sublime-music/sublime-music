@@ -569,8 +569,6 @@ class SublimeMusicApp(Gtk.Application):
             self.state.current_album_genre = album.genre
         else:
             # TODO message?
-            print('unable to go to album')
-            print(album)
             return
 
         self.state.current_tab = 'albums'

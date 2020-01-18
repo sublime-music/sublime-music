@@ -604,11 +604,11 @@ class AlbumsGrid(Gtk.Overlay):
                     del self.list_store_top[-1]
 
         if self.current_selection is not None:
-            if not selection_changed:
-                return
-
             self.grid_top.select_child(
                 self.grid_top.get_child_at_index(self.current_selection))
+
+            if not selection_changed:
+                return
 
             for c in self.detail_box_inner.get_children():
                 self.detail_box_inner.remove(c)
