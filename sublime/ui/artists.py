@@ -57,7 +57,7 @@ class ArtistList(Gtk.Box):
     class ArtistModel(GObject.GObject):
         artist_id = GObject.Property(type=str)
         name = GObject.Property(type=str)
-        album_count = GObject.Property(type=str)
+        album_count = GObject.Property(type=int)
 
         def __init__(self, artist_id, name, album_count):
             GObject.GObject.__init__(self)
@@ -77,11 +77,8 @@ class ArtistList(Gtk.Box):
         self.add(list_actions)
 
         self.loading_indicator = Gtk.ListBox()
-        spinner_row = Gtk.ListBoxRow()
-        spinner = Gtk.Spinner(
-            name='artist-list-spinner',
-            active=True,
-        )
+        spinner_row = Gtk.ListBoxRow(activatable=False, selectable=False)
+        spinner = Gtk.Spinner(name='artist-list-spinner', active=True)
         spinner_row.add(spinner)
         self.loading_indicator.add(spinner_row)
         self.pack_start(self.loading_indicator, False, False, 0)
@@ -215,17 +212,18 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_bio.set_line_wrap(True)
         artist_details_box.add(self.artist_bio)
 
-        self.similar_artists_box = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL)
+        self.similar_artists_scrolledwindow = Gtk.ScrolledWindow()
+        similar_artists_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         self.similar_artists_label = self.make_label(name='similar-artists')
-        self.similar_artists_box.add(self.similar_artists_label)
+        similar_artists_box.add(self.similar_artists_label)
 
         self.similar_artists_button_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL)
-        self.similar_artists_box.add(self.similar_artists_button_box)
+        similar_artists_box.add(self.similar_artists_button_box)
+        self.similar_artists_scrolledwindow.add(similar_artists_box)
 
-        artist_details_box.add(self.similar_artists_box)
+        artist_details_box.add(self.similar_artists_scrolledwindow)
 
         self.artist_stats = self.make_label(name='artist-stats')
         artist_details_box.add(self.artist_stats)
@@ -274,7 +272,7 @@ class ArtistDetailPanel(Gtk.Box):
             self.artist_stats.set_markup('')
 
             self.artist_bio.set_markup('')
-            self.similar_artists_box.hide()
+            self.similar_artists_scrolledwindow.hide()
             self.play_shuffle_buttons.hide()
 
             self.artist_artwork.set_from_file(None)
@@ -293,10 +291,10 @@ class ArtistDetailPanel(Gtk.Box):
         on_failure=lambda self, e: print('fail a', e),
     )
     def update_artist_view(
-            self,
-            artist: ArtistWithAlbumsID3,
-            state: ApplicationState,
-            force=False,
+        self,
+        artist: ArtistWithAlbumsID3,
+        state: ApplicationState,
+        force=False,
     ):
         self.artist_id = artist.id
         self.artist_indicator.set_text('ARTIST')
@@ -313,9 +311,9 @@ class ArtistDetailPanel(Gtk.Box):
         lambda *a, **k: CacheManager.get_artist_info(*a, **k),
     )
     def update_artist_info(
-            self,
-            artist_info: ArtistInfo2,
-            state: ApplicationState,
+        self,
+        artist_info: ArtistInfo2,
+        state: ApplicationState,
     ):
         self.artist_bio.set_markup(util.esc(''.join(artist_info.biography)))
         self.play_shuffle_buttons.show_all()
@@ -333,9 +331,9 @@ class ArtistDetailPanel(Gtk.Box):
                         action_name='app.go-to-artist',
                         action_target=GLib.Variant('s', artist.id),
                     ))
-            self.similar_artists_box.show_all()
+            self.similar_artists_scrolledwindow.show_all()
         else:
-            self.similar_artists_box.hide()
+            self.similar_artists_scrolledwindow.hide()
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist_artwork(*a, **k),
@@ -343,9 +341,9 @@ class ArtistDetailPanel(Gtk.Box):
         on_failure=lambda self, e: self.artist_artwork.set_loading(False),
     )
     def update_artist_artwork(
-            self,
-            cover_art_filename,
-            state: ApplicationState,
+        self,
+        cover_art_filename,
+        state: ApplicationState,
     ):
         self.artist_artwork.set_from_file(cover_art_filename)
         self.artist_artwork.set_loading(False)
@@ -399,7 +397,7 @@ class ArtistDetailPanel(Gtk.Box):
         )
 
     def format_stats(self, artist):
-        album_count = artist.get('albumCount', len(artist.get('child', [])))
+        album_count = artist.get('albumCount', len(artist.get('child') or []))
         components = [
             '{} {}'.format(album_count, util.pluralize('album', album_count)),
         ]
@@ -471,6 +469,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
 
         if self.albums == new_albums:
             # No need to do anything.
+            self.spinner.hide()
             return
 
         self.albums = new_albums

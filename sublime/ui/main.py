@@ -1,15 +1,12 @@
-import concurrent
-
-from concurrent.futures import Future
+from datetime import datetime
 
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk, GObject, Gdk, GLib, Pango
-from fuzzywuzzy import fuzz
 
-from . import albums, artists, playlists, player_controls
+from . import albums, artists, browse, playlists, player_controls
 from sublime.state_manager import ApplicationState
-from sublime.cache_manager import CacheManager, SearchResult
+from sublime.cache_manager import CacheManager
 from sublime.server.api_objects import Child
 from sublime.ui import util
 from sublime.ui.common import SpinnerImage
@@ -40,8 +37,6 @@ class MainWindow(Gtk.ApplicationWindow):
         ),
     }
 
-    browse_by_tags: bool = False
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.set_default_size(1150, 768)
@@ -50,6 +45,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.stack = self.create_stack(
             Albums=albums.AlbumsPanel(),
             Artists=artists.ArtistsPanel(),
+            Browse=browse.BrowsePanel(),
             Playlists=playlists.PlaylistsPanel(),
         )
         self.stack.set_transition_type(
@@ -76,8 +72,6 @@ class MainWindow(Gtk.ApplicationWindow):
         self.connect('button-release-event', self.on_button_release)
 
     def update(self, state: ApplicationState, force=False):
-        self.browse_by_tags = state.config.server.browse_by_tags
-
         # Update the Connected to label on the popup menu.
         if state.config.current_server >= 0:
             server_name = state.config.servers[
@@ -282,8 +276,18 @@ class MainWindow(Gtk.ApplicationWindow):
 
     search_idx = 0
     latest_returned_search_idx = 0
+    last_search_change_time = datetime.now()
+    searches = set()
 
     def on_search_entry_changed(self, entry):
+        now = datetime.now()
+        if (now - self.last_search_change_time).seconds < 0.5:
+            while len(self.searches) > 0:
+                search = self.searches.pop()
+                if search:
+                    search.cancel()
+        self.last_search_change_time = now
+
         if not self.search_popup.is_visible():
             self.search_popup.show_all()
             self.search_popup.popup()
@@ -296,18 +300,20 @@ class MainWindow(Gtk.ApplicationWindow):
 
                 # If all results are back, the stop the loading indicator.
                 if is_last_in_batch:
-                    self.set_search_loading(False)
+                    if idx == self.search_idx - 1:
+                        self.set_search_loading(False)
                     self.latest_returned_search_idx = idx
 
                 self.update_search_results(result)
 
             return lambda *a: GLib.idle_add(search_result_calback, *a)
 
-        CacheManager.search(
-            entry.get_text(),
-            search_callback=create_search_callback(self.search_idx),
-            before_download=lambda: self.set_search_loading(True),
-        )
+        self.searches.add(
+            CacheManager.search(
+                entry.get_text(),
+                search_callback=create_search_callback(self.search_idx),
+                before_download=lambda: self.set_search_loading(True),
+            ))
 
         self.search_idx += 1
 
@@ -339,7 +345,12 @@ class MainWindow(Gtk.ApplicationWindow):
             widget.remove(c)
 
     def create_search_result_row(
-        self, text, action_name, value, artwork_future):
+        self,
+        text,
+        action_name,
+        value,
+        artwork_future,
+    ):
         row = Gtk.Button(relief=Gtk.ReliefStyle.NONE)
         row.connect(
             'button-press-event',
@@ -372,10 +383,9 @@ class MainWindow(Gtk.ApplicationWindow):
                 )
                 cover_art_future = CacheManager.get_cover_art_filename(
                     song.coverArt, size=50)
-                album_id = song.albumId if self.browse_by_tags else song.parent
                 self.song_results.add(
                     self.create_search_result_row(
-                        label_text, 'album', album_id, cover_art_future))
+                        label_text, 'album', song.albumId, cover_art_future))
 
             self.song_results.show_all()
 

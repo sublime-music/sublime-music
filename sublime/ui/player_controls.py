@@ -139,10 +139,10 @@ class PlayerControls(Gtk.ActionBar):
         else:
             # Clear out the cover art and song tite if no song
             self.album_art.set_from_file(None)
+            self.album_art.set_loading(False)
             self.song_title.set_markup('')
             self.album_name.set_markup('')
             self.artist_name.set_markup('')
-            self.album_art.set_loading(False)
 
         self.update_device_list()
 

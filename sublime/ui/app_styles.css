@@ -21,7 +21,8 @@
 }
 
 #playlist-list-spinner:checked,
-#artist-list-spinner:checked {
+#artist-list-spinner:checked,
+#drilldown-list-spinner:checked {
   margin: 10px;
   padding: 0px;
 }
@@ -44,6 +45,11 @@
 #albumslist-with-songs-spinner {
   min-height: 35px;
   min-width: 35px;
+}
+
+#browse-spinner {
+  min-height: 100px;
+  min-width: 100px;
 }
 
 #playlist-album-artwork {

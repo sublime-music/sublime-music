@@ -18,6 +18,16 @@ def format_song_duration(duration_secs) -> str:
 
 
 def pluralize(string: str, number: int, pluralized_form=None):
+    """
+    Pluralize the given string given the count as a number.
+
+    >>> pluralize('foo', 1)
+    'foo'
+    >>> pluralize('foo', 2)
+    'foos'
+    >>> pluralize('foo', 0)
+    'foos'
+    """
     if number != 1:
         return pluralized_form or f'{string}s'
     return string
@@ -154,12 +164,13 @@ def show_song_popover(
 
     # Determine if we should enable the download button.
     download_sensitive, remove_download_sensitive = False, False
-    albums, artists = set(), set()
+    albums, artists, parents = set(), set(), set()
     for song_id in song_ids:
         details = CacheManager.get_song_details(song_id).result()
         status = CacheManager.get_cached_status(details)
         albums.add(details.albumId)
         artists.add(details.artistId)
+        parents.add(details.parent)
 
         if download_sensitive or status == SongCacheStatus.NOT_CACHED:
             download_sensitive = True
@@ -181,6 +192,14 @@ def show_song_popover(
         artist_value = GLib.Variant('s', list(artists)[0])
         go_to_artist_button.set_action_target_value(artist_value)
 
+    browse_to_song = Gtk.ModelButton(
+        text=f"Browse to {pluralize('song', song_count)}",
+        action_name='app.browse-to',
+    )
+    if len(parents) == 1 and list(parents)[0] is not None:
+        parent_value = GLib.Variant('s', list(parents)[0])
+        browse_to_song.set_action_target_value(parent_value)
+
     menu_items = [
         Gtk.ModelButton(
             text='Play next',
@@ -192,38 +211,32 @@ def show_song_popover(
             action_name='app.add-to-queue',
             action_target=GLib.Variant('as', song_ids),
         ),
-    ]
-    if CacheManager.browse_by_tags:
-        menu_items.extend(
-            [
-                Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
-                go_to_album_button,
-                go_to_artist_button,
-            ])
-    menu_items.extend(
-        [
-            Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
-            (
-                Gtk.ModelButton(
-                    text=f"Download {pluralize('song', song_count)}",
-                    sensitive=download_sensitive,
-                ),
-                on_download_songs_click,
-            ),
-            (
-                Gtk.ModelButton(
-                    text=f"Remove {pluralize('download', song_count)}",
-                    sensitive=remove_download_sensitive,
-                ),
-                on_remove_downloads_click,
-            ),
-            Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
+        Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
+        go_to_album_button,
+        go_to_artist_button,
+        browse_to_song,
+        Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
+        (
             Gtk.ModelButton(
-                text=f"Add {pluralize('song', song_count)} to playlist",
-                menu_name='add-to-playlist',
+                text=f"Download {pluralize('song', song_count)}",
+                sensitive=download_sensitive,
             ),
-            *extra_menu_items,
-        ])
+            on_download_songs_click,
+        ),
+        (
+            Gtk.ModelButton(
+                text=f"Remove {pluralize('download', song_count)}",
+                sensitive=remove_download_sensitive,
+            ),
+            on_remove_downloads_click,
+        ),
+        Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
+        Gtk.ModelButton(
+            text=f"Add {pluralize('song', song_count)} to playlist",
+            menu_name='add-to-playlist',
+        ),
+        *extra_menu_items,
+    ]
 
     for item in menu_items:
         if type(item) == tuple:

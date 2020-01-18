@@ -16,7 +16,7 @@ from .ui.settings import SettingsDialog
 from .dbus_manager import DBusManager, dbus_propagate
 from .state_manager import ApplicationState, RepeatType
 from .cache_manager import CacheManager
-from .server.api_objects import Child
+from .server.api_objects import Child, Directory
 from .ui.common.players import PlayerEvent, MPVPlayer, ChromecastPlayer
 
 
@@ -96,6 +96,7 @@ class SublimeMusicApp(Gtk.Application):
         add_action('add-to-queue', self.on_add_to_queue, parameter_type='as')
         add_action('go-to-album', self.on_go_to_album, parameter_type='s')
         add_action('go-to-artist', self.on_go_to_artist, parameter_type='s')
+        add_action('browse-to', self.browse_to, parameter_type='s')
         add_action(
             'go-to-playlist', self.on_go_to_playlist, parameter_type='s')
 
@@ -555,6 +556,10 @@ class SublimeMusicApp(Gtk.Application):
         # Switch to the By Year view (or genre, if year is not available) to
         # guarantee that the album is there.
         album = CacheManager.get_album(album_id.get_string()).result()
+        if isinstance(album, Directory):
+            if len(album.child) > 0:
+                album = album.child[0]
+
         if album.get('year'):
             self.state.current_album_sort = 'byYear'
             self.state.current_album_from_year = album.year
@@ -564,7 +569,6 @@ class SublimeMusicApp(Gtk.Application):
             self.state.current_album_genre = album.genre
         else:
             # TODO message?
-            print(album)
             return
 
         self.state.current_tab = 'albums'
@@ -574,6 +578,11 @@ class SublimeMusicApp(Gtk.Application):
     def on_go_to_artist(self, action, artist_id):
         self.state.current_tab = 'artists'
         self.state.selected_artist_id = artist_id.get_string()
+        self.update_window()
+
+    def browse_to(self, action, item_id):
+        self.state.current_tab = 'browse'
+        self.state.selected_browse_element_id = item_id.get_string()
         self.update_window()
 
     def on_go_to_playlist(self, action, playlist_id):
@@ -586,8 +595,8 @@ class SublimeMusicApp(Gtk.Application):
         self.state.save_config()
 
     def on_connected_server_changed(self, action, current_server):
-        self.state.save()
         self.state.config.current_server = current_server
+        self.state.save()
         self.state.save_config()
 
         self.reset_state()
@@ -707,8 +716,9 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     def on_window_key_press(self, window, event):
+        # Need to use bitwise & here to see if CTRL is pressed.
         if (event.keyval == 102
-                and event.state == Gdk.ModifierType.CONTROL_MASK):
+                and event.state & Gdk.ModifierType.CONTROL_MASK):
             # Ctrl + F
             window.search_entry.grab_focus()
             return
