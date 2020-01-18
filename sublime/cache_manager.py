@@ -330,7 +330,6 @@ class CacheManager(metaclass=Singleton):
                         for x in meta_json.get(name, [])
                     ]
                 elif default == dict:
-                    print('dict', name)
                     self.cache[name] = {
                         id: type_name.from_json(x)
                         for id, x in meta_json.get(name, {}).items()

@@ -92,6 +92,7 @@ class AppConfiguration:
 
     @property
     def server(self) -> Optional[ServerConfiguration]:
-        return (
-            None if self.current_server < 0 or len(self.servers) < 1 else
-            self.servers[self.current_server])
+        if 0 <= self.current_server < len(self.servers):
+            return self.servers[self.current_server]
+
+        return None

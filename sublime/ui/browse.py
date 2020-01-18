@@ -58,7 +58,7 @@ class BrowsePanel(Gtk.Overlay):
     def update(self, state: ApplicationState, force=False):
         id_stack = []
         # TODO make async
-        if CacheManager.ready:
+        if CacheManager.ready and state.selected_browse_element_id is not None:
             directory = None
             current_dir_id = state.selected_browse_element_id
             while directory is None or directory.parent is not None:
