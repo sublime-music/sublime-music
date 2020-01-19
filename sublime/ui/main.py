@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Set
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -6,7 +7,7 @@ from gi.repository import Gio, Gtk, GObject, Gdk, GLib, Pango
 
 from . import albums, artists, browse, playlists, player_controls
 from sublime.state_manager import ApplicationState
-from sublime.cache_manager import CacheManager
+from sublime.cache_manager import CacheManager, SearchResult
 from sublime.server.api_objects import Child
 from sublime.ui import util
 from sublime.ui.common import SpinnerImage
@@ -277,7 +278,7 @@ class MainWindow(Gtk.ApplicationWindow):
     search_idx = 0
     latest_returned_search_idx = 0
     last_search_change_time = datetime.now()
-    searches = set()
+    searches: Set[SearchResult] = set()
 
     def on_search_entry_changed(self, entry):
         now = datetime.now()

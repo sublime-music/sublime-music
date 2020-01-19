@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 import io
 import socket
 import mimetypes
-from typing import Callable, List, Any
+from typing import Callable, List, Any, Optional
 from time import sleep
 from concurrent.futures import ThreadPoolExecutor, Future
 
@@ -196,14 +196,14 @@ class ChromecastPlayer(Player):
     executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=50)
 
     class CastStatusListener:
-        on_new_cast_status = None
+        on_new_cast_status: Optional[Callable] = None
 
         def new_cast_status(self, status):
             if self.on_new_cast_status:
                 self.on_new_cast_status(status)
 
     class MediaStatusListener:
-        on_new_media_status = None
+        on_new_media_status: Optional[Callable] = None
 
         def new_media_status(self, status):
             if self.on_new_media_status:
@@ -281,7 +281,7 @@ class ChromecastPlayer(Player):
             on_player_event,
             config,
         )
-        self._timepos = None
+        self._timepos = 0.0
         self.time_incrementor_running = False
         self._can_hotswap_source = False
 

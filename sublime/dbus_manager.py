@@ -3,6 +3,7 @@ import os
 import re
 
 from collections import defaultdict
+from typing import Dict
 
 from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
@@ -29,7 +30,7 @@ def dbus_propagate(param_self=None):
 class DBusManager:
     second_microsecond_conversion = 1000000
 
-    current_state = {}
+    current_state: Dict = {}
 
     def __init__(
         self,

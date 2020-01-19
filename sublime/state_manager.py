@@ -54,7 +54,7 @@ class ApplicationState:
     """
     version: int = 1
     config: AppConfiguration = AppConfiguration()
-    config_file: str = None
+    config_file: Optional[str] = None
     playing: bool = False
     current_song_index: int = -1
     play_queue: List[str] = []
@@ -66,10 +66,10 @@ class ApplicationState:
     song_progress: float = 0
     current_device: str = 'this device'
     current_tab: str = 'albums'
-    selected_album_id: str = None
-    selected_artist_id: str = None
-    selected_browse_element_id: str = None
-    selected_playlist_id: str = None
+    selected_album_id: Optional[str] = None
+    selected_artist_id: Optional[str] = None
+    selected_browse_element_id: Optional[str] = None
+    selected_playlist_id: Optional[str] = None
 
     # State for Album sort.
     current_album_sort: str = 'random'
@@ -78,7 +78,7 @@ class ApplicationState:
     current_album_from_year: int = 2010
     current_album_to_year: int = 2020
 
-    active_playlist_id: str = None
+    active_playlist_id: Optional[str] = None
 
     networkmanager_client = NMClient.Client.new()
     nmclient_initialized = False

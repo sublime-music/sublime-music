@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import cast, List, Union
 from random import randint
 
 import gi
@@ -277,7 +277,7 @@ class ArtistDetailPanel(Gtk.Box):
 
             self.artist_artwork.set_from_file(None)
 
-            self.albums = []
+            self.albums = cast(List[Child], [])
             self.albums_list.update(None)
         else:
             self.artist_action_buttons.show()

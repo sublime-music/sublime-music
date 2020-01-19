@@ -10,7 +10,7 @@ from functools import lru_cache
 from collections import defaultdict
 from time import sleep
 
-from concurrent.futures import ThreadPoolExecutor, Future, as_completed
+from concurrent.futures import ThreadPoolExecutor, Future
 from enum import EnumMeta, Enum
 from datetime import datetime
 from pathlib import Path
@@ -232,7 +232,7 @@ class CacheManager(metaclass=Singleton):
         print('Shutdown complete')
 
     @staticmethod
-    def calculate_server_hash(server: ServerConfiguration):
+    def calculate_server_hash(server: Optional[ServerConfiguration]):
         if server is None:
             return None
         server_info = (server.name + server.server_address + server.username)

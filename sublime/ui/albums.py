@@ -287,7 +287,7 @@ class AlbumsGrid(Gtk.Overlay):
             (object, ),
         ),
     }
-    type_: str = None
+    type_: str = 'random'
     alphabetical_type: str = 'name'
     from_year: int = 2010
     to_year: int = 2020
