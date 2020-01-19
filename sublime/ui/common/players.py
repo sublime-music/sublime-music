@@ -220,6 +220,16 @@ class ChromecastPlayer(Player):
 
             self.app = bottle.Bottle()
 
+            @self.app.route('/')
+            def index():
+                return ''''
+                <h1>Sublime Music Local Music Server</h1>
+                <p>
+                    Sublime Music uses this port as a server for serving music
+                    Chromecasts on the same LAN.
+                </p>
+                '''
+
             @self.app.route('/song/<id>')
             def stream_song(id):
                 song = CacheManager.get_song_details(id).result()
