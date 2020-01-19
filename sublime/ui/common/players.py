@@ -28,11 +28,11 @@ class PlayerEvent:
 
 class Player:
     def __init__(
-            self,
-            on_timepos_change: Callable[[float], None],
-            on_track_end: Callable[[], None],
-            on_player_event: Callable[[PlayerEvent], None],
-            config: AppConfiguration,
+        self,
+        on_timepos_change: Callable[[float], None],
+        on_track_end: Callable[[], None],
+        on_player_event: Callable[[PlayerEvent], None],
+        config: AppConfiguration,
     ):
         self.on_timepos_change = on_timepos_change
         self.on_track_end = on_track_end
@@ -122,6 +122,7 @@ class MPVPlayer(Player):
         super().__init__(*args)
 
         self.mpv = mpv.MPV()
+        self.mpv.audio_client_name = 'Sublime Music'
         self.progress_value_lock = threading.Lock()
         self.progress_value_count = 0
         self._muted = False
@@ -268,11 +269,11 @@ class ChromecastPlayer(Player):
         print(f'Using: {self.chromecast.device.friendly_name}')
 
     def __init__(
-            self,
-            on_timepos_change: Callable[[float], None],
-            on_track_end: Callable[[], None],
-            on_player_event: Callable[[PlayerEvent], None],
-            config: AppConfiguration,
+        self,
+        on_timepos_change: Callable[[float], None],
+        on_track_end: Callable[[], None],
+        on_player_event: Callable[[PlayerEvent], None],
+        config: AppConfiguration,
     ):
         super().__init__(
             on_timepos_change,
