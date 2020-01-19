@@ -14,6 +14,15 @@ from sublime.cache_manager import CacheManager, SongCacheStatus
 
 
 def format_song_duration(duration_secs) -> str:
+    """
+    Formats the song duration as mins:seconds with the seconds being
+    zero-padded if necessary.
+
+    >>> format_song_duration(80)
+    '1:20'
+    >>> format_song_duration(62)
+    '1:02'
+    """
     return f'{duration_secs // 60}:{duration_secs % 60:02}'
 
 
@@ -34,6 +43,16 @@ def pluralize(string: str, number: int, pluralized_form=None):
 
 
 def format_sequence_duration(duration_secs) -> str:
+    """
+    Formats duration in English.
+
+    >>> format_sequence_duration(30)
+    '30 seconds'
+    >>> format_sequence_duration(90)
+    '1 minute, 30 seconds'
+    >>> format_sequence_duration(60 * 60 + 120)
+    '1 hour, 2 minutes'
+    """
     duration_mins = (duration_secs // 60) % 60
     duration_hrs = duration_secs // 60 // 60
     duration_secs = duration_secs % 60
