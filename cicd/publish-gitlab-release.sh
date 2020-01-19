@@ -30,12 +30,17 @@ fi
 
 description=$(echo "$description" | rst2html5 --no-indent --template "{body}" | sed -e 's/\"/\\\"/g')
 
-url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
-data="
-{
-    \"name\": \"${CI_COMMIT_TAG}\",
-    \"tag_name\": \"${CI_COMMIT_TAG}\",
-    \"description\": \"${description}\",
+# Determine whether or not to include the Flatpak build.
+curl \
+    --header 'Content-Type: application/json' \
+    --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+    --request GET \
+    "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?scope[]=failed" \
+    | grep '"name":"build_flatpak"'
+
+assets=""
+if [[ $? == 0 ]]; then
+    assets=",
     \"assets\": {
         \"links\": [
             {
@@ -44,6 +49,16 @@ data="
             }
         ]
     }
+    "
+fi
+
+url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
+data="
+{
+    \"name\": \"${CI_COMMIT_TAG}\",
+    \"tag_name\": \"${CI_COMMIT_TAG}\",
+    \"description\": \"${description}\"
+    ${assets}
 }
 "
 
@@ -54,7 +69,7 @@ echo "$data"
 
 curl \
     --header 'Content-Type: application/json' \
-    --header "PRIVATE-TOKEN: ${RELEASE_PUBLISH_TOKEN}" \
+    --header "JOB-TOKEN: $CI_JOB_TOKEN" \
     --data "$data" \
     --request POST \
     $url

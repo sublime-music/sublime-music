@@ -1,6 +1,11 @@
 v0.8.9
 ======
 
+**Note:** this release does not have Flatpak support due to a dependency issue
+that I haven't been able to crack. Please install from PyPi or the AUR. (If you
+are a Flatpak expert, I would greatly appreciate help fixing the issue. See
+#79.)
+
 * Global Search
 
   * Search for and go to Songs, Artists, Albums, and Playlists.

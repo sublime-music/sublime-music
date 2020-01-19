@@ -351,11 +351,16 @@ class MainWindow(Gtk.ApplicationWindow):
         value,
         artwork_future,
     ):
+        def on_search_row_button_press(btn, event):
+            if action_name == 'song':
+                goto_action_name, goto_id = 'album', value.albumId
+            else:
+                goto_action_name, goto_id = action_name, value.id
+            self.emit('go-to', goto_action_name, goto_id)
+            self.hide_search()
+
         row = Gtk.Button(relief=Gtk.ReliefStyle.NONE)
-        row.connect(
-            'button-press-event',
-            lambda *a: self.emit('go-to', action_name, value),
-        )
+        row.connect('button-press-event', on_search_row_button_press)
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         image = SpinnerImage(image_name='search-artwork', image_size=30)
@@ -385,7 +390,7 @@ class MainWindow(Gtk.ApplicationWindow):
                     song.coverArt, size=50)
                 self.song_results.add(
                     self.create_search_result_row(
-                        label_text, 'album', song.albumId, cover_art_future))
+                        label_text, 'song', song, cover_art_future))
 
             self.song_results.show_all()
 
@@ -402,7 +407,7 @@ class MainWindow(Gtk.ApplicationWindow):
                     album.coverArt, size=50)
                 self.album_results.add(
                     self.create_search_result_row(
-                        label_text, 'album', album.id, cover_art_future))
+                        label_text, 'album', album, cover_art_future))
 
             self.album_results.show_all()
 
@@ -414,7 +419,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 cover_art_future = CacheManager.get_artist_artwork(artist)
                 self.artist_results.add(
                     self.create_search_result_row(
-                        label_text, 'artist', artist.id, cover_art_future))
+                        label_text, 'artist', artist, cover_art_future))
 
             self.artist_results.show_all()
 
@@ -427,7 +432,7 @@ class MainWindow(Gtk.ApplicationWindow):
                     playlist.coverArt)
                 self.playlist_results.add(
                     self.create_search_result_row(
-                        label_text, 'playlist', playlist.id, cover_art_future))
+                        label_text, 'playlist', playlist, cover_art_future))
 
             self.playlist_results.show_all()
 
