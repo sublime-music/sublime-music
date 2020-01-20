@@ -31,15 +31,14 @@ fi
 description=$(echo "$description" | rst2html5 --no-indent --template "{body}" | sed -e 's/\"/\\\"/g')
 
 # Determine whether or not to include the Flatpak build.
-curl \
-    --header 'Content-Type: application/json' \
-    --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+failed=$(curl \
+    --header "PRIVATE-TOKEN: ${RELEASE_PUBLISH_TOKEN}" \
     --request GET \
     "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?scope[]=failed" \
-    | grep '"name":"build_flatpak"'
+    | grep '"name":"build_flatpak"')
 
 assets=""
-if [[ $? == 0 ]]; then
+if [[ $failed == "" ]]; then
     assets=",
     \"assets\": {
         \"links\": [
@@ -69,7 +68,7 @@ echo "$data"
 
 curl \
     --header 'Content-Type: application/json' \
-    --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+    --header "PRIVATE-TOKEN: ${RELEASE_PUBLISH_TOKEN}" \
     --data "$data" \
     --request POST \
     $url
