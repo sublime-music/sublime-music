@@ -32,7 +32,7 @@ def main():
 
     args, unknown_args = parser.parse_known_args()
     if args.version:
-        print(f'Sublime Music v{sublime.__version__}')
+        print(f'Sublime Music v{sublime.__version__}')  # allowprint
         return
 
     min_log_level = getattr(logging, args.loglevel.upper(), None)
