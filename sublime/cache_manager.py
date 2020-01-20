@@ -1,4 +1,5 @@
 import os
+import logging
 import glob
 import itertools
 import threading
@@ -227,9 +228,9 @@ class CacheManager(metaclass=Singleton):
     @staticmethod
     def shutdown():
         CacheManager.should_exit = True
-        print('Shutdown start')
+        logging.info('CacheManager shutdown start')
         CacheManager.executor.shutdown()
-        print('Shutdown complete')
+        logging.info('CacheManager shutdown complete')
 
     @staticmethod
     def calculate_server_hash(server: Optional[ServerConfiguration]):
@@ -402,7 +403,7 @@ class CacheManager(metaclass=Singleton):
                     self.current_downloads.add(abs_path_str)
 
                 if resource_downloading:
-                    print(abs_path, 'already being downloaded.')
+                    logging.info(f'{abs_path} already being downloaded.')
                     # The resource is already being downloaded. Busy loop until
                     # it has completed. Then, just return the path to the
                     # resource.
@@ -411,7 +412,7 @@ class CacheManager(metaclass=Singleton):
                     while abs_path_str in self.current_downloads:
                         sleep(0.2)
                 else:
-                    print(abs_path, 'not found. Downloading...')
+                    logging.info(f'{abs_path} not found. Downloading...')
 
                     os.makedirs(download_path.parent, exist_ok=True)
                     self.save_file(download_path, download_fn())
@@ -421,7 +422,7 @@ class CacheManager(metaclass=Singleton):
                     if download_path.exists():
                         shutil.move(download_path, abs_path)
 
-                print(abs_path, 'downloaded. Returning.')
+                logging.info(f'{abs_path} downloaded. Returning.')
                 return abs_path_str
 
             def after_download(path: str):

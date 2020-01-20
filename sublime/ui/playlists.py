@@ -220,7 +220,6 @@ class PlaylistList(Gtk.Box):
 
     def create_playlist(self, playlist_name):
         def on_playlist_created(f):
-            print(f)
             CacheManager.invalidate_playlists_cache()
             self.update(force=True)
 

@@ -1,3 +1,4 @@
+import logging
 import math
 import os
 
@@ -93,10 +94,10 @@ class Server:
     # def _get(self, url, timeout=(3.05, 2), **params):
     def _get(self, url, **params):
         params = {**self._get_params(), **params}
-        print(f'[START] get: {url}')
+        logging.info(f'[START] get: {url}')
 
         if os.environ.get('SUBLIME_MUSIC_DEBUG_DELAY'):
-            print(
+            logging.info(
                 "SUBLIME_MUSIC_DEBUG_DELAY enabled. Pausing for",
                 f"{os.environ['SUBLIME_MUSIC_DEBUG_DELAY']} seconds.",
             )
@@ -117,7 +118,7 @@ class Server:
         if result.status_code != 200:
             raise Exception(f'[FAIL] get: {url} status={result.status_code}')
 
-        print(f'[FINISH] get: {url}')
+        logging.info(f'[FINISH] get: {url}')
         return result
 
     def _get_json(
@@ -156,7 +157,6 @@ class Server:
         return response
 
     def do_download(self, url, **params) -> bytes:
-        print('download', url)
         download = self._get(url, **params)
         if 'json' in download.headers.get('Content-Type'):
             # TODO make better

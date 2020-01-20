@@ -1,4 +1,5 @@
 import os
+import logging
 import math
 import random
 
@@ -381,7 +382,8 @@ class SublimeMusicApp(Gtk.Application):
         }
         method = method_call_map.get(interface, {}).get(method)
         if method is None:
-            print(f'Unknown/unimplemented method: {interface}.{method}')
+            logging.warning(
+                f'Unknown/unimplemented method: {interface}.{method}.')
         invocation.return_value(method(*params) if callable(method) else None)
 
     def on_dbus_set_property(
@@ -416,7 +418,7 @@ class SublimeMusicApp(Gtk.Application):
 
         setter = setter_map.get(interface).get(property_name)
         if setter is None:
-            print('Set: Unknown property:', setter)
+            logging.warning('Set: Unknown property: {property_name}.')
             return
         if callable(setter):
             setter(value)
@@ -883,10 +885,9 @@ class SublimeMusicApp(Gtk.Application):
                     cover_art_future.add_done_callback(
                         lambda f: on_cover_art_download_complete(f.result()))
                 except Exception:
-                    print(
-                        'Unable to display notification.',
-                        'Is a notification daemon running?',
-                    )
+                    logging.warning(
+                        'Unable to display notification. Is a notification '
+                        'daemon running?')
 
             def on_song_download_complete(song_id):
                 if self.state.current_song.id != song.id:

@@ -1,3 +1,5 @@
+import logging
+
 import gi
 from typing import Union
 
@@ -111,9 +113,9 @@ class AlbumsPanel(Gtk.Box):
         return combo
 
     def populate_genre_combo(
-            self,
-            state: ApplicationState,
-            force: bool = False,
+        self,
+        state: ApplicationState,
+        force: bool = False,
     ):
         if not CacheManager.ready():
             return
@@ -223,7 +225,8 @@ class AlbumsPanel(Gtk.Box):
             year = int(entry.get_text())
         except Exception:
             # TODO prevent input of non-numerals
-            print('failed, should do something to prevent non-numeric input')
+            logging.error(
+                'failed, should do something to prevent non-numeric input')
             return
 
         if self.to_year_entry == entry:
@@ -301,12 +304,12 @@ class AlbumsGrid(Gtk.Overlay):
     server_hash = None
 
     def update_params(
-            self,
-            type_: str = None,
-            alphabetical_type: str = None,
-            from_year: int = None,
-            to_year: int = None,
-            genre: str = None,
+        self,
+        type_: str = None,
+        alphabetical_type: str = None,
+        from_year: int = None,
+        to_year: int = None,
+        genre: str = None,
     ):
         self.type_ = type_ or self.type_
         self.alphabetical_type = alphabetical_type or self.alphabetical_type
@@ -386,10 +389,10 @@ class AlbumsGrid(Gtk.Overlay):
         self.add_overlay(self.spinner)
 
     def update(
-            self,
-            state: ApplicationState,
-            force: bool = False,
-            selected_id: str = None,
+        self,
+        state: ApplicationState,
+        force: bool = False,
+        selected_id: str = None,
     ):
         new_hash = CacheManager.calculate_server_hash(state.config.server)
         if self.server_hash != new_hash:
@@ -562,9 +565,9 @@ class AlbumsGrid(Gtk.Overlay):
         return widget_box
 
     def reflow_grids(
-            self,
-            force_reload_from_master=False,
-            selection_changed=False,
+        self,
+        force_reload_from_master=False,
+        selection_changed=False,
     ):
         # Determine where the cuttoff is between the top and bottom grids.
         entries_before_fold = len(self.list_store)

@@ -287,8 +287,8 @@ class ArtistDetailPanel(Gtk.Box):
     # stuff and un-cache things.
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist(*a, **k),
-        before_download=lambda self: self.set_all_loading(),
-        on_failure=lambda self, e: print('fail a', e),
+        before_download=lambda self: self.set_all_loading(True),
+        on_failure=lambda self, e: self.set_all_loading(False),
     )
     def update_artist_view(
         self,
@@ -382,10 +382,14 @@ class ArtistDetailPanel(Gtk.Box):
 
     # Helper Methods
     # =========================================================================
-    def set_all_loading(self):
-        self.albums_list.spinner.start()
-        self.albums_list.spinner.show()
-        self.artist_artwork.set_loading(True)
+    def set_all_loading(self, loading_state):
+        if loading_state:
+            self.albums_list.spinner.start()
+            self.albums_list.spinner.show()
+            self.artist_artwork.set_loading(True)
+        else:
+            self.albums_list.spinner.hide()
+            self.artist_artwork.set_loading(False)
 
     def make_label(self, text=None, name=None, **params):
         return Gtk.Label(
