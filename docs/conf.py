@@ -16,13 +16,16 @@
 
 # -- Project information -----------------------------------------------------
 
+import datetime
+
 project = 'Sublime Music'
-copyright = '2020, Sumner Evans'
+copyright = f'{datetime.datetime.today().year}, Sumner Evans'
 author = 'Sumner Evans'
 gitlab = 'https://gitlab.com/sumner/sublime-music/'
 
-# The full version, including alpha/beta/rc tags
-release = 'v0.8.9'
+# Get the version from the package.
+import sublime
+release = f'v{sublime.__version__}'
 
 # -- General configuration ---------------------------------------------------
 

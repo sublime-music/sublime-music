@@ -56,7 +56,7 @@ build_flatpak:
     paths:
       - flatpak/sublime-music.flatpak
 
-# Deploy documenation to GitLab Pages
+# Deploy documenation and code coverage to GitLab Pages
 pages:
   # only:
   #   - master
