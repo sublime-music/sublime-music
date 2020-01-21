@@ -15,7 +15,6 @@ image: registry.gitlab.com/sumner/sublime-music/python-build:latest
 
 lint:
   stage: test
-  allow_failure: true
   before_script:
     - ./cicd/install-project-deps.sh
   script:
@@ -64,8 +63,7 @@ pages:
   before_script:
     - ./cicd/install-project-deps.sh
   script:
-    - 'cd docs && make html'
-    - mv docs/_build/html public
+    - ./cicd/pages-build.sh
   artifacts:
       paths:
         - public
