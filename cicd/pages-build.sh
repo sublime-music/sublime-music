@@ -1,4 +1,6 @@
-#! /bin/sh
+#! /usr/bin/env bash
+
+set -xe
 
 pushd docs
 pipenv run make html
