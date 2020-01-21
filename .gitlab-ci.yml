@@ -58,8 +58,8 @@ build_flatpak:
 
 # Deploy documenation and code coverage to GitLab Pages
 pages:
-  # only:
-  #   - master
+  only:
+    - master
   stage: deploy
   before_script:
     - ./cicd/install-project-deps.sh
