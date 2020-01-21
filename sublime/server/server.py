@@ -49,7 +49,7 @@ from .api_objects import (
 
 class Server:
     """
-    Defines a *Sonic server.
+    Defines a \\*Sonic server.
 
     Notes:
 
@@ -59,7 +59,7 @@ class Server:
     * The ``jukeboxControl`` endpoint is not supported.
     * None of the chat message endpoints are supported.
     * The ``server`` module is stateless. The only thing that it does is allow
-      the module's user to query the *sonic server via the API.
+      the module's user to query the \\*sonic server via the API.
     """
     def __init__(
             self,
