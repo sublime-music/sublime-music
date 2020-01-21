@@ -17,6 +17,7 @@ rst2html5 = "*"
 graphviz = "*"
 sphinx = "*"
 sphinx-rtd-theme = "*"
+sphinx-autodoc-typehints = "*"
 
 [packages]
 sublime-music = {editable = true,path = "."}

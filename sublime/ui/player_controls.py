@@ -245,7 +245,7 @@ class PlayerControls(Gtk.ActionBar):
         before_download=lambda self: self.album_art.set_loading(True),
         on_failure=lambda self, e: self.album_art.set_loading(False),
     )
-    def update_cover_art(self, cover_art_filename, state):
+    def update_cover_art(self, cover_art_filename: str, state):
         self.album_art.set_from_file(cover_art_filename)
         self.album_art.set_loading(False)
 
