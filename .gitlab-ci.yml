@@ -63,6 +63,7 @@ pages:
   stage: deploy
   before_script:
     - ./cicd/install-project-deps.sh
+    - ./cicd/start-dbus.sh
   script:
     - ./cicd/pages-build.sh
   artifacts:
