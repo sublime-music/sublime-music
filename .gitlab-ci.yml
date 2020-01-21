@@ -15,7 +15,6 @@ image: registry.gitlab.com/sumner/sublime-music/python-build:latest
 
 lint:
   stage: test
-  allow_failure: true
   before_script:
     - ./cicd/install-project-deps.sh
   script:
@@ -44,6 +43,7 @@ build:
   artifacts:
     paths:
       - dist/*
+    expire_in: 7 days
 
 build_flatpak:
   image: registry.gitlab.com/sumner/sublime-music/flatpak-build:latest
@@ -55,6 +55,19 @@ build_flatpak:
   artifacts:
     paths:
       - flatpak/sublime-music.flatpak
+
+# Deploy documenation and code coverage to GitLab Pages
+pages:
+  # only:
+  #   - master
+  stage: deploy
+  before_script:
+    - ./cicd/install-project-deps.sh
+  script:
+    - ./cicd/pages-build.sh
+  artifacts:
+    paths:
+      - public
 
 deploy_pypi:
   image: python:3.6-alpine

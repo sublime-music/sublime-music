@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import (
     Any,
     Generic,
+    Iterable,
     List,
     Optional,
     Union,
@@ -55,6 +56,10 @@ from .server.api_objects import (
 
 
 class Singleton(type):
+    """
+    Metaclass for :class:`CacheManager` so that it can be used like a
+    singleton.
+    """
     def __getattr__(cls, name):
         if not CacheManager._instance:
             return None
@@ -76,13 +81,26 @@ class SongCacheStatus(Enum):
     DOWNLOADING = 3
 
 
-# This may end up being called a lot, so cache the similarity ratios.
 @lru_cache(maxsize=8192)
-def similarity_ratio(query, string):
+def similarity_ratio(query: str, string: str):
+    """
+    Return the :class:`fuzzywuzzy.fuzz.partial_ratio` between the ``query`` and
+    the given ``string``.
+
+    This ends up being called quite a lot, so the result is cached in an LRU
+    cache using :class:`functools.lru_cache`.
+
+    :param query: the query string
+    :param string: the string to compare to the query string
+    """
     return fuzz.partial_ratio(query.lower(), string.lower())
 
 
 class SearchResult:
+    """
+    An object representing the aggregate results of a search which can include
+    both server and local results.
+    """
     _artist: Set[Union[Artist, ArtistID3]] = set()
     _album: Set[Union[Child, AlbumID3]] = set()
     _song: Set[Child] = set()
@@ -91,7 +109,8 @@ class SearchResult:
     def __init__(self, query):
         self.query = query
 
-    def add_results(self, result_type, results):
+    def add_results(self, result_type: str, results: Iterable):
+        """Adds the ``results`` to the ``_result_type`` set."""
         if results is None:
             return
 
@@ -121,21 +140,17 @@ class SearchResult:
         return result
 
     @property
-    def artist(self) -> Optional[List[Union[Artist, ArtistID3]]]:
+    def artist(self) -> Optional[List[ArtistID3]]:
         if self._artist is None:
             return None
         return self._to_result(self._artist, lambda a: a.name)
 
     @property
-    def album(self) -> Optional[List[Union[Child, AlbumID3]]]:
+    def album(self) -> Optional[List[AlbumID3]]:
         if self._album is None:
             return None
 
-        def album_transform(a):
-            name = a.title if type(a) == Child else a.name
-            return f'{name} - {a.artist}'
-
-        return self._to_result(self._album, album_transform)
+        return self._to_result(self._album, lambda a: f'{a.name} - {a.artist}')
 
     @property
     def song(self) -> Optional[List[Child]]:
@@ -154,11 +169,18 @@ T = TypeVar('T')
 
 
 class CacheManager(metaclass=Singleton):
+    """
+    Handles everything related to caching metadata and song files.
+    """
     executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=50)
     should_exit: bool = False
 
     class Result(Generic[T]):
-        """A result from a CacheManager function."""
+        """
+        A result from a CacheManager function. This is effectively a wrapper
+        around a Future, but it can also resolve immediately if the data
+        already exists.
+        """
         data = None
         future = None
         on_cancel = None
@@ -241,6 +263,15 @@ class CacheManager(metaclass=Singleton):
 
     class CacheEncoder(json.JSONEncoder):
         def default(self, obj):
+            """
+            Encodes Python objects to JSON.
+
+            - ``datetime`` objects are converted to UNIX timestamps (``int``)
+            - ``set`` objects are converted to ``list`` objects
+            - ``APIObject`` objects are recursively encoded
+            - ``EnumMeta`` objects are ignored
+            - everything else is encoded using the default encoder
+            """
             if type(obj) == datetime:
                 return int(obj.timestamp() * 1000)
             elif type(obj) == set:
