@@ -135,12 +135,12 @@ class SublimeMusicApp(Gtk.Application):
         self.window.connect('songs-removed', self.on_songs_removed)
         self.window.connect('refresh-window', self.on_refresh_window)
         self.window.connect('go-to', self.on_window_go_to)
+        self.window.connect('key-press-event', self.on_window_key_press)
         self.window.player_controls.connect('song-scrub', self.on_song_scrub)
         self.window.player_controls.connect(
             'device-update', self.on_device_update)
         self.window.player_controls.connect(
             'volume-change', self.on_volume_change)
-        self.window.connect('key-press-event', self.on_window_key_press)
 
         self.window.show_all()
         self.window.present()

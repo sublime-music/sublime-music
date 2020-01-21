@@ -15,6 +15,8 @@ jedi = "*"
 rope = "*"
 rst2html5 = "*"
 graphviz = "*"
+sphinx-rtd-theme = "*"
+sphinx = "*"
 
 [packages]
 sublime-music = {editable = true,path = "."}
