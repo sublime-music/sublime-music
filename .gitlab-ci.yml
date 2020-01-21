@@ -56,6 +56,20 @@ build_flatpak:
     paths:
       - flatpak/sublime-music.flatpak
 
+# Deploy documenation to GitLab Pages
+pages:
+  # only:
+  #   - master
+  stage: deploy
+  before_script:
+    - ./cicd/install-project-deps.sh
+  script:
+    - 'cd docs && make html'
+    - mv docs/_build/html public
+  artifacts:
+      paths:
+        - public
+
 deploy_pypi:
   image: python:3.6-alpine
   stage: deploy
