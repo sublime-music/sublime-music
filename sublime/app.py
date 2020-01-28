@@ -597,7 +597,8 @@ class SublimeMusicApp(Gtk.Application):
         self.state.save_config()
 
     def on_connected_server_changed(self, action, current_server):
-        self.state.save()
+        if self.state.config.current_server >= 0:
+            self.state.save()
         self.state.config.current_server = current_server
         self.state.save_config()
 
