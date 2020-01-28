@@ -1,3 +1,29 @@
+v0.8.10
+=======
+
+* Converted to use use ``logging`` instead of ``print`` statements. Log file and
+  level configurable using the ``-l|--logfile`` and ``-m|--loglevel``
+  parameters.
+* Added busy-wait on Chromecast retrieval when already getting Chromecasts.
+
+* **Bug Fix:** Sublime Music no longer crashes when selecting a server for the
+  first time.
+
+* **Documentation**
+
+  * Added automated documentation of the ``sublime`` Python module using Sphinx
+    and automated parameter documentation using ``sphinx-autodoc-typehints``.
+  * Started documenting more of the classes including type hints.
+  * Added some screenshots.
+
+* **Infrastructure**
+
+  * Auto-deploy of documentation to GitLab Pages:
+    https://sumner.gitlab.io/sublime-music.
+  * Code coverage report now available for latest ``master`` at
+    https://sumner.gitlab.io/sublime-music/htmlcov.
+  * Lint step also disallows ``print()`` statements in code.
+
 v0.8.9
 ======
 
