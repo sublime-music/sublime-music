@@ -3,8 +3,6 @@ import logging
 import math
 import random
 
-from os import environ
-
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Notify', '0.7')
@@ -22,53 +20,15 @@ from .ui.common.players import PlayerEvent, MPVPlayer, ChromecastPlayer
 
 
 class SublimeMusicApp(Gtk.Application):
-    def __init__(self, *args, **kwargs):
-        super().__init__(
-            *args,
-            application_id="com.sumnerevans.sublimemusic",
-            flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
-            **kwargs,
-        )
+    def __init__(self, config_file):
+        super().__init__(application_id="com.sumnerevans.sublimemusic")
         Notify.init('Sublime Music')
 
         self.window = None
         self.state = ApplicationState()
-
-        # Specify Command Line Options
-        self.add_main_option(
-            'config',
-            ord('c'),
-            GLib.OptionFlags.NONE,
-            GLib.OptionArg.FILENAME,
-            'Specify a configuration file. Defaults to '
-            '~/.config/sublime-music/config.json',
-            None,
-        )
-
-        self.connect('shutdown', self.on_app_shutdown)
-
-    # Handle command line option parsing.
-    def do_command_line(self, command_line):
-        options = command_line.get_options_dict()
-
-        # Config File
-        config_file = options.lookup_value('config')
-        if config_file:
-            config_file = config_file.get_bytestring().decode('utf-8')
-        else:
-            # Default to ~/.config/sublime-music.
-            config_folder = (
-                environ.get('XDG_CONFIG_HOME') or environ.get('APPDATA')
-                or os.path.join(environ.get('HOME'), '.config'))
-            config_folder = os.path.join(config_folder, 'sublime-music')
-            config_file = os.path.join(config_folder, 'config.json')
-
         self.state.config_file = config_file
 
-        # Have to do this or else the application doesn't work. Not entirely
-        # sure why, but C-bindings...
-        self.activate()
-        return 0
+        self.connect('shutdown', self.on_app_shutdown)
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
