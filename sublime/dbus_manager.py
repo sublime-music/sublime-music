@@ -208,8 +208,7 @@ class DBusManager:
                 'CanRaise': True,
                 'HasTrackList': True,
                 'Identity': 'Sublime Music',
-                # TODO should implement in #29
-                'DesktopEntry': 'foo',
+                'DesktopEntry': 'sublime-music',
                 'SupportedUriSchemes': [],
                 'SupportedMimeTypes': [],
             },
