@@ -45,6 +45,18 @@ build:
       - dist/*
     expire_in: 7 days
 
+build_logo:
+  image: ubuntu:19.10
+  stage: build
+  before_script:
+    - apt update && apt install -y inkscape make
+  script:
+    - cd docs/logo
+    - make
+  artifacts:
+    paths:
+      - docs/logo
+
 build_flatpak:
   image: registry.gitlab.com/sumner/sublime-music/flatpak-build:latest
   allow_failure: true
