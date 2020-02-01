@@ -64,11 +64,16 @@ Requirements:
 - Probably other things... Please create an MR with any other dependencies that
   you had to install to develop the app.
 
-Install the Sublime Music app locally (commands may differ from what is
-described below, this is merely an outline)::
+This project uses a ``Pipfile`` for managing dev dependencies. Make sure that
+you have Pipenv_ (and Pyenv_ if necessary) set up properly, then run::
 
-    pip install -e . --user
-    pip install -r dev-requirements.txt
+    pipenv install --dev
+
+to install the development dependencies as well as install ``sublime-music``
+into the virtual environment as editable.
+
+.. _Pipenv: https://pipenv.readthedocs.io/
+.. _Pyenv: https://github.com/pyenv/pyenv
 
 Building the flatpak
 ^^^^^^^^^^^^^^^^^^^^
