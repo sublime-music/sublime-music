@@ -1,9 +1,10 @@
 Sublime Music
 =============
 
-**Click HERE_ for user documentation**
+|userdoc|_
 
-.. _HERE: https://sumner.gitlab.io/sublime-music/
+.. |userdoc| replace:: **Click HERE for User Documentation.**
+.. _userdoc: https://sumner.gitlab.io/sublime-music/
 
 This README is intended for developers and other contributors looking to
 understand how to contribute to this project.
