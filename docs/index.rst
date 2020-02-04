@@ -1,3 +1,6 @@
+.. image:: ./logo/logo.png
+   :width: 200px
+
 Welcome to Sublime Music's documentation!
 =========================================
 
@@ -8,16 +11,25 @@ Linux Desktop.
 .. _Subsonic: http://www.subsonic.org/pages/index.jsp
 .. _Airsonic: https://airsonic.github.io/
 
+.. figure:: ./_static/screenshots/play-queue.png
+   :width: 80 %
+   :align: center
+   :target: ./_static/screenshots/play-queue.png
+
+   The Playlist view of Sublime Music with the Play Queue opened.
+
 Features
 --------
 
-- Connect to multiple Subsonic-API-compliant servers.
-- Play music through Chromecasts on the same LAN.
-- DBus MPRIS interface integration for controlling Sublime Music via
-  ``playerctl``, ``i3status-rust``, KDE Connect, and other DBus MPRIS clients.
-- Browse Albums, Artists, and Playlists.
-- Play queue.
-- Create/delete/edit Playlists.
+- Switch between multiple Subsonic-API-compliant servers.
+- Play music through Chromecast devices on the same LAN.
+- DBus MPRIS interface integration for controlling Sublime Music via DBus MPRIS
+  clients such as ``playerctl``, ``i3status-rust``, KDE Connect, and many
+  commonly used desktop environments.
+- Browse songs by the sever-reported filesystem structure, or view them
+  organized by ID3 tags in the Albums, Artists, and Playlists views.
+- Intuitive play queue.
+- Create/delete/edit playlists.
 - Cache songs for offline listening.
 
 Installation
@@ -58,6 +70,7 @@ Install the |AUR Package|_. Example using ``yay``::
    :caption: Contents:
 
    screenshots.rst
+   settings.rst
    api/sublime.rst
 
 Indices and tables

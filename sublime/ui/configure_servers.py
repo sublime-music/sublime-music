@@ -21,7 +21,7 @@ class EditServerDialog(EditFormDialog):
         ('Password', 'password', True),
     ]
     boolean_fields = [
-        ('Sync enabled', 'sync_enabled'),
+        ('Play queue sync enabled', 'sync_enabled'),
         ('Do not verify certificate', 'disable_cert_verify'),
     ]
 
