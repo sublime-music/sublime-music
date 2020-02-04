@@ -32,21 +32,22 @@ Install the |AUR Package|_. Example using ``yay``::
 .. |AUR Package| replace:: ``sublime-music`` package
 .. _AUR Package: https://aur.archlinux.org/packages/sublime-music/
 
-**Via Flatpak**:
-
-In the future, you will be able to install via Flathub. For now, if you want to
-try the Flatpak, you will have to install it manually by visiting the Releases_
-page and downloading the ``.flatpak`` file from there.
-
-Then, you can install Sublime Music with::
-
-    sudo flatpak install sublime-music.flatpak
-
-and run it by executing::
-
-    flatpak run com.sumnerevans.SublimeMusic
-
-.. _Releases: https://gitlab.com/sumner/sublime-music/-/releases
+.. Uncomment when Flatpak support actually works.
+.. **Via Flatpak**:
+.. 
+.. In the future, you will be able to install via Flathub. For now, if you want to
+.. try the Flatpak, you will have to install it manually by visiting the Releases_
+.. page and downloading the ``.flatpak`` file from there.
+.. 
+.. Then, you can install Sublime Music with::
+.. 
+..     sudo flatpak install sublime-music.flatpak
+.. 
+.. and run it by executing::
+.. 
+..     flatpak run com.sumnerevans.SublimeMusic
+.. 
+.. .. _Releases: https://gitlab.com/sumner/sublime-music/-/releases
 
 **Via PyPi**::
 
