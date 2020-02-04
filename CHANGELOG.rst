@@ -1,3 +1,15 @@
+v0.8.11
+=======
+
+* Added a logo. It's pretty bad, but it's something.
+* Added a ``.desktop`` file for the app.
+* Standardized the way that command line parameters are handled to use Python's
+  ``argparse`` instead of the GTK argument parsing.
+
+* **Infrastructure**
+
+  * Added build step for logo at various different sizes.
+
 v0.8.10
 =======
 

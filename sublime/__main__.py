@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+import os
 import argparse
 import logging
 
@@ -29,6 +30,12 @@ def main():
         help='the minium level of logging to do',
         default='WARNING',
     )
+    parser.add_argument(
+        '-c',
+        '--config',
+        help='specify a configuration file. Defaults to '
+        '~/.config/sublime-music/config.json',
+    )
 
     args, unknown_args = parser.parse_known_args()
     if args.version:
@@ -46,5 +53,15 @@ def main():
         format='%(asctime)s:%(levelname)s:%(name)s:%(module)s:%(message)s',
     )
 
-    app = SublimeMusicApp()
+    # Config File
+    config_file = args.config
+    if not config_file:
+        # Default to ~/.config/sublime-music.
+        config_folder = (
+            os.environ.get('XDG_CONFIG_HOME') or os.environ.get('APPDATA')
+            or os.path.join(os.environ.get('HOME'), '.config'))
+        config_folder = os.path.join(config_folder, 'sublime-music')
+        config_file = os.path.join(config_folder, 'config.json')
+
+    app = SublimeMusicApp(config_file)
     app.run(unknown_args)
