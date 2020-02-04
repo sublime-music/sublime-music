@@ -1,62 +1,15 @@
 Sublime Music
 =============
 
-A GTK3 `Revel`_/`Subsonic`_/`Airsonic`_/\*sonic client for the Linux Desktop.
+**Click HERE_ for user documentation**
 
-.. _Revel: https://gitlab.com/robozman/revel
-.. _Subsonic: http://www.subsonic.org/pages/index.jsp
-.. _Airsonic: https://airsonic.github.io/
+.. _HERE: https://sumner.gitlab.io/sublime-music/
 
-Built using Python and GTK+.
+This README is intended for developers and other contributors looking to
+understand how to contribute to this project.
 
-Features
---------
-
-- Connect to multiple Subsonic-API-compliant servers.
-- Play music through Chromecasts on the same LAN.
-- DBus MPRIS interface integration for controlling Sublime Music via
-  ``playerctl``, ``i3status-rust``, KDE Connect, and other DBus MPRIS clients.
-- Browse Albums, Artists, and Playlists.
-- Play queue.
-- Create/delete/edit Playlists.
-- Cache songs for offline listening.
-
-Installation
+Requirements
 ------------
-
-**Via the AUR**:
-
-Install the |AUR Package|_. Example using ``yay``::
-
-    yay -S sublime-music
-
-.. |AUR Package| replace:: ``sublime-music`` package
-.. _AUR Package: https://aur.archlinux.org/packages/sublime-music/
-
-**Via Flatpak**:
-
-In the future, you will be able to install via Flathub. For now, if you want to
-try the Flatpak, you will have to install it manually by visiting the Releases_
-page and downloading the ``.flatpak`` file from there.
-
-Then, you can install Sublime Music with::
-
-    sudo flatpak install sublime-music.flatpak
-
-and run it by executing::
-
-    flatpak run com.sumnerevans.SublimeMusic
-
-.. _Releases: https://gitlab.com/sumner/sublime-music/-/releases
-
-**Via PyPi**::
-
-    pip install sublime-music
-
-Development Setup
------------------
-
-Requirements:
 
 - Python 3.7
 - GTK3
@@ -71,7 +24,9 @@ described below, this is merely an outline)::
     pip install -r dev-requirements.txt
 
 Building the flatpak
-^^^^^^^^^^^^^^^^^^^^
+--------------------
+
+*(currently broken)*
 
 - A flatpak-builder environment must be setup on the build machine to do a
   flatpak build. This includes ``org.gnome.SDK//3.34`` and
