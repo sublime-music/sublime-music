@@ -16,7 +16,8 @@ Linux Desktop.
    :align: center
    :target: ./_static/screenshots/play-queue.png
 
-   The Playlist view of Sublime Music with the Play Queue opened.
+   The Playlist view of Sublime Music with the Play Queue opened. :doc:`More
+   Screenshots <./screenshots>`
 
 Features
 --------
