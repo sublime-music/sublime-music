@@ -1,10 +1,11 @@
 Sublime Music
 =============
 
-Sublime Music is a GTK3 `Revel`_/`Subsonic`_/`Airsonic`_/\*sonic client for the
-Linux Desktop.
+Sublime Music is a GTK3 `Revel`_/`Gonic`_/`Subsonic`_/`Airsonic`_/\*sonic client
+for the Linux Desktop.
 
 .. _Revel: https://gitlab.com/robozman/revel
+.. _Gonic: https://github.com/sentriz/gonic
 .. _Subsonic: http://www.subsonic.org/pages/index.jsp
 .. _Airsonic: https://airsonic.github.io/
 
