@@ -123,7 +123,7 @@ class MPVPlayer(Player):
         super().__init__(*args)
 
         self.mpv = mpv.MPV()
-        self.mpv.audio_client_name = 'Sublime Music'
+        self.mpv.audio_client_name = 'sublime-music'
         self.progress_value_lock = threading.Lock()
         self.progress_value_count = 0
         self._muted = False

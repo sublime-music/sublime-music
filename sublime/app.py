@@ -16,7 +16,7 @@ from .dbus_manager import DBusManager, dbus_propagate
 from .state_manager import ApplicationState, RepeatType
 from .cache_manager import CacheManager
 from .server.api_objects import Child, Directory
-from .ui.common.players import PlayerEvent, MPVPlayer, ChromecastPlayer
+from .players import PlayerEvent, MPVPlayer, ChromecastPlayer
 
 
 class SublimeMusicApp(Gtk.Application):
