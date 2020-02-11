@@ -22,6 +22,10 @@ class SettingsDialog(EditFormDialog):
             'Show a notification when a song begins to play',
             'song_play_notification',
         ),
+        (
+            'Serve locally cached files over the LAN to Chromecast devices.',
+            'serve_over_lan',
+        ),
     ]
     numeric_fields = [
         (

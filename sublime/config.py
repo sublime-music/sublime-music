@@ -1,4 +1,5 @@
 import os
+import logging
 import keyring
 
 from typing import List, Optional
@@ -60,7 +61,8 @@ class AppConfiguration:
     prefetch_amount: int = 3
     concurrent_download_limit: int = 5
     port_number: int = 8282
-    version: int = 1
+    version: int = 2
+    serve_over_lan: bool = True
 
     def to_json(self):
         exclude = ('servers')
@@ -77,6 +79,13 @@ class AppConfiguration:
     def migrate(self):
         for server in self.servers:
             server.migrate()
+
+        if (getattr(self, 'version') or 0) < 2:
+            logging.info('Migrating app configuration to version 2.')
+            logging.info('Setting serve_over_lan to True')
+            self.serve_over_lan = True
+
+        self.version = 2
 
     @property
     def cache_location(self):

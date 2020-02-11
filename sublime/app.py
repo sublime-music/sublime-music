@@ -406,6 +406,8 @@ class SublimeMusicApp(Gtk.Application):
                 'download_on_stream'].get_active()
             self.state.config.song_play_notification = dialog.data[
                 'song_play_notification'].get_active()
+            self.state.config.serve_over_lan = dialog.data[
+                'serve_over_lan'].get_active()
             self.state.config.prefetch_amount = dialog.data[
                 'prefetch_amount'].get_value_as_int()
             self.state.config.concurrent_download_limit = dialog.data[
@@ -557,7 +559,7 @@ class SublimeMusicApp(Gtk.Application):
         self.state.save_config()
 
     def on_connected_server_changed(self, action, current_server):
-        if self.state.config.current_server >= 0:
+        if self.state.config.server:
             self.state.save()
         self.state.config.current_server = current_server
         self.state.save_config()
