@@ -12,7 +12,7 @@ from sublime.cache_manager import CacheManager
 from sublime.state_manager import ApplicationState, RepeatType
 from sublime.ui import util
 from sublime.ui.common import IconButton, SpinnerImage
-from sublime.ui.common.players import ChromecastPlayer
+from sublime.players import ChromecastPlayer
 
 
 class PlayerControls(Gtk.ActionBar):

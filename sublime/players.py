@@ -123,7 +123,7 @@ class MPVPlayer(Player):
         super().__init__(*args)
 
         self.mpv = mpv.MPV()
-        self.mpv.audio_client_name = 'Sublime Music'
+        self.mpv.audio_client_name = 'sublime-music'
         self.progress_value_lock = threading.Lock()
         self.progress_value_count = 0
         self._muted = False
@@ -194,7 +194,7 @@ class MPVPlayer(Player):
 class ChromecastPlayer(Player):
     chromecasts: List[Any] = []
     chromecast: pychromecast.Chromecast = None
-    executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=50)
+    executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=10)
 
     class CastStatusListener:
         on_new_cast_status: Optional[Callable] = None
@@ -316,9 +316,12 @@ class ChromecastPlayer(Player):
             self.host_ip = None
 
         self.port = config.port_number
-        self.server_thread = ChromecastPlayer.ServerThread(
-            '0.0.0.0', self.port)
-        self.server_thread.start()
+        self.serve_over_lan = config.serve_over_lan
+
+        if self.serve_over_lan:
+            self.server_thread = ChromecastPlayer.ServerThread(
+                '0.0.0.0', self.port)
+            self.server_thread.start()
 
     def on_new_cast_status(self, status):
         self.on_player_event(
@@ -389,8 +392,16 @@ class ChromecastPlayer(Player):
 
     def play_media(self, file_or_url: str, progress: float, song: Child):
         stream_scheme = urlparse(file_or_url).scheme
+        # If it's a local file, then see if we can serve it over the LAN.
         if not stream_scheme:
-            file_or_url = f'http://{self.host_ip}:{self.port}/song/{song.id}'
+            if self.serve_over_lan:
+                host = f'{self.host_ip}:{self.port}'
+                file_or_url = f'http://{host}/song/{song.id}'
+            else:
+                file_or_url, _ = CacheManager.get_song_filename_or_stream(
+                    song,
+                    force_stream=True,
+                )
 
         cover_art_url = CacheManager.get_cover_art_url(song.id, 1000)
         self.chromecast.media_controller.play_media(
@@ -400,12 +411,12 @@ class ChromecastPlayer(Player):
             current_time=progress,
             title=song.title,
             thumb=cover_art_url,
-            metadata=dict(
-                metadataType=3,
-                albumName=song.album,
-                artist=song.artist,
-                trackNumber=song.track,
-            ),
+            metadata={
+                'metadataType': 3,
+                'albumName': song.album,
+                'artist': song.artist,
+                'trackNumber': song.track,
+            },
         )
         self._timepos = progress
 

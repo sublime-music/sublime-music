@@ -154,6 +154,7 @@ class ApplicationState:
     def migrate(self):
         """Use this function to migrate any state storage that has changed."""
         self.config.migrate()
+        self.save_config()
 
     def save(self):
         # Make the necessary directories before writing the state.
