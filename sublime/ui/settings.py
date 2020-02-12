@@ -41,11 +41,12 @@ class SettingsDialog(EditFormDialog):
             5,
         ),
     ]
-    extra_label = Gtk.Label(
-        label='<i>* Will be appplied after restarting Sublime Music</i>',
-        justify=Gtk.Justification.LEFT,
-        use_markup=True,
-    )
 
     def __init__(self, *args, **kwargs):
+        self.extra_label = Gtk.Label(
+            label='<i>* Will be appplied after restarting Sublime Music</i>',
+            justify=Gtk.Justification.LEFT,
+            use_markup=True,
+        )
+
         super().__init__(*args, **kwargs)
