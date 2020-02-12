@@ -1,17 +1,20 @@
-import logging
-import threading
-from uuid import UUID
-from urllib.parse import urlparse
+import base64
 import io
-import socket
+import logging
 import mimetypes
-from typing import Callable, List, Any, Optional
-from time import sleep
-from concurrent.futures import ThreadPoolExecutor, Future
+import os
+import socket
+import threading
 
-import pychromecast
-import mpv
+from concurrent.futures import ThreadPoolExecutor, Future
+from time import sleep
+from typing import Callable, List, Any, Optional
+from urllib.parse import urlparse
+from uuid import UUID
+
 import bottle
+import mpv
+import pychromecast
 
 from sublime.config import AppConfiguration
 from sublime.cache_manager import CacheManager
@@ -219,12 +222,13 @@ class ChromecastPlayer(Player):
             self.daemon = True
             self.host = host
             self.port = port
+            self.token = None
 
             self.app = bottle.Bottle()
 
             @self.app.route('/')
             def index():
-                return ''''
+                return '''
                 <h1>Sublime Music Local Music Server</h1>
                 <p>
                     Sublime Music uses this port as a server for serving music
@@ -232,8 +236,10 @@ class ChromecastPlayer(Player):
                 </p>
                 '''
 
-            @self.app.route('/song/<id>')
+            @self.app.route('/s/<id>')
             def stream_song(id):
+                if bottle.request.query.get('t') != self.token:
+                    raise bottle.HTTPError(status=401, body='Invalid token.')
                 song = CacheManager.get_song_details(id).result()
                 filename = CacheManager.get_song_filename_or_stream(song)[0]
                 with open(filename, 'rb') as fin:
@@ -245,6 +251,9 @@ class ChromecastPlayer(Player):
                 )
                 bottle.response.set_header('Accept-Ranges', 'bytes')
                 return song_buffer.read()
+
+        def set_token(self, token):
+            self.token = token
 
         def run(self):
             bottle.run(self.app, host=self.host, port=self.port)
@@ -395,8 +404,12 @@ class ChromecastPlayer(Player):
         # If it's a local file, then see if we can serve it over the LAN.
         if not stream_scheme:
             if self.serve_over_lan:
+                token = base64.b64encode(os.urandom(64)).decode('ascii')
+                for r in (('+', '.'), ('/', '-'), ('=', '_')):
+                    token = token.replace(*r)
+                self.server_thread.set_token(token)
                 host = f'{self.host_ip}:{self.port}'
-                file_or_url = f'http://{host}/song/{song.id}'
+                file_or_url = f'http://{host}/s/{song.id}?t={token}'
             else:
                 file_or_url, _ = CacheManager.get_song_filename_or_stream(
                     song,
