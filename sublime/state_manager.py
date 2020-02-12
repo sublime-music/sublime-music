@@ -156,9 +156,6 @@ class ApplicationState:
         self.config.migrate()
         self.save_config()
 
-        if self.config.server:
-            self.save()
-
     def save(self):
         # Make the necessary directories before writing the state.
         os.makedirs(os.path.dirname(self.state_filename), exist_ok=True)
