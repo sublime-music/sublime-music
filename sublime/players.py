@@ -223,6 +223,7 @@ class ChromecastPlayer(Player):
             self.host = host
             self.port = port
             self.token = None
+            self.song_id = None
 
             self.app = bottle.Bottle()
 
@@ -236,12 +237,13 @@ class ChromecastPlayer(Player):
                 </p>
                 '''
 
-            @self.app.route('/s/<id>')
-            def stream_song(id):
-                if bottle.request.query.get('t') != self.token:
+            @self.app.route('/s/<token>')
+            def stream_song(token):
+                if token != self.token:
                     raise bottle.HTTPError(status=401, body='Invalid token.')
-                song = CacheManager.get_song_details(id).result()
-                filename = CacheManager.get_song_filename_or_stream(song)[0]
+
+                song = CacheManager.get_song_details(self.song_id).result()
+                filename, _ = CacheManager.get_song_filename_or_stream(song)
                 with open(filename, 'rb') as fin:
                     song_buffer = io.BytesIO(fin.read())
 
@@ -252,7 +254,8 @@ class ChromecastPlayer(Player):
                 bottle.response.set_header('Accept-Ranges', 'bytes')
                 return song_buffer.read()
 
-        def set_token(self, token):
+        def set_song_and_token(self, song_id, token):
+            self.song_id = song_id
             self.token = token
 
         def run(self):
@@ -407,9 +410,8 @@ class ChromecastPlayer(Player):
                 token = base64.b64encode(os.urandom(64)).decode('ascii')
                 for r in (('+', '.'), ('/', '-'), ('=', '_')):
                     token = token.replace(*r)
-                self.server_thread.set_token(token)
-                host = f'{self.host_ip}:{self.port}'
-                file_or_url = f'http://{host}/s/{song.id}?t={token}'
+                self.server_thread.set_song_and_token(song.id, token)
+                file_or_url = f'http://{self.host_ip}:{self.port}/s/{token}'
             else:
                 file_or_url, _ = CacheManager.get_song_filename_or_stream(
                     song,
