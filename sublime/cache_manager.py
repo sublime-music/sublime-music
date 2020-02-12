@@ -879,7 +879,7 @@ class CacheManager(metaclass=Singleton):
             if id is None:
                 art_path = 'ui/images/default-album-art.png'
                 return CacheManager.Result.from_data(str(
-                    Path(__file__).joinpath(art_path)
+                    Path(__file__).parent.joinpath(art_path)
                 ))
             return self.return_cached_or_download(
                 f'cover_art/{id}_{size}',
