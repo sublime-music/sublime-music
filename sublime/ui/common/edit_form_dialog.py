@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -14,6 +14,7 @@ class EditFormDialog(Gtk.Dialog):
     text_fields: List[Tuple[str, str, bool]] = []
     boolean_fields: List[Tuple[str, str]] = []
     numeric_fields: List[NumericFieldDescription] = []
+    extra_label: Optional[str] = None
     extra_buttons: List[Gtk.Button] = []
 
     def get_object_name(self, obj):
@@ -102,6 +103,12 @@ class EditFormDialog(Gtk.Dialog):
                 getattr(existing_object, value_field_name, default_value))
             self.data[value_field_name] = spin_button
             content_grid.attach(spin_button, 1, i, 1, 1)
+            i += 1
+
+        if self.extra_label:
+            label_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            label_box.add(self.extra_label)
+            content_grid.attach(label_box, 0, i, 2, 1)
             i += 1
 
         button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)

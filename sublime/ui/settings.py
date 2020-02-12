@@ -1,5 +1,6 @@
 import gi
 gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk
 
 from .common.edit_form_dialog import EditFormDialog
 
@@ -9,8 +10,7 @@ class SettingsDialog(EditFormDialog):
     initial_size = (450, 250)
     text_fields = [
         (
-            'Port Number (for streaming to Chromecasts on the local network, '
-            'will take effect on restart)',
+            'Port Number (for streaming to Chromecasts on the LAN) *',
             'port_number',
             False,
         ),
@@ -23,7 +23,7 @@ class SettingsDialog(EditFormDialog):
             'song_play_notification',
         ),
         (
-            'Serve locally cached files over the LAN to Chromecast devices.',
+            'Serve locally cached files over the LAN to Chromecast devices. *',
             'serve_over_lan',
         ),
     ]
@@ -41,6 +41,11 @@ class SettingsDialog(EditFormDialog):
             5,
         ),
     ]
+    extra_label = Gtk.Label(
+        label='<i>* Will be appplied after restarting Sublime Music</i>',
+        justify=Gtk.Justification.LEFT,
+        use_markup=True,
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
