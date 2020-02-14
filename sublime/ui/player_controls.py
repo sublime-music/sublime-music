@@ -265,11 +265,8 @@ class PlayerControls(Gtk.ActionBar):
         self.song_progress_label.set_text(
             util.format_song_duration(math.floor(current)))
 
-    def on_scrub_state_change(self, scrubber_container, eventbutton):
-        self.editing = not self.editing
-
-        if not self.editing:
-            self.emit('song-scrub', self.song_scrubber.get_value())
+    def on_scrub_change_value(self, scale, scroll_type, value):
+        self.emit('song-scrub', value)
 
     def on_volume_change(self, scale):
         if not self.editing:
@@ -457,10 +454,7 @@ class PlayerControls(Gtk.ActionBar):
             orientation=Gtk.Orientation.HORIZONTAL, min=0, max=100, step=5)
         self.song_scrubber.set_name('song-scrubber')
         self.song_scrubber.set_draw_value(False)
-        self.song_scrubber.connect(
-            'button-press-event', self.on_scrub_state_change)
-        self.song_scrubber.connect(
-            'button-release-event', self.on_scrub_state_change)
+        self.song_scrubber.connect('change-value', self.on_scrub_change_value)
         scrubber_box.pack_start(self.song_scrubber, True, True, 0)
 
         self.song_duration_label = Gtk.Label(label='-:--')
