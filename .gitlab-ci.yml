@@ -66,6 +66,8 @@ build_flatpak:
   image: registry.gitlab.com/sumner/sublime-music/flatpak-build:latest
   allow_failure: true
   stage: build
+  before_script:
+    - dnf install -y gcc
   script:
     - cd flatpak
     - ./flatpak_build.sh
