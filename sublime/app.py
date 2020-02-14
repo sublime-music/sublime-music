@@ -615,12 +615,21 @@ class SublimeMusicApp(Gtk.Application):
             song_id for i, song_id in enumerate(self.state.play_queue)
             if i not in song_indexes_to_remove
         ]
+
+        # Determine how many songs before the currently playing one were also
+        # deleted.
         before_current = [
             i for i in song_indexes_to_remove
             if i < self.state.current_song_index
         ]
 
         if self.state.current_song_index in song_indexes_to_remove:
+            if len(self.state.play_queue) == 0:
+                self.on_play_pause()
+                self.state.current_song_index = -1
+                self.update_window()
+                return
+
             self.state.current_song_index -= len(before_current)
             self.play_song(self.state.current_song_index, reset=True)
         else:
