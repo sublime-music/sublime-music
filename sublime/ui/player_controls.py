@@ -2,7 +2,7 @@ import math
 
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import Set
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -56,7 +56,7 @@ class PlayerControls(Gtk.ActionBar):
     reordering_play_queue_song_list: bool = False
     current_song = None
     current_device = None
-    chromecasts: List[ChromecastPlayer] = []
+    chromecasts: Set[ChromecastPlayer] = set()
 
     def __init__(self):
         Gtk.ActionBar.__init__(self)
@@ -66,7 +66,7 @@ class PlayerControls(Gtk.ActionBar):
         playback_controls = self.create_playback_controls()
         play_queue_volume = self.create_play_queue_volume()
 
-        self.last_device_list_update = None
+        self.last_device_list_retrieve = None
 
         self.pack_start(song_display)
         self.set_center_widget(playback_controls)
@@ -292,8 +292,13 @@ class PlayerControls(Gtk.ActionBar):
     def update_device_list(self, force=False):
         self.device_list_loading.show()
 
-        def chromecast_callback(chromecasts):
-            self.chromecasts = chromecasts
+        def chromecast_callback(chromecast):
+            if any(cc.uuid == chromecast.uuid for cc in self.chromecasts):
+                # This one is already in the list.
+                return
+
+            self.chromecasts.add(chromecast)
+
             for c in self.chromecast_device_list.get_children():
                 self.chromecast_device_list.remove(c)
 
@@ -302,8 +307,7 @@ class PlayerControls(Gtk.ActionBar):
             else:
                 self.this_device.set_icon(None)
 
-            chromecasts.sort(key=lambda c: c.device.friendly_name)
-            for cc in chromecasts:
+            for cc in self.chromecasts:
                 icon = (
                     'audio-volume-high-symbolic'
                     if str(cc.device.uuid) == self.current_device else None)
@@ -318,18 +322,15 @@ class PlayerControls(Gtk.ActionBar):
                 self.chromecast_device_list.show_all()
 
             self.device_list_loading.hide()
-            self.last_device_list_update = datetime.now()
 
         update_diff = (
-            None if not self.last_device_list_update else
-            (datetime.now() - self.last_device_list_update).seconds)
+            None if not self.last_device_list_retrieve else
+            (datetime.now() - self.last_device_list_retrieve).seconds)
         if (force or len(self.chromecasts) == 0
-                or (self.last_device_list_update and update_diff > 60)):
-            future = ChromecastPlayer.get_chromecasts()
-            future.add_done_callback(
-                lambda f: GLib.idle_add(chromecast_callback, f.result()))
-        else:
-            chromecast_callback(self.chromecasts)
+                or (self.last_device_list_retrieve and update_diff > 60)):
+            ChromecastPlayer.get_chromecasts(
+                lambda c: GLib.idle_add(chromecast_callback, c))
+            self.last_device_list_retrieve = datetime.now()
 
     def on_device_click(self, button):
         if self.device_popover.is_visible():

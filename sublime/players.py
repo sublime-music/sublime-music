@@ -262,28 +262,23 @@ class ChromecastPlayer(Player):
             bottle.run(self.app, host=self.host, port=self.port)
 
     getting_chromecasts = False
+    cancel_get_chromecasts = None
 
     @classmethod
-    def get_chromecasts(cls) -> Future:
-        def do_get_chromecasts():
-            if not ChromecastPlayer.getting_chromecasts:
-                logging.info('Getting Chromecasts')
-                ChromecastPlayer.getting_chromecasts = True
-                ChromecastPlayer.chromecasts = pychromecast.get_chromecasts()
-            else:
-                logging.info('Already getting Chromecasts... busy wait')
-                while ChromecastPlayer.getting_chromecasts:
-                    sleep(0.1)
-
-            ChromecastPlayer.getting_chromecasts = False
-            return ChromecastPlayer.chromecasts
-
-        return ChromecastPlayer.executor.submit(do_get_chromecasts)
+    def get_chromecasts(cls, on_get_chromecast):
+        ChromecastPlayer.cancel_get_chromecasts = pychromecast.get_chromecasts(
+            blocking=False,
+            callback=on_get_chromecast,
+        )
 
     def set_playing_chromecast(self, uuid):
-        self.chromecast = next(
-            cc for cc in ChromecastPlayer.chromecasts
-            if cc.device.uuid == UUID(uuid))
+        try:
+            self.chromecast = next(
+                cc for cc in ChromecastPlayer.chromecasts
+                if cc.device.uuid == UUID(uuid))
+        except StopIteration:
+            # Just ignore.
+            return
 
         self.chromecast.media_controller.register_status_listener(
             ChromecastPlayer.media_status_listener)
@@ -478,3 +473,5 @@ class ChromecastPlayer(Player):
     def shutdown(self):
         if self.chromecast:
             self.chromecast.disconnect(blocking=True)
+
+        ChromecastPlayer.cancel_get_chromecasts()
