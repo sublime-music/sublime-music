@@ -342,7 +342,10 @@ class ChromecastPlayer(Player):
                 status.volume_level * 100 if not status.volume_muted else 0,
             ))
 
+        # This normally happens when "Stop Casting" is pressed in the Google
+        # Home app.
         if status.session_id is None:
+            self.on_player_event(PlayerEvent('play_state_change', False))
             self._song_loaded = False
 
     def on_new_media_status(self, status):
