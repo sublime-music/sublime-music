@@ -319,7 +319,14 @@ def async_callback(
     """
     def decorator(callback_fn):
         @functools.wraps(callback_fn)
-        def wrapper(self, *args, state=None, **kwargs):
+        def wrapper(
+            self,
+            *args,
+            state=None,
+            order_token=None,
+            force=False,
+            **kwargs,
+        ):
             if before_download:
                 on_before_download = (
                     lambda: GLib.idle_add(before_download, self))
@@ -334,11 +341,19 @@ def async_callback(
                         on_failure(self, e)
                     return
 
-                return GLib.idle_add(callback_fn, self, result, state)
+                return GLib.idle_add(
+                    lambda: callback_fn(
+                        self,
+                        result,
+                        state=state,
+                        force=force,
+                        order_token=order_token,
+                    ))
 
             future: Future = future_fn(
                 *args,
                 before_download=on_before_download,
+                force=force,
                 **kwargs,
             )
             future.add_done_callback(future_callback)

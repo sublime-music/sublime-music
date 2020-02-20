@@ -279,9 +279,11 @@ class AlbumWithSongs(Gtk.Box):
         on_failure=lambda self, e: self.set_loading(False),
     )
     def update_album_songs(
-            self,
-            album: Union[AlbumWithSongsID3, Child, Directory],
-            state: ApplicationState,
+        self,
+        album: Union[AlbumWithSongsID3, Child, Directory],
+        state: ApplicationState,
+        force=False,
+        order_token=None,
     ):
         new_store = [
             [

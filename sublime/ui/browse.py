@@ -30,6 +30,7 @@ class BrowsePanel(Gtk.Overlay):
     }
 
     id_stack = None
+    update_order_token = 0
 
     def __init__(self):
         super().__init__()
@@ -60,15 +61,20 @@ class BrowsePanel(Gtk.Overlay):
         if not CacheManager.ready:
             return
 
-        def do_update(id_stack):
+        self.update_order_token += 1
+
+        def do_update(id_stack, update_order_token):
+            if self.update_order_token != update_order_token:
+                return
+
             self.root_directory_listing.update(
-                id_stack.result(),
+                id_stack,
                 state=state,
                 force=force,
             )
             self.spinner.hide()
 
-        def calculate_path():
+        def calculate_path(update_order_token):
             if state.selected_browse_element_id is None:
                 return []
 
@@ -83,10 +89,14 @@ class BrowsePanel(Gtk.Overlay):
                 id_stack.append(directory.id)
                 current_dir_id = directory.parent
 
-            return id_stack
+            return id_stack, update_order_token
 
-        path_fut = CacheManager.create_future(calculate_path)
-        path_fut.add_done_callback(lambda f: GLib.idle_add(do_update, f))
+        path_fut = CacheManager.create_future(
+            calculate_path,
+            self.update_order_token,
+        )
+        path_fut.add_done_callback(
+            lambda f: GLib.idle_add(do_update, *f.result()))
 
 
 class ListAndDrilldown(Gtk.Paned):
@@ -384,6 +394,8 @@ class DrilldownList(Gtk.Box):
 
 
 class IndexList(DrilldownList):
+    update_order_token = 0
+
     def update(
         self,
         selected_id,
@@ -391,8 +403,13 @@ class IndexList(DrilldownList):
         force=False,
         **kwargs,
     ):
+        self.update_order_token += 1
         self.selected_id = selected_id
-        self.update_store(force=force, state=state)
+        self.update_store(
+            force=force,
+            state=state,
+            order_token=self.update_order_token,
+        )
 
     def on_refresh_clicked(self, _):
         self.update(self.selected_id, force=True)
@@ -407,7 +424,11 @@ class IndexList(DrilldownList):
         artists,
         state: ApplicationState = None,
         force=False,
+        order_token=None,
     ):
+        if order_token != self.update_order_token:
+            return
+
         self.do_update_store(artists)
 
     def on_download_state_change(self, song_id=None):
@@ -415,6 +436,8 @@ class IndexList(DrilldownList):
 
 
 class MusicDirectoryList(DrilldownList):
+    update_order_token = 0
+
     def update(
         self,
         selected_id,
@@ -424,7 +447,12 @@ class MusicDirectoryList(DrilldownList):
     ):
         self.directory_id = directory_id
         self.selected_id = selected_id
-        self.update_store(directory_id, force=force, state=state)
+        self.update_store(
+            directory_id,
+            force=force,
+            state=state,
+            order_token=self.update_order_token,
+        )
 
     def on_refresh_clicked(self, _):
         self.update(
@@ -440,7 +468,11 @@ class MusicDirectoryList(DrilldownList):
         directory,
         state: ApplicationState = None,
         force=False,
+        order_token=None,
     ):
+        if order_token != self.update_order_token:
+            return
+
         self.do_update_store(directory.child)
 
     def on_download_state_change(self, song_id=None):

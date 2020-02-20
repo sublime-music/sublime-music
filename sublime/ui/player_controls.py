@@ -57,6 +57,7 @@ class PlayerControls(Gtk.ActionBar):
     current_song = None
     current_device = None
     chromecasts: List[ChromecastPlayer] = []
+    cover_art_update_order_token = 0
 
     def __init__(self):
         Gtk.ActionBar.__init__(self)
@@ -130,7 +131,12 @@ class PlayerControls(Gtk.ActionBar):
         # Update the current song information.
         # TODO add popup of bigger cover art photo here
         if state.current_song is not None:
-            self.update_cover_art(state.current_song.coverArt, size='70')
+            self.cover_art_update_order_token += 1
+            self.update_cover_art(
+                state.current_song.coverArt,
+                size='70',
+                order_token=self.cover_art_update_order_token,
+            )
 
             self.song_title.set_markup(util.esc(state.current_song.title))
             self.album_name.set_markup(util.esc(state.current_song.album))
@@ -245,7 +251,16 @@ class PlayerControls(Gtk.ActionBar):
         before_download=lambda self: self.album_art.set_loading(True),
         on_failure=lambda self, e: self.album_art.set_loading(False),
     )
-    def update_cover_art(self, cover_art_filename: str, state):
+    def update_cover_art(
+        self,
+        cover_art_filename: str,
+        state,
+        force=False,
+        order_token=None,
+    ):
+        if order_token != self.cover_art_update_order_token:
+            return
+
         self.album_art.set_from_file(cover_art_filename)
         self.album_art.set_loading(False)
 
