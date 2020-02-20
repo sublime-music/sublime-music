@@ -59,6 +59,7 @@ class PlayerControls(Gtk.ActionBar):
     chromecasts: List[ChromecastPlayer] = []
     cover_art_update_order_token = 0
     play_queue_update_order_token = 0
+    devices_requested = False
 
     def __init__(self):
         Gtk.ActionBar.__init__(self)
@@ -150,6 +151,9 @@ class PlayerControls(Gtk.ActionBar):
             self.song_title.set_markup('')
             self.album_name.set_markup('')
             self.artist_name.set_markup('')
+
+        if self.devices_requested:
+            self.update_device_list()
 
         # Set the Play Queue button popup.
         if hasattr(state, 'play_queue'):
@@ -359,6 +363,7 @@ class PlayerControls(Gtk.ActionBar):
             chromecast_callback(self.chromecasts)
 
     def on_device_click(self, button):
+        self.devices_requested = True
         if self.device_popover.is_visible():
             self.device_popover.popdown()
         else:
