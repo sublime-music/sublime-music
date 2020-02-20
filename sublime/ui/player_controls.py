@@ -151,8 +151,6 @@ class PlayerControls(Gtk.ActionBar):
             self.album_name.set_markup('')
             self.artist_name.set_markup('')
 
-        self.update_device_list()
-
         # Set the Play Queue button popup.
         if hasattr(state, 'play_queue'):
             play_queue_len = len(state.play_queue)
