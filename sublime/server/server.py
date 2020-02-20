@@ -62,12 +62,12 @@ class Server:
       the module's user to query the \\*sonic server via the API.
     """
     def __init__(
-            self,
-            name: str,
-            hostname: str,
-            username: str,
-            password: str,
-            disable_cert_verify: bool,
+        self,
+        name: str,
+        hostname: str,
+        username: str,
+        password: str,
+        disable_cert_verify: bool,
     ):
         self.name: str = name
         self.hostname: str = hostname
@@ -98,9 +98,8 @@ class Server:
 
         if os.environ.get('SUBLIME_MUSIC_DEBUG_DELAY'):
             logging.info(
-                "SUBLIME_MUSIC_DEBUG_DELAY enabled. Pausing for",
-                f"{os.environ['SUBLIME_MUSIC_DEBUG_DELAY']} seconds.",
-            )
+                "SUBLIME_MUSIC_DEBUG_DELAY enabled. Pausing for "
+                f"{os.environ['SUBLIME_MUSIC_DEBUG_DELAY']} seconds.")
             sleep(int(os.environ['SUBLIME_MUSIC_DEBUG_DELAY']))
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
@@ -122,9 +121,9 @@ class Server:
         return result
 
     def _get_json(
-            self,
-            url: str,
-            **params: Union[None, str, datetime, int, List[int]],
+        self,
+        url: str,
+        **params: Union[None, str, datetime, int, List[int]],
     ) -> Response:
         """
         Make a get request to a *Sonic REST API. Handle all types of errors
@@ -714,10 +713,10 @@ class Server:
         return result.playlist
 
     def create_playlist(
-            self,
-            playlist_id: int = None,
-            name: str = None,
-            song_id: Union[int, List[int]] = None,
+        self,
+        playlist_id: int = None,
+        name: str = None,
+        song_id: Union[int, List[int]] = None,
     ) -> Union[PlaylistWithSongs, Response]:
         """
         Creates (or updates) a playlist.
@@ -780,14 +779,14 @@ class Server:
         return self._get_json(self._make_url('deletePlaylist'), id=id)
 
     def get_stream_url(
-            self,
-            id: str,
-            max_bit_rate: int = None,
-            format: str = None,
-            time_offset: int = None,
-            size: int = None,
-            estimate_content_length: bool = False,
-            converted: bool = False,
+        self,
+        id: str,
+        max_bit_rate: int = None,
+        format: str = None,
+        time_offset: int = None,
+        size: int = None,
+        estimate_content_length: bool = False,
+        converted: bool = False,
     ):
         """
         Gets the URL to streams a given file.

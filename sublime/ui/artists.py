@@ -122,7 +122,7 @@ class ArtistList(Gtk.Box):
         before_download=lambda self: self.loading_indicator.show_all(),
         on_failure=lambda self, e: self.loading_indicator.hide(),
     )
-    def update(self, artists, state: ApplicationState):
+    def update(self, artists, state: ApplicationState, **kwargs):
         new_store = []
         selected_idx = None
         for i, artist in enumerate(artists):
@@ -156,6 +156,8 @@ class ArtistDetailPanel(Gtk.Box):
             (int, object, object),
         ),
     }
+
+    update_order_token = 0
 
     def __init__(self, *args, **kwargs):
         super().__init__(
@@ -264,9 +266,9 @@ class ArtistDetailPanel(Gtk.Box):
         self.add(artist_info_box)
 
     def update(self, state: ApplicationState):
+        self.artist_id = state.selected_artist_id
         if state.selected_artist_id is None:
             self.artist_action_buttons.hide()
-            self.artist_id = None
             self.artist_indicator.set_text('')
             self.artist_name.set_markup('')
             self.artist_stats.set_markup('')
@@ -280,8 +282,13 @@ class ArtistDetailPanel(Gtk.Box):
             self.albums = cast(List[Child], [])
             self.albums_list.update(None)
         else:
+            self.update_order_token += 1
             self.artist_action_buttons.show()
-            self.update_artist_view(state.selected_artist_id, state=state)
+            self.update_artist_view(
+                state.selected_artist_id,
+                state=state,
+                order_token=self.update_order_token,
+            )
 
     # TODO need to handle when this is force updated. Need to delete a bunch of
     # stuff and un-cache things.
@@ -295,14 +302,17 @@ class ArtistDetailPanel(Gtk.Box):
         artist: ArtistWithAlbumsID3,
         state: ApplicationState,
         force=False,
+        order_token=None,
     ):
-        self.artist_id = artist.id
+        if order_token != self.update_order_token:
+            return
+
         self.artist_indicator.set_text('ARTIST')
         self.artist_name.set_markup(util.esc(f'<b>{artist.name}</b>'))
         self.artist_stats.set_markup(self.format_stats(artist))
 
-        self.update_artist_info(artist.id)
-        self.update_artist_artwork(artist)
+        self.update_artist_info(artist.id, order_token=order_token)
+        self.update_artist_artwork(artist, order_token=order_token)
 
         self.albums = artist.get('album', artist.get('child', []))
         self.albums_list.update(artist)
@@ -314,7 +324,12 @@ class ArtistDetailPanel(Gtk.Box):
         self,
         artist_info: ArtistInfo2,
         state: ApplicationState,
+        force=False,
+        order_token=None,
     ):
+        if order_token != self.update_order_token:
+            return
+
         self.artist_bio.set_markup(util.esc(''.join(artist_info.biography)))
         self.play_shuffle_buttons.show_all()
 
@@ -344,21 +359,35 @@ class ArtistDetailPanel(Gtk.Box):
         self,
         cover_art_filename,
         state: ApplicationState,
+        force=False,
+        order_token=None,
     ):
+        if order_token != self.update_order_token:
+            return
+
         self.artist_artwork.set_from_file(cover_art_filename)
         self.artist_artwork.set_loading(False)
 
     # Event Handlers
     # =========================================================================
     def on_view_refresh_click(self, *args):
-        self.update_artist_view(self.artist_id, force=True)
+        self.update_artist_view(
+            self.artist_id,
+            force=True,
+            update_order_token=self.update_order_token,
+        )
 
     def on_download_all_click(self, btn):
         CacheManager.batch_download_songs(
             self.get_artist_songs(),
-            before_download=lambda: self.update_artist_view(self.artist_id),
+            before_download=lambda: self.update_artist_view(
+                self.artist_id,
+                update_order_token=self.update_order_token,
+            ),
             on_song_download_complete=lambda i: self.update_artist_view(
-                self.artist_id),
+                self.artist_id,
+                update_order_token=self.update_order_token,
+            ),
         )
 
     def on_play_all_clicked(self, btn):

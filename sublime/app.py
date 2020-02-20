@@ -798,6 +798,8 @@ class SublimeMusicApp(Gtk.Application):
         play_queue_future.add_done_callback(
             lambda f: GLib.idle_add(do_update, f))
 
+    song_playing_order_token = 0
+
     def play_song(
         self,
         song_index: int,
@@ -845,17 +847,31 @@ class SublimeMusicApp(Gtk.Application):
                     )
                     song_notification.show()
 
-                    def on_cover_art_download_complete(cover_art_filename):
+                    def on_cover_art_download_complete(
+                        cover_art_filename,
+                        order_token,
+                    ):
+                        if order_token != self.song_playing_order_token:
+                            return
+
                         # Add the image to the notification, and re-draw the
                         # notification.
                         song_notification.set_image_from_pixbuf(
                             GdkPixbuf.Pixbuf.new_from_file(cover_art_filename))
                         song_notification.show()
 
-                    cover_art_future = CacheManager.get_cover_art_filename(
-                        song.coverArt, size=70)
+                    def get_cover_art_filename(order_token):
+                        cover_art_future = CacheManager.get_cover_art_filename(
+                            song.coverArt, size=70)
+                        return cover_art_future.result(), order_token
+
+                    self.song_playing_order_token += 1
+                    cover_art_future = CacheManager.create_future(
+                        get_cover_art_filename,
+                        self.song_playing_order_token,
+                    )
                     cover_art_future.add_done_callback(
-                        lambda f: on_cover_art_download_complete(f.result()))
+                        lambda f: on_cover_art_download_complete(*f.result()))
                 except Exception:
                     logging.warning(
                         'Unable to display notification. Is a notification '

@@ -177,9 +177,11 @@ class PlaylistList(Gtk.Box):
         on_failure=lambda self, e: self.loading_indicator.hide(),
     )
     def update_list(
-            self,
-            playlists: List[PlaylistWithSongs],
-            state: ApplicationState,
+        self,
+        playlists: List[PlaylistWithSongs],
+        state: ApplicationState,
+        force=False,
+        order_token=None,
     ):
         new_store = []
         selected_idx = None
@@ -429,6 +431,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_view_loading_box.add(playlist_view_spinner)
         self.add_overlay(self.playlist_view_loading_box)
 
+    update_playlist_view_order_token = 0
+
     def update(self, state: ApplicationState, force=False):
         if state.selected_playlist_id is None:
             self.playlist_artwork.set_from_file(None)
@@ -441,10 +445,12 @@ class PlaylistDetailPanel(Gtk.Overlay):
             self.playlist_view_loading_box.hide()
             self.playlist_artwork.set_loading(False)
         else:
+            self.update_playlist_view_order_token += 1
             self.update_playlist_view(
                 state.selected_playlist_id,
                 state=state,
                 force=force,
+                order_token=self.update_playlist_view_order_token,
             )
 
     @util.async_callback(
@@ -453,11 +459,17 @@ class PlaylistDetailPanel(Gtk.Overlay):
         on_failure=lambda self, e: self.playlist_view_loading_box.hide(),
     )
     def update_playlist_view(
-            self,
-            playlist,
-            state: ApplicationState = None,
-            force=False,
+        self,
+        playlist,
+        state: ApplicationState = None,
+        force=False,
+        order_token=None,
     ):
+        if self.update_playlist_view_order_token != order_token:
+            return
+
+        # If the selected playlist has changed, then clear the selections in
+        # the song list.
         if self.playlist_id != playlist.id:
             self.playlist_songs.get_selection().unselect_all()
 
@@ -474,7 +486,10 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_stats.set_markup(self.format_stats(playlist))
 
         # Update the artwork.
-        self.update_playlist_artwork(playlist.coverArt)
+        self.update_playlist_artwork(
+            playlist.coverArt,
+            order_token=order_token,
+        )
 
         # Update the song list model. This requires some fancy diffing to
         # update the list.
@@ -506,17 +521,26 @@ class PlaylistDetailPanel(Gtk.Overlay):
         on_failure=lambda self, e: self.playlist_artwork.set_loading(False),
     )
     def update_playlist_artwork(
-            self,
-            cover_art_filename,
-            state: ApplicationState,
+        self,
+        cover_art_filename,
+        state: ApplicationState,
+        force=False,
+        order_token=None,
     ):
+        if self.update_playlist_view_order_token != order_token:
+            return
+
         self.playlist_artwork.set_from_file(cover_art_filename)
         self.playlist_artwork.set_loading(False)
 
     # Event Handlers
     # =========================================================================
     def on_view_refresh_click(self, button):
-        self.update_playlist_view(self.playlist_id, force=True)
+        self.update_playlist_view(
+            self.playlist_id,
+            force=True,
+            order_token=self.update_playlist_view_order_token,
+        )
 
     def on_playlist_edit_button_click(self, button):
         dialog = EditPlaylistDialog(
@@ -555,7 +579,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     def on_playlist_list_download_all_button_click(self, button):
         def download_state_change(*args):
-            GLib.idle_add(self.update_playlist_view, self.playlist_id)
+            GLib.idle_add(
+                lambda: self.update_playlist_view(
+                    self.playlist_id,
+                    order_token=self.update_playlist_view_order_token,
+                ))
 
         song_ids = [s[-1] for s in self.playlist_song_store]
         CacheManager.batch_download_songs(
@@ -608,7 +636,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
             allow_deselect = False
 
             def on_download_state_change(song_id=None):
-                GLib.idle_add(self.update_playlist_view, self.playlist_id)
+                GLib.idle_add(
+                    lambda: self.update_playlist_view(
+                        self.playlist_id,
+                        order_token=self.update_playlist_view_order_token,
+                    ))
 
             # Use the new selection instead of the old one for calculating what
             # to do the right click on.
@@ -629,7 +661,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
                     playlist_id=self.playlist_id,
                     song_index_to_remove=[p.get_indices()[0] for p in paths],
                 )
-                self.update_playlist_view(self.playlist_id, force=True)
+                self.update_playlist_view(
+                    self.playlist_id,
+                    force=True,
+                    order_token=self.update_playlist_view_order_token,
+                )
 
             remove_text = (
                 'Remove ' + util.pluralize('song', len(song_ids))
@@ -656,7 +692,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         # We get both a delete and insert event, I think it's deterministic
         # which one comes first, but just in case, we have this
-        # reordering_playlist_song_list flag..
+        # reordering_playlist_song_list flag.
         if self.reordering_playlist_song_list:
             self.update_playlist_order(self.playlist_id)
             self.reordering_playlist_song_list = False
@@ -678,7 +714,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
     @util.async_callback(lambda *a, **k: CacheManager.get_playlist(*a, **k))
-    def update_playlist_order(self, playlist, state: ApplicationState):
+    def update_playlist_order(self, playlist, state, **kwargs):
         self.playlist_view_loading_box.show_all()
         update_playlist_future = CacheManager.update_playlist(
             playlist_id=playlist.id,
@@ -688,7 +724,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         update_playlist_future.add_done_callback(
             lambda f: GLib.idle_add(
-                lambda: self.update_playlist_view(playlist.id, force=True)))
+                lambda: self.update_playlist_view(
+                    playlist.id,
+                    force=True,
+                    order_token=self.update_playlist_view_order_token,
+                )))
 
     def format_stats(self, playlist):
         created_date = playlist.created.strftime('%B %d, %Y')

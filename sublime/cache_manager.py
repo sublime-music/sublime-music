@@ -446,7 +446,11 @@ class CacheManager(metaclass=Singleton):
                     logging.info(f'{abs_path} not found. Downloading...')
 
                     os.makedirs(download_path.parent, exist_ok=True)
-                    self.save_file(download_path, download_fn())
+                    try:
+                        self.save_file(download_path, download_fn())
+                    except requests.exceptions.ConnectionError:
+                        with self.download_set_lock:
+                            self.current_downloads.discard(abs_path)
 
                     # Move the file to its cache download location.
                     os.makedirs(abs_path.parent, exist_ok=True)
