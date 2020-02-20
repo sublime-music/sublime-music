@@ -31,6 +31,11 @@ Show notification when song begins to play : (bool)
     If checked, a notification containing the new song's title, artist, album,
     and album art will be shown through your notification daemon.
 
+Serve locally cached files over the LAN to Chromecast devices : (bool)
+    If checked, a local server will be started on your computer which will serve
+    your locally cached music files to the Chromecast. If not checked, the
+    Chromecast will always stream from the server.
+
 How many songs in the play queue do you want to prefetch? : (int)
     If the next :math:`n` songs in the play queue are not already downloaded,
     they will be downloaded. (This has no effect if *Always stream songs* is

@@ -1,3 +1,39 @@
+v0.8.12
+=======
+
+* When album cover art is not provided by the server, a default album art image
+  is used (Contributed by @sentriz.)
+* **New Setting**: *Serve locally cached files over the LAN to Chromecast
+  devices.*: If checked, a local server will be started on your computer which
+  will serve your locally cached music files to the Chromecast. If not checked,
+  the Chromecast will always stream from the server.
+* When serving local files, the internal server now only exposes one song at a
+  time via a token and the song's token is randomized.
+* The *Sync enabled* setting was renamed to *Play queue sync enabled*.
+
+* **Bug Fixes**
+
+  * Fixed issue where the UI was still in a "Playing" state after removing all
+    songs from the play queue.
+  * Fixed a multitude of problems where the wrong data would load if you quickly
+    move around between cached and un-cached information.
+  * When you use the Google Home app to cause the device that Sublime is using
+    to "Stop Casting", Sublime now shows as paused.
+  * The Chromecast device list are only requested after the first time you click
+    on the Devices button.
+  * Seeking now works with the mouse and keyboard.
+
+* **Documentation**
+
+  * Updated the CONTRIBUTING document to the current state of the Sublime Music
+    codebase.
+  * Added documentation for all of the settings available in Sublime Music.
+
+* **Infrastructure**
+
+  * Fixed logo build step.
+  * Moved ``player`` module to root instead of being under ``ui.common``.
+
 v0.8.11
 =======
 
