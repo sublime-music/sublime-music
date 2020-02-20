@@ -58,6 +58,7 @@ class PlayerControls(Gtk.ActionBar):
     current_device = None
     chromecasts: List[ChromecastPlayer] = []
     cover_art_update_order_token = 0
+    play_queue_update_order_token = 0
 
     def __init__(self):
         Gtk.ActionBar.__init__(self)
@@ -172,13 +173,20 @@ class PlayerControls(Gtk.ActionBar):
                 artist = util.esc(song_details.artist)
                 return f'<b>{title}</b>\n{util.dot_join(album, artist)}'
 
-            def make_idle_index_capturing_function(idx, fn):
-                return lambda f: GLib.idle_add(fn, idx, f.result())
+            def make_idle_index_capturing_function(idx, order_token, fn):
+                return lambda f: GLib.idle_add(
+                    fn, idx, order_token, f.result())
 
-            def on_cover_art_future_done(idx, cover_art_filename):
+            def on_cover_art_future_done(idx, order_token, cover_art_filename):
+                if order_token != self.play_queue_update_order_token:
+                    return
+
                 self.play_queue_store[idx][0] = cover_art_filename
 
-            def on_song_details_future_done(idx, song_details):
+            def on_song_details_future_done(idx, order_token, song_details):
+                if order_token != self.play_queue_update_order_token:
+                    return
+
                 self.play_queue_store[idx][1] = calculate_label(song_details)
 
                 # Cover Art
@@ -191,11 +199,15 @@ class PlayerControls(Gtk.ActionBar):
                     cover_art_result.add_done_callback(
                         make_idle_index_capturing_function(
                             i,
+                            order_token,
                             on_cover_art_future_done,
                         ))
                 else:
                     # We have the cover art already cached.
                     self.play_queue_store[idx][0] = cover_art_future.result()
+
+            if state.play_queue != [x[-1] for x in self.play_queue_store]:
+                self.play_queue_update_order_token += 1
 
             song_details_results = []
             for i, song_id in enumerate(state.play_queue):
@@ -220,6 +232,7 @@ class PlayerControls(Gtk.ActionBar):
                         cover_art_result.add_done_callback(
                             make_idle_index_capturing_function(
                                 i,
+                                self.play_queue_update_order_token,
                                 on_cover_art_future_done,
                             ))
                     else:
@@ -241,6 +254,7 @@ class PlayerControls(Gtk.ActionBar):
                 song_details_result.add_done_callback(
                     make_idle_index_capturing_function(
                         idx,
+                        self.play_queue_update_order_token,
                         on_song_details_future_done,
                     ))
 

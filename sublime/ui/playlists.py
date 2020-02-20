@@ -692,7 +692,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         # We get both a delete and insert event, I think it's deterministic
         # which one comes first, but just in case, we have this
-        # reordering_playlist_song_list flag..
+        # reordering_playlist_song_list flag.
         if self.reordering_playlist_song_list:
             self.update_playlist_order(self.playlist_id)
             self.reordering_playlist_song_list = False
