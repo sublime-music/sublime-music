@@ -113,7 +113,7 @@ class Server:
             verify=not self.disable_cert_verify,
             # timeout=timeout,
         )
-        # TODO make better
+        # TODO (#122): make better
         if result.status_code != 200:
             raise Exception(f'[FAIL] get: {url} status={result.status_code}')
 
@@ -136,7 +136,7 @@ class Server:
         result = self._get(url, **params)
         subsonic_response = result.json()['subsonic-response']
 
-        # TODO make better
+        # TODO (#122):  make better
         if not subsonic_response:
             raise Exception('Fail!')
 
@@ -158,7 +158,7 @@ class Server:
     def do_download(self, url, **params) -> bytes:
         download = self._get(url, **params)
         if 'json' in download.headers.get('Content-Type'):
-            # TODO make better
+            # TODO (#122): make better
             raise Exception("Didn't expect JSON.")
         return download.content
 

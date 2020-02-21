@@ -290,8 +290,6 @@ class ArtistDetailPanel(Gtk.Box):
                 order_token=self.update_order_token,
             )
 
-    # TODO need to handle when this is force updated. Need to delete a bunch of
-    # stuff and un-cache things.
     @util.async_callback(
         lambda *a, **k: CacheManager.get_artist(*a, **k),
         before_download=lambda self: self.set_all_loading(True),
@@ -311,8 +309,16 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_name.set_markup(util.esc(f'<b>{artist.name}</b>'))
         self.artist_stats.set_markup(self.format_stats(artist))
 
-        self.update_artist_info(artist.id, order_token=order_token)
-        self.update_artist_artwork(artist, order_token=order_token)
+        self.update_artist_info(
+            artist.id,
+            force=force,
+            order_token=order_token,
+        )
+        self.update_artist_artwork(
+            artist,
+            force=force,
+            order_token=order_token,
+        )
 
         self.albums = artist.get('album', artist.get('child', []))
         self.albums_list.update(artist)

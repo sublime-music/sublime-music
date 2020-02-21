@@ -93,7 +93,7 @@ yourself with the following commands::
 
     $ flake8
     $ mypy sublime
-    $ ./cicd/no_print.sh
+    $ ./cicd/custom_style_check.py
 
 CI/CD Pipeline
 --------------

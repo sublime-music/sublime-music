@@ -21,7 +21,7 @@ lint:
     - pipenv run python setup.py check -mrs
     - pipenv run flake8
     - pipenv run mypy sublime
-    - ./cicd/no_print.sh
+    - pipenv run cicd/custom_style_check.py
 
 test:
   stage: test

@@ -182,9 +182,7 @@ class SublimeMusicApp(Gtk.Application):
         self.player = self.mpv_player
 
         if self.state.current_device != 'this device':
-            # TODO figure out how to activate the chromecast if possible
-            # without blocking the main thread. Also, need to make it obvious
-            # that we are trying to connect.
+            # TODO (#120)
             pass
 
         self.state.current_device = 'this device'
@@ -193,7 +191,6 @@ class SublimeMusicApp(Gtk.Application):
         self.player.volume = self.state.volume
 
         # Prompt to load the play queue from the server.
-        # TODO should this be behind sync enabled?
         if self.state.config.server.sync_enabled:
             self.update_play_state_from_server(prompt_confirm=True)
 
@@ -532,7 +529,17 @@ class SublimeMusicApp(Gtk.Application):
             self.state.current_album_sort = 'byGenre'
             self.state.current_album_genre = album.genre
         else:
-            # TODO message?
+            dialog = Gtk.MessageDialog(
+                transient_for=self.window,
+                message_type=Gtk.MessageType.ERROR,
+                buttons=Gtk.ButtonsType.OK,
+                text='Could not go to album',
+            )
+            dialog.format_secondary_markup(
+                'Could not go to the album because it does not have a year or '
+                'genre.')
+            dialog.run()
+            dialog.destroy()
             return
 
         self.state.current_tab = 'albums'
@@ -740,7 +747,8 @@ class SublimeMusicApp(Gtk.Application):
         GLib.idle_add(lambda: self.window.update(self.state, force=force))
 
     def update_play_state_from_server(self, prompt_confirm=False):
-        # TODO need to make the up next list loading for the duration here
+        # TODO (#129): need to make the up next list loading for the duration
+        # here if prompt_confirm is False.
         was_playing = self.state.playing
         self.player.pause()
         self.state.playing = False
@@ -824,12 +832,6 @@ class SublimeMusicApp(Gtk.Application):
 
             # Show a song play notification.
             if self.state.config.song_play_notification:
-
-                # TODO someone needs to test this, Dunst doesn't seem to
-                # support it.
-                def on_notification_click(*args):
-                    self.window.present()
-
                 try:
                     notification_lines = []
                     if song.album:
@@ -843,7 +845,7 @@ class SublimeMusicApp(Gtk.Application):
                     song_notification.add_action(
                         'clicked',
                         'Open Sublime Music',
-                        on_notification_click,
+                        lambda *a: self.window.present(),
                     )
                     song_notification.show()
 

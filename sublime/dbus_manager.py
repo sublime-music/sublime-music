@@ -67,7 +67,7 @@ class DBusManager:
                     self.on_set_property,
                 )
 
-        # TODO: I have no idea what to do here.
+        # TODO (#127): I have no idea what to do here.
         def dbus_name_lost(*args):
             pass
 
@@ -103,7 +103,7 @@ class DBusManager:
         params,
         invocation,
     ):
-        # TODO I don't even know if this works.
+        # TODO (#127): I don't even know if this works.
         if interface == 'org.freedesktop.DBus.Properties':
             if method == 'Get':
                 invocation.return_value(
@@ -260,8 +260,6 @@ class DBusManager:
                 'CanEditTracks': False,
             },
             'org.mpris.MediaPlayer2.Playlists': {
-                # TODO this may do a network request. This really is a case for
-                # doing the whole thing with caching some data beforehand.
                 'PlaylistCount': playlist_count,
                 'Orderings': ['Alphabetical', 'Created', 'Modified'],
                 'ActivePlaylist': ('(b(oss))', active_playlist),

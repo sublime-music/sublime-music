@@ -294,7 +294,7 @@ class CacheManager(metaclass=Singleton):
         # The server instance.
         server: Server
 
-        # TODO need to split out the song downloads and make them higher
+        # TODO (#56): need to split out the song downloads and make them higher
         # priority I think. Maybe even need to just make this a priority queue.
         download_set_lock = threading.Lock()
         current_downloads: Set[str] = set()
@@ -438,8 +438,6 @@ class CacheManager(metaclass=Singleton):
                     # The resource is already being downloaded. Busy loop until
                     # it has completed. Then, just return the path to the
                     # resource.
-                    # TODO: figure out a way to determine if the download we
-                    # are waiting on failed.
                     while abs_path_str in self.current_downloads:
                         sleep(0.2)
                 else:
@@ -783,7 +781,7 @@ class CacheManager(metaclass=Singleton):
             )
 
         def invalidate_album_list(self, type_):
-            # TODO make this invalidate instead of delete
+            # TODO (#24): make this invalidate instead of delete
             cache_name = 'albums'
             if not self.cache.get(cache_name, {}).get(type_):
                 return
@@ -1010,8 +1008,6 @@ class CacheManager(metaclass=Singleton):
                     return
 
                 # Server Results
-                # TODO: spawn another future to get the search results from
-                # self.server.search2
                 search_fn = self.server.search3
                 try:
                     # Attempt to add the server search results to the

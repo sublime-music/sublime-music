@@ -1,4 +1,4 @@
-from typing import Union
+from typing import List, Tuple, Union
 
 import gi
 
@@ -74,7 +74,7 @@ class BrowsePanel(Gtk.Overlay):
             )
             self.spinner.hide()
 
-        def calculate_path(update_order_token):
+        def calculate_path(update_order_token) -> Tuple[List[str], int]:
             if state.selected_browse_element_id is None:
                 return [], update_order_token
 

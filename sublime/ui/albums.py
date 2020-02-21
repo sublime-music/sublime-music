@@ -224,7 +224,7 @@ class AlbumsPanel(Gtk.Box):
         try:
             year = int(entry.get_text())
         except Exception:
-            # TODO prevent input of non-numerals
+            # TODO (#123): prevent input of non-numerals
             logging.error(
                 'failed, should do something to prevent non-numeric input')
             return
@@ -496,7 +496,7 @@ class AlbumsGrid(Gtk.Overlay):
             self.emit('cover-clicked', self.list_store[selected_index].id)
 
     def on_grid_resize(self, flowbox, rect):
-        # TODO: this doesn't work with themes that add extra padding.
+        # TODO (#124): this doesn't work with themes that add extra padding.
         # 200     + (10      * 2) + (5      * 2) = 230
         # picture + (padding * 2) + (margin * 2)
         new_items_per_row = min((rect.width // 230), 7)
@@ -578,8 +578,9 @@ class AlbumsGrid(Gtk.Overlay):
 
         if force_reload_from_master:
             # Just remove everything and re-add all of the items.
-            # TODO make this smarter somehow to avoid flicker. Maybe change
-            # this so that it removes one by one and adds back one by one.
+            # TODO (#114): make this smarter somehow to avoid flicker. Maybe
+            # change this so that it removes one by one and adds back one by
+            # one.
             self.list_store_top.remove_all()
             self.list_store_bottom.remove_all()
 
@@ -627,9 +628,9 @@ class AlbumsGrid(Gtk.Overlay):
             self.detail_box_inner.pack_start(detail_element, True, True, 0)
             self.detail_box.show_all()
 
-            # TODO scroll so that the grid_top is visible, and the detail_box
-            # is visible, with preference to the grid_top. May need to add
-            # another flag for this function.
+            # TODO (#88): scroll so that the grid_top is visible, and the
+            # detail_box is visible, with preference to the grid_top. May need
+            # to add another flag for this function.
         else:
             self.grid_top.unselect_all()
             self.detail_box.hide()

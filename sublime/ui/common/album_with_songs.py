@@ -67,7 +67,7 @@ class AlbumWithSongs(Gtk.Box):
         album_title_and_buttons = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL)
 
-        # TODO: deal with super long-ass titles
+        # TODO (#43): deal with super long-ass titles
         album_title_and_buttons.add(
             Gtk.Label(
                 label=album.get('name', album.get('title')),
@@ -107,9 +107,6 @@ class AlbumWithSongs(Gtk.Box):
             album.artist if show_artist_name else None,
             album.year,
             album.genre,
-
-            # TODO when not available (not browse by tags), calculate after the
-            # list loads and update the stats label.
             util.format_sequence_duration(album.duration)
             if album.get('duration') else None,
         ]

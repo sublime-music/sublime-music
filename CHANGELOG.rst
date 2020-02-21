@@ -6,7 +6,7 @@ v0.8.12
 * When album cover art is not provided by the server, a default album art image
   is used (Contributed by @sentriz.)
 * **New Setting**: *Serve locally cached files over the LAN to Chromecast
-  devices.*: If checked, a local server will be started on your computer which
+  devices*: If checked, a local server will be started on your computer which
   will serve your locally cached music files to the Chromecast. If not checked,
   the Chromecast will always stream from the server.
 * When serving local files, the internal server now only exposes one song at a

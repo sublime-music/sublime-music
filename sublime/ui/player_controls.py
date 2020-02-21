@@ -96,14 +96,14 @@ class PlayerControls(Gtk.ActionBar):
                 state.current_song_index < len(state.play_queue) - 1)
 
         # Repeat button state
-        # TODO: it's not correct to use symboloc vs. not symbolic icons for
-        # lighter/darker versions of the icon. Fix this by using FG color I
+        # TODO (#125): it's not correct to use symboloc vs. not symbolic icons
+        # for lighter/darker versions of the icon. Fix this by using FG color I
         # think? But then we have to deal with styling, which sucks.
         self.repeat_button.set_icon(state.repeat_type.icon)
 
         # Shuffle button state
-        # TODO: it's not correct to use symboloc vs. not symbolic icons for
-        # lighter/darker versions of the icon. Fix this by using FG color I
+        # TODO (#125): it's not correct to use symboloc vs. not symbolic icons
+        # for lighter/darker versions of the icon. Fix this by using FG color I
         # think? But then we have to deal with styling, which sucks.
         self.shuffle_button.set_icon(
             'media-playlist-shuffle'
@@ -131,7 +131,7 @@ class PlayerControls(Gtk.ActionBar):
         self.editing = False
 
         # Update the current song information.
-        # TODO add popup of bigger cover art photo here
+        # TODO (#126): add popup of bigger cover art photo here
         if state.current_song is not None:
             self.cover_art_update_order_token += 1
             self.update_cover_art(
@@ -307,7 +307,7 @@ class PlayerControls(Gtk.ActionBar):
         if self.play_queue_popover.is_visible():
             self.play_queue_popover.popdown()
         else:
-            # TODO scroll the currently playing song into view.
+            # TODO (#88): scroll the currently playing song into view.
             self.play_queue_popover.popup()
             self.play_queue_popover.show_all()
 

@@ -370,9 +370,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
             return max(row_score(key, row) for row in rows)
 
         def playlist_song_list_search_fn(model, col, key, treeiter, data=None):
-            # TODO: this is very inefficient, it's slow when the result is
-            # close to the bottom of the list. Would be good to research what
-            # the default one does (maybe it uses an index?).
+            # TODO (#28): this is very inefficient, it's slow when the result
+            # is close to the bottom of the list. Would be good to research
+            # what the default one does (maybe it uses an index?).
             max_score = max_score_for_key(
                 key, tuple(tuple(row[1:4]) for row in model))
             row_max_score = row_score(key, tuple(model[treeiter][1:4]))

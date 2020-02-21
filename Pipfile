@@ -18,6 +18,7 @@ graphviz = "*"
 sphinx = "*"
 sphinx-rtd-theme = "*"
 sphinx-autodoc-typehints = "*"
+termcolor = "*"
 
 [packages]
 sublime-music = {editable = true,path = "."}
