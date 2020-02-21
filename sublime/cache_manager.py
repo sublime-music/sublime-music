@@ -764,6 +764,7 @@ class CacheManager(metaclass=Singleton):
                 while len(next_page) == 500:
                     next_page = get_page(offset)
                     albums.extend(next_page)
+                    offset += 500
 
                 return albums
 
