@@ -76,7 +76,7 @@ class BrowsePanel(Gtk.Overlay):
 
         def calculate_path(update_order_token):
             if state.selected_browse_element_id is None:
-                return []
+                return [], update_order_token
 
             id_stack = []
             directory = None
