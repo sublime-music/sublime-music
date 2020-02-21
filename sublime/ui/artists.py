@@ -380,7 +380,7 @@ class ArtistDetailPanel(Gtk.Box):
         self.update_artist_view(
             self.artist_id,
             force=True,
-            update_order_token=self.update_order_token,
+            order_token=self.update_order_token,
         )
 
     def on_download_all_click(self, btn):
@@ -388,11 +388,11 @@ class ArtistDetailPanel(Gtk.Box):
             self.get_artist_songs(),
             before_download=lambda: self.update_artist_view(
                 self.artist_id,
-                update_order_token=self.update_order_token,
+                order_token=self.update_order_token,
             ),
             on_song_download_complete=lambda i: self.update_artist_view(
                 self.artist_id,
-                update_order_token=self.update_order_token,
+                order_token=self.update_order_token,
             ),
         )
 
