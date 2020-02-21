@@ -50,10 +50,9 @@ build_logo:
   stage: build
   before_script:
     - apt update && apt install -y inkscape make wget unzip
-    - wget 'https://github.com/be5invis/Iosevka/releases/download/v2.2.0/02-iosevka-term-2.2.0.zip'
-    - unzip -d iosevka 02-iosevka-term-2.2.0.zip
-    - mkdir -p ~/.fonts
-    - cp -r iosevka/* ~/.fonts
+    - wget 'https://github.com/be5invis/Iosevka/releases/download/v2.3.3/01-iosevka-2.3.3.zip'
+    - unzip -d iosevka 01-iosevka-2.3.3.zip
+    - mkdir -p ~/.fonts && cp -r iosevka/* ~/.fonts && fc-cache -f
   script:
     - cd docs/logo
     - make
