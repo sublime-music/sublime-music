@@ -100,7 +100,7 @@ class Server:
             logging.info(
                 "SUBLIME_MUSIC_DEBUG_DELAY enabled. Pausing for "
                 f"{os.environ['SUBLIME_MUSIC_DEBUG_DELAY']} seconds.")
-            sleep(int(os.environ['SUBLIME_MUSIC_DEBUG_DELAY']))
+            sleep(float(os.environ['SUBLIME_MUSIC_DEBUG_DELAY']))
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():
