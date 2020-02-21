@@ -1,6 +1,8 @@
 v0.8.12
 =======
 
+:Milestone: Beta 3
+
 * When album cover art is not provided by the server, a default album art image
   is used (Contributed by @sentriz.)
 * **New Setting**: *Serve locally cached files over the LAN to Chromecast

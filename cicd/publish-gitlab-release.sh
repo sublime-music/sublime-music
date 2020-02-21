@@ -15,6 +15,10 @@ if [[ $(head -n 1 CHANGELOG.rst) == "${CI_COMMIT_TAG}" ]]; then
             fi
             first=0
         fi
+
+        if [[ "${l:0:11}" == ":Milestone:" ]]; then
+            milestone="$(echo $l | sed -n 's/:Milestone: \(.*\)/\1/p')"
+        fi
     done < CHANGELOG.rst
 
     # i is now the index of the line below the second header.
@@ -29,6 +33,11 @@ if [[ "${description}" == "" ]]; then
 fi
 
 description=$(echo "$description" | rst2html5 --no-indent --template "{body}" | sed -e 's/\"/\\\"/g')
+
+milestones=""
+if [[ "${milestone}" != "" ]]; then
+    milestones=",\"milestones\":[\"${milestone}\"]"
+fi
 
 # Determine whether or not to include the Flatpak build.
 failed=$(curl \
@@ -57,6 +66,7 @@ data="
     \"name\": \"${CI_COMMIT_TAG}\",
     \"tag_name\": \"${CI_COMMIT_TAG}\",
     \"description\": \"${description}\"
+    ${milestones}
     ${assets}
 }
 "
