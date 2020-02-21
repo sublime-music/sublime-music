@@ -1,3 +1,21 @@
+v0.8.13
+=======
+
+**Hotfix Release**: the previous release had a few major bugs which are
+show-stoppers. This release fixes them.
+
+* **Bug Fixes**
+
+  * Fixed issue where Browse didn't work the first time you opened the app to
+    that tab.
+  * Fixed issue where refresh didn't work on the Artists tab.
+  * Fixed issue displaying with incorrectly sized cover art in the player
+    controls.
+
+* **Infrastructure**
+
+  * All TODOs in the code must now have corresponding issues.
+
 v0.8.12
 =======
 
