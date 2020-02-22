@@ -1,11 +1,12 @@
-import os
-import logging
 import glob
-import itertools
-import threading
-import shutil
-import json
 import hashlib
+import itertools
+import json
+import logging
+import os
+import re
+import shutil
+import threading
 
 from functools import lru_cache
 from collections import defaultdict
@@ -252,6 +253,7 @@ class CacheManager(metaclass=Singleton):
         CacheManager.should_exit = True
         logging.info('CacheManager shutdown start')
         CacheManager.executor.shutdown()
+        CacheManager._instance.save_cache_info()
         logging.info('CacheManager shutdown complete')
 
     @staticmethod
@@ -335,7 +337,30 @@ class CacheManager(metaclass=Singleton):
                     try:
                         meta_json = json.load(f)
                     except json.decoder.JSONDecodeError:
-                        return
+                        # Just continue with the default meta_json.
+                        pass
+
+            cache_version = meta_json.get('version', 0)
+
+            if cache_version < 1:
+                logging.info('Migrating cache to version 1.')
+                cover_art_re = re.compile(r'(\d+)_(\d+)')
+                abs_path = self.calculate_abs_path('cover_art/')
+                for cover_art_file in Path(abs_path).iterdir():
+                    match = cover_art_re.match(cover_art_file.name)
+                    if match:
+                        art_id, dimensions = map(int, match.groups())
+                        if dimensions == 1000:
+                            no_dimens = cover_art_file.parent.joinpath(
+                                '{art_id}')
+                            logging.debug(
+                                f'Moving {cover_art_file} to {no_dimens}')
+                            shutil.move(cover_art_file, no_dimens)
+                        else:
+                            logging.debug(f'Deleting {cover_art_file}')
+                            cover_art_file.unlink()
+
+            self.cache['version'] = 1
 
             cache_configs = [
                 # Playlists
@@ -476,7 +501,7 @@ class CacheManager(metaclass=Singleton):
             return CacheManager.executor.submit(fn, *args)
 
         def delete_cached_cover_art(self, id: int):
-            relative_path = f'cover_art/*{id}_*'
+            relative_path = f'cover_art/*{id}*'
 
             abs_path = self.calculate_abs_path(relative_path)
 
