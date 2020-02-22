@@ -856,16 +856,19 @@ class SublimeMusicApp(Gtk.Application):
                         if order_token != self.song_playing_order_token:
                             return
 
-                        # Add the image to the notification, and re-draw the
+                        # Add the image to the notification, and re-show the
                         # notification.
                         song_notification.set_image_from_pixbuf(
-                            GdkPixbuf.Pixbuf.new_from_file(cover_art_filename))
+                            GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                                cover_art_filename, 70, 70, True))
                         song_notification.show()
 
                     def get_cover_art_filename(order_token):
-                        cover_art_future = CacheManager.get_cover_art_filename(
-                            song.coverArt, size=70)
-                        return cover_art_future.result(), order_token
+                        return (
+                            CacheManager.get_cover_art_filename(
+                                song.coverArt).result(),
+                            order_token,
+                        )
 
                     self.song_playing_order_token += 1
                     cover_art_future = CacheManager.create_future(

@@ -280,7 +280,7 @@ class DBusManager:
         return {
             'mpris:trackid': trackid,
             'mpris:length': duration,
-            'mpris:artUrl': CacheManager.get_cover_art_url(song.id, 1000),
+            'mpris:artUrl': CacheManager.get_cover_art_url(song.id),
             'xesam:album': song.album or '',
             'xesam:albumArtist': [song.artist or ''],
             'xesam:artist': [song.artist or ''],

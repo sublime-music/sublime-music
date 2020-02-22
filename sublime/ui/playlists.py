@@ -264,6 +264,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_artwork = SpinnerImage(
             image_name='playlist-album-artwork',
             spinner_name='playlist-artwork-spinner',
+            image_size=200,
         )
         self.big_info_panel.pack_start(self.playlist_artwork, False, False, 0)
 

@@ -697,12 +697,12 @@ class CacheManager(metaclass=Singleton):
                         '2a96cbd8b46e442fc41c2b86b821562f.png')):
                     if isinstance(artist, (ArtistWithAlbumsID3, ArtistID3)):
                         return CacheManager.get_cover_art_filename(
-                            artist.coverArt, size=300)
+                            artist.coverArt)
                     elif (isinstance(artist, Directory)
                           and len(artist.child) > 0):
                         # Retrieve the first album's cover art
                         return CacheManager.get_cover_art_filename(
-                            artist.child[0].coverArt, size=300)
+                            artist.child[0].coverArt)
 
                 if lastfm_url == '':
                     return CacheManager.Result.from_data('')
@@ -874,18 +874,16 @@ class CacheManager(metaclass=Singleton):
             self,
             id: str,
             before_download: Callable[[], None] = lambda: None,
-            size: Union[str, int] = 200,
             force: bool = False,
             allow_download: bool = True,
         ) -> 'CacheManager.Result[Optional[str]]':
             if id is None:
-                art_path = 'ui/images/default-album-art.png'
-                return CacheManager.Result.from_data(str(
-                    Path(__file__).parent.joinpath(art_path)
-                ))
+                default_art_path = 'ui/images/default-album-art.png'
+                return CacheManager.Result.from_data(
+                    str(Path(__file__).parent.joinpath(default_art_path)))
             return self.return_cached_or_download(
-                f'cover_art/{id}_{size}',
-                lambda: self.server.get_cover_art(id, str(size)),
+                f'cover_art/{id}',
+                lambda: self.server.get_cover_art(id),
                 before_download=before_download,
                 force=force,
                 allow_download=allow_download,
