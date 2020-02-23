@@ -2,15 +2,16 @@ import math
 
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Callable, List
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import GdkPixbuf, GLib, GObject, Gtk, Pango
+from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
 from pychromecast import Chromecast
 
 from sublime.cache_manager import CacheManager
 from sublime.players import ChromecastPlayer
+from sublime.server.api_objects import Child
 from sublime.state_manager import ApplicationState, RepeatType
 from sublime.ui import util
 from sublime.ui.common import IconButton, SpinnerImage
@@ -169,42 +170,53 @@ class PlayerControls(Gtk.ActionBar):
 
             new_store = []
 
-            def calculate_label(song_details) -> str:
+            def calculate_label(song_details: Child) -> str:
                 title = util.esc(song_details.title)
                 album = util.esc(song_details.album)
                 artist = util.esc(song_details.artist)
                 return f'<b>{title}</b>\n{util.dot_join(album, artist)}'
 
-            def make_idle_index_capturing_function(idx, order_token, fn):
-                return lambda f: GLib.idle_add(
-                    fn, idx, order_token, f.result())
+            def make_idle_index_capturing_function(
+                idx: int,
+                order_tok: int,
+                fn: Callable[[int, int, Any], None],
+            ) -> Callable[[CacheManager.Result], None]:
+                return lambda f: GLib.idle_add(fn, idx, order_tok, f.result())
 
-            def on_cover_art_future_done(idx, order_token, cover_art_filename):
+            def on_cover_art_future_done(
+                idx: int,
+                order_token: int,
+                cover_art_filename: str,
+            ):
                 if order_token != self.play_queue_update_order_token:
                     return
 
                 self.play_queue_store[idx][0] = cover_art_filename
 
-            def on_song_details_future_done(idx, order_token, song_details):
+            def on_song_details_future_done(
+                idx: int,
+                order_token: int,
+                song_details: Child,
+            ):
                 if order_token != self.play_queue_update_order_token:
                     return
 
                 self.play_queue_store[idx][1] = calculate_label(song_details)
 
                 # Cover Art
-                cover_art_future = CacheManager.get_cover_art_filename(
+                cover_art_result = CacheManager.get_cover_art_filename(
                     song_details.coverArt)
                 if cover_art_result.is_future:
                     # We don't have the cover art already cached.
                     cover_art_result.add_done_callback(
                         make_idle_index_capturing_function(
-                            i,
+                            idx,
                             order_token,
                             on_cover_art_future_done,
                         ))
                 else:
                     # We have the cover art already cached.
-                    self.play_queue_store[idx][0] = cover_art_future.result()
+                    self.play_queue_store[idx][0] = cover_art_result.result()
 
             if state.play_queue != [x[-1] for x in self.play_queue_store]:
                 self.play_queue_update_order_token += 1
@@ -268,7 +280,7 @@ class PlayerControls(Gtk.ActionBar):
         cover_art_filename: str,
         state: ApplicationState,
         force: bool = False,
-        order_token: Optional[int] = None,
+        order_token: int = None,
     ):
         if order_token != self.cover_art_update_order_token:
             return
@@ -276,7 +288,7 @@ class PlayerControls(Gtk.ActionBar):
         self.album_art.set_from_file(cover_art_filename)
         self.album_art.set_loading(False)
 
-    def update_scrubber(self, current, duration):
+    def update_scrubber(self, current: float, duration: int):
         if current is None or duration is None:
             self.song_duration_label.set_text('-:--')
             self.song_progress_label.set_text('-:--')
@@ -292,14 +304,11 @@ class PlayerControls(Gtk.ActionBar):
         self.song_progress_label.set_text(
             util.format_song_duration(math.floor(current)))
 
-    def on_scrub_change_value(self, scale, scroll_type, value):
-        self.emit('song-scrub', value)
-
-    def on_volume_change(self, scale):
+    def on_volume_change(self, scale: Gtk.Scale):
         if not self.editing:
             self.emit('volume-change', scale.get_value())
 
-    def on_play_queue_click(self, button):
+    def on_play_queue_click(self, _: Any):
         if self.play_queue_popover.is_visible():
             self.play_queue_popover.popdown()
         else:
@@ -307,7 +316,7 @@ class PlayerControls(Gtk.ActionBar):
             self.play_queue_popover.popup()
             self.play_queue_popover.show_all()
 
-    def on_song_activated(self, treeview, idx, column):
+    def on_song_activated(self, t: Any, idx: Gtk.TreePath, c: Any):
         # The song ID is in the last column of the model.
         self.emit(
             'song-clicked',
@@ -348,17 +357,17 @@ class PlayerControls(Gtk.ActionBar):
             self.last_device_list_update = datetime.now()
 
         update_diff = (
-            None if not self.last_device_list_update else
-            (datetime.now() - self.last_device_list_update).seconds)
+            self.last_device_list_update
+            and (datetime.now() - self.last_device_list_update).seconds > 60)
         if (force or len(self.chromecasts) == 0
-                or (self.last_device_list_update and update_diff > 60)):
+                or (update_diff and update_diff > 60)):
             future = ChromecastPlayer.get_chromecasts()
             future.add_done_callback(
                 lambda f: GLib.idle_add(chromecast_callback, f.result()))
         else:
             chromecast_callback(self.chromecasts)
 
-    def on_device_click(self, button):
+    def on_device_click(self, _: Any):
         self.devices_requested = True
         if self.device_popover.is_visible():
             self.device_popover.popdown()
@@ -367,17 +376,17 @@ class PlayerControls(Gtk.ActionBar):
             self.device_popover.show_all()
             self.update_device_list()
 
-    def on_device_refresh_click(self, button):
+    def on_device_refresh_click(self, _: Any):
         self.update_device_list(force=True)
 
-    def on_play_queue_button_press(self, tree, event):
+    def on_play_queue_button_press(self, tree: Any, event: Gdk.EventButton):
         if event.button == 3:  # Right click
             clicked_path = tree.get_path_at_pos(event.x, event.y)
 
             store, paths = tree.get_selection().get_selected_rows()
             allow_deselect = False
 
-            def on_download_state_change(song_id=None):
+            def on_download_state_change(song_id: int = None):
                 # Refresh the entire window (no force) because the song could
                 # be in a list anywhere in the window.
                 self.emit('refresh-window', {}, False)
@@ -394,7 +403,7 @@ class PlayerControls(Gtk.ActionBar):
                 'Remove ' + util.pluralize('song', len(song_ids))
                 + ' from queue')
 
-            def on_remove_songs_click(_):
+            def on_remove_songs_click(_: Any):
                 self.emit('songs-removed', [p.get_indices()[0] for p in paths])
 
             util.show_song_popover(
@@ -436,7 +445,7 @@ class PlayerControls(Gtk.ActionBar):
         else:
             self.reordering_play_queue_song_list = True
 
-    def create_song_display(self):
+    def create_song_display(self) -> Gtk.Box:
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         self.album_art = SpinnerImage(
@@ -448,7 +457,7 @@ class PlayerControls(Gtk.ActionBar):
         details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         details_box.pack_start(Gtk.Box(), True, True, 0)
 
-        def make_label(name):
+        def make_label(name: str) -> Gtk.Label:
             return Gtk.Label(
                 name=name,
                 halign=Gtk.Align.START,
@@ -471,7 +480,7 @@ class PlayerControls(Gtk.ActionBar):
 
         return box
 
-    def create_playback_controls(self):
+    def create_playback_controls(self) -> Gtk.Box:
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Scrubber and song progress/length labels
@@ -484,7 +493,8 @@ class PlayerControls(Gtk.ActionBar):
             orientation=Gtk.Orientation.HORIZONTAL, min=0, max=100, step=5)
         self.song_scrubber.set_name('song-scrubber')
         self.song_scrubber.set_draw_value(False)
-        self.song_scrubber.connect('change-value', self.on_scrub_change_value)
+        self.song_scrubber.connect(
+            'change-value', lambda s, t, v: self.emit('song-scrub', v))
         scrubber_box.pack_start(self.song_scrubber, True, True, 0)
 
         self.song_duration_label = Gtk.Label(label='-:--')
@@ -533,7 +543,7 @@ class PlayerControls(Gtk.ActionBar):
 
         return box
 
-    def create_play_queue_volume(self):
+    def create_play_queue_volume(self) -> Gtk.Box:
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.pack_start(Gtk.Box(), True, True, 0)
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -645,7 +655,13 @@ class PlayerControls(Gtk.ActionBar):
             Gtk.SelectionMode.MULTIPLE)
 
         # Album Art column.
-        def filename_to_pixbuf(column, cell, model, iter, flags):
+        def filename_to_pixbuf(
+            column: Any,
+            cell: Gtk.CellRendererPixbuf,
+            model: Gtk.ListStore,
+            iter: Gtk.TreeIter,
+            flags: Any,
+        ):
             filename = model.get_value(iter, 0)
             if not filename:
                 cell.set_property('icon_name', '')

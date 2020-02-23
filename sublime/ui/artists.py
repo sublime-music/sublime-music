@@ -306,7 +306,7 @@ class ArtistDetailPanel(Gtk.Box):
         artist: ArtistWithAlbumsID3,
         state: ApplicationState,
         force: bool = False,
-        order_token: Optional[int] = None,
+        order_token: int = None,
     ):
         if order_token != self.update_order_token:
             return
@@ -337,7 +337,7 @@ class ArtistDetailPanel(Gtk.Box):
         artist_info: ArtistInfo2,
         state: ApplicationState,
         force: bool = False,
-        order_token: Optional[int] = None,
+        order_token: int = None,
     ):
         if order_token != self.update_order_token:
             return
@@ -372,7 +372,7 @@ class ArtistDetailPanel(Gtk.Box):
         cover_art_filename: str,
         state: ApplicationState,
         force: bool = False,
-        order_token: Optional[int] = None,
+        order_token: int = None,
     ):
         if order_token != self.update_order_token:
             return

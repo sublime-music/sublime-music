@@ -1,6 +1,6 @@
 from functools import lru_cache
 from random import randint
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Any, Iterable, List, Tuple
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -11,7 +11,12 @@ from sublime.cache_manager import CacheManager
 from sublime.server.api_objects import PlaylistWithSongs
 from sublime.state_manager import ApplicationState
 from sublime.ui import util
-from sublime.ui.common import EditFormDialog, IconButton, SpinnerImage
+from sublime.ui.common import (
+    EditFormDialog,
+    IconButton,
+    SongListColumn,
+    SpinnerImage,
+)
 
 
 class EditPlaylistDialog(EditFormDialog):
@@ -181,7 +186,7 @@ class PlaylistList(Gtk.Box):
         playlists: List[PlaylistWithSongs],
         state: ApplicationState,
         force: bool = False,
-        order_token: Optional[int] = None,
+        order_token: int = None,
     ):
         new_store = []
         selected_idx = None
@@ -340,25 +345,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
         # Playlist songs list
         playlist_view_scroll_window = Gtk.ScrolledWindow()
 
-        def create_column(
-            header: str,
-            text_idx: int,
-            bold: bool = False,
-            align: int = 0,
-            width: int = None,
-        ):
-            renderer = Gtk.CellRendererText(
-                xalign=align,
-                weight=Pango.Weight.BOLD if bold else Pango.Weight.NORMAL,
-                ellipsize=Pango.EllipsizeMode.END,
-            )
-            renderer.set_fixed_size(width or -1, 35)
-
-            column = Gtk.TreeViewColumn(header, renderer, text=text_idx)
-            column.set_resizable(True)
-            column.set_expand(not width)
-            return column
-
         self.playlist_song_store = Gtk.ListStore(
             str,  # cache status
             str,  # title
@@ -404,11 +390,12 @@ class PlaylistDetailPanel(Gtk.Overlay):
         column.set_resizable(True)
         self.playlist_songs.append_column(column)
 
-        self.playlist_songs.append_column(create_column('TITLE', 1, bold=True))
-        self.playlist_songs.append_column(create_column('ALBUM', 2))
-        self.playlist_songs.append_column(create_column('ARTIST', 3))
         self.playlist_songs.append_column(
-            create_column('DURATION', 4, align=1, width=40))
+            SongListColumn('TITLE', 1, bold=True))
+        self.playlist_songs.append_column(SongListColumn('ALBUM', 2))
+        self.playlist_songs.append_column(SongListColumn('ARTIST', 3))
+        self.playlist_songs.append_column(
+            SongListColumn('DURATION', 4, align=1, width=40))
 
         self.playlist_songs.connect('row-activated', self.on_song_activated)
         self.playlist_songs.connect(
@@ -470,7 +457,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         playlist: PlaylistWithSongs,
         state: ApplicationState = None,
         force: bool = False,
-        order_token: Optional[int] = None,
+        order_token: int = None,
     ):
         if self.update_playlist_view_order_token != order_token:
             return
@@ -532,7 +519,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         cover_art_filename: str,
         state: ApplicationState,
         force: bool = False,
-        order_token: Optional[int] = None,
+        order_token: int = None,
     ):
         if self.update_playlist_view_order_token != order_token:
             return

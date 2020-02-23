@@ -1,5 +1,5 @@
 from random import randint
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -10,6 +10,7 @@ from sublime.server.api_objects import AlbumWithSongsID3, Child, Directory
 from sublime.state_manager import ApplicationState
 from sublime.ui import util
 from sublime.ui.common.icon_button import IconButton
+from sublime.ui.common.song_list_column import SongListColumn
 from sublime.ui.common.spinner_image import SpinnerImage
 
 
@@ -123,25 +124,6 @@ class AlbumWithSongs(Gtk.Box):
             str,  # song ID
         )
 
-        def create_column(
-                header: str,
-                text_idx: int,
-                bold: bool = False,
-                align: int = 0,
-                width: Optional[int] = None,
-        ) -> Gtk.TreeViewColumn:
-            renderer = Gtk.CellRendererText(
-                xalign=align,
-                weight=Pango.Weight.BOLD if bold else Pango.Weight.NORMAL,
-                ellipsize=Pango.EllipsizeMode.END,
-            )
-            renderer.set_fixed_size(width or -1, 35)
-
-            column = Gtk.TreeViewColumn(header, renderer, text=text_idx)
-            column.set_resizable(True)
-            column.set_expand(not width)
-            return column
-
         self.loading_indicator = Gtk.Spinner(
             name='album-list-song-list-spinner')
         album_details.add(self.loading_indicator)
@@ -164,9 +146,9 @@ class AlbumWithSongs(Gtk.Box):
         column.set_resizable(True)
         self.album_songs.append_column(column)
 
-        self.album_songs.append_column(create_column('TITLE', 1, bold=True))
+        self.album_songs.append_column(SongListColumn('TITLE', 1, bold=True))
         self.album_songs.append_column(
-            create_column('DURATION', 2, align=1, width=40))
+            SongListColumn('DURATION', 2, align=1, width=40))
 
         self.album_songs.connect('row-activated', self.on_song_activated)
         self.album_songs.connect(
@@ -286,7 +268,7 @@ class AlbumWithSongs(Gtk.Box):
         album: Union[AlbumWithSongsID3, Child, Directory],
         state: ApplicationState,
         force: bool = False,
-        order_token: Optional[int] = None,
+        order_token: int = None,
     ):
         new_store = [
             [

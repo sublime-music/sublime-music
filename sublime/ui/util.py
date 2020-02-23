@@ -1,7 +1,17 @@
 import functools
 import re
 from concurrent.futures import Future
-from typing import Any, Callable, cast, List, Match, Optional, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    cast,
+    Iterable,
+    List,
+    Match,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import gi
 from deepdiff import DeepDiff
@@ -9,6 +19,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gdk, GLib, Gtk
 
 from sublime.cache_manager import CacheManager, SongCacheStatus
+from sublime.server.api_objects import Playlist
 from sublime.state_manager import ApplicationState
 
 
@@ -28,7 +39,7 @@ def format_song_duration(duration_secs: int) -> str:
 def pluralize(
         string: str,
         number: int,
-        pluralized_form: Optional[str] = None,
+        pluralized_form: str = None,
 ) -> str:
     """
     Pluralize the given string given the count as a number.
@@ -102,12 +113,12 @@ def get_cached_status_icon(cache_status: SongCacheStatus) -> str:
     return cache_icon[cache_status]
 
 
-def _parse_diff_location(location: str):
+def _parse_diff_location(location: str) -> Tuple:
     match = re.match(r'root\[(\d*)\](?:\[(\d*)\]|\.(.*))?', location)
     return tuple(g for g in cast(Match, match).groups() if g is not None)
 
 
-def diff_song_store(store_to_edit, new_store):
+def diff_song_store(store_to_edit: Any, new_store: Iterable[Any]):
     """
     Diffing song stores is nice, because we can easily make edits by modifying
     the underlying store.
@@ -132,7 +143,7 @@ def diff_song_store(store_to_edit, new_store):
         del store_to_edit[remove_at]
 
 
-def diff_model_store(store_to_edit, new_store):
+def diff_model_store(store_to_edit: Any, new_store: Iterable[Any]):
     """
     The diff here is that if there are any differences, then we refresh the
     entire list. This is because it is too hard to do editing.
@@ -158,20 +169,20 @@ def show_song_popover(
     show_remove_from_playlist_button: bool = False,
     extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = [],
 ):
-    def on_download_songs_click(button):
+    def on_download_songs_click(_: Any):
         CacheManager.batch_download_songs(
             song_ids,
             before_download=on_download_state_change,
             on_song_download_complete=on_download_state_change,
         )
 
-    def on_remove_downloads_click(button):
+    def on_remove_downloads_click(_: Any):
         CacheManager.batch_delete_cached_songs(
             song_ids,
             on_song_delete=on_download_state_change,
         )
 
-    def on_add_to_playlist_click(button, playlist):
+    def on_add_to_playlist_click(_: Any, playlist: Playlist):
         CacheManager.executor.submit(
             CacheManager.update_playlist,
             playlist_id=playlist.id,
@@ -327,7 +338,7 @@ def async_callback(
             *args,
             state: ApplicationState = None,
             force: bool = False,
-            order_token: Optional[int] = None,
+            order_token: int = None,
             **kwargs,
         ):
             if before_download:

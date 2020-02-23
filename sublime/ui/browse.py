@@ -1,14 +1,14 @@
-from typing import List, Tuple, Union
+from typing import Any, List, Optional, Tuple, Type, Union
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, GLib, GObject, Gtk, Pango
+from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from sublime.cache_manager import CacheManager
-from sublime.server.api_objects import Artist, Child
+from sublime.server.api_objects import Artist, Child, Directory
 from sublime.state_manager import ApplicationState
 from sublime.ui import util
-from sublime.ui.common import IconButton
+from sublime.ui.common import IconButton, SongListColumn
 
 
 class BrowsePanel(Gtk.Overlay):
@@ -55,13 +55,13 @@ class BrowsePanel(Gtk.Overlay):
         )
         self.add_overlay(self.spinner)
 
-    def update(self, state: ApplicationState, force=False):
+    def update(self, state: ApplicationState, force: bool = False):
         if not CacheManager.ready:
             return
 
         self.update_order_token += 1
 
-        def do_update(id_stack, update_order_token):
+        def do_update(id_stack: List[int], update_order_token: int):
             if self.update_order_token != update_order_token:
                 return
 
@@ -72,7 +72,7 @@ class BrowsePanel(Gtk.Overlay):
             )
             self.spinner.hide()
 
-        def calculate_path(update_order_token) -> Tuple[List[str], int]:
+        def calculate_path(update_order_token: int) -> Tuple[List[str], int]:
             if state.selected_browse_element_id is None:
                 return [], update_order_token
 
@@ -113,7 +113,7 @@ class ListAndDrilldown(Gtk.Paned):
 
     id_stack = None
 
-    def __init__(self, list_type):
+    def __init__(self, list_type: Type):
         Gtk.Paned.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
 
         self.list = list_type()
@@ -132,10 +132,10 @@ class ListAndDrilldown(Gtk.Paned):
 
     def update(
         self,
-        id_stack,
+        id_stack: List[int],
         state: ApplicationState,
-        force=False,
-        directory_id=None,
+        force: bool = False,
+        directory_id: int = None,
     ):
         self.list.update(
             None if len(id_stack) == 0 else id_stack[-1],
@@ -237,19 +237,6 @@ class DrilldownList(Gtk.Box):
             str,  # song ID
         )
 
-        def create_column(header, text_idx, bold=False, align=0, width=None):
-            renderer = Gtk.CellRendererText(
-                xalign=align,
-                weight=Pango.Weight.BOLD if bold else Pango.Weight.NORMAL,
-                ellipsize=Pango.EllipsizeMode.END,
-            )
-            renderer.set_fixed_size(width or -1, 35)
-
-            column = Gtk.TreeViewColumn(header, renderer, text=text_idx)
-            column.set_resizable(True)
-            column.set_expand(not width)
-            return column
-
         self.directory_song_list = Gtk.TreeView(
             model=self.directory_song_store,
             name='album-songs-list',
@@ -266,9 +253,9 @@ class DrilldownList(Gtk.Box):
         self.directory_song_list.append_column(column)
 
         self.directory_song_list.append_column(
-            create_column('TITLE', 1, bold=True))
+            SongListColumn('TITLE', 1, bold=True))
         self.directory_song_list.append_column(
-            create_column('DURATION', 2, align=1, width=40))
+            SongListColumn('DURATION', 2, align=1, width=40))
 
         self.directory_song_list.connect(
             'row-activated', self.on_song_activated)
@@ -279,7 +266,7 @@ class DrilldownList(Gtk.Box):
         self.scroll_window.add(scrollbox)
         self.pack_start(self.scroll_window, True, True, 0)
 
-    def on_song_activated(self, treeview, idx, column):
+    def on_song_activated(self, treeview: Any, idx: Gtk.TreePath, column: Any):
         # The song ID is in the last column of the model.
         self.emit(
             'song-clicked',
@@ -288,7 +275,11 @@ class DrilldownList(Gtk.Box):
             {},
         )
 
-    def on_song_button_press(self, tree, event):
+    def on_song_button_press(
+            self,
+            tree: Gtk.TreeView,
+            event: Gdk.EventButton,
+    ) -> bool:
         if event.button == 3:  # Right click
             clicked_path = tree.get_path_at_pos(event.x, event.y)
             if not clicked_path:
@@ -323,7 +314,9 @@ class DrilldownList(Gtk.Box):
             if not allow_deselect:
                 return True
 
-    def do_update_store(self, elements):
+        return False
+
+    def do_update_store(self, elements: Optional[List[Any]]):
         new_directories_store = []
         new_songs_store = []
         selected_dir_idx = None
@@ -368,7 +361,8 @@ class DrilldownList(Gtk.Box):
 
         self.loading_indicator.hide()
 
-    def create_row(self, model: 'DrilldownList.DrilldownElement'):
+    def create_row(
+            self, model: 'DrilldownList.DrilldownElement') -> Gtk.ListBoxRow:
         row = Gtk.ListBoxRow(
             action_name='app.browse-to',
             action_target=GLib.Variant('s', model.id),
@@ -396,9 +390,9 @@ class IndexList(DrilldownList):
 
     def update(
         self,
-        selected_id,
+        selected_id: int,
         state: ApplicationState = None,
-        force=False,
+        force: bool = False,
         **kwargs,
     ):
         self.update_order_token += 1
@@ -409,7 +403,7 @@ class IndexList(DrilldownList):
             order_token=self.update_order_token,
         )
 
-    def on_refresh_clicked(self, _):
+    def on_refresh_clicked(self, _: Any):
         self.update(self.selected_id, force=True)
 
     @util.async_callback(
@@ -419,17 +413,17 @@ class IndexList(DrilldownList):
     )
     def update_store(
         self,
-        artists,
+        artists: List[Artist],
         state: ApplicationState = None,
-        force=False,
-        order_token=None,
+        force: bool = False,
+        order_token: int = None,
     ):
         if order_token != self.update_order_token:
             return
 
         self.do_update_store(artists)
 
-    def on_download_state_change(self, song_id=None):
+    def on_download_state_change(self, song_id: int = None):
         self.update(self.selected_id)
 
 
@@ -438,10 +432,10 @@ class MusicDirectoryList(DrilldownList):
 
     def update(
         self,
-        selected_id,
+        selected_id: int,
         state: ApplicationState = None,
-        force=False,
-        directory_id=None,
+        force: bool = False,
+        directory_id: int = None,
     ):
         self.directory_id = directory_id
         self.selected_id = selected_id
@@ -452,7 +446,7 @@ class MusicDirectoryList(DrilldownList):
             order_token=self.update_order_token,
         )
 
-    def on_refresh_clicked(self, _):
+    def on_refresh_clicked(self, _: Any):
         self.update(
             self.selected_id, force=True, directory_id=self.directory_id)
 
@@ -463,15 +457,15 @@ class MusicDirectoryList(DrilldownList):
     )
     def update_store(
         self,
-        directory,
+        directory: Directory,
         state: ApplicationState = None,
-        force=False,
-        order_token=None,
+        force: bool = False,
+        order_token: int = None,
     ):
         if order_token != self.update_order_token:
             return
 
         self.do_update_store(directory.child)
 
-    def on_download_state_change(self, song_id=None):
+    def on_download_state_change(self, song_id: int = None):
         self.update(self.selected_id, directory_id=self.directory_id)

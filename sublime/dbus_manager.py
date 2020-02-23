@@ -3,16 +3,17 @@ import os
 import re
 
 from collections import defaultdict
-from typing import Dict
+from typing import Any, Callable, Dict, Tuple
 
 from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
 
 from .cache_manager import CacheManager
-from .state_manager import RepeatType
+from .players import Player
+from .state_manager import ApplicationState, RepeatType
 
 
-def dbus_propagate(param_self=None):
+def dbus_propagate(param_self: Any = None) -> Callable:
     """
     Wraps a function which causes changes to DBus properties.
     """
@@ -34,10 +35,10 @@ class DBusManager:
 
     def __init__(
         self,
-        connection,
+        connection: Gio.DBusConnection,
         do_on_method_call,
         on_set_property,
-        get_state_and_player,
+        get_state_and_player: Callable[[], Tuple[ApplicationState, Player]],
     ):
         self.get_state_and_player = get_state_and_player
         self.do_on_method_call = do_on_method_call
@@ -84,22 +85,22 @@ class DBusManager:
 
     def on_get_property(
         self,
-        connection,
+        connection: Gio.DBusConnection,
         sender,
         path,
-        interface,
-        property_name,
+        interface: str,
+        property_name: str,
     ):
         value = self.property_dict().get(interface, {}).get(property_name)
         return DBusManager.to_variant(value)
 
     def on_method_call(
         self,
-        connection,
+        connection: Gio.DBusConnection,
         sender,
         path,
-        interface,
-        method,
+        interface: str,
+        method: str,
         params,
         invocation,
     ):
@@ -132,7 +133,7 @@ class DBusManager:
         )
 
     @staticmethod
-    def to_variant(value):
+    def to_variant(value: Any) -> GLib.Variant:
         if callable(value):
             return DBusManager.to_variant(value())
 
@@ -160,7 +161,7 @@ class DBusManager:
             return value
         return GLib.Variant(variant_type, value)
 
-    def property_dict(self):
+    def property_dict(self) -> Dict[str, Any]:
         state, player = self.get_state_and_player()
         has_current_song = state.current_song is not None
         has_next_song = False
