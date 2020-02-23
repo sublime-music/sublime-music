@@ -1,11 +1,12 @@
-import os
-import logging
 import glob
-import itertools
-import threading
-import shutil
-import json
 import hashlib
+import itertools
+import json
+import logging
+import os
+import re
+import shutil
+import threading
 
 from functools import lru_cache
 from collections import defaultdict
@@ -252,6 +253,7 @@ class CacheManager(metaclass=Singleton):
         CacheManager.should_exit = True
         logging.info('CacheManager shutdown start')
         CacheManager.executor.shutdown()
+        CacheManager._instance.save_cache_info()
         logging.info('CacheManager shutdown complete')
 
     @staticmethod
@@ -335,7 +337,30 @@ class CacheManager(metaclass=Singleton):
                     try:
                         meta_json = json.load(f)
                     except json.decoder.JSONDecodeError:
-                        return
+                        # Just continue with the default meta_json.
+                        pass
+
+            cache_version = meta_json.get('version', 0)
+
+            if cache_version < 1:
+                logging.info('Migrating cache to version 1.')
+                cover_art_re = re.compile(r'(\d+)_(\d+)')
+                abs_path = self.calculate_abs_path('cover_art/')
+                for cover_art_file in Path(abs_path).iterdir():
+                    match = cover_art_re.match(cover_art_file.name)
+                    if match:
+                        art_id, dimensions = map(int, match.groups())
+                        if dimensions == 1000:
+                            no_dimens = cover_art_file.parent.joinpath(
+                                '{art_id}')
+                            logging.debug(
+                                f'Moving {cover_art_file} to {no_dimens}')
+                            shutil.move(cover_art_file, no_dimens)
+                        else:
+                            logging.debug(f'Deleting {cover_art_file}')
+                            cover_art_file.unlink()
+
+            self.cache['version'] = 1
 
             cache_configs = [
                 # Playlists
@@ -476,7 +501,7 @@ class CacheManager(metaclass=Singleton):
             return CacheManager.executor.submit(fn, *args)
 
         def delete_cached_cover_art(self, id: int):
-            relative_path = f'cover_art/*{id}_*'
+            relative_path = f'cover_art/*{id}*'
 
             abs_path = self.calculate_abs_path(relative_path)
 
@@ -697,12 +722,12 @@ class CacheManager(metaclass=Singleton):
                         '2a96cbd8b46e442fc41c2b86b821562f.png')):
                     if isinstance(artist, (ArtistWithAlbumsID3, ArtistID3)):
                         return CacheManager.get_cover_art_filename(
-                            artist.coverArt, size=300)
+                            artist.coverArt)
                     elif (isinstance(artist, Directory)
                           and len(artist.child) > 0):
                         # Retrieve the first album's cover art
                         return CacheManager.get_cover_art_filename(
-                            artist.child[0].coverArt, size=300)
+                            artist.child[0].coverArt)
 
                 if lastfm_url == '':
                     return CacheManager.Result.from_data('')
@@ -875,18 +900,16 @@ class CacheManager(metaclass=Singleton):
             self,
             id: str,
             before_download: Callable[[], None] = lambda: None,
-            size: Union[str, int] = 200,
             force: bool = False,
             allow_download: bool = True,
         ) -> 'CacheManager.Result[Optional[str]]':
             if id is None:
-                art_path = 'ui/images/default-album-art.png'
-                return CacheManager.Result.from_data(str(
-                    Path(__file__).parent.joinpath(art_path)
-                ))
+                default_art_path = 'ui/images/default-album-art.png'
+                return CacheManager.Result.from_data(
+                    str(Path(__file__).parent.joinpath(default_art_path)))
             return self.return_cached_or_download(
-                f'cover_art/{id}_{size}',
-                lambda: self.server.get_cover_art(id, str(size)),
+                f'cover_art/{id}',
+                lambda: self.server.get_cover_art(id),
                 before_download=before_download,
                 force=force,
                 allow_download=allow_download,

@@ -277,11 +277,11 @@ class DBusManager:
             'x',
             (song.duration or 0) * self.second_microsecond_conversion,
         )
-        track_cover = CacheManager.get_cover_art_url(song.coverArt, 1000)
+
         return {
             'mpris:trackid': trackid,
             'mpris:length': duration,
-            'mpris:artUrl': track_cover,
+            'mpris:artUrl': CacheManager.get_cover_art_url(song.coverArt),
             'xesam:album': song.album or '',
             'xesam:albumArtist': [song.artist or ''],
             'xesam:artist': [song.artist or ''],

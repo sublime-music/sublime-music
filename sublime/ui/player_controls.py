@@ -136,7 +136,6 @@ class PlayerControls(Gtk.ActionBar):
             self.cover_art_update_order_token += 1
             self.update_cover_art(
                 state.current_song.coverArt,
-                size='70',
                 order_token=self.cover_art_update_order_token,
             )
 
@@ -193,9 +192,7 @@ class PlayerControls(Gtk.ActionBar):
 
                 # Cover Art
                 cover_art_future = CacheManager.get_cover_art_filename(
-                    song_details.coverArt,
-                    size=50,
-                )
+                    song_details.coverArt)
                 if cover_art_result.is_future:
                     # We don't have the cover art already cached.
                     cover_art_result.add_done_callback(
@@ -226,9 +223,7 @@ class PlayerControls(Gtk.ActionBar):
                     label = calculate_label(song_details)
 
                     cover_art_result = CacheManager.get_cover_art_filename(
-                        song_details.coverArt,
-                        size=50,
-                    )
+                        song_details.coverArt)
                     if cover_art_result.is_future:
                         # We don't have the cover art already cached.
                         cover_art_result.add_done_callback(
@@ -654,7 +649,8 @@ class PlayerControls(Gtk.ActionBar):
             if not filename:
                 cell.set_property('icon_name', '')
                 return
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file(filename)
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                filename, 50, 50, True)
 
             # If this is the playing song, then overlay the play icon.
             if model.get_value(iter, 2):
