@@ -1,19 +1,18 @@
 import functools
-from typing import Callable, List, Tuple, Any
 import re
-
 from concurrent.futures import Future
-
-from deepdiff import DeepDiff
+from typing import Any, Callable, cast, List, Match, Optional, Tuple, Union
 
 import gi
+from deepdiff import DeepDiff
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib, Gdk
+from gi.repository import Gdk, GLib, Gtk
 
 from sublime.cache_manager import CacheManager, SongCacheStatus
+from sublime.state_manager import ApplicationState
 
 
-def format_song_duration(duration_secs) -> str:
+def format_song_duration(duration_secs: int) -> str:
     """
     Formats the song duration as mins:seconds with the seconds being
     zero-padded if necessary.
@@ -26,7 +25,11 @@ def format_song_duration(duration_secs) -> str:
     return f'{duration_secs // 60}:{duration_secs % 60:02}'
 
 
-def pluralize(string: str, number: int, pluralized_form=None):
+def pluralize(
+        string: str,
+        number: int,
+        pluralized_form: Optional[str] = None,
+) -> str:
     """
     Pluralize the given string given the count as a number.
 
@@ -42,7 +45,7 @@ def pluralize(string: str, number: int, pluralized_form=None):
     return string
 
 
-def format_sequence_duration(duration_secs) -> str:
+def format_sequence_duration(duration_secs: int) -> str:
     """
     Formats duration in English.
 
@@ -76,20 +79,20 @@ def format_sequence_duration(duration_secs) -> str:
     return ', '.join(format_components)
 
 
-def esc(string):
+def esc(string: str) -> str:
     if string is None:
         return None
     return string.replace('&', '&amp;').replace(" target='_blank'", '')
 
 
-def dot_join(*items):
+def dot_join(*items: Any) -> str:
     """
     Joins the given strings with a dot character. Filters out None values.
     """
     return '  •  '.join(map(str, filter(lambda x: x is not None, items)))
 
 
-def get_cached_status_icon(cache_status: SongCacheStatus):
+def get_cached_status_icon(cache_status: SongCacheStatus) -> str:
     cache_icon = {
         SongCacheStatus.NOT_CACHED: '',
         SongCacheStatus.CACHED: 'folder-download-symbolic',
@@ -99,9 +102,9 @@ def get_cached_status_icon(cache_status: SongCacheStatus):
     return cache_icon[cache_status]
 
 
-def _parse_diff_location(location):
+def _parse_diff_location(location: str):
     match = re.match(r'root\[(\d*)\](?:\[(\d*)\]|\.(.*))?', location)
-    return tuple(g for g in match.groups() if g is not None)
+    return tuple(g for g in cast(Match, match).groups() if g is not None)
 
 
 def diff_song_store(store_to_edit, new_store):
@@ -302,9 +305,9 @@ def show_song_popover(
 
 
 def async_callback(
-    future_fn,
-    before_download=None,
-    on_failure=None,
+    future_fn: Callable[..., Future],
+    before_download: Callable[[Any], None] = None,
+    on_failure: Callable[[Any, Exception], None] = None,
 ):
     """
     Defines the ``async_callback`` decorator.
@@ -315,16 +318,16 @@ def async_callback(
     by said lambda function.
 
     :param future_fn: a function which generates a
-        ``concurrent.futures.Future``.
+        :class:`concurrent.futures.Future` or :class:`CacheManager.Result`.
     """
     def decorator(callback_fn):
         @functools.wraps(callback_fn)
         def wrapper(
             self,
             *args,
-            state=None,
-            order_token=None,
-            force=False,
+            state: ApplicationState = None,
+            force: bool = False,
+            order_token: Optional[int] = None,
             **kwargs,
         ):
             if before_download:
@@ -333,15 +336,15 @@ def async_callback(
             else:
                 on_before_download = (lambda: None)
 
-            def future_callback(f):
+            def future_callback(f: Union[Future, CacheManager.Result]):
                 try:
                     result = f.result()
                 except Exception as e:
                     if on_failure:
-                        on_failure(self, e)
+                        GLib.idle_add(on_failure, self, e)
                     return
 
-                return GLib.idle_add(
+                GLib.idle_add(
                     lambda: callback_fn(
                         self,
                         result,
@@ -350,7 +353,7 @@ def async_callback(
                         order_token=order_token,
                     ))
 
-            future: Future = future_fn(
+            future: Union[Future, CacheManager.Result] = future_fn(
                 *args,
                 before_download=on_before_download,
                 force=force,

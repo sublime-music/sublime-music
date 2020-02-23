@@ -1,17 +1,16 @@
-import os
 import json
-
+import os
 from enum import Enum
-from typing import List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 import gi
 gi.require_version('NetworkManager', '1.0')
 gi.require_version('NMClient', '1.0')
 from gi.repository import NetworkManager, NMClient
 
-from .from_json import from_json
-from .config import AppConfiguration
 from .cache_manager import CacheManager
+from .config import AppConfiguration
+from .from_json import from_json
 from .server.api_objects import Child
 
 
@@ -21,19 +20,19 @@ class RepeatType(Enum):
     REPEAT_SONG = 2
 
     @property
-    def icon(self):
+    def icon(self) -> str:
         icon_name = [
             'repeat',
             'repeat-symbolic',
             'repeat-song-symbolic',
         ][self.value]
-        return 'media-playlist-' + icon_name
+        return f'media-playlist-{icon_name}'
 
-    def as_mpris_loop_status(self):
+    def as_mpris_loop_status(self) -> str:
         return ['None', 'Playlist', 'Track'][self.value]
 
     @staticmethod
-    def from_mpris_loop_status(loop_status):
+    def from_mpris_loop_status(loop_status: str) -> 'RepeatType':
         return {
             'None': RepeatType.NO_REPEAT,
             'Track': RepeatType.REPEAT_SONG,
@@ -62,7 +61,7 @@ class ApplicationState:
     current_song_index: int = -1
     play_queue: List[str] = []
     old_play_queue: List[str] = []
-    _volume: dict = {'this device': 100}
+    _volume: Dict[str, float] = {'this device': 100.0}
     is_muted: bool = False
     repeat_type: RepeatType = RepeatType.NO_REPEAT
     shuffle_on: bool = False
@@ -87,7 +86,7 @@ class ApplicationState:
     nmclient_initialized = False
     _current_ssids: Set[str] = set()
 
-    def to_json(self):
+    def to_json(self) -> Dict[str, Any]:
         exclude = ('config', 'repeat_type', '_current_ssids')
         json_object = {
             k: getattr(self, k)
@@ -101,12 +100,12 @@ class ApplicationState:
             })
         return json_object
 
-    def load_from_json(self, json_object):
+    def load_from_json(self, json_object: Dict[str, Any]):
         self.version = json_object.get('version', 0)
         self.current_song_index = json_object.get('current_song_index', -1)
         self.play_queue = json_object.get('play_queue', [])
         self.old_play_queue = json_object.get('old_play_queue', [])
-        self._volume = json_object.get('_volume', {'this device': 100})
+        self._volume = json_object.get('_volume', {'this device': 100.0})
         self.is_muted = json_object.get('is_muted', False)
         self.repeat_type = RepeatType(json_object.get('repeat_type', 0))
         self.shuffle_on = json_object.get('shuffle_on', False)
@@ -183,7 +182,7 @@ class ApplicationState:
                 return AppConfiguration()
 
     @property
-    def current_ssids(self):
+    def current_ssids(self) -> Set[str]:
         if not self.nmclient_initialized:
             # Only look at the active WiFi connections.
             for ac in self.networkmanager_client.get_active_connections():
@@ -200,7 +199,7 @@ class ApplicationState:
         return self._current_ssids
 
     @property
-    def state_filename(self):
+    def state_filename(self) -> str:
         default_cache_location = (
             os.environ.get('XDG_DATA_HOME')
             or os.path.expanduser('~/.local/share'))
@@ -221,9 +220,9 @@ class ApplicationState:
         return CacheManager.get_song_details(current_song_id).result()
 
     @property
-    def volume(self):
-        return self._volume.get(self.current_device, 100)
+    def volume(self) -> float:
+        return self._volume.get(self.current_device, 100.0)
 
     @volume.setter
-    def volume(self, value):
+    def volume(self, value: float):
         self._volume[self.current_device] = value

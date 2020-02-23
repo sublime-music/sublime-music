@@ -4,21 +4,25 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+docutils = "*"
 flake8 = "*"
+flake8-annotations = "*"
+flake8-comprehensions = "*"
+flake8-pep3101 = "*"
+flake8-print = "*"
+graphviz = "*"
+jedi = "*"
+lxml = "*"
 mypy = "*"
-yapf = "*"
 pytest = "*"
 pytest-cov = "*"
-docutils = "*"
-lxml = "*"
-jedi = "*"
 rope = "*"
 rst2html5 = "*"
-graphviz = "*"
 sphinx = "*"
-sphinx-rtd-theme = "*"
 sphinx-autodoc-typehints = "*"
+sphinx-rtd-theme = "*"
 termcolor = "*"
+yapf = "*"
 
 [packages]
 sublime-music = {editable = true,path = "."}

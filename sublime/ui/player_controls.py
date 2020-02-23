@@ -2,17 +2,18 @@ import math
 
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GdkPixbuf, Pango, GObject, GLib
+from gi.repository import GdkPixbuf, GLib, GObject, Gtk, Pango
+from pychromecast import Chromecast
 
 from sublime.cache_manager import CacheManager
+from sublime.players import ChromecastPlayer
 from sublime.state_manager import ApplicationState, RepeatType
 from sublime.ui import util
 from sublime.ui.common import IconButton, SpinnerImage
-from sublime.players import ChromecastPlayer
 
 
 class PlayerControls(Gtk.ActionBar):
@@ -169,7 +170,7 @@ class PlayerControls(Gtk.ActionBar):
 
             new_store = []
 
-            def calculate_label(song_details):
+            def calculate_label(song_details) -> str:
                 title = util.esc(song_details.title)
                 album = util.esc(song_details.album)
                 artist = util.esc(song_details.artist)
@@ -270,9 +271,9 @@ class PlayerControls(Gtk.ActionBar):
     def update_cover_art(
         self,
         cover_art_filename: str,
-        state,
-        force=False,
-        order_token=None,
+        state: ApplicationState,
+        force: bool = False,
+        order_token: Optional[int] = None,
     ):
         if order_token != self.cover_art_update_order_token:
             return
@@ -320,10 +321,10 @@ class PlayerControls(Gtk.ActionBar):
             {'no_reshuffle': True},
         )
 
-    def update_device_list(self, force=False):
+    def update_device_list(self, force: bool = False):
         self.device_list_loading.show()
 
-        def chromecast_callback(chromecasts):
+        def chromecast_callback(chromecasts: List[Chromecast]):
             self.chromecasts = chromecasts
             for c in self.chromecast_device_list.get_children():
                 self.chromecast_device_list.remove(c)

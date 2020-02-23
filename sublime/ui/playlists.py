@@ -1,16 +1,15 @@
 from functools import lru_cache
 from random import randint
-from typing import List
-
-from fuzzywuzzy import process
+from typing import Any, Iterable, List, Optional, Tuple
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gio, Gtk, Pango, GObject, GLib
+from fuzzywuzzy import process
+from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
+from sublime.cache_manager import CacheManager
 from sublime.server.api_objects import PlaylistWithSongs
 from sublime.state_manager import ApplicationState
-from sublime.cache_manager import CacheManager
 from sublime.ui import util
 from sublime.ui.common import EditFormDialog, IconButton, SpinnerImage
 
@@ -21,7 +20,7 @@ class EditPlaylistDialog(EditFormDialog):
     text_fields = [('Name', 'name', False), ('Comment', 'comment', False)]
     boolean_fields = [('Public', 'public')]
 
-    def __init__(self, *args, playlist_id=None, **kwargs):
+    def __init__(self, *args, **kwargs):
         delete_playlist = Gtk.Button(label='Delete Playlist')
         self.extra_buttons = [(delete_playlist, Gtk.ResponseType.NO)]
         super().__init__(*args, **kwargs)
@@ -59,7 +58,7 @@ class PlaylistsPanel(Gtk.Paned):
         )
         self.pack2(self.playlist_detail_panel, True, False)
 
-    def update(self, state: ApplicationState = None, force=False):
+    def update(self, state: ApplicationState = None, force: bool = False):
         self.playlist_list.update(state=state, force=force)
         self.playlist_detail_panel.update(state=state, force=force)
 
@@ -77,7 +76,7 @@ class PlaylistList(Gtk.Box):
         playlist_id = GObject.Property(type=str)
         name = GObject.Property(type=str)
 
-        def __init__(self, playlist_id, name):
+        def __init__(self, playlist_id: str, name: str):
             GObject.GObject.__init__(self)
             self.playlist_id = playlist_id
             self.name = name
@@ -144,7 +143,8 @@ class PlaylistList(Gtk.Box):
 
         list_scroll_window = Gtk.ScrolledWindow(min_content_width=220)
 
-        def create_playlist_row(model: PlaylistList.PlaylistModel):
+        def create_playlist_row(
+                model: PlaylistList.PlaylistModel) -> Gtk.ListBoxRow:
             row = Gtk.ListBoxRow(
                 action_name='app.go-to-playlist',
                 action_target=GLib.Variant('s', model.playlist_id),
@@ -180,8 +180,8 @@ class PlaylistList(Gtk.Box):
         self,
         playlists: List[PlaylistWithSongs],
         state: ApplicationState,
-        force=False,
-        order_token=None,
+        force: bool = False,
+        order_token: Optional[int] = None,
     ):
         new_store = []
         selected_idx = None
@@ -203,25 +203,25 @@ class PlaylistList(Gtk.Box):
 
     # Event Handlers
     # =========================================================================
-    def on_new_playlist_clicked(self, new_playlist_button):
+    def on_new_playlist_clicked(self, _: Any):
         self.new_playlist_entry.set_text('Untitled Playlist')
         self.new_playlist_entry.grab_focus()
         self.new_playlist_row.show()
 
-    def on_list_refresh_click(self, button):
+    def on_list_refresh_click(self, _: Any):
         self.update(force=True)
 
-    def new_entry_activate(self, entry):
+    def new_entry_activate(self, entry: Gtk.Entry):
         self.create_playlist(entry.get_text())
 
-    def cancel_button_clicked(self, button):
+    def cancel_button_clicked(self, _: Any):
         self.new_playlist_row.hide()
 
-    def confirm_button_clicked(self, button):
+    def confirm_button_clicked(self, _: Any):
         self.create_playlist(self.new_playlist_entry.get_text())
 
-    def create_playlist(self, playlist_name):
-        def on_playlist_created(f):
+    def create_playlist(self, playlist_name: str):
+        def on_playlist_created(_: Any):
             CacheManager.invalidate_playlists_cache()
             self.update(force=True)
 
@@ -339,7 +339,13 @@ class PlaylistDetailPanel(Gtk.Overlay):
         # Playlist songs list
         playlist_view_scroll_window = Gtk.ScrolledWindow()
 
-        def create_column(header, text_idx, bold=False, align=0, width=None):
+        def create_column(
+            header: str,
+            text_idx: int,
+            bold: bool = False,
+            align: int = 0,
+            width: int = None,
+        ):
             renderer = Gtk.CellRendererText(
                 xalign=align,
                 weight=Pango.Weight.BOLD if bold else Pango.Weight.NORMAL,
@@ -362,11 +368,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
         @lru_cache(maxsize=1024)
-        def row_score(key, row_items):
+        def row_score(key: str, row_items: Iterable[str]) -> int:
             return max(map(lambda m: m[1], process.extract(key, row_items)))
 
         @lru_cache()
-        def max_score_for_key(key, rows):
+        def max_score_for_key(key: str, rows: Tuple) -> int:
             return max(row_score(key, row) for row in rows)
 
         def playlist_song_list_search_fn(model, col, key, treeiter, data=None):
@@ -433,7 +439,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     update_playlist_view_order_token = 0
 
-    def update(self, state: ApplicationState, force=False):
+    def update(self, state: ApplicationState, force: bool = False):
         if state.selected_playlist_id is None:
             self.playlist_artwork.set_from_file(None)
             self.playlist_indicator.set_markup('')
@@ -460,10 +466,10 @@ class PlaylistDetailPanel(Gtk.Overlay):
     )
     def update_playlist_view(
         self,
-        playlist,
+        playlist: PlaylistWithSongs,
         state: ApplicationState = None,
-        force=False,
-        order_token=None,
+        force: bool = False,
+        order_token: Optional[int] = None,
     ):
         if self.update_playlist_view_order_token != order_token:
             return
@@ -483,7 +489,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             self.playlist_comment.show()
         else:
             self.playlist_comment.hide()
-        self.playlist_stats.set_markup(self.format_stats(playlist))
+        self.playlist_stats.set_markup(self._format_stats(playlist))
 
         # Update the artwork.
         self.update_playlist_artwork(
@@ -522,10 +528,10 @@ class PlaylistDetailPanel(Gtk.Overlay):
     )
     def update_playlist_artwork(
         self,
-        cover_art_filename,
+        cover_art_filename: str,
         state: ApplicationState,
-        force=False,
-        order_token=None,
+        force: bool = False,
+        order_token: Optional[int] = None,
     ):
         if self.update_playlist_view_order_token != order_token:
             return
@@ -535,18 +541,17 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     # Event Handlers
     # =========================================================================
-    def on_view_refresh_click(self, button):
+    def on_view_refresh_click(self, _: Any):
         self.update_playlist_view(
             self.playlist_id,
             force=True,
             order_token=self.update_playlist_view_order_token,
         )
 
-    def on_playlist_edit_button_click(self, button):
+    def on_playlist_edit_button_click(self, _: Any):
         dialog = EditPlaylistDialog(
             self.get_toplevel(),
             CacheManager.get_playlist(self.playlist_id).result(),
-            playlist_id=self.playlist_id,
         )
 
         result = dialog.run()
@@ -577,7 +582,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         dialog.destroy()
 
-    def on_playlist_list_download_all_button_click(self, button):
+    def on_playlist_list_download_all_button_click(self, _: Any):
         def download_state_change(*args):
             GLib.idle_add(
                 lambda: self.update_playlist_view(
@@ -592,7 +597,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             on_song_download_complete=download_state_change,
         )
 
-    def on_play_all_clicked(self, btn):
+    def on_play_all_clicked(self, _: Any):
         self.emit(
             'song-clicked',
             0,
@@ -603,7 +608,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             },
         )
 
-    def on_shuffle_all_button(self, btn):
+    def on_shuffle_all_button(self, _: Any):
         self.emit(
             'song-clicked',
             randint(0,
@@ -635,7 +640,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             store, paths = tree.get_selection().get_selected_rows()
             allow_deselect = False
 
-            def on_download_state_change(song_id=None):
+            def on_download_state_change(**kwargs):
                 GLib.idle_add(
                     lambda: self.update_playlist_view(
                         self.playlist_id,
@@ -656,7 +661,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             widget_coords = tree.convert_tree_to_widget_coords(
                 event.x, event.y)
 
-            def on_remove_songs_click(button):
+            def on_remove_songs_click(_: Any):
                 CacheManager.update_playlist(
                     playlist_id=self.playlist_id,
                     song_index_to_remove=[p.get_indices()[0] for p in paths],
@@ -694,7 +699,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         # which one comes first, but just in case, we have this
         # reordering_playlist_song_list flag.
         if self.reordering_playlist_song_list:
-            self.update_playlist_order(self.playlist_id)
+            self._update_playlist_order(self.playlist_id)
             self.reordering_playlist_song_list = False
         else:
             self.reordering_playlist_song_list = True
@@ -705,7 +710,12 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_artwork.set_loading(True)
         self.playlist_view_loading_box.show_all()
 
-    def make_label(self, text=None, name=None, **params):
+    def make_label(
+            self,
+            text: str = None,
+            name: str = None,
+            **params,
+    ) -> Gtk.Label:
         return Gtk.Label(
             label=text,
             name=name,
@@ -714,7 +724,12 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
     @util.async_callback(lambda *a, **k: CacheManager.get_playlist(*a, **k))
-    def update_playlist_order(self, playlist, state, **kwargs):
+    def _update_playlist_order(
+        self,
+        playlist: PlaylistWithSongs,
+        state: ApplicationState,
+        **kwargs,
+    ):
         self.playlist_view_loading_box.show_all()
         update_playlist_future = CacheManager.update_playlist(
             playlist_id=playlist.id,
@@ -730,7 +745,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                     order_token=self.update_playlist_view_order_token,
                 )))
 
-    def format_stats(self, playlist):
+    def _format_stats(self, playlist: PlaylistWithSongs) -> str:
         created_date = playlist.created.strftime('%B %d, %Y')
         lines = [
             util.dot_join(

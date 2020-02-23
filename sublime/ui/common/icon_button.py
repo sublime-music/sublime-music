@@ -1,3 +1,5 @@
+from typing import Optional
+
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
@@ -5,12 +7,12 @@ from gi.repository import Gtk
 
 class IconButton(Gtk.Button):
     def __init__(
-            self,
-            icon_name,
-            relief=False,
-            icon_size=Gtk.IconSize.BUTTON,
-            label=None,
-            **kwargs,
+        self,
+        icon_name: Optional[str],
+        relief: bool = False,
+        icon_size: Gtk.IconSize = Gtk.IconSize.BUTTON,
+        label: str = None,
+        **kwargs,
     ):
         Gtk.Button.__init__(self, **kwargs)
         self.icon_size = icon_size
@@ -29,5 +31,5 @@ class IconButton(Gtk.Button):
 
         self.add(box)
 
-    def set_icon(self, icon_name):
+    def set_icon(self, icon_name: str):
         self.image.set_from_icon_name(icon_name, self.icon_size)

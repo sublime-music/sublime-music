@@ -1,14 +1,13 @@
 import logging
 import math
 import os
-
-from time import sleep
-from urllib.parse import urlencode
-from deprecated import deprecated
-from typing import Optional, Dict, List, Union, cast
 from datetime import datetime
+from time import sleep
+from typing import Any, Dict, List, Optional, Union
+from urllib.parse import urlencode
 
 import requests
+from deprecated import deprecated
 
 from .api_objects import (
     AlbumInfo,
@@ -22,6 +21,7 @@ from .api_objects import (
     Bookmarks,
     Child,
     Directory,
+    Error,
     Genres,
     Indexes,
     InternetRadioStations,
@@ -38,9 +38,9 @@ from .api_objects import (
     SearchResult2,
     SearchResult3,
     Shares,
+    Songs,
     Starred,
     Starred2,
-    Songs,
     User,
     Users,
     VideoInfo,
@@ -61,6 +61,10 @@ class Server:
     * The ``server`` module is stateless. The only thing that it does is allow
       the module's user to query the \\*sonic server via the API.
     """
+    class SubsonicServerError(Exception):
+        def __init__(self: 'Server.SubsonicServerError', error: Error):
+            super().__init__(f'{error.code}: {error.message}')
+
     def __init__(
         self,
         name: str,
@@ -77,22 +81,19 @@ class Server:
 
     def _get_params(self) -> Dict[str, str]:
         """See Subsonic API Introduction for details."""
-        return dict(
-            u=self.username,
-            p=self.password,
-            c='Sublime Music',
-            f='json',
-            v='1.15.0',
-        )
+        return {
+            'u': self.username,
+            'p': self.password,
+            'c': 'Sublime Music',
+            'f': 'json',
+            'v': '1.15.0',
+        }
 
     def _make_url(self, endpoint: str) -> str:
         return f'{self.hostname}/rest/{endpoint}.view'
 
-    def _subsonic_error_to_exception(self, error) -> Exception:
-        return Exception(f'{error.code}: {error.message}')
-
     # def _get(self, url, timeout=(3.05, 2), **params):
-    def _get(self, url, **params):
+    def _get(self, url: str, **params) -> Any:
         params = {**self._get_params(), **params}
         logging.info(f'[START] get: {url}')
 
@@ -105,7 +106,7 @@ class Server:
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():
             if type(v) == datetime:
-                params[k] = int(cast(datetime, v).timestamp() * 1000)
+                params[k] = int(v.timestamp() * 1000)
 
         result = requests.get(
             url,
@@ -151,11 +152,11 @@ class Server:
 
         # Check for an error and if it exists, raise it.
         if response.get('error'):
-            raise self._subsonic_error_to_exception(response.error)
+            raise Server.SubsonicServerError(response.error)
 
         return response
 
-    def do_download(self, url, **params) -> bytes:
+    def do_download(self, url: str, **params) -> bytes:
         download = self._get(url, **params)
         if 'json' in download.headers.get('Content-Type'):
             # TODO (#122): make better
@@ -201,7 +202,7 @@ class Server:
             ifModifiedSince=if_modified_since)
         return result.indexes
 
-    def get_music_directory(self, dir_id) -> Directory:
+    def get_music_directory(self, dir_id: Union[int, str]) -> Directory:
         """
         Returns a listing of all files in a music directory. Typically used
         to get list of albums for an artist, or list of songs for an album.
@@ -779,17 +780,17 @@ class Server:
         return self._get_json(self._make_url('deletePlaylist'), id=id)
 
     def get_stream_url(
-        self,
-        id: str,
-        max_bit_rate: int = None,
-        format: str = None,
-        time_offset: int = None,
-        size: int = None,
-        estimate_content_length: bool = False,
-        converted: bool = False,
-    ):
+            self,
+            id: str,
+            max_bit_rate: int = None,
+            format: str = None,
+            time_offset: int = None,
+            size: int = None,
+            estimate_content_length: bool = False,
+            converted: bool = False,
+    ) -> str:
         """
-        Gets the URL to streams a given file.
+        Gets the URL to stream a given file.
 
         :param id: A string which uniquely identifies the file to stream.
             Obtained by calls to ``getMusicDirectory``.
@@ -829,7 +830,7 @@ class Server:
         params = {k: v for k, v in params.items() if v}
         return self._make_url('stream') + '?' + urlencode(params)
 
-    def download(self, id: str):
+    def download(self, id: str) -> bytes:
         """
         Downloads a given media file. Similar to stream, but this method
         returns the original media data without transcoding or downsampling.
@@ -839,7 +840,7 @@ class Server:
         """
         return self.do_download(self._make_url('download'), id=id)
 
-    def get_cover_art(self, id: str, size: str = None):
+    def get_cover_art(self, id: str, size: str = None) -> bytes:
         """
         Returns the cover art image in binary form.
 
@@ -849,7 +850,7 @@ class Server:
         return self.do_download(
             self._make_url('getCoverArt'), id=id, size=size)
 
-    def get_cover_art_url(self, id: str, size: str = None):
+    def get_cover_art_url(self, id: str, size: str = None) -> str:
         """
         Returns the cover art image in binary form.
 
@@ -874,7 +875,7 @@ class Server:
         )
         return result.lyrics
 
-    def get_avatar(self, username: str):
+    def get_avatar(self, username: str) -> bytes:
         """
         Returns the avatar (personal image) for a user.
 

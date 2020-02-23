@@ -8,8 +8,8 @@ from typing import Dict
 from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
 
-from .state_manager import RepeatType
 from .cache_manager import CacheManager
+from .state_manager import RepeatType
 
 
 def dbus_propagate(param_self=None):

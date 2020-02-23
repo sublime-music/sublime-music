@@ -1,17 +1,15 @@
 import logging
+from typing import Any, Callable, Iterable, Optional, Tuple, Union
 
 import gi
-from typing import Union
-
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GObject, GLib, Gio, Pango
+from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from sublime.state_manager import ApplicationState
 from sublime.cache_manager import CacheManager
+from sublime.server.api_objects import AlbumWithSongsID3, Child
+from sublime.state_manager import ApplicationState
 from sublime.ui import util
 from sublime.ui.common import AlbumWithSongs, IconButton, SpinnerImage
-
-from sublime.server.api_objects import Child, AlbumWithSongsID3
 
 Album = Union[Child, AlbumWithSongsID3]
 
@@ -97,7 +95,11 @@ class AlbumsPanel(Gtk.Box):
         scrolled_window.add(self.grid)
         self.add(scrolled_window)
 
-    def make_combobox(self, items, on_change):
+    def make_combobox(
+        self,
+        items: Iterable[Tuple[str, str]],
+        on_change: Callable[['AlbumsPanel', Gtk.ComboBox], None],
+    ) -> Gtk.ComboBox:
         store = Gtk.ListStore(str, str)
         for item in items:
             store.append(item)
@@ -120,7 +122,7 @@ class AlbumsPanel(Gtk.Box):
         if not CacheManager.ready():
             return
 
-        def get_genres_done(f):
+        def get_genres_done(f: CacheManager.Result):
             try:
                 new_store = [
                     (genre.value, genre.value) for genre in (f.result() or [])
@@ -150,7 +152,7 @@ class AlbumsPanel(Gtk.Box):
         self.populate_genre_combo(state, force=force)
 
         # Show/hide the combo boxes.
-        def show_if(sort_type, *elements):
+        def show_if(sort_type: str, *elements):
             for element in elements:
                 if state.current_album_sort == sort_type:
                     element.show()
@@ -175,15 +177,16 @@ class AlbumsPanel(Gtk.Box):
             selected_id=state.selected_album_id,
         )
 
-    def get_id(self, combo):
+    def get_id(self, combo: Gtk.ComboBox) -> Optional[int]:
         tree_iter = combo.get_active_iter()
         if tree_iter is not None:
             return combo.get_model()[tree_iter][0]
+        return None
 
-    def on_refresh_clicked(self, button):
+    def on_refresh_clicked(self, button: Any):
         self.emit('refresh-window', {}, True)
 
-    def on_type_combo_changed(self, combo):
+    def on_type_combo_changed(self, combo: Gtk.ComboBox):
         new_active_sort = self.get_id(combo)
         self.grid.update_params(type_=new_active_sort)
         self.emit_if_not_updating(
@@ -195,7 +198,7 @@ class AlbumsPanel(Gtk.Box):
             False,
         )
 
-    def on_alphabetical_type_change(self, combo):
+    def on_alphabetical_type_change(self, combo: Gtk.ComboBox):
         new_active_alphabetical_sort = self.get_id(combo)
         self.grid.update_params(alphabetical_type=new_active_alphabetical_sort)
         self.emit_if_not_updating(
@@ -208,7 +211,7 @@ class AlbumsPanel(Gtk.Box):
             False,
         )
 
-    def on_genre_change(self, combo):
+    def on_genre_change(self, combo: Gtk.ComboBox):
         new_active_genre = self.get_id(combo)
         self.grid.update_params(genre=new_active_genre)
         self.emit_if_not_updating(
@@ -220,7 +223,7 @@ class AlbumsPanel(Gtk.Box):
             True,
         )
 
-    def on_year_changed(self, entry):
+    def on_year_changed(self, entry: Gtk.Entry):
         try:
             year = int(entry.get_text())
         except Exception:
@@ -250,7 +253,7 @@ class AlbumsPanel(Gtk.Box):
                 True,
             )
 
-    def on_grid_cover_clicked(self, grid, id):
+    def on_grid_cover_clicked(self, grid: Any, id: str):
         self.emit(
             'refresh-window',
             {'selected_album_id': id},
@@ -261,19 +264,6 @@ class AlbumsPanel(Gtk.Box):
         if self.updating_query:
             return
         self.emit(*args)
-
-
-class AlbumModel(GObject.Object):
-    def __init__(self, album: Album):
-        self.album: Album = album
-        super().__init__()
-
-    @property
-    def id(self):
-        return self.album.id
-
-    def __repr__(self):
-        return f'<AlbumModel {self.album}>'
 
 
 class AlbumsGrid(Gtk.Overlay):
@@ -302,6 +292,18 @@ class AlbumsGrid(Gtk.Overlay):
     current_min_size_request = 30
     overshoot_update_in_progress = False
     server_hash = None
+
+    class AlbumModel(GObject.Object):
+        def __init__(self, album: Album):
+            self.album: Album = album
+            super().__init__()
+
+        @property
+        def id(self) -> str:
+            return self.album.id
+
+        def __repr__(self) -> str:
+            return f'<AlbumsGrid.AlbumModel {self.album}>'
 
     def update_params(
         self,
@@ -408,12 +410,12 @@ class AlbumsGrid(Gtk.Overlay):
 
     error_dialog = None
 
-    def update_grid(self, force=False, selected_id=None):
+    def update_grid(self, force: bool = False, selected_id: str = None):
         if not CacheManager.ready():
             self.spinner.hide()
             return
 
-        def reflow_grid(force_reload, selected_index):
+        def reflow_grid(force_reload: bool, selected_index: Optional[int]):
             selection_changed = (selected_index != self.current_selection)
             self.current_selection = selected_index
             self.reflow_grids(
@@ -434,7 +436,7 @@ class AlbumsGrid(Gtk.Overlay):
         require_reflow = self.parameters_changed
         self.parameters_changed = False
 
-        def do_update(f):
+        def do_update(f: CacheManager.Result):
             try:
                 albums = f.result()
             except Exception as e:
@@ -461,7 +463,7 @@ class AlbumsGrid(Gtk.Overlay):
 
             selected_index = None
             for i, album in enumerate(albums):
-                model = AlbumModel(album)
+                model = AlbumsGrid.AlbumModel(album)
 
                 if model.id == selected_id:
                     selected_index = i
@@ -485,7 +487,7 @@ class AlbumsGrid(Gtk.Overlay):
 
     # Event Handlers
     # =========================================================================
-    def on_child_activated(self, flowbox, child):
+    def on_child_activated(self, flowbox: Gtk.FlowBox, child: Gtk.Widget):
         click_top = flowbox == self.grid_top
         selected_index = (
             child.get_index() + (0 if click_top else len(self.list_store_top)))
@@ -495,7 +497,7 @@ class AlbumsGrid(Gtk.Overlay):
         else:
             self.emit('cover-clicked', self.list_store[selected_index].id)
 
-    def on_grid_resize(self, flowbox, rect):
+    def on_grid_resize(self, flowbox: Gtk.FlowBox, rect: Gdk.Rectangle):
         # TODO (#124): this doesn't work with themes that add extra padding.
         # 200     + (10      * 2) + (5      * 2) = 230
         # picture + (padding * 2) + (margin * 2)
@@ -511,7 +513,7 @@ class AlbumsGrid(Gtk.Overlay):
 
     # Helper Methods
     # =========================================================================
-    def create_widget(self, item):
+    def create_widget(self, item: 'AlbumsGrid.AlbumModel') -> Gtk.Box:
         widget_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Cover art image
@@ -523,7 +525,7 @@ class AlbumsGrid(Gtk.Overlay):
         )
         widget_box.pack_start(artwork, False, False, 0)
 
-        def make_label(text, name):
+        def make_label(text: str, name: str) -> Gtk.Label:
             return Gtk.Label(
                 name=name,
                 label=text,
@@ -535,7 +537,8 @@ class AlbumsGrid(Gtk.Overlay):
 
         # Header for the widget
         header_text = (
-            item.album.title if type(item.album) == Child else item.album.name)
+            item.album.title
+            if isinstance(item.album, Child) else item.album.name)
 
         header_label = make_label(header_text, 'grid-header-label')
         widget_box.pack_start(header_label, False, False, 0)
@@ -547,7 +550,7 @@ class AlbumsGrid(Gtk.Overlay):
             widget_box.pack_start(info_label, False, False, 0)
 
         # Download the cover art.
-        def on_artwork_downloaded(f):
+        def on_artwork_downloaded(f: CacheManager.Result):
             artwork.set_from_file(f.result())
             artwork.set_loading(False)
 
@@ -566,8 +569,8 @@ class AlbumsGrid(Gtk.Overlay):
 
     def reflow_grids(
         self,
-        force_reload_from_master=False,
-        selection_changed=False,
+        force_reload_from_master: bool = False,
+        selection_changed: bool = False,
     ):
         # Determine where the cuttoff is between the top and bottom grids.
         entries_before_fold = len(self.list_store)

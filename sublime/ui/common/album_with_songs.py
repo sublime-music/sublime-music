@@ -1,22 +1,16 @@
-from typing import Union
 from random import randint
+from typing import Any, Optional, Union
 
 import gi
-
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GObject, Pango, GLib
+from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
-from sublime.state_manager import ApplicationState
 from sublime.cache_manager import CacheManager
+from sublime.server.api_objects import AlbumWithSongsID3, Child, Directory
+from sublime.state_manager import ApplicationState
 from sublime.ui import util
-from .icon_button import IconButton
-from .spinner_image import SpinnerImage
-
-from sublime.server.api_objects import (
-    AlbumWithSongsID3,
-    Child,
-    Directory,
-)
+from sublime.ui.common.icon_button import IconButton
+from sublime.ui.common.spinner_image import SpinnerImage
 
 
 class AlbumWithSongs(Gtk.Box):
@@ -33,7 +27,12 @@ class AlbumWithSongs(Gtk.Box):
         ),
     }
 
-    def __init__(self, album, cover_art_size=200, show_artist_name=True):
+    def __init__(
+        self,
+        album: AlbumWithSongsID3,
+        cover_art_size: int = 200,
+        show_artist_name: bool = True,
+    ):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
         self.album = album
 
@@ -51,7 +50,7 @@ class AlbumWithSongs(Gtk.Box):
         box.pack_start(Gtk.Box(), True, True, 0)
         self.pack_start(box, False, False, 0)
 
-        def cover_art_future_done(f):
+        def cover_art_future_done(f: CacheManager.Result):
             artist_artwork.set_from_file(f.result())
             artist_artwork.set_loading(False)
 
@@ -125,7 +124,13 @@ class AlbumWithSongs(Gtk.Box):
             str,  # song ID
         )
 
-        def create_column(header, text_idx, bold=False, align=0, width=None):
+        def create_column(
+                header: str,
+                text_idx: int,
+                bold: bool = False,
+                align: int = 0,
+                width: Optional[int] = None,
+        ) -> Gtk.TreeViewColumn:
             renderer = Gtk.CellRendererText(
                 xalign=align,
                 weight=Pango.Weight.BOLD if bold else Pango.Weight.NORMAL,
@@ -177,11 +182,11 @@ class AlbumWithSongs(Gtk.Box):
 
     # Event Handlers
     # =========================================================================
-    def on_song_selection_change(self, event):
+    def on_song_selection_change(self, event: Any):
         if not self.album_songs.has_focus():
             self.emit('song-selected')
 
-    def on_song_activated(self, treeview, idx, column):
+    def on_song_activated(self, treeview: Any, idx: Gtk.TreePath, column: Any):
         # The song ID is in the last column of the model.
         self.emit(
             'song-clicked',
@@ -190,7 +195,7 @@ class AlbumWithSongs(Gtk.Box):
             {},
         )
 
-    def on_song_button_press(self, tree, event):
+    def on_song_button_press(self, tree: Any, event: Gdk.EventButton) -> bool:
         if event.button == 3:  # Right click
             clicked_path = tree.get_path_at_pos(event.x, event.y)
             if not clicked_path:
@@ -199,7 +204,7 @@ class AlbumWithSongs(Gtk.Box):
             store, paths = tree.get_selection().get_selected_rows()
             allow_deselect = False
 
-            def on_download_state_change(song_id=None):
+            def on_download_state_change(song_id: Any = None):
                 self.update_album_songs(self.album.id)
 
             # Use the new selection instead of the old one for calculating what
@@ -228,14 +233,16 @@ class AlbumWithSongs(Gtk.Box):
             if not allow_deselect:
                 return True
 
-    def on_download_all_click(self, btn):
+        return False
+
+    def on_download_all_click(self, btn: Any):
         CacheManager.batch_download_songs(
             [x[-1] for x in self.album_song_store],
             before_download=self.update,
             on_song_download_complete=lambda x: self.update(),
         )
 
-    def play_btn_clicked(self, btn):
+    def play_btn_clicked(self, btn: Any):
         song_ids = [x[-1] for x in self.album_song_store]
         self.emit(
             'song-clicked',
@@ -244,7 +251,7 @@ class AlbumWithSongs(Gtk.Box):
             {'force_shuffle_state': False},
         )
 
-    def shuffle_btn_clicked(self, btn):
+    def shuffle_btn_clicked(self, btn: Any):
         song_ids = [x[-1] for x in self.album_song_store]
         self.emit(
             'song-clicked',
@@ -259,10 +266,10 @@ class AlbumWithSongs(Gtk.Box):
     def deselect_all(self):
         self.album_songs.get_selection().unselect_all()
 
-    def update(self, force=False):
+    def update(self, force: bool = False):
         self.update_album_songs(self.album.id)
 
-    def set_loading(self, loading):
+    def set_loading(self, loading: bool):
         if loading:
             self.loading_indicator.start()
             self.loading_indicator.show()
@@ -279,8 +286,8 @@ class AlbumWithSongs(Gtk.Box):
         self,
         album: Union[AlbumWithSongsID3, Child, Directory],
         state: ApplicationState,
-        force=False,
-        order_token=None,
+        force: bool = False,
+        order_token: Optional[int] = None,
     ):
         new_store = [
             [

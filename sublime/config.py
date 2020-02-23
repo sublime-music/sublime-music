@@ -1,8 +1,8 @@
-import os
 import logging
-import keyring
+import os
+from typing import Any, Dict, List, Optional
 
-from typing import List, Optional
+import keyring
 
 
 class ServerConfiguration:
@@ -17,14 +17,14 @@ class ServerConfiguration:
 
     def __init__(
         self,
-        name='Default',
-        server_address='http://yourhost',
-        local_network_address='',
-        local_network_ssid='',
-        username='',
-        password='',
-        sync_enabled=True,
-        disable_cert_verify=False,
+        name: str = 'Default',
+        server_address: str = 'http://yourhost',
+        local_network_address: str = '',
+        local_network_ssid: str = '',
+        username: str = '',
+        password: str = '',
+        sync_enabled: bool = True,
+        disable_cert_verify: bool = False,
     ):
         self.name = name
         self.server_address = server_address
@@ -43,7 +43,7 @@ class ServerConfiguration:
         pass
 
     @property
-    def password(self):
+    def password(self) -> str:
         return keyring.get_password(
             'com.sumnerevans.SublimeMusic',
             f'{self.username}@{self.server_address}',
@@ -64,7 +64,7 @@ class AppConfiguration:
     version: int = 2
     serve_over_lan: bool = True
 
-    def to_json(self):
+    def to_json(self) -> Dict[str, Any]:
         exclude = ('servers')
         json_object = {
             k: getattr(self, k)
@@ -88,7 +88,7 @@ class AppConfiguration:
         self.version = 2
 
     @property
-    def cache_location(self):
+    def cache_location(self) -> str:
         if (hasattr(self, '_cache_location')
                 and self._cache_location is not None
                 and self._cache_location != ''):

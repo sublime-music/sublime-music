@@ -1,14 +1,14 @@
 #! /usr/bin/env python3
-import os
 import argparse
 import logging
+import os
 
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk  # noqa: F401
 
 import sublime
-from .app import SublimeMusicApp
+from sublime.app import SublimeMusicApp
 
 
 def main():
@@ -39,7 +39,7 @@ def main():
 
     args, unknown_args = parser.parse_known_args()
     if args.version:
-        print(f'Sublime Music v{sublime.__version__}')  # allowprint
+        print(f'Sublime Music v{sublime.__version__}')  # noqa: T001
         return
 
     min_log_level = getattr(logging, args.loglevel.upper(), None)

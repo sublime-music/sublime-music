@@ -1,57 +1,50 @@
-import os
-import logging
 import glob
-import itertools
-import threading
-import shutil
-import json
 import hashlib
-
-from functools import lru_cache
+import itertools
+import json
+import logging
+import os
+import shutil
+import threading
 from collections import defaultdict
-from time import sleep
-
-from concurrent.futures import ThreadPoolExecutor, Future
-from enum import EnumMeta, Enum
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime
+from enum import Enum, EnumMeta
+from functools import lru_cache
 from pathlib import Path
+from time import sleep
 from typing import (
     Any,
+    Callable,
+    DefaultDict,
     Generic,
     Iterable,
     List,
     Optional,
-    Union,
-    Callable,
     Set,
-    DefaultDict,
     Tuple,
     TypeVar,
+    Union,
 )
 
 import requests
-
 from fuzzywuzzy import fuzz
 
 from .config import AppConfiguration, ServerConfiguration
 from .server import Server
 from .server.api_object import APIObject
 from .server.api_objects import (
-    Playlist,
-    PlaylistWithSongs,
-    Child,
-    Genre,
-
-    # Non-ID3 versions
+    AlbumID3,
+    AlbumWithSongsID3,
     Artist,
-    Directory,
-
-    # ID3 versions
     ArtistID3,
     ArtistInfo2,
     ArtistWithAlbumsID3,
-    AlbumID3,
-    AlbumWithSongsID3,
+    Child,
+    Directory,
+    Genre,
+    Playlist,
+    PlaylistWithSongs,
 )
 
 
@@ -60,7 +53,7 @@ class Singleton(type):
     Metaclass for :class:`CacheManager` so that it can be used like a
     singleton.
     """
-    def __getattr__(cls, name):
+    def __getattr__(cls, name: str) -> Any:
         if not CacheManager._instance:
             return None
         # If the cache has a function to do the thing we want, use it. If
@@ -82,7 +75,7 @@ class SongCacheStatus(Enum):
 
 
 @lru_cache(maxsize=8192)
-def similarity_ratio(query: str, string: str):
+def similarity_ratio(query: str, string: str) -> int:
     """
     Return the :class:`fuzzywuzzy.fuzz.partial_ratio` between the ``query`` and
     the given ``string``.
@@ -96,17 +89,20 @@ def similarity_ratio(query: str, string: str):
     return fuzz.partial_ratio(query.lower(), string.lower())
 
 
+S = TypeVar('S')
+
+
 class SearchResult:
     """
     An object representing the aggregate results of a search which can include
     both server and local results.
     """
-    _artist: Set[Union[Artist, ArtistID3]] = set()
-    _album: Set[Union[Child, AlbumID3]] = set()
+    _artist: Set[ArtistID3] = set()
+    _album: Set[AlbumID3] = set()
     _song: Set[Child] = set()
     _playlist: Set[Playlist] = set()
 
-    def __init__(self, query):
+    def __init__(self, query: str):
         self.query = query
 
     def add_results(self, result_type: str, results: Iterable):
@@ -124,13 +120,17 @@ class SearchResult:
             getattr(getattr(self, member, set()), 'union')(set(results)),
         )
 
-    def _to_result(self, it, transform):
+    def _to_result(
+            self,
+            it: Iterable[S],
+            transform: Callable[[S], str],
+    ) -> List[S]:
         all_results = sorted(
             ((similarity_ratio(self.query, transform(x)), x) for x in it),
             key=lambda rx: rx[0],
             reverse=True,
         )
-        result = []
+        result: List[S] = []
         for ratio, x in all_results:
             if ratio > 60 and len(result) < 20:
                 result.append(x)
@@ -181,9 +181,9 @@ class CacheManager(metaclass=Singleton):
         around a Future, but it can also resolve immediately if the data
         already exists.
         """
-        data = None
-        future = None
-        on_cancel = None
+        data: Optional[T] = None
+        future: Optional[Future] = None
+        on_cancel: Optional[Callable[[], None]] = None
 
         @staticmethod
         def from_data(data: T) -> 'CacheManager.Result[T]':
@@ -193,10 +193,10 @@ class CacheManager(metaclass=Singleton):
 
         @staticmethod
         def from_server(
-                download_fn,
-                before_download=None,
-                after_download=None,
-                on_cancel=None,
+            download_fn: Callable[[], T],
+            before_download: Callable[[], Any] = None,
+            after_download: Callable[[T], Any] = None,
+            on_cancel: Callable[[], Any] = None,
         ) -> 'CacheManager.Result[T]':
             result: 'CacheManager.Result[T]' = CacheManager.Result()
 
@@ -208,9 +208,9 @@ class CacheManager(metaclass=Singleton):
             result.future = CacheManager.executor.submit(future_fn)
             result.on_cancel = on_cancel
 
-            if after_download:
+            if after_download is not None:
                 result.future.add_done_callback(
-                    lambda f: after_download(f.result()))
+                    lambda f: after_download and after_download(f.result()))
 
             return result
 
@@ -224,8 +224,8 @@ class CacheManager(metaclass=Singleton):
                 'CacheManager.Result did not have either a data or future '
                 'member.')
 
-        def add_done_callback(self, fn, *args):
-            if self.is_future:
+        def add_done_callback(self, fn: Callable, *args):
+            if self.future is not None:
                 self.future.add_done_callback(fn, *args)
             else:
                 # Run the function immediately if it's not a future.
@@ -668,7 +668,7 @@ class CacheManager(metaclass=Singleton):
                 return CacheManager.Result.from_data(
                     self.cache[cache_name][artist_id])
 
-            def after_download(artist_info):
+            def after_download(artist_info: Optional[ArtistInfo2]):
                 if not artist_info:
                     return
 
@@ -677,7 +677,8 @@ class CacheManager(metaclass=Singleton):
                 self.save_cache_info()
 
             return CacheManager.Result.from_server(
-                lambda: self.server.get_artist_info2(id=artist_id),
+                lambda:
+                (self.server.get_artist_info2(id=artist_id) or ArtistInfo2()),
                 before_download=before_download,
                 after_download=after_download,
             )
@@ -881,9 +882,8 @@ class CacheManager(metaclass=Singleton):
         ) -> 'CacheManager.Result[Optional[str]]':
             if id is None:
                 art_path = 'ui/images/default-album-art.png'
-                return CacheManager.Result.from_data(str(
-                    Path(__file__).parent.joinpath(art_path)
-                ))
+                return CacheManager.Result.from_data(
+                    str(Path(__file__).parent.joinpath(art_path)))
             return self.return_cached_or_download(
                 f'cover_art/{id}_{size}',
                 lambda: self.server.get_cover_art(id, str(size)),
@@ -971,10 +971,10 @@ class CacheManager(metaclass=Singleton):
             query,
             search_callback: Callable[[SearchResult, bool], None],
             before_download: Callable[[], None] = lambda: None,
-        ):
+        ) -> 'CacheManager.Result':
             if query == '':
                 search_callback(SearchResult(''), True)
-                return
+                return CacheManager.from_data(None)
 
             before_download()
 
@@ -1033,9 +1033,7 @@ class CacheManager(metaclass=Singleton):
                 cancelled = True
 
             return CacheManager.Result.from_server(
-                do_search,
-                on_cancel=on_cancel,
-            )
+                do_search, on_cancel=on_cancel)
 
         def get_cached_status(self, song: Child) -> SongCacheStatus:
             cache_path = self.calculate_abs_path(song.path)
@@ -1055,7 +1053,11 @@ class CacheManager(metaclass=Singleton):
         raise Exception('Do not instantiate the CacheManager.')
 
     @staticmethod
-    def reset(app_config, server_config, current_ssids: Set[str]):
+    def reset(
+        app_config: AppConfiguration,
+        server_config: ServerConfiguration,
+        current_ssids: Set[str],
+    ):
         CacheManager._instance = CacheManager.__CacheManagerInternal(
             app_config,
             server_config,

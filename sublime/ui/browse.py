@@ -1,16 +1,14 @@
 from typing import List, Tuple, Union
 
 import gi
-
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GObject, Pango, GLib, Gio
+from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
-from sublime.state_manager import ApplicationState
 from sublime.cache_manager import CacheManager
+from sublime.server.api_objects import Artist, Child
+from sublime.state_manager import ApplicationState
 from sublime.ui import util
 from sublime.ui.common import IconButton
-
-from sublime.server.api_objects import Child, Artist
 
 
 class BrowsePanel(Gtk.Overlay):

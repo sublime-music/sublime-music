@@ -1,14 +1,16 @@
 #! /usr/bin/env python3
 """
+Autogenerates Python classes for Subsonic API objects.
+
 This program constructs a dependency graph of all of the entities defined by a
 Subsonic REST API XSD file. It then uses that graph to generate code which
 represents those API objects in Python.
 """
 
 import re
-from collections import defaultdict
-from typing import cast, Dict, DefaultDict, Set, Match, Tuple, List
 import sys
+from collections import defaultdict
+from typing import DefaultDict, Dict, List, Set, Tuple
 
 from graphviz import Digraph
 from lxml import etree
@@ -25,12 +27,13 @@ primitive_translation_map = {
 }
 
 
-def render_digraph(graph, filename):
+def render_digraph(graph: DefaultDict[str, Set[str]], filename: str):
     """
-    Renders a graph of form {'node_name': iterable(node_name)} to ``filename``.
+    Render a graph of the form {'node_name': iterable(node_name)} to
+    ``filename``.
     """
     g = Digraph('G', filename=f'/tmp/{filename}', format='png')
-    for type_, deps in dependency_graph.items():
+    for type_, deps in graph.items():
         g.node(type_)
 
         for dep in deps:
@@ -39,21 +42,27 @@ def render_digraph(graph, filename):
     g.render()
 
 
-def primitive_translate(type_str):
+def primitive_translate(type_str: str) -> str:
     # Translate the primitive values, but default to the actual value.
     return primitive_translation_map.get(type_str, type_str)
 
 
-def extract_type(type_str):
-    return primitive_translate(
-        cast(Match, element_type_re.match(type_str)).group(1))
+def extract_type(type_str: str) -> str:
+    match = element_type_re.match(type_str)
+    if not match:
+        raise Exception(f'Could not extract type from string "{type_str}"')
+    return primitive_translate(match.group(1))
 
 
-def extract_tag_type(tag_type_str):
-    return cast(Match, tag_type_re.match(tag_type_str)).group(1)
+def extract_tag_type(tag_type_str: str) -> str:
+    match = tag_type_re.match(tag_type_str)
+    if not match:
+        raise Exception(
+            f'Could not extract tag type from string "{tag_type_str}"')
+    return match.group(1)
 
 
-def get_dependencies(xs_el) -> Tuple[Set[str], Dict[str, str]]:
+def get_dependencies(xs_el: etree._Element) -> Tuple[Set[str], Dict[str, str]]:
     """
     Return the types which ``xs_el`` depends on as well as the type of the
     object for embedding in other objects.
@@ -162,7 +171,7 @@ def get_dependencies(xs_el) -> Tuple[Set[str], Dict[str, str]]:
 # Check arguments.
 # =============================================================================
 if len(sys.argv) < 3:
-    print(f'Usage: {sys.argv[0]} <schema_file> <output_file>.')
+    print(f'Usage: {sys.argv[0]} <schema_file> <output_file>.')  # noqa: T001
     sys.exit(1)
 
 schema_file, output_file = sys.argv[1:]
@@ -201,7 +210,7 @@ seen: Set[str] = set()
 i = 0
 
 
-def dfs(g, el):
+def dfs(g: DefaultDict[str, Set[str]], el: str):
     global i
     if el in seen:
         return
@@ -224,7 +233,7 @@ output_order.remove('subsonic-response')
 # =============================================================================
 
 
-def generate_class_for_type(type_name):
+def generate_class_for_type(type_name: str) -> str:
     fields = type_fields[type_name]
 
     code = ['', '']
@@ -262,12 +271,12 @@ def generate_class_for_type(type_name):
     # Auto-generated __eq__ and  __hash__ functions if there's an ID field.
     if not is_enum and has_properties and 'id' in fields:
         code.append('')
-        code.append(indent_str.format('def __eq__(self, other):'))
+        code.append(indent_str.format('def __eq__(self, other: Any) -> bool:'))
         code.append(indent_str.format('    return hash(self) == hash(other)'))
 
         hash_name = inherits or type_name
         code.append('')
-        code.append(indent_str.format('def __hash__(self):'))
+        code.append(indent_str.format('def __hash__(self) -> int:'))
         code.append(
             indent_str.format(f"    return hash(f'{hash_name}.{{self.id}}')"))
 
@@ -286,8 +295,9 @@ with open(output_file, 'w+') as outfile:
                 '"""',
                 '',
                 'from datetime import datetime',
-                'from typing import List',
                 'from enum import Enum',
+                'from typing import Any, List',
+                '',
                 'from sublime.server.api_object import APIObject',
                 *map(generate_class_for_type, output_order),
             ]) + '\n')

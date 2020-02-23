@@ -5,10 +5,9 @@ import mimetypes
 import os
 import socket
 import threading
-
-from concurrent.futures import ThreadPoolExecutor, Future
+from concurrent.futures import Future, ThreadPoolExecutor
 from time import sleep
-from typing import Callable, List, Any, Optional
+from typing import Any, Callable, List, Optional
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -16,8 +15,8 @@ import bottle
 import mpv
 import pychromecast
 
-from sublime.config import AppConfiguration
 from sublime.cache_manager import CacheManager
+from sublime.config import AppConfiguration
 from sublime.server.api_objects import Child
 
 
@@ -31,9 +30,11 @@ class PlayerEvent:
 
 
 class Player:
+    _can_hotswap_source: bool
+
     def __init__(
         self,
-        on_timepos_change: Callable[[float], None],
+        on_timepos_change: Callable[[Optional[float]], None],
         on_track_end: Callable[[], None],
         on_player_event: Callable[[PlayerEvent], None],
         config: AppConfiguration,
@@ -45,38 +46,38 @@ class Player:
         self._song_loaded = False
 
     @property
-    def playing(self):
+    def playing(self) -> bool:
         return self._is_playing()
 
     @property
-    def song_loaded(self):
+    def song_loaded(self) -> bool:
         return self._song_loaded
 
     @property
-    def can_hotswap_source(self):
+    def can_hotswap_source(self) -> bool:
         return self._can_hotswap_source
 
     @property
-    def volume(self):
+    def volume(self) -> float:
         return self._get_volume()
 
     @volume.setter
-    def volume(self, value):
-        return self._set_volume(value)
+    def volume(self, value: float):
+        self._set_volume(value)
 
     @property
-    def is_muted(self):
+    def is_muted(self) -> bool:
         return self._get_is_muted()
 
     @is_muted.setter
-    def is_muted(self, value):
-        return self._set_is_muted(value)
+    def is_muted(self, value: bool):
+        self._set_is_muted(value)
 
     def reset(self):
         raise NotImplementedError(
             'reset must be implemented by implementor of Player')
 
-    def play_media(self, file_or_url, progress, song):
+    def play_media(self, file_or_url: str, progress: float, song: Child):
         raise NotImplementedError(
             'play_media must be implemented by implementor of Player')
 
@@ -92,7 +93,7 @@ class Player:
         raise NotImplementedError(
             'toggle_play must be implemented by implementor of Player')
 
-    def seek(self, value):
+    def seek(self, value: float):
         raise NotImplementedError(
             'seek must be implemented by implementor of Player')
 
@@ -104,7 +105,7 @@ class Player:
         raise NotImplementedError(
             '_get_volume must be implemented by implementor of Player')
 
-    def _set_volume(self, value):
+    def _set_volume(self, value: float):
         raise NotImplementedError(
             '_set_volume must be implemented by implementor of Player')
 
@@ -112,7 +113,7 @@ class Player:
         raise NotImplementedError(
             '_get_is_muted must be implemented by implementor of Player')
 
-    def _set_is_muted(self, value):
+    def _set_is_muted(self, value: bool):
         raise NotImplementedError(
             '_set_is_muted must be implemented by implementor of Player')
 
@@ -134,7 +135,7 @@ class MPVPlayer(Player):
         self._can_hotswap_source = True
 
         @self.mpv.property_observer('time-pos')
-        def time_observer(_name, value):
+        def time_observer(_: Any, value: Optional[float]):
             self.on_timepos_change(value)
             if value is None and self.progress_value_count > 1:
                 self.on_track_end()
@@ -145,7 +146,7 @@ class MPVPlayer(Player):
                 with self.progress_value_lock:
                     self.progress_value_count += 1
 
-    def _is_playing(self):
+    def _is_playing(self) -> bool:
         return not self.mpv.pause
 
     def reset(self):
@@ -153,7 +154,7 @@ class MPVPlayer(Player):
         with self.progress_value_lock:
             self.progress_value_count = 0
 
-    def play_media(self, file_or_url, progress, song):
+    def play_media(self, file_or_url: str, progress: float, song: Child):
         self.had_progress_value = False
         with self.progress_value_lock:
             self.progress_value_count = 0
@@ -173,20 +174,20 @@ class MPVPlayer(Player):
     def toggle_play(self):
         self.mpv.cycle('pause')
 
-    def seek(self, value):
+    def seek(self, value: float):
         self.mpv.seek(str(value), 'absolute')
 
-    def _set_volume(self, value):
+    def _get_volume(self) -> float:
+        return self._volume
+
+    def _set_volume(self, value: float):
         self._volume = value
         self.mpv.volume = self._volume
 
-    def _get_volume(self):
-        return self._volume
-
-    def _get_is_muted(self):
+    def _get_is_muted(self) -> bool:
         return self._muted
 
-    def _set_is_muted(self, value):
+    def _set_is_muted(self, value: bool):
         self._muted = value
         self.mpv.volume = 0 if value else self._volume
 
@@ -202,14 +203,14 @@ class ChromecastPlayer(Player):
     class CastStatusListener:
         on_new_cast_status: Optional[Callable] = None
 
-        def new_cast_status(self, status):
+        def new_cast_status(self, status: Any):
             if self.on_new_cast_status:
                 self.on_new_cast_status(status)
 
     class MediaStatusListener:
         on_new_media_status: Optional[Callable] = None
 
-        def new_media_status(self, status):
+        def new_media_status(self, status: Any):
             if self.on_new_media_status:
                 self.on_new_media_status(status)
 
@@ -217,18 +218,18 @@ class ChromecastPlayer(Player):
     media_status_listener = MediaStatusListener()
 
     class ServerThread(threading.Thread):
-        def __init__(self, host, port):
+        def __init__(self, host: str, port: int):
             super().__init__()
             self.daemon = True
             self.host = host
             self.port = port
-            self.token = None
-            self.song_id = None
+            self.token: Optional[str] = None
+            self.song_id: Optional[str] = None
 
             self.app = bottle.Bottle()
 
             @self.app.route('/')
-            def index():
+            def index() -> str:
                 return '''
                 <h1>Sublime Music Local Music Server</h1>
                 <p>
@@ -238,7 +239,7 @@ class ChromecastPlayer(Player):
                 '''
 
             @self.app.route('/s/<token>')
-            def stream_song(token):
+            def stream_song(token: str) -> bytes:
                 if token != self.token:
                     raise bottle.HTTPError(status=401, body='Invalid token.')
 
@@ -254,7 +255,7 @@ class ChromecastPlayer(Player):
                 bottle.response.set_header('Accept-Ranges', 'bytes')
                 return song_buffer.read()
 
-        def set_song_and_token(self, song_id, token):
+        def set_song_and_token(self, song_id: str, token: str):
             self.song_id = song_id
             self.token = token
 
@@ -265,7 +266,7 @@ class ChromecastPlayer(Player):
 
     @classmethod
     def get_chromecasts(cls) -> Future:
-        def do_get_chromecasts():
+        def do_get_chromecasts() -> List[pychromecast.Chromecast]:
             if not ChromecastPlayer.getting_chromecasts:
                 logging.info('Getting Chromecasts')
                 ChromecastPlayer.getting_chromecasts = True
@@ -280,7 +281,7 @@ class ChromecastPlayer(Player):
 
         return ChromecastPlayer.executor.submit(do_get_chromecasts)
 
-    def set_playing_chromecast(self, uuid):
+    def set_playing_chromecast(self, uuid: str):
         self.chromecast = next(
             cc for cc in ChromecastPlayer.chromecasts
             if cc.device.uuid == UUID(uuid))
@@ -294,7 +295,7 @@ class ChromecastPlayer(Player):
 
     def __init__(
         self,
-        on_timepos_change: Callable[[float], None],
+        on_timepos_change: Callable[[Optional[float]], None],
         on_track_end: Callable[[], None],
         on_player_event: Callable[[PlayerEvent], None],
         config: AppConfiguration,
@@ -335,7 +336,10 @@ class ChromecastPlayer(Player):
                 '0.0.0.0', self.port)
             self.server_thread.start()
 
-    def on_new_cast_status(self, status):
+    def on_new_cast_status(
+        self,
+        status: pychromecast.socket_client.CastStatus,
+    ):
         self.on_player_event(
             PlayerEvent(
                 'volume_change',
@@ -348,7 +352,10 @@ class ChromecastPlayer(Player):
             self.on_player_event(PlayerEvent('play_state_change', False))
             self._song_loaded = False
 
-    def on_new_media_status(self, status):
+    def on_new_media_status(
+        self,
+        status: pychromecast.controllers.media.MediaStatus,
+    ):
         # Detect the end of a track and go to the next one.
         if (status.idle_reason == 'FINISHED' and status.player_state == 'IDLE'
                 and self._timepos > 0):
@@ -382,7 +389,7 @@ class ChromecastPlayer(Player):
     def start_time_incrementor(self):
         ChromecastPlayer.executor.submit(self.time_incrementor)
 
-    def wait_for_playing(self, callback, url=None):
+    def wait_for_playing(self, callback: Callable, url: str = None):
         def do_wait_for_playing():
             while True:
                 sleep(0.1)
@@ -397,7 +404,7 @@ class ChromecastPlayer(Player):
 
         ChromecastPlayer.executor.submit(do_wait_for_playing)
 
-    def _is_playing(self):
+    def _is_playing(self) -> bool:
         if not self.chromecast or not self.chromecast.media_controller:
             return False
         return self.chromecast.media_controller.status.player_is_playing
@@ -455,27 +462,27 @@ class ChromecastPlayer(Player):
             self.chromecast.media_controller.play()
             self.wait_for_playing(self.start_time_incrementor)
 
-    def seek(self, value):
+    def seek(self, value: float):
         do_pause = not self.playing
         self.chromecast.media_controller.seek(value)
         if do_pause:
             self.pause()
 
-    def _set_volume(self, value):
-        # Chromecast volume is in the range [0, 1], not [0, 100].
-        if self.chromecast:
-            self.chromecast.set_volume(value / 100)
-
-    def _get_volume(self, value):
+    def _get_volume(self) -> float:
         if self.chromecast:
             return self.chromecast.status.volume_level * 100
         else:
             return 100
 
-    def _get_is_muted(self):
+    def _set_volume(self, value: float):
+        # Chromecast volume is in the range [0, 1], not [0, 100].
+        if self.chromecast:
+            self.chromecast.set_volume(value / 100)
+
+    def _get_is_muted(self) -> bool:
         return self.chromecast.volume_muted
 
-    def _set_is_muted(self, value):
+    def _set_is_muted(self, value: bool):
         self.chromecast.set_volume_muted(value)
 
     def shutdown(self):

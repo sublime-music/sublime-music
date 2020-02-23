@@ -1,16 +1,18 @@
+from typing import Optional
+
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GdkPixbuf
+from gi.repository import GdkPixbuf, Gtk
 
 
 class SpinnerImage(Gtk.Overlay):
     def __init__(
-            self,
-            loading=True,
-            image_name=None,
-            spinner_name=None,
-            image_size=None,
-            **kwargs,
+        self,
+        loading: bool = True,
+        image_name: str = None,
+        spinner_name: str = None,
+        image_size: int = None,
+        **kwargs,
     ):
         Gtk.Overlay.__init__(self)
         self.image_size = image_size
@@ -26,7 +28,7 @@ class SpinnerImage(Gtk.Overlay):
         )
         self.add_overlay(self.spinner)
 
-    def set_from_file(self, filename):
+    def set_from_file(self, filename: Optional[str]):
         if filename == '':
             filename = None
         if self.image_size is not None and filename:
@@ -40,7 +42,7 @@ class SpinnerImage(Gtk.Overlay):
         else:
             self.image.set_from_file(filename)
 
-    def set_loading(self, loading_status):
+    def set_loading(self, loading_status: bool):
         if loading_status:
             self.spinner.start()
             self.spinner.show()

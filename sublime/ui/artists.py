@@ -1,22 +1,21 @@
-from typing import cast, List, Union
 from random import randint
+from typing import Any, cast, List, Optional, Union
 
 import gi
-
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GObject, Pango, GLib, Gio
+from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
-from sublime.state_manager import ApplicationState
 from sublime.cache_manager import CacheManager
-from sublime.ui import util
-from sublime.ui.common import AlbumWithSongs, IconButton, SpinnerImage
-
 from sublime.server.api_objects import (
     AlbumID3,
+    ArtistID3,
     ArtistInfo2,
     ArtistWithAlbumsID3,
     Child,
 )
+from sublime.state_manager import ApplicationState
+from sublime.ui import util
+from sublime.ui.common import AlbumWithSongs, IconButton, SpinnerImage
 
 
 class ArtistsPanel(Gtk.Paned):
@@ -48,23 +47,24 @@ class ArtistsPanel(Gtk.Paned):
         )
         self.pack2(self.artist_detail_panel, True, False)
 
-    def update(self, state: ApplicationState, force=False):
+    def update(self, state: ApplicationState, force: bool = False):
         self.artist_list.update(state=state)
         self.artist_detail_panel.update(state=state)
 
 
+class _ArtistModel(GObject.GObject):
+    artist_id = GObject.Property(type=str)
+    name = GObject.Property(type=str)
+    album_count = GObject.Property(type=int)
+
+    def __init__(self, artist_id: str, name: str, album_count: int):
+        GObject.GObject.__init__(self)
+        self.artist_id = artist_id
+        self.name = name
+        self.album_count = album_count
+
+
 class ArtistList(Gtk.Box):
-    class ArtistModel(GObject.GObject):
-        artist_id = GObject.Property(type=str)
-        name = GObject.Property(type=str)
-        album_count = GObject.Property(type=int)
-
-        def __init__(self, artist_id, name, album_count):
-            GObject.GObject.__init__(self)
-            self.artist_id = artist_id
-            self.name = name
-            self.album_count = album_count
-
     def __init__(self):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
 
@@ -85,7 +85,7 @@ class ArtistList(Gtk.Box):
 
         list_scroll_window = Gtk.ScrolledWindow(min_content_width=250)
 
-        def create_artist_row(model: ArtistList.ArtistModel):
+        def create_artist_row(model: _ArtistModel) -> Gtk.ListBoxRow:
             label_text = [f'<b>{util.esc(model.name)}</b>']
 
             album_count = model.album_count
@@ -122,7 +122,12 @@ class ArtistList(Gtk.Box):
         before_download=lambda self: self.loading_indicator.show_all(),
         on_failure=lambda self, e: self.loading_indicator.hide(),
     )
-    def update(self, artists, state: ApplicationState, **kwargs):
+    def update(
+        self,
+        artists: List[ArtistID3],
+        state: ApplicationState,
+        **kwargs,
+    ):
         new_store = []
         selected_idx = None
         for i, artist in enumerate(artists):
@@ -130,7 +135,7 @@ class ArtistList(Gtk.Box):
                 selected_idx = i
 
             new_store.append(
-                ArtistList.ArtistModel(
+                _ArtistModel(
                     artist.id,
                     artist.name,
                     artist.get('albumCount', ''),
@@ -299,8 +304,8 @@ class ArtistDetailPanel(Gtk.Box):
         self,
         artist: ArtistWithAlbumsID3,
         state: ApplicationState,
-        force=False,
-        order_token=None,
+        force: bool = False,
+        order_token: Optional[int] = None,
     ):
         if order_token != self.update_order_token:
             return
@@ -330,8 +335,8 @@ class ArtistDetailPanel(Gtk.Box):
         self,
         artist_info: ArtistInfo2,
         state: ApplicationState,
-        force=False,
-        order_token=None,
+        force: bool = False,
+        order_token: Optional[int] = None,
     ):
         if order_token != self.update_order_token:
             return
@@ -363,10 +368,10 @@ class ArtistDetailPanel(Gtk.Box):
     )
     def update_artist_artwork(
         self,
-        cover_art_filename,
+        cover_art_filename: str,
         state: ApplicationState,
-        force=False,
-        order_token=None,
+        force: bool = False,
+        order_token: Optional[int] = None,
     ):
         if order_token != self.update_order_token:
             return
@@ -383,9 +388,9 @@ class ArtistDetailPanel(Gtk.Box):
             order_token=self.update_order_token,
         )
 
-    def on_download_all_click(self, btn):
+    def on_download_all_click(self, btn: Any):
         CacheManager.batch_download_songs(
-            self.get_artist_songs(),
+            self.get_artist_song_ids(),
             before_download=lambda: self.update_artist_view(
                 self.artist_id,
                 order_token=self.update_order_token,
@@ -396,8 +401,8 @@ class ArtistDetailPanel(Gtk.Box):
             ),
         )
 
-    def on_play_all_clicked(self, btn):
-        songs = self.get_artist_songs()
+    def on_play_all_clicked(self, btn: Any):
+        songs = self.get_artist_song_ids()
         self.emit(
             'song-clicked',
             0,
@@ -405,8 +410,8 @@ class ArtistDetailPanel(Gtk.Box):
             {'force_shuffle_state': False},
         )
 
-    def on_shuffle_all_button(self, btn):
-        songs = self.get_artist_songs()
+    def on_shuffle_all_button(self, btn: Any):
+        songs = self.get_artist_song_ids()
         self.emit(
             'song-clicked',
             randint(0,
@@ -417,7 +422,7 @@ class ArtistDetailPanel(Gtk.Box):
 
     # Helper Methods
     # =========================================================================
-    def set_all_loading(self, loading_state):
+    def set_all_loading(self, loading_state: bool):
         if loading_state:
             self.albums_list.spinner.start()
             self.albums_list.spinner.show()
@@ -426,7 +431,12 @@ class ArtistDetailPanel(Gtk.Box):
             self.albums_list.spinner.hide()
             self.artist_artwork.set_loading(False)
 
-    def make_label(self, text=None, name=None, **params):
+    def make_label(
+            self,
+            text: str = None,
+            name: str = None,
+            **params,
+    ) -> Gtk.Label:
         return Gtk.Label(
             label=text,
             name=name,
@@ -435,34 +445,21 @@ class ArtistDetailPanel(Gtk.Box):
             **params,
         )
 
-    def format_stats(self, artist):
-        album_count = artist.get('albumCount', len(artist.get('child') or []))
-        components = [
+    def format_stats(self, artist: ArtistWithAlbumsID3) -> str:
+        album_count = artist.get('albumCount', 0)
+        song_count = sum(a.songCount for a in artist.album)
+        duration = sum(a.duration for a in artist.album)
+        return util.dot_join(
             '{} {}'.format(album_count, util.pluralize('album', album_count)),
-        ]
+            '{} {}'.format(song_count, util.pluralize('song', song_count)),
+            util.format_sequence_duration(duration),
+        )
 
-        if artist.get('album'):
-            song_count = sum(a.songCount for a in artist.album)
-            duration = sum(a.duration for a in artist.album)
-            components += [
-                '{} {}'.format(song_count, util.pluralize('song', song_count)),
-                util.format_sequence_duration(duration),
-            ]
-        elif artist.get('child'):
-            plays = sum(c.playCount for c in artist.child)
-            components += [
-                '{} {}'.format(plays, util.pluralize('play', plays)),
-            ]
-
-        return util.dot_join(*components)
-
-    def get_artist_songs(self):
+    def get_artist_song_ids(self) -> List[int]:
         songs = []
-        artist = CacheManager.get_artist(self.artist_id).result()
-        for album in artist.get('album', artist.get('child', [])):
+        for album in CacheManager.get_artist(self.artist_id).result().album:
             album_songs = CacheManager.get_album(album.id).result()
-            album_songs = album_songs.get('child', album_songs.get('song', []))
-            for song in album_songs:
+            for song in album_songs.get('song', []):
                 songs.append(song.id)
 
         return songs
@@ -494,7 +491,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
 
         self.albums = []
 
-    def update(self, artist):
+    def update(self, artist: ArtistWithAlbumsID3):
         def remove_all():
             for c in self.box.get_children():
                 self.box.remove(c)
@@ -528,7 +525,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
         self.spinner.stop()
         self.spinner.hide()
 
-    def on_song_selected(self, album_component):
+    def on_song_selected(self, album_component: AlbumWithSongs):
         for child in self.box.get_children():
             if album_component != child:
                 child.deselect_all()

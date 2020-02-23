@@ -6,8 +6,9 @@ script or run it on a new API version.
 """
 
 from datetime import datetime
-from typing import List
 from enum import Enum
+from typing import Any, List
+
 from sublime.server.api_object import APIObject
 
 
@@ -70,10 +71,10 @@ class Child(APIObject):
     originalWidth: int
     originalHeight: int
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'Child.{self.id}')
 
 
@@ -97,10 +98,10 @@ class AlbumID3(APIObject):
     year: int
     genre: str
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'AlbumID3.{self.id}')
 
 
@@ -125,10 +126,10 @@ class AlbumWithSongsID3(APIObject):
     year: int
     genre: str
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'AlbumID3.{self.id}')
 
 
@@ -141,10 +142,10 @@ class Artist(APIObject):
     userRating: UserRating
     averageRating: AverageRating
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'Artist.{self.id}')
 
 
@@ -178,10 +179,10 @@ class ArtistID3(APIObject):
     albumCount: int
     starred: datetime
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'ArtistID3.{self.id}')
 
 
@@ -206,10 +207,10 @@ class ArtistWithAlbumsID3(APIObject):
     albumCount: int
     starred: datetime
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'ArtistID3.{self.id}')
 
 
@@ -263,10 +264,10 @@ class Directory(APIObject):
     averageRating: AverageRating
     playCount: int
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'Directory.{self.id}')
 
 
@@ -309,10 +310,10 @@ class InternetRadioStation(APIObject):
     streamUrl: str
     homePageUrl: str
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'InternetRadioStation.{self.id}')
 
 
@@ -357,10 +358,10 @@ class MusicFolder(APIObject):
     value: str
     name: str
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'MusicFolder.{self.id}')
 
 
@@ -417,10 +418,10 @@ class PodcastEpisode(APIObject):
     originalWidth: int
     originalHeight: int
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'Child.{self.id}')
 
 
@@ -467,10 +468,10 @@ class NowPlayingEntry(APIObject):
     originalWidth: int
     originalHeight: int
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'Child.{self.id}')
 
 
@@ -503,10 +504,10 @@ class Playlist(APIObject):
     changed: datetime
     coverArt: str
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'Playlist.{self.id}')
 
 
@@ -525,10 +526,10 @@ class PlaylistWithSongs(APIObject):
     changed: datetime
     coverArt: str
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'Playlist.{self.id}')
 
 
@@ -549,10 +550,10 @@ class PodcastChannel(APIObject):
     status: PodcastStatus
     errorMessage: str
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'PodcastChannel.{self.id}')
 
 
@@ -605,10 +606,10 @@ class Share(APIObject):
     lastVisited: datetime
     visitCount: int
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'Share.{self.id}')
 
 
@@ -688,10 +689,10 @@ class AudioTrack(APIObject):
     name: str
     languageCode: str
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'AudioTrack.{self.id}')
 
 
@@ -700,10 +701,10 @@ class Captions(APIObject):
     value: str
     name: str
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'Captions.{self.id}')
 
 
@@ -713,10 +714,10 @@ class VideoConversion(APIObject):
     bitRate: int
     audioTrackId: int
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'VideoConversion.{self.id}')
 
 
@@ -727,10 +728,10 @@ class VideoInfo(APIObject):
     value: str
     id: str
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(f'VideoInfo.{self.id}')
 
 

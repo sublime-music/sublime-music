@@ -1,11 +1,12 @@
 import subprocess
+from typing import Any
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GObject
+from gi.repository import GObject, Gtk
 
+from sublime.config import AppConfiguration, ServerConfiguration
 from sublime.server import Server
-from sublime.config import ServerConfiguration
 from sublime.ui.common import EditFormDialog, IconButton
 
 
@@ -36,7 +37,7 @@ class EditServerDialog(EditFormDialog):
 
         super().__init__(*args, **kwargs)
 
-    def on_test_server_clicked(self, event):
+    def on_test_server_clicked(self, event: Any):
         # Instantiate the server.
         server_address = self.data['server_address'].get_text()
         server = Server(
@@ -72,7 +73,7 @@ class EditServerDialog(EditFormDialog):
         dialog.run()
         dialog.destroy()
 
-    def on_open_in_browser_clicked(self, event):
+    def on_open_in_browser_clicked(self, event: Any):
         subprocess.call(['xdg-open', self.data['server_address'].get_text()])
 
 
@@ -84,7 +85,7 @@ class ConfigureServersDialog(Gtk.Dialog):
         (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (object, )),
     }
 
-    def __init__(self, parent, config):
+    def __init__(self, parent: Any, config: AppConfiguration):
         Gtk.Dialog.__init__(
             self,
             title='Configure Servers',
@@ -116,13 +117,13 @@ class ConfigureServersDialog(Gtk.Dialog):
                     'document-edit-symbolic',
                     label='Edit...',
                     relief=True,
-                ), lambda e: self.on_edit_clicked(e, False), 'start', True),
+                ), lambda e: self.on_edit_clicked(False), 'start', True),
             (
                 IconButton(
                     'list-add-symbolic',
                     label='Add...',
                     relief=True,
-                ), lambda e: self.on_edit_clicked(e, True), 'start', False),
+                ), lambda e: self.on_edit_clicked(True), 'start', False),
             (
                 IconButton(
                     'list-remove-symbolic',
@@ -191,14 +192,14 @@ class ConfigureServersDialog(Gtk.Dialog):
             self.server_list.select_row(
                 self.server_list.get_row_at_index(self.selected_server_index))
 
-    def on_remove_clicked(self, event):
+    def on_remove_clicked(self, event: Any):
         selected = self.server_list.get_selected_row()
         if selected:
             del self.server_configs[selected.get_index()]
             self.refresh_server_list()
             self.emit('server-list-changed', self.server_configs)
 
-    def on_edit_clicked(self, event, add):
+    def on_edit_clicked(self, add: bool):
         if add:
             dialog = EditServerDialog(self)
         else:
@@ -236,12 +237,12 @@ class ConfigureServersDialog(Gtk.Dialog):
     def on_server_list_activate(self, *args):
         self.on_connect_clicked(None)
 
-    def on_connect_clicked(self, event):
+    def on_connect_clicked(self, event: Any):
         selected_index = self.server_list.get_selected_row().get_index()
         self.emit('connected-server-changed', selected_index)
         self.close()
 
-    def server_list_on_selected_rows_changed(self, event):
+    def server_list_on_selected_rows_changed(self, event: Any):
         # Update the state of the buttons depending on whether or not a row is
         # selected in the server list.
         has_selection = self.server_list.get_selected_row()

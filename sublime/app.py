@@ -1,26 +1,25 @@
-import os
 import logging
 import math
+import os
 import random
 
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Notify', '0.7')
-from gi.repository import Gdk, Gio, GLib, Gtk, Notify, GdkPixbuf
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Notify
 
-from .ui.main import MainWindow
-from .ui.configure_servers import ConfigureServersDialog
-from .ui.settings import SettingsDialog
-
-from .dbus_manager import DBusManager, dbus_propagate
-from .state_manager import ApplicationState, RepeatType
 from .cache_manager import CacheManager
+from .dbus_manager import dbus_propagate, DBusManager
+from .players import ChromecastPlayer, MPVPlayer, PlayerEvent
 from .server.api_objects import Child, Directory
-from .players import PlayerEvent, MPVPlayer, ChromecastPlayer
+from .state_manager import ApplicationState, RepeatType
+from .ui.configure_servers import ConfigureServersDialog
+from .ui.main import MainWindow
+from .ui.settings import SettingsDialog
 
 
 class SublimeMusicApp(Gtk.Application):
-    def __init__(self, config_file):
+    def __init__(self, config_file: str):
         super().__init__(application_id="com.sumnerevans.sublimemusic")
         Notify.init('Sublime Music')
 
@@ -912,11 +911,12 @@ class SublimeMusicApp(Gtk.Application):
                 song_idx = self.state.play_queue.index(song.id)
                 prefetch_idxs = []
                 for i in range(self.state.config.prefetch_amount):
-                    prefetch_idx = song_idx + 1 + i
-                    play_queue_len = len(self.state.play_queue)
+                    prefetch_idx: int = song_idx + 1 + i
+                    play_queue_len: int = len(self.state.play_queue)
                     if (self.state.repeat_type == RepeatType.REPEAT_QUEUE
                             or prefetch_idx < play_queue_len):
-                        prefetch_idxs.append(prefetch_idx % play_queue_len)
+                        prefetch_idxs.append(
+                            prefetch_idx % play_queue_len)  # noqa: S001
                 CacheManager.batch_download_songs(
                     [self.state.play_queue[i] for i in prefetch_idxs],
                     before_download=lambda: GLib.idle_add(self.update_window),

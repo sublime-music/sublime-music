@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import Any, List, Optional, Tuple
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -17,7 +17,7 @@ class EditFormDialog(Gtk.Dialog):
     extra_label: Optional[str] = None
     extra_buttons: List[Gtk.Button] = []
 
-    def get_object_name(self, obj):
+    def get_object_name(self, obj: Any) -> str:
         """
         Gets the friendly object name. Can be overridden.
         """
@@ -26,7 +26,7 @@ class EditFormDialog(Gtk.Dialog):
     def get_default_object(self):
         return None
 
-    def __init__(self, parent, existing_object=None):
+    def __init__(self, parent: Any, existing_object: Any = None):
         editing = existing_object is not None
         title = getattr(self, 'title', lambda: None)
         if not title:

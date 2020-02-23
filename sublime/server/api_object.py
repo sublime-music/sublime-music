@@ -10,7 +10,7 @@ class APIObject:
     this only supports JSON.
     """
     @classmethod
-    def from_json(cls, data: Dict):
+    def from_json(cls, data: Dict[str, Any]) -> Any:
         """
         Creates an :class:`APIObject` by deserializing JSON data into a Python
         object.  This calls the :class:`sublime.from_json.from_json` function
@@ -21,7 +21,7 @@ class APIObject:
         """
         return _from_json(cls, data)
 
-    def get(self, field: str, default=None):
+    def get(self, field: str, default: Any = None) -> Any:
         """
         Get the value of ``field`` or ``default``.
 
@@ -30,7 +30,7 @@ class APIObject:
         """
         return getattr(self, field, default)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if isinstance(self, Enum):
             return super().__repr__()
         if isinstance(self, str):
