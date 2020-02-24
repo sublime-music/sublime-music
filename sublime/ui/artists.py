@@ -1,5 +1,5 @@
 from random import randint
-from typing import Any, cast, List, Optional, Union
+from typing import Any, cast, List, Union
 
 import gi
 gi.require_version('Gtk', '3.0')

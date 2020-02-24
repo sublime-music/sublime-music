@@ -1,17 +1,7 @@
 import functools
 import re
 from concurrent.futures import Future
-from typing import (
-    Any,
-    Callable,
-    cast,
-    Iterable,
-    List,
-    Match,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Any, Callable, cast, Iterable, List, Match, Tuple, Union
 
 import gi
 from deepdiff import DeepDiff
