@@ -23,7 +23,7 @@ setup(
     description='A native GTK *sonic client.',
     long_description=long_description,
     author='Sumner Evans',
-    author_email='sumner.evans98@gmail.com',
+    author_email='inquiries@sumnerevans.com',
     license='GPL3',
     classifiers=[
         #   3 - Alpha
@@ -41,7 +41,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ],
-    keywords='airsonic subsonic libresonic music',
+    keywords='airsonic subsonic libresonic gonic music',
     packages=find_packages(exclude=['tests']),
     package_data={
         'sublime': [
