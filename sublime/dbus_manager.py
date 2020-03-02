@@ -90,7 +90,7 @@ class DBusManager:
         path,
         interface: str,
         property_name: str,
-    ):
+    ) -> GLib.Variant:
         value = self.property_dict().get(interface, {}).get(property_name)
         return DBusManager.to_variant(value)
 
