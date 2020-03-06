@@ -425,6 +425,8 @@ class PlayerControls(Gtk.ActionBar):
             if not allow_deselect:
                 return True
 
+        return False
+
     def on_play_queue_model_row_move(self, *args):
         # If we are programatically editing the song list, don't do anything.
         if self.editing_play_queue_song_list:
