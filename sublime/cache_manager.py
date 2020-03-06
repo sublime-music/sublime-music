@@ -416,32 +416,37 @@ class CacheManager(metaclass=Singleton):
                 f.write(data)
 
         def calculate_abs_path(self, *relative_paths) -> Path:
+            server_hash = CacheManager.calculate_server_hash(
+                self.server_config)
+            if not server_hash:
+                raise Exception(
+                    "Could not calculate the current server's hash.")
             return Path(self.app_config.cache_location).joinpath(
-                CacheManager.calculate_server_hash(self.server_config),
-                *relative_paths,
-            )
+                server_hash, *relative_paths)
 
         def calculate_download_path(self, *relative_paths) -> Path:
             """
             Determine where to temporarily put the file as it is downloading.
             """
+            server_hash = CacheManager.calculate_server_hash(
+                self.server_config)
+            if not server_hash:
+                raise Exception(
+                    "Could not calculate the current server's hash.")
             xdg_cache_home = (
                 os.environ.get('XDG_CACHE_HOME')
                 or os.path.expanduser('~/.cache'))
             return Path(xdg_cache_home).joinpath(
-                'sublime-music',
-                CacheManager.calculate_server_hash(self.server_config),
-                *relative_paths,
-            )
+                'sublime-music', server_hash, *relative_paths)
 
         def return_cached_or_download(
-            self,
-            relative_path: Union[Path, str],
-            download_fn: Callable[[], bytes],
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-            allow_download: bool = True,
-        ) -> 'CacheManager.Result[Optional[str]]':
+                self,
+                relative_path: Union[Path, str],
+                download_fn: Callable[[], bytes],
+                before_download: Callable[[], None] = lambda: None,
+                force: bool = False,
+                allow_download: bool = True,
+        ) -> 'CacheManager.Result[str]':
             abs_path = self.calculate_abs_path(relative_path)
             abs_path_str = str(abs_path)
             download_path = self.calculate_download_path(relative_path)
@@ -575,7 +580,7 @@ class CacheManager(metaclass=Singleton):
 
             return CacheManager.create_future(do_create_playlist)
 
-        def update_playlist(self, playlist_id, *args, **kwargs) -> Future:
+        def update_playlist(self, playlist_id: int, *args, **kwargs) -> Future:
             def do_update_playlist():
                 self.server.update_playlist(playlist_id, *args, **kwargs)
                 with self.cache_lock:
@@ -662,7 +667,7 @@ class CacheManager(metaclass=Singleton):
 
         def get_music_directory(
                 self,
-                id,
+                id: int,
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
         ) -> 'CacheManager.Result[Directory]':
@@ -715,10 +720,9 @@ class CacheManager(metaclass=Singleton):
                 artist: Union[Artist, ArtistID3],
                 before_download: Callable[[], None] = lambda: None,
                 force: bool = False,
-        ) -> 'CacheManager.Result[Optional[str]]':
+        ) -> 'CacheManager.Result[str]':
             def do_get_artist_artwork(
-                artist_info: ArtistInfo2
-            ) -> 'CacheManager.Result[Optional[str]]':
+                    artist_info: ArtistInfo2) -> 'CacheManager.Result[str]':
                 lastfm_url = ''.join(artist_info.largeImageUrl or [])
 
                 # If it is the placeholder LastFM image, try and use the cover
@@ -746,8 +750,7 @@ class CacheManager(metaclass=Singleton):
                 )
 
             def download_fn(
-                artist_info: CacheManager.Result[ArtistInfo2]
-            ) -> Optional[str]:
+                    artist_info: CacheManager.Result[ArtistInfo2]) -> str:
                 # In this case, artist_info is a future, so we have to wait for
                 # its result before calculating. Then, immediately unwrap the
                 # result() because we are already within a future.
@@ -851,11 +854,12 @@ class CacheManager(metaclass=Singleton):
             def do_delete_cached_songs():
                 # Do the actual download.
                 for f in map(CacheManager.get_song_details, song_ids):
-                    relative_path = f.result().path
+                    song: Child = f.result()
+                    relative_path = song.path
                     abs_path = self.calculate_abs_path(relative_path)
                     if abs_path.exists():
                         abs_path.unlink()
-                    on_song_delete()
+                    on_song_delete(song.id)
 
             return CacheManager.create_future(do_delete_cached_songs)
 
@@ -902,12 +906,12 @@ class CacheManager(metaclass=Singleton):
             return CacheManager.create_future(do_batch_download_songs)
 
         def get_cover_art_filename(
-            self,
-            id: str,
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-            allow_download: bool = True,
-        ) -> 'CacheManager.Result[Optional[str]]':
+                self,
+                id: str,
+                before_download: Callable[[], None] = lambda: None,
+                force: bool = False,
+                allow_download: bool = True,
+        ) -> 'CacheManager.Result[str]':
             if id is None:
                 default_art_path = 'ui/images/default-album-art.png'
                 return CacheManager.Result.from_data(

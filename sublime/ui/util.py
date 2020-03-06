@@ -150,7 +150,7 @@ def diff_model_store(store_to_edit: Any, new_store: Iterable[Any]):
 
 
 def show_song_popover(
-    song_ids,
+    song_ids: List[int],
     x: int,
     y: int,
     relative_to: Any,
@@ -309,7 +309,7 @@ def async_callback(
     future_fn: Callable[..., Future],
     before_download: Callable[[Any], None] = None,
     on_failure: Callable[[Any, Exception], None] = None,
-):
+) -> Callable[[Callable], Callable]:
     """
     Defines the ``async_callback`` decorator.
 
@@ -321,10 +321,10 @@ def async_callback(
     :param future_fn: a function which generates a
         :class:`concurrent.futures.Future` or :class:`CacheManager.Result`.
     """
-    def decorator(callback_fn):
+    def decorator(callback_fn: Callable) -> Callable:
         @functools.wraps(callback_fn)
         def wrapper(
-            self,
+            self: Any,
             *args,
             state: ApplicationState = None,
             force: bool = False,

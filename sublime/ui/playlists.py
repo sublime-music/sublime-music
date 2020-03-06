@@ -5,7 +5,7 @@ from typing import Any, Iterable, List, Tuple
 import gi
 gi.require_version('Gtk', '3.0')
 from fuzzywuzzy import process
-from gi.repository import Gio, GLib, GObject, Gtk, Pango
+from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from sublime.cache_manager import CacheManager
 from sublime.server.api_objects import PlaylistWithSongs
@@ -362,7 +362,13 @@ class PlaylistDetailPanel(Gtk.Overlay):
         def max_score_for_key(key: str, rows: Tuple) -> int:
             return max(row_score(key, row) for row in rows)
 
-        def playlist_song_list_search_fn(model, col, key, treeiter, data=None):
+        def playlist_song_list_search_fn(
+            model: Gtk.ListStore,
+            col: int,
+            key: str,
+            treeiter: Gtk.TreeIter,
+            data: Any = None,
+        ) -> bool:
             # TODO (#28): this is very inefficient, it's slow when the result
             # is close to the bottom of the list. Would be good to research
             # what the default one does (maybe it uses an index?).
@@ -608,7 +614,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             },
         )
 
-    def on_song_activated(self, treeview, idx, column):
+    def on_song_activated(self, _: Any, idx: Gtk.TreePath, col: Any):
         # The song ID is in the last column of the model.
         self.emit(
             'song-clicked',
@@ -619,7 +625,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
             },
         )
 
-    def on_song_button_press(self, tree, event):
+    def on_song_button_press(
+            self,
+            tree: Gtk.TreeView,
+            event: Gdk.EventButton,
+    ) -> bool:
         if event.button == 3:  # Right click
             clicked_path = tree.get_path_at_pos(event.x, event.y)
             if not clicked_path:
@@ -628,7 +638,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             store, paths = tree.get_selection().get_selected_rows()
             allow_deselect = False
 
-            def on_download_state_change(**kwargs):
+            def on_download_state_change(song_id: int):
                 GLib.idle_add(
                     lambda: self.update_playlist_view(
                         self.playlist_id,
@@ -677,6 +687,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
             # If the click was on a selected row, don't deselect anything.
             if not allow_deselect:
                 return True
+
+        return False
 
     def on_playlist_model_row_move(self, *args):
         # If we are programatically editing the song list, don't do anything.

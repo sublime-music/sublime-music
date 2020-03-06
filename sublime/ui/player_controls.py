@@ -379,7 +379,11 @@ class PlayerControls(Gtk.ActionBar):
     def on_device_refresh_click(self, _: Any):
         self.update_device_list(force=True)
 
-    def on_play_queue_button_press(self, tree: Any, event: Gdk.EventButton):
+    def on_play_queue_button_press(
+            self,
+            tree: Any,
+            event: Gdk.EventButton,
+    ) -> bool:
         if event.button == 3:  # Right click
             clicked_path = tree.get_path_at_pos(event.x, event.y)
 

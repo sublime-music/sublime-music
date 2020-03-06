@@ -3,7 +3,7 @@ import os
 import re
 
 from collections import defaultdict
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, DefaultDict, Dict, List, Tuple
 
 from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
@@ -17,7 +17,7 @@ def dbus_propagate(param_self: Any = None) -> Callable:
     """
     Wraps a function which causes changes to DBus properties.
     """
-    def decorator(function):
+    def decorator(function: Callable) -> Callable:
         @functools.wraps(function)
         def wrapper(*args):
             function(*args)
@@ -36,8 +36,17 @@ class DBusManager:
     def __init__(
         self,
         connection: Gio.DBusConnection,
-        do_on_method_call,
-        on_set_property,
+        do_on_method_call: Callable[[
+            Gio.DBusConnection,
+            str,
+            str,
+            str,
+            str,
+            GLib.Variant,
+            Gio.DBusMethodInvocation,
+        ], None],
+        on_set_property: Callable[
+            [Gio.DBusConnection, str, str, str, str, GLib.Variant], None],
         get_state_and_player: Callable[[], Tuple[ApplicationState, Player]],
     ):
         self.get_state_and_player = get_state_and_player
@@ -45,7 +54,7 @@ class DBusManager:
         self.on_set_property = on_set_property
         self.connection = connection
 
-        def dbus_name_acquired(connection, name):
+        def dbus_name_acquired(connection: Gio.DBusConnection, name: str):
             specs = [
                 'org.mpris.MediaPlayer2.xml',
                 'org.mpris.MediaPlayer2.Player.xml',
@@ -84,12 +93,12 @@ class DBusManager:
         Gio.bus_unown_name(self.bus_number)
 
     def on_get_property(
-        self,
-        connection: Gio.DBusConnection,
-        sender,
-        path,
-        interface: str,
-        property_name: str,
+            self,
+            connection: Gio.DBusConnection,
+            sender: str,
+            path: str,
+            interface: str,
+            property_name: str,
     ) -> GLib.Variant:
         value = self.property_dict().get(interface, {}).get(property_name)
         return DBusManager.to_variant(value)
@@ -97,12 +106,12 @@ class DBusManager:
     def on_method_call(
         self,
         connection: Gio.DBusConnection,
-        sender,
-        path,
+        sender: str,
+        path: str,
         interface: str,
         method: str,
-        params,
-        invocation,
+        params: GLib.Variant,
+        invocation: Gio.DBusMethodInvocation,
     ):
         # TODO (#127): I don't even know if this works.
         if interface == 'org.freedesktop.DBus.Properties':
@@ -267,7 +276,11 @@ class DBusManager:
             },
         }
 
-    def get_mpris_metadata(self, idx: int, play_queue):
+    def get_mpris_metadata(
+            self,
+            idx: int,
+            play_queue: List[str],
+    ) -> Dict[str, Any]:
         song_result = CacheManager.get_song_details(play_queue[idx])
         if song_result.is_future:
             return {}
@@ -289,8 +302,8 @@ class DBusManager:
             'xesam:title': song.title,
         }
 
-    def get_dbus_playlist(self, play_queue):
-        seen_counts = defaultdict(int)
+    def get_dbus_playlist(self, play_queue: List[str]) -> List[str]:
+        seen_counts: DefaultDict[str, int] = defaultdict(int)
         tracks = []
         for song_id in play_queue:
             id_ = seen_counts[song_id]

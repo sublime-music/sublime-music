@@ -185,7 +185,7 @@ class AlbumWithSongs(Gtk.Box):
             store, paths = tree.get_selection().get_selected_rows()
             allow_deselect = False
 
-            def on_download_state_change(song_id: Any = None):
+            def on_download_state_change(song_id: int):
                 self.update_album_songs(self.album.id)
 
             # Use the new selection instead of the old one for calculating what
