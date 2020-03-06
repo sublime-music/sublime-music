@@ -1,17 +1,22 @@
 from functools import lru_cache
 from random import randint
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Any, Iterable, List, Tuple
 
 import gi
 gi.require_version('Gtk', '3.0')
 from fuzzywuzzy import process
-from gi.repository import Gio, GLib, GObject, Gtk, Pango
+from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from sublime.cache_manager import CacheManager
 from sublime.server.api_objects import PlaylistWithSongs
 from sublime.state_manager import ApplicationState
 from sublime.ui import util
-from sublime.ui.common import EditFormDialog, IconButton, SpinnerImage
+from sublime.ui.common import (
+    EditFormDialog,
+    IconButton,
+    SongListColumn,
+    SpinnerImage,
+)
 
 
 class EditPlaylistDialog(EditFormDialog):
@@ -181,7 +186,7 @@ class PlaylistList(Gtk.Box):
         playlists: List[PlaylistWithSongs],
         state: ApplicationState,
         force: bool = False,
-        order_token: Optional[int] = None,
+        order_token: int = None,
     ):
         new_store = []
         selected_idx = None
@@ -340,25 +345,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
         # Playlist songs list
         playlist_view_scroll_window = Gtk.ScrolledWindow()
 
-        def create_column(
-            header: str,
-            text_idx: int,
-            bold: bool = False,
-            align: int = 0,
-            width: int = None,
-        ):
-            renderer = Gtk.CellRendererText(
-                xalign=align,
-                weight=Pango.Weight.BOLD if bold else Pango.Weight.NORMAL,
-                ellipsize=Pango.EllipsizeMode.END,
-            )
-            renderer.set_fixed_size(width or -1, 35)
-
-            column = Gtk.TreeViewColumn(header, renderer, text=text_idx)
-            column.set_resizable(True)
-            column.set_expand(not width)
-            return column
-
         self.playlist_song_store = Gtk.ListStore(
             str,  # cache status
             str,  # title
@@ -376,7 +362,13 @@ class PlaylistDetailPanel(Gtk.Overlay):
         def max_score_for_key(key: str, rows: Tuple) -> int:
             return max(row_score(key, row) for row in rows)
 
-        def playlist_song_list_search_fn(model, col, key, treeiter, data=None):
+        def playlist_song_list_search_fn(
+            model: Gtk.ListStore,
+            col: int,
+            key: str,
+            treeiter: Gtk.TreeIter,
+            data: Any = None,
+        ) -> bool:
             # TODO (#28): this is very inefficient, it's slow when the result
             # is close to the bottom of the list. Would be good to research
             # what the default one does (maybe it uses an index?).
@@ -404,11 +396,12 @@ class PlaylistDetailPanel(Gtk.Overlay):
         column.set_resizable(True)
         self.playlist_songs.append_column(column)
 
-        self.playlist_songs.append_column(create_column('TITLE', 1, bold=True))
-        self.playlist_songs.append_column(create_column('ALBUM', 2))
-        self.playlist_songs.append_column(create_column('ARTIST', 3))
         self.playlist_songs.append_column(
-            create_column('DURATION', 4, align=1, width=40))
+            SongListColumn('TITLE', 1, bold=True))
+        self.playlist_songs.append_column(SongListColumn('ALBUM', 2))
+        self.playlist_songs.append_column(SongListColumn('ARTIST', 3))
+        self.playlist_songs.append_column(
+            SongListColumn('DURATION', 4, align=1, width=40))
 
         self.playlist_songs.connect('row-activated', self.on_song_activated)
         self.playlist_songs.connect(
@@ -470,7 +463,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         playlist: PlaylistWithSongs,
         state: ApplicationState = None,
         force: bool = False,
-        order_token: Optional[int] = None,
+        order_token: int = None,
     ):
         if self.update_playlist_view_order_token != order_token:
             return
@@ -532,7 +525,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         cover_art_filename: str,
         state: ApplicationState,
         force: bool = False,
-        order_token: Optional[int] = None,
+        order_token: int = None,
     ):
         if self.update_playlist_view_order_token != order_token:
             return
@@ -621,7 +614,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             },
         )
 
-    def on_song_activated(self, treeview, idx, column):
+    def on_song_activated(self, _: Any, idx: Gtk.TreePath, col: Any):
         # The song ID is in the last column of the model.
         self.emit(
             'song-clicked',
@@ -632,7 +625,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
             },
         )
 
-    def on_song_button_press(self, tree, event):
+    def on_song_button_press(
+            self,
+            tree: Gtk.TreeView,
+            event: Gdk.EventButton,
+    ) -> bool:
         if event.button == 3:  # Right click
             clicked_path = tree.get_path_at_pos(event.x, event.y)
             if not clicked_path:
@@ -641,7 +638,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             store, paths = tree.get_selection().get_selected_rows()
             allow_deselect = False
 
-            def on_download_state_change(**kwargs):
+            def on_download_state_change(song_id: int):
                 GLib.idle_add(
                     lambda: self.update_playlist_view(
                         self.playlist_id,
@@ -690,6 +687,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
             # If the click was on a selected row, don't deselect anything.
             if not allow_deselect:
                 return True
+
+        return False
 
     def on_playlist_model_row_move(self, *args):
         # If we are programatically editing the song list, don't do anything.

@@ -840,7 +840,7 @@ class Server:
         """
         return self.do_download(self._make_url('download'), id=id)
 
-    def get_cover_art(self, id: str, size: int = 1000):
+    def get_cover_art(self, id: str, size: int = 1000) -> bytes:
         """
         Returns the cover art image in binary form.
 
@@ -850,7 +850,7 @@ class Server:
         return self.do_download(
             self._make_url('getCoverArt'), id=id, size=size)
 
-    def get_cover_art_url(self, id: str, size: int = 1000):
+    def get_cover_art_url(self, id: str, size: int = 1000) -> str:
         """
         Returns the URL of the cover art image.
 

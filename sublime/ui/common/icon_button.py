@@ -31,5 +31,5 @@ class IconButton(Gtk.Button):
 
         self.add(box)
 
-    def set_icon(self, icon_name: str):
+    def set_icon(self, icon_name: Optional[str]):
         self.image.set_from_icon_name(icon_name, self.icon_size)

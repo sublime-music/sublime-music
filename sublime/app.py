@@ -2,6 +2,8 @@ import logging
 import math
 import os
 import random
+from concurrent.futures import Future
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -11,7 +13,7 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Notify
 from .cache_manager import CacheManager
 from .dbus_manager import dbus_propagate, DBusManager
 from .players import ChromecastPlayer, MPVPlayer, PlayerEvent
-from .server.api_objects import Child, Directory
+from .server.api_objects import Child, Directory, Playlist
 from .state_manager import ApplicationState, RepeatType
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.main import MainWindow
@@ -23,7 +25,7 @@ class SublimeMusicApp(Gtk.Application):
         super().__init__(application_id="com.sumnerevans.sublimemusic")
         Notify.init('Sublime Music')
 
-        self.window = None
+        self.window: Optional[Gtk.Window] = None
         self.state = ApplicationState()
         self.state.config_file = config_file
 
@@ -32,7 +34,7 @@ class SublimeMusicApp(Gtk.Application):
     def do_startup(self):
         Gtk.Application.do_startup(self)
 
-        def add_action(name: str, fn, parameter_type=None):
+        def add_action(name: str, fn: Callable, parameter_type: str = None):
             """Registers an action with the application."""
             if type(parameter_type) == str:
                 parameter_type = GLib.VariantType(parameter_type)
@@ -124,8 +126,9 @@ class SublimeMusicApp(Gtk.Application):
         self.loading_state = False
         self.should_scrobble_song = False
 
-        def time_observer(value):
-            if self.loading_state:
+        def time_observer(value: Optional[float]):
+            if (self.loading_state or not self.window
+                    or not self.state.current_song):
                 return
 
             if value is None:
@@ -161,7 +164,6 @@ class SublimeMusicApp(Gtk.Application):
             if event.name == 'play_state_change':
                 self.state.playing = event.value
             elif event.name == 'volume_change':
-                self.state.old_volume = self.state.volume
                 self.state.volume = event.value
 
             GLib.idle_add(self.update_window)
@@ -197,37 +199,37 @@ class SublimeMusicApp(Gtk.Application):
         self.dbus_manager.property_diff()
 
     # ########## DBUS MANAGMENT ########## #
-    def do_dbus_register(self, connection, path):
-        def get_state_and_player():
-            return (self.state, getattr(self, 'player', None))
-
+    def do_dbus_register(
+            self, connection: Gio.DBusConnection, path: str) -> bool:
         self.dbus_manager = DBusManager(
             connection,
             self.on_dbus_method_call,
             self.on_dbus_set_property,
-            get_state_and_player,
+            lambda: (self.state, getattr(self, 'player', None)),
         )
         return True
 
     def on_dbus_method_call(
         self,
-        connection,
-        sender,
-        path,
-        interface,
-        method,
-        params,
-        invocation,
+        connection: Gio.DBusConnection,
+        sender: str,
+        path: str,
+        interface: str,
+        method: str,
+        params: GLib.Variant,
+        invocation: Gio.DBusMethodInvocation,
     ):
         second_microsecond_conversion = 1000000
 
-        def seek_fn(offset):
+        def seek_fn(offset: float):
+            if not self.state.current_song:
+                return
             offset_seconds = offset / second_microsecond_conversion
             new_seconds = self.state.song_progress + offset_seconds
             self.on_song_scrub(
                 None, new_seconds / self.state.current_song.duration * 100)
 
-        def set_pos_fn(track_id, position=0):
+        def set_pos_fn(track_id: str, position: float = 0):
             if self.state.playing:
                 self.on_play_pause()
             pos_seconds = position / second_microsecond_conversion
@@ -242,18 +244,29 @@ class SublimeMusicApp(Gtk.Application):
 
             self.play_song(song_index)
 
-        def get_tracks_metadata(track_ids):
+        def get_tracks_metadata(track_ids: List[str]) -> GLib.Variant:
+            if len(track_ids):
+                # We are lucky, just return an empty list.
+                return GLib.Variant('(aa{sv})', ([], ))
+
             # Have to calculate all of the metadatas so that we can deal with
             # repeat song IDs.
-            metadatas = [
+            metadatas: Iterable[Any] = [
                 self.dbus_manager.get_mpris_metadata(i, self.state.play_queue)
                 for i in range(len(self.state.play_queue))
             ]
+
+            # Get rid of all of the tracks that were not requested.
             metadatas = filter(
                 lambda m: m['mpris:trackid'] in track_ids, metadatas)
+
+            # Sort them so they get returned in the same order as they were
+            # requested.
             metadatas = sorted(
                 metadatas, key=lambda m: track_ids.index(m['mpris:trackid']))
 
+            # Turn them into dictionaries that can actually be serialized into
+            # a GLib.Variant.
             metadatas = map(
                 lambda m: {k: DBusManager.to_variant(v)
                            for k, v in m.items()},
@@ -262,7 +275,7 @@ class SublimeMusicApp(Gtk.Application):
 
             return GLib.Variant('(aa{sv})', (list(metadatas), ))
 
-        def activate_playlist(playlist_id):
+        def activate_playlist(playlist_id: str):
             playlist_id = playlist_id.split('/')[-1]
             playlist = CacheManager.get_playlist(playlist_id).result()
 
@@ -278,7 +291,12 @@ class SublimeMusicApp(Gtk.Application):
                 {'active_playlist_id': playlist_id},
             )
 
-        def get_playlists(index, max_count, order, reverse_order):
+        def get_playlists(
+                index: int,
+                max_count: int,
+                order: str,
+                reverse_order: bool,
+        ) -> GLib.Variant:
             playlists_result = CacheManager.get_playlists()
             if playlists_result.is_future:
                 # We don't want to wait for the response in this case, so just
@@ -297,25 +315,24 @@ class SublimeMusicApp(Gtk.Application):
                 reverse=reverse_order,
             )
 
+            def make_playlist_tuple(p: Playlist) -> GLib.Variant:
+                cover_art_filename = CacheManager.get_cover_art_filename(
+                    p.coverArt,
+                    allow_download=False,
+                ).result()
+                return (f'/playlist/{p.id}', p.name, cover_art_filename or '')
+
             return GLib.Variant(
                 '(a(oss))', (
                     [
-                        (
-                            '/playlist/' + p.id,
-                            p.name,
-                            CacheManager.get_cover_art_filename(
-                                p.coverArt,
-                                allow_download=False,
-                            ).result() or '',
-                        )
+                        make_playlist_tuple(p)
                         for p in playlists[index:(index + max_count)]
-                        if p.songCount > 0
                     ], ))
 
-        method_call_map = {
+        method_call_map: Dict[str, Dict[str, Any]] = {
             'org.mpris.MediaPlayer2': {
-                'Raise': self.window.present,
-                'Quit': self.window.destroy,
+                'Raise': self.window and self.window.present,
+                'Quit': self.window and self.window.destroy,
             },
             'org.mpris.MediaPlayer2.Player': {
                 'Next': self.on_next_track,
@@ -336,34 +353,35 @@ class SublimeMusicApp(Gtk.Application):
                 'GetPlaylists': get_playlists,
             },
         }
-        method = method_call_map.get(interface, {}).get(method)
-        if method is None:
+        method_fn = method_call_map.get(interface, {}).get(method)
+        if method_fn is None:
             logging.warning(
                 f'Unknown/unimplemented method: {interface}.{method}.')
-        invocation.return_value(method(*params) if callable(method) else None)
+        invocation.return_value(
+            method_fn(*params) if callable(method_fn) else None)
 
     def on_dbus_set_property(
         self,
-        connection,
-        sender,
-        path,
-        interface,
-        property_name,
-        value,
+        connection: Gio.DBusConnection,
+        sender: str,
+        path: str,
+        interface: str,
+        property_name: str,
+        value: GLib.Variant,
     ):
-        def change_loop(new_loop_status):
+        def change_loop(new_loop_status: GLib.Variant):
             self.state.repeat_type = RepeatType.from_mpris_loop_status(
                 new_loop_status.get_string())
             self.update_window()
 
-        def set_shuffle(new_val):
+        def set_shuffle(new_val: GLib.Variant):
             if new_val.get_boolean() != self.state.shuffle_on:
                 self.on_shuffle_press(None, None)
 
-        def set_volume(new_val):
-            self.on_volume_change(None, value.get_double() * 100)
+        def set_volume(new_val: GLib.Variant):
+            self.on_volume_change(None, new_val.get_double() * 100)
 
-        setter_map = {
+        setter_map: Dict[str, Dict[str, Any]] = {
             'org.mpris.MediaPlayer2.Player': {
                 'LoopStatus': change_loop,
                 'Rate': lambda _: None,
@@ -372,7 +390,7 @@ class SublimeMusicApp(Gtk.Application):
             }
         }
 
-        setter = setter_map.get(interface).get(property_name)
+        setter = setter_map.get(interface, {}).get(property_name)
         if setter is None:
             logging.warning('Set: Unknown property: {property_name}.')
             return
@@ -381,15 +399,20 @@ class SublimeMusicApp(Gtk.Application):
 
     # ########## ACTION HANDLERS ########## #
     @dbus_propagate()
-    def on_refresh_window(self, _, state_updates, force=False):
+    def on_refresh_window(
+        self,
+        _: Any,
+        state_updates: Dict[str, Any],
+        force: bool = False,
+    ):
         for k, v in state_updates.items():
             setattr(self.state, k, v)
         self.update_window(force=force)
 
-    def on_configure_servers(self, action, param):
+    def on_configure_servers(self, *args):
         self.show_configure_servers_dialog()
 
-    def on_settings(self, action, param):
+    def on_settings(self, *args):
         """Show the Settings dialog."""
         dialog = SettingsDialog(self.window, self.state.config)
         result = dialog.run()
@@ -412,7 +435,7 @@ class SublimeMusicApp(Gtk.Application):
             self.reset_state()
         dialog.destroy()
 
-    def on_window_go_to(self, win, action, value):
+    def on_window_go_to(self, win: Any, action: str, value: str):
         {
             'album': self.on_go_to_album,
             'artist': self.on_go_to_artist,
@@ -467,14 +490,14 @@ class SublimeMusicApp(Gtk.Application):
         self.play_song(song_index_to_play, reset=True)
 
     @dbus_propagate()
-    def on_repeat_press(self, action, params):
+    def on_repeat_press(self, *args):
         # Cycle through the repeat types.
         new_repeat_type = RepeatType((self.state.repeat_type.value + 1) % 3)
         self.state.repeat_type = new_repeat_type
         self.update_window()
 
     @dbus_propagate()
-    def on_shuffle_press(self, action, params):
+    def on_shuffle_press(self, *args):
         if self.state.shuffle_on:
             # Revert to the old play queue.
             self.state.current_song_index = self.state.old_play_queue.index(
@@ -494,7 +517,7 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     @dbus_propagate()
-    def on_play_next(self, action, song_ids):
+    def on_play_next(self, action: Any, song_ids: List[str]):
         if self.state.current_song is None:
             insert_at = 0
         else:
@@ -507,12 +530,12 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     @dbus_propagate()
-    def on_add_to_queue(self, action, song_ids):
+    def on_add_to_queue(self, action: Any, song_ids: GLib.Variant):
         self.state.play_queue.extend(song_ids)
         self.state.old_play_queue.extend(song_ids)
         self.update_window()
 
-    def on_go_to_album(self, action, album_id):
+    def on_go_to_album(self, action: Any, album_id: GLib.Variant):
         # Switch to the By Year view (or genre, if year is not available) to
         # guarantee that the album is there.
         album = CacheManager.get_album(album_id.get_string()).result()
@@ -545,26 +568,30 @@ class SublimeMusicApp(Gtk.Application):
         self.state.selected_album_id = album_id.get_string()
         self.update_window(force=True)
 
-    def on_go_to_artist(self, action, artist_id):
+    def on_go_to_artist(self, action: Any, artist_id: GLib.Variant):
         self.state.current_tab = 'artists'
         self.state.selected_artist_id = artist_id.get_string()
         self.update_window()
 
-    def browse_to(self, action, item_id):
+    def browse_to(self, action: Any, item_id: GLib.Variant):
         self.state.current_tab = 'browse'
         self.state.selected_browse_element_id = item_id.get_string()
         self.update_window()
 
-    def on_go_to_playlist(self, action, playlist_id):
+    def on_go_to_playlist(self, action: Any, playlist_id: GLib.Variant):
         self.state.current_tab = 'playlists'
         self.state.selected_playlist_id = playlist_id.get_string()
         self.update_window()
 
-    def on_server_list_changed(self, action, servers):
+    def on_server_list_changed(self, action: Any, servers: GLib.Variant):
         self.state.config.servers = servers
         self.state.save_config()
 
-    def on_connected_server_changed(self, action, current_server):
+    def on_connected_server_changed(
+        self,
+        action: Any,
+        current_server: GLib.Variant,
+    ):
         if self.state.config.server:
             self.state.save()
         self.state.config.current_server = current_server
@@ -583,11 +610,17 @@ class SublimeMusicApp(Gtk.Application):
         # Update the window according to the new server configuration.
         self.update_window()
 
-    def on_stack_change(self, stack, child):
+    def on_stack_change(self, stack: Gtk.Stack, _: Any):
         self.state.current_tab = stack.get_visible_child_name()
         self.update_window()
 
-    def on_song_clicked(self, win, song_index, song_queue, metadata):
+    def on_song_clicked(
+        self,
+        win: Any,
+        song_index: int,
+        song_queue: List[str],
+        metadata: Dict[str, Any],
+    ):
         # Reset the play queue so that we don't ever revert back to the
         # previous one.
         old_play_queue = song_queue.copy()
@@ -616,7 +649,7 @@ class SublimeMusicApp(Gtk.Application):
             play_queue=song_queue,
         )
 
-    def on_songs_removed(self, win, song_indexes_to_remove):
+    def on_songs_removed(self, win: Any, song_indexes_to_remove: List[int]):
         self.state.play_queue = [
             song_id for i, song_id in enumerate(self.state.play_queue)
             if i not in song_indexes_to_remove
@@ -644,8 +677,8 @@ class SublimeMusicApp(Gtk.Application):
             self.save_play_queue()
 
     @dbus_propagate()
-    def on_song_scrub(self, _, scrub_value):
-        if not hasattr(self.state, 'current_song'):
+    def on_song_scrub(self, win: Any, scrub_value: float):
+        if not self.state.current_song or not self.window:
             return
 
         new_time = self.state.current_song.duration * (scrub_value / 100)
@@ -660,7 +693,7 @@ class SublimeMusicApp(Gtk.Application):
 
         self.save_play_queue()
 
-    def on_device_update(self, _, device_uuid):
+    def on_device_update(self, win: Any, device_uuid: str):
         if device_uuid == self.state.current_device:
             return
         self.state.current_device = device_uuid
@@ -684,24 +717,28 @@ class SublimeMusicApp(Gtk.Application):
             self.dbus_manager.property_diff()
 
     @dbus_propagate()
-    def on_mute_toggle(self, action, _):
+    def on_mute_toggle(self, *args):
         self.state.is_muted = not self.state.is_muted
         self.player.is_muted = self.state.is_muted
         self.update_window()
 
     @dbus_propagate()
-    def on_volume_change(self, _, value):
+    def on_volume_change(self, _: Any, value: float):
         self.state.volume = value
         self.player.volume = self.state.volume
         self.update_window()
 
-    def on_window_key_press(self, window, event):
+    def on_window_key_press(
+            self,
+            window: Gtk.Window,
+            event: Gdk.EventKey,
+    ) -> bool:
         # Need to use bitwise & here to see if CTRL is pressed.
         if (event.keyval == 102
                 and event.state & Gdk.ModifierType.CONTROL_MASK):
             # Ctrl + F
             window.search_entry.grab_focus()
-            return
+            return False
 
         if window.search_entry.has_focus():
             return False
@@ -717,7 +754,9 @@ class SublimeMusicApp(Gtk.Application):
             action()
             return True
 
-    def on_app_shutdown(self, app):
+        return False
+
+    def on_app_shutdown(self, app: 'SublimeMusicApp'):
         Notify.uninit()
 
         if self.state.config.server is None:
@@ -742,10 +781,12 @@ class SublimeMusicApp(Gtk.Application):
         dialog.run()
         dialog.destroy()
 
-    def update_window(self, force=False):
+    def update_window(self, force: bool = False):
+        if not self.window:
+            return
         GLib.idle_add(lambda: self.window.update(self.state, force=force))
 
-    def update_play_state_from_server(self, prompt_confirm=False):
+    def update_play_state_from_server(self, prompt_confirm: bool = False):
         # TODO (#129): need to make the up next list loading for the duration
         # here if prompt_confirm is False.
         was_playing = self.state.playing
@@ -753,7 +794,7 @@ class SublimeMusicApp(Gtk.Application):
         self.state.playing = False
         self.update_window()
 
-        def do_update(f):
+        def do_update(f: Future):
             play_queue = f.result()
             new_play_queue = [s.id for s in play_queue.entry]
             new_current_song_id = str(play_queue.current)
@@ -810,9 +851,9 @@ class SublimeMusicApp(Gtk.Application):
     def play_song(
         self,
         song_index: int,
-        reset=False,
-        old_play_queue=None,
-        play_queue=None,
+        reset: bool = False,
+        old_play_queue: List[str] = None,
+        play_queue: List[str] = None,
     ):
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.
@@ -844,13 +885,14 @@ class SublimeMusicApp(Gtk.Application):
                     song_notification.add_action(
                         'clicked',
                         'Open Sublime Music',
-                        lambda *a: self.window.present(),
+                        lambda *a: self.window.present()
+                        if self.window else None,
                     )
                     song_notification.show()
 
                     def on_cover_art_download_complete(
-                        cover_art_filename,
-                        order_token,
+                        cover_art_filename: str,
+                        order_token: int,
                     ):
                         if order_token != self.song_playing_order_token:
                             return
@@ -862,7 +904,8 @@ class SublimeMusicApp(Gtk.Application):
                                 cover_art_filename, 70, 70, True))
                         song_notification.show()
 
-                    def get_cover_art_filename(order_token):
+                    def get_cover_art_filename(
+                            order_token: int) -> Tuple[str, int]:
                         return (
                             CacheManager.get_cover_art_filename(
                                 song.coverArt).result(),
@@ -881,8 +924,9 @@ class SublimeMusicApp(Gtk.Application):
                         'Unable to display notification. Is a notification '
                         'daemon running?')
 
-            def on_song_download_complete(song_id):
-                if self.state.current_song.id != song.id:
+            def on_song_download_complete(song_id: int):
+                if (self.state.current_song
+                        and self.state.current_song.id != song.id):
                     return
 
                 # Switch to the local media if the player can hotswap (MPV can,

@@ -200,13 +200,17 @@ class ApplicationState:
 
     @property
     def state_filename(self) -> str:
+        server_hash = CacheManager.calculate_server_hash(self.config.server)
+        if not server_hash:
+            raise Exception("Could not calculate the current server's hash.")
+
         default_cache_location = (
             os.environ.get('XDG_DATA_HOME')
             or os.path.expanduser('~/.local/share'))
         return os.path.join(
             default_cache_location,
             'sublime-music',
-            CacheManager.calculate_server_hash(self.config.server),
+            server_hash,
             'state.yaml',
         )
 
