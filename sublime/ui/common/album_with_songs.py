@@ -57,7 +57,6 @@ class AlbumWithSongs(Gtk.Box):
         cover_art_filename_future = CacheManager.get_cover_art_filename(
             album.coverArt,
             before_download=lambda: artist_artwork.set_loading(True),
-            size=cover_art_size,
         )
         cover_art_filename_future.add_done_callback(
             lambda f: GLib.idle_add(cover_art_future_done, f))

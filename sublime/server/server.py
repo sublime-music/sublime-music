@@ -840,7 +840,7 @@ class Server:
         """
         return self.do_download(self._make_url('download'), id=id)
 
-    def get_cover_art(self, id: str, size: str = None) -> bytes:
+    def get_cover_art(self, id: str, size: int = 1000):
         """
         Returns the cover art image in binary form.
 
@@ -850,9 +850,9 @@ class Server:
         return self.do_download(
             self._make_url('getCoverArt'), id=id, size=size)
 
-    def get_cover_art_url(self, id: str, size: str = None) -> str:
+    def get_cover_art_url(self, id: str, size: int = 1000):
         """
-        Returns the cover art image in binary form.
+        Returns the URL of the cover art image.
 
         :param id: The ID of a song, album or artist.
         :param size: If specified, scale image to this size.

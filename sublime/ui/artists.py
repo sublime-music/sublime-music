@@ -183,6 +183,7 @@ class ArtistDetailPanel(Gtk.Box):
             loading=False,
             image_name='artist-album-artwork',
             spinner_name='artist-artwork-spinner',
+            image_size=300,
         )
         self.big_info_panel.pack_start(self.artist_artwork, False, False, 0)
 

@@ -391,7 +391,7 @@ class MainWindow(Gtk.ApplicationWindow):
                     util.esc(song.artist),
                 )
                 cover_art_future = CacheManager.get_cover_art_filename(
-                    song.coverArt, size=50)
+                    song.coverArt)
                 self.song_results.add(
                     self._create_search_result_row(
                         label_text, 'song', song, cover_art_future))
@@ -407,7 +407,7 @@ class MainWindow(Gtk.ApplicationWindow):
                     util.esc(album.artist),
                 )
                 cover_art_future = CacheManager.get_cover_art_filename(
-                    album.coverArt, size=50)
+                    album.coverArt)
                 self.album_results.add(
                     self._create_search_result_row(
                         label_text, 'album', album, cover_art_future))
