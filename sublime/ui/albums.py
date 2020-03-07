@@ -223,14 +223,12 @@ class AlbumsPanel(Gtk.Box):
             True,
         )
 
-    def on_year_changed(self, entry: Gtk.Entry):
-        try:
-            year = int(entry.get_text())
-        except Exception:
-            # TODO (#123): prevent input of non-numerals
-            logging.error(
-                'failed, should do something to prevent non-numeric input')
-            return
+    def on_year_changed(self, entry: Gtk.Entry) -> bool:
+        sanitized = [d for d in entry.get_text() if d in '0123456789']
+        if len(sanitized) == 0:
+            return True
+        year = int(''.join(sanitized))
+        entry.set_text(str(year))
 
         if self.to_year_entry == entry:
             self.grid.update_params(to_year=year)
@@ -252,6 +250,8 @@ class AlbumsPanel(Gtk.Box):
                 },
                 True,
             )
+
+        return False
 
     def on_grid_cover_clicked(self, grid: Any, id: str):
         self.emit(
