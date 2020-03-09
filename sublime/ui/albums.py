@@ -1,4 +1,4 @@
-import logging
+import datetime
 from typing import Any, Callable, Iterable, Optional, Tuple, Union
 
 import gi
@@ -29,6 +29,7 @@ class AlbumsPanel(Gtk.Box):
     }
 
     populating_genre_combo = False
+    grid_order_token: int = 0
 
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
@@ -67,17 +68,22 @@ class AlbumsPanel(Gtk.Box):
         self.genre_combo = self.make_combobox((), self.on_genre_change)
         actionbar.pack_start(self.genre_combo)
 
+        next_decade = datetime.datetime.now().year + 10
+
         self.from_year_label = Gtk.Label(label='from')
         actionbar.pack_start(self.from_year_label)
-        self.from_year_entry = Gtk.Entry(input_purpose=Gtk.InputPurpose.DIGITS)
-        self.from_year_entry.connect('changed', self.on_year_changed)
-        actionbar.pack_start(self.from_year_entry)
+        self.from_year_spin_button = Gtk.SpinButton.new_with_range(
+            0, next_decade, 1)
+        self.from_year_spin_button.connect(
+            'value-changed', self.on_year_changed)
+        actionbar.pack_start(self.from_year_spin_button)
 
         self.to_year_label = Gtk.Label(label='to')
         actionbar.pack_start(self.to_year_label)
-        self.to_year_entry = Gtk.Entry(input_purpose=Gtk.InputPurpose.DIGITS)
-        self.to_year_entry.connect('changed', self.on_year_changed)
-        actionbar.pack_start(self.to_year_entry)
+        self.to_year_spin_button = Gtk.SpinButton.new_with_range(
+            0, next_decade, 1)
+        self.to_year_spin_button.connect('value-changed', self.on_year_changed)
+        actionbar.pack_start(self.to_year_spin_button)
 
         refresh = IconButton('view-refresh-symbolic')
         refresh.connect('clicked', self.on_refresh_clicked)
@@ -147,8 +153,8 @@ class AlbumsPanel(Gtk.Box):
         self.sort_type_combo.set_active_id(state.current_album_sort)
         self.alphabetical_type_combo.set_active_id(
             state.current_album_alphabetical_sort)
-        self.from_year_entry.set_text(str(state.current_album_from_year))
-        self.to_year_entry.set_text(str(state.current_album_to_year))
+        self.from_year_spin_button.set_value(state.current_album_from_year)
+        self.to_year_spin_button.set_value(state.current_album_to_year)
         self.populate_genre_combo(state, force=force)
 
         # Show/hide the combo boxes.
@@ -161,21 +167,10 @@ class AlbumsPanel(Gtk.Box):
 
         show_if('alphabetical', self.alphabetical_type_combo)
         show_if('byGenre', self.genre_combo)
-        show_if('byYear', self.from_year_label, self.from_year_entry)
-        show_if('byYear', self.to_year_label, self.to_year_entry)
+        show_if('byYear', self.from_year_label, self.from_year_spin_button)
+        show_if('byYear', self.to_year_label, self.to_year_spin_button)
 
-        self.grid.update_params(
-            type_=state.current_album_sort,
-            alphabetical_type=state.current_album_alphabetical_sort,
-            from_year=state.current_album_from_year,
-            to_year=state.current_album_to_year,
-            genre=state.current_album_genre,
-        )
-        self.grid.update(
-            state,
-            force=force,
-            selected_id=state.selected_album_id,
-        )
+        self.grid.update(self.grid_order_token, state, force=force)
 
     def get_id(self, combo: Gtk.ComboBox) -> Optional[int]:
         tree_iter = combo.get_active_iter()
@@ -188,70 +183,51 @@ class AlbumsPanel(Gtk.Box):
 
     def on_type_combo_changed(self, combo: Gtk.ComboBox):
         new_active_sort = self.get_id(combo)
-        self.grid.update_params(type_=new_active_sort)
+        self.grid_order_token = self.grid.update_params(type_=new_active_sort)
         self.emit_if_not_updating(
             'refresh-window',
-            {
-                'current_album_sort': new_active_sort,
-                'selected_album_id': None,
-            },
+            {'current_album_sort': new_active_sort},
             False,
         )
 
     def on_alphabetical_type_change(self, combo: Gtk.ComboBox):
         new_active_alphabetical_sort = self.get_id(combo)
-        self.grid.update_params(alphabetical_type=new_active_alphabetical_sort)
+        self.grid_order_token = self.grid.update_params(
+            alphabetical_type=new_active_alphabetical_sort)
         self.emit_if_not_updating(
             'refresh-window',
-            {
-                'current_album_alphabetical_sort':
-                new_active_alphabetical_sort,
-                'selected_album_id': None,
-            },
+            {'current_album_alphabetical_sort': new_active_alphabetical_sort},
             False,
         )
 
     def on_genre_change(self, combo: Gtk.ComboBox):
         new_active_genre = self.get_id(combo)
-        self.grid.update_params(genre=new_active_genre)
+        self.grid_order_token = self.grid.update_params(genre=new_active_genre)
         self.emit_if_not_updating(
             'refresh-window',
-            {
-                'current_album_genre': new_active_genre,
-                'selected_album_id': None,
-            },
+            {'current_album_genre': new_active_genre},
             True,
         )
 
-    def on_year_changed(self, entry: Gtk.Entry):
-        try:
-            year = int(entry.get_text())
-        except Exception:
-            # TODO (#123): prevent input of non-numerals
-            logging.error(
-                'failed, should do something to prevent non-numeric input')
-            return
+    def on_year_changed(self, entry: Gtk.SpinButton) -> bool:
+        year = int(entry.get_value())
 
-        if self.to_year_entry == entry:
-            self.grid.update_params(to_year=year)
+        if self.to_year_spin_button == entry:
+            self.grid_order_token = self.grid.update_params(to_year=year)
             self.emit_if_not_updating(
                 'refresh-window',
-                {
-                    'current_album_to_year': year,
-                    'selected_album_id': None,
-                },
+                {'current_album_to_year': year},
                 True,
             )
         else:
-            self.grid.update_params(from_year=year)
+            self.grid_order_token = self.grid.update_params(from_year=year)
             self.emit_if_not_updating(
                 'refresh-window',
-                {
-                    'current_album_from_year': year,
-                    'selected_album_id': None,
-                },
+                {'current_album_from_year': year},
                 True,
             )
+
+        return False
 
     def on_grid_cover_clicked(self, grid: Any, id: str):
         self.emit(
@@ -285,12 +261,12 @@ class AlbumsGrid(Gtk.Overlay):
     from_year: int = 2010
     to_year: int = 2020
     genre: str = 'Rock'
+    latest_applied_order_ratchet: int = 0
+    order_ratchet: int = 0
 
-    current_selection = None
+    current_selection: Optional[int] = None
     next_page_fn = None
-    parameters_changed = False
     current_min_size_request = 30
-    overshoot_update_in_progress = False
     server_hash = None
 
     class AlbumModel(GObject.Object):
@@ -306,20 +282,25 @@ class AlbumsGrid(Gtk.Overlay):
             return f'<AlbumsGrid.AlbumModel {self.album}>'
 
     def update_params(
-        self,
-        type_: str = None,
-        alphabetical_type: str = None,
-        from_year: int = None,
-        to_year: int = None,
-        genre: str = None,
-    ):
+            self,
+            type_: str = None,
+            alphabetical_type: str = None,
+            from_year: int = None,
+            to_year: int = None,
+            genre: str = None,
+    ) -> int:
+        # If there's a diff, increase the ratchet.
+        if (self.type_ != type_ or self.alphabetical_type != alphabetical_type
+                or self.from_year != from_year or self.to_year != to_year
+                or self.genre != genre):
+            self.order_ratchet += 1
         self.type_ = type_ or self.type_
         self.alphabetical_type = alphabetical_type or self.alphabetical_type
         self.from_year = from_year or self.from_year
         self.to_year = to_year or self.to_year
         self.genre = genre or self.genre
-        self.parameters_changed = True
         self.current_min_size_request = 30
+        return self.order_ratchet
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -392,16 +373,21 @@ class AlbumsGrid(Gtk.Overlay):
 
     def update(
         self,
+        order_token: int,
         state: ApplicationState,
         force: bool = False,
-        selected_id: str = None,
     ):
-        new_hash = CacheManager.calculate_server_hash(state.config.server)
-        if self.server_hash != new_hash:
-            self.parameters_changed = True
-        self.server_hash = new_hash
+        if order_token < self.latest_applied_order_ratchet:
+            return
 
-        self.update_grid(force=force, selected_id=selected_id)
+        new_hash = CacheManager.calculate_server_hash(state.config.server)
+        server_changed = self.server_hash != new_hash
+        self.server_hash = new_hash
+        self.update_grid(
+            order_token,
+            force=force or server_changed,
+            selected_id=state.selected_album_id,
+        )
 
         # Update the detail panel.
         children = self.detail_box_inner.get_children()
@@ -410,20 +396,15 @@ class AlbumsGrid(Gtk.Overlay):
 
     error_dialog = None
 
-    def update_grid(self, force: bool = False, selected_id: str = None):
+    def update_grid(
+        self,
+        order_token: int,
+        force: bool = False,
+        selected_id: str = None,
+    ):
         if not CacheManager.ready():
             self.spinner.hide()
             return
-
-        def reflow_grid(force_reload: bool, selected_index: Optional[int]):
-            selection_changed = (selected_index != self.current_selection)
-            self.current_selection = selected_index
-            self.reflow_grids(
-                force_reload_from_master=force_reload,
-                selection_changed=selection_changed,
-            )
-            self.spinner.hide()
-            self.overshoot_update_in_progress = False
 
         # Calculate the type.
         type_ = self.type_
@@ -432,9 +413,6 @@ class AlbumsGrid(Gtk.Overlay):
                 'name': 'ByName',
                 'artist': 'ByArtist',
             }[self.alphabetical_type]
-
-        require_reflow = self.parameters_changed
-        self.parameters_changed = False
 
         def do_update(f: CacheManager.Result):
             try:
@@ -458,7 +436,15 @@ class AlbumsGrid(Gtk.Overlay):
                 self.spinner.hide()
                 return
 
-            old_len = len(self.list_store)
+            # Don't override more recent results
+            if order_token < self.latest_applied_order_ratchet:
+                return
+
+            should_reload = (
+                force
+                or self.latest_applied_order_ratchet < self.order_ratchet)
+            self.latest_applied_order_ratchet = self.order_ratchet
+
             self.list_store.remove_all()
 
             selected_index = None
@@ -470,10 +456,13 @@ class AlbumsGrid(Gtk.Overlay):
 
                 self.list_store.append(model)
 
-            reflow_grid(
-                force or require_reflow or (old_len != len(self.list_store)),
-                selected_index,
+            selection_changed = selected_index != self.current_selection
+            self.current_selection = selected_index
+            self.reflow_grids(
+                force_reload_from_master=should_reload,
+                selection_changed=selection_changed,
             )
+            self.spinner.hide()
 
         future = CacheManager.get_album_list(
             type_=type_,
@@ -492,7 +481,7 @@ class AlbumsGrid(Gtk.Overlay):
         selected_index = (
             child.get_index() + (0 if click_top else len(self.list_store_top)))
 
-        if selected_index == self.current_selection:
+        if click_top and selected_index == self.current_selection:
             self.emit('cover-clicked', None)
         else:
             self.emit('cover-clicked', self.list_store[selected_index].id)
@@ -611,8 +600,11 @@ class AlbumsGrid(Gtk.Overlay):
                     del self.list_store_top[-1]
 
         if self.current_selection is not None:
-            self.grid_top.select_child(
-                self.grid_top.get_child_at_index(self.current_selection))
+            to_select = self.grid_top.get_child_at_index(
+                self.current_selection)
+            if not to_select:
+                return
+            self.grid_top.select_child(to_select)
 
             if not selection_changed:
                 return
