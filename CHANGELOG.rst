@@ -1,3 +1,30 @@
+v0.9.0
+======
+
+* Cover art for a given album is now only stored once at high resolution and
+  scaled whenever used.
+* The year inputs on the Albums tab no longer allow for non-numeric inputs, and
+  are generally way less janky. (#123)
+* The Albums tab doesn't flicker every single time an ``update`` is called from
+  the top level. (#114)
+
+* **Bug Fixes**
+
+  * When dealing with track covers, the ``song.coverArt`` property is used
+    instead of the ``song.id``. (Contributed by @sentriz.)
+  * The Albums tab no longer loads infinitely when there are more than 500
+    albums in the results. (Contributed by @sentriz.)
+
+* **Infrastructure**
+
+  * Enabled a bunch of flake8 linter extensions including:
+
+    * Enforcing using type hints on all function declarations.
+    * Enforcing no ``print`` statements via flake8 instead of my janky script.
+    * Enforcing no use of ``%`` style string formatting.
+
+    These changes resulted in a *lot* of code cleanup.
+
 v0.8.13
 =======
 
