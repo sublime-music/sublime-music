@@ -170,12 +170,7 @@ class AlbumsPanel(Gtk.Box):
         show_if('byYear', self.from_year_label, self.from_year_spin_button)
         show_if('byYear', self.to_year_label, self.to_year_spin_button)
 
-        self.grid.update(
-            self.grid_order_token,
-            state,
-            force=force,
-            selected_id=state.selected_album_id,
-        )
+        self.grid.update(self.grid_order_token, state, force=force)
 
     def get_id(self, combo: Gtk.ComboBox) -> Optional[int]:
         tree_iter = combo.get_active_iter()
@@ -191,10 +186,7 @@ class AlbumsPanel(Gtk.Box):
         self.grid_order_token = self.grid.update_params(type_=new_active_sort)
         self.emit_if_not_updating(
             'refresh-window',
-            {
-                'current_album_sort': new_active_sort,
-                'selected_album_id': None,
-            },
+            {'current_album_sort': new_active_sort},
             False,
         )
 
@@ -204,11 +196,7 @@ class AlbumsPanel(Gtk.Box):
             alphabetical_type=new_active_alphabetical_sort)
         self.emit_if_not_updating(
             'refresh-window',
-            {
-                'current_album_alphabetical_sort':
-                new_active_alphabetical_sort,
-                'selected_album_id': None,
-            },
+            {'current_album_alphabetical_sort': new_active_alphabetical_sort},
             False,
         )
 
@@ -217,10 +205,7 @@ class AlbumsPanel(Gtk.Box):
         self.grid_order_token = self.grid.update_params(genre=new_active_genre)
         self.emit_if_not_updating(
             'refresh-window',
-            {
-                'current_album_genre': new_active_genre,
-                'selected_album_id': None,
-            },
+            {'current_album_genre': new_active_genre},
             True,
         )
 
@@ -231,20 +216,14 @@ class AlbumsPanel(Gtk.Box):
             self.grid_order_token = self.grid.update_params(to_year=year)
             self.emit_if_not_updating(
                 'refresh-window',
-                {
-                    'current_album_to_year': year,
-                    'selected_album_id': None,
-                },
+                {'current_album_to_year': year},
                 True,
             )
         else:
             self.grid_order_token = self.grid.update_params(from_year=year)
             self.emit_if_not_updating(
                 'refresh-window',
-                {
-                    'current_album_from_year': year,
-                    'selected_album_id': None,
-                },
+                {'current_album_from_year': year},
                 True,
             )
 
@@ -397,7 +376,6 @@ class AlbumsGrid(Gtk.Overlay):
         order_token: int,
         state: ApplicationState,
         force: bool = False,
-        selected_id: str = None,
     ):
         if order_token < self.latest_applied_order_ratchet:
             return
@@ -408,7 +386,7 @@ class AlbumsGrid(Gtk.Overlay):
         self.update_grid(
             order_token,
             force=force or server_changed,
-            selected_id=selected_id,
+            selected_id=state.selected_album_id,
         )
 
         # Update the detail panel.
