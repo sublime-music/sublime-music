@@ -14,7 +14,7 @@ from sublime.players import ChromecastPlayer
 from sublime.server.api_objects import Child
 from sublime.state_manager import ApplicationState, RepeatType
 from sublime.ui import util
-from sublime.ui.common import IconButton, SpinnerImage
+from sublime.ui.common import IconButton, IconToggleButton, SpinnerImage
 
 
 class PlayerControls(Gtk.ActionBar):
@@ -97,19 +97,12 @@ class PlayerControls(Gtk.ActionBar):
             has_next_song = (
                 state.current_song_index < len(state.play_queue) - 1)
 
-        # Repeat button state
-        # TODO (#125): it's not correct to use symboloc vs. not symbolic icons
-        # for lighter/darker versions of the icon. Fix this by using FG color I
-        # think? But then we have to deal with styling, which sucks.
+        # Toggle button states.
+        self.repeat_button.set_active(
+            state.repeat_type in (
+                RepeatType.REPEAT_QUEUE, RepeatType.REPEAT_SONG))
         self.repeat_button.set_icon(state.repeat_type.icon)
-
-        # Shuffle button state
-        # TODO (#125): it's not correct to use symboloc vs. not symbolic icons
-        # for lighter/darker versions of the icon. Fix this by using FG color I
-        # think? But then we have to deal with styling, which sucks.
-        self.shuffle_button.set_icon(
-            'media-playlist-shuffle'
-            + ('-symbolic' if state.shuffle_on else ''))
+        self.shuffle_button.set_active(state.shuffle_on)
 
         self.song_scrubber.set_sensitive(has_current_song)
         self.prev_button.set_sensitive(has_current_song)
@@ -512,7 +505,7 @@ class PlayerControls(Gtk.ActionBar):
         buttons.pack_start(Gtk.Box(), True, True, 0)
 
         # Repeat button
-        self.repeat_button = IconButton('media-playlist-repeat')
+        self.repeat_button = IconToggleButton('media-playlist-repeat')
         self.repeat_button.set_action_name('app.repeat-press')
         buttons.pack_start(self.repeat_button, False, False, 5)
 
@@ -540,7 +533,8 @@ class PlayerControls(Gtk.ActionBar):
         buttons.pack_start(self.next_button, False, False, 5)
 
         # Shuffle button
-        self.shuffle_button = IconButton('media-playlist-shuffle')
+        self.shuffle_button = IconToggleButton(
+            'media-playlist-shuffle-symbolic')
         self.shuffle_button.set_action_name('app.shuffle-press')
         buttons.pack_start(self.shuffle_button, False, False, 5)
 

@@ -22,7 +22,7 @@ class RepeatType(Enum):
     @property
     def icon(self) -> str:
         icon_name = [
-            'repeat',
+            'repeat-symbolic',
             'repeat-symbolic',
             'repeat-song-symbolic',
         ][self.value]
