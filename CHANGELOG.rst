@@ -7,6 +7,8 @@ v0.9.0
   are generally way less janky. (#123)
 * The Albums tab doesn't flicker every single time an ``update`` is called from
   the top level. (#114)
+* The shuffle and repeat buttons are now toggle buttons, and no longer rely on
+  the icon theme to provide context as to whether they are activated or not.
 
 * **Bug Fixes**
 
