@@ -505,9 +505,13 @@ class PlayerControls(Gtk.ActionBar):
         buttons.pack_start(Gtk.Box(), True, True, 0)
 
         # Repeat button
+        repeat_button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.repeat_button = IconToggleButton('media-playlist-repeat')
         self.repeat_button.set_action_name('app.repeat-press')
-        buttons.pack_start(self.repeat_button, False, False, 5)
+        repeat_button_box.pack_start(Gtk.Box(), True, True, 0)
+        repeat_button_box.pack_start(self.repeat_button, False, False, 0)
+        repeat_button_box.pack_start(Gtk.Box(), True, True, 0)
+        buttons.pack_start(repeat_button_box, False, False, 5)
 
         # Previous button
         self.prev_button = IconButton(
@@ -533,10 +537,14 @@ class PlayerControls(Gtk.ActionBar):
         buttons.pack_start(self.next_button, False, False, 5)
 
         # Shuffle button
+        shuffle_button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.shuffle_button = IconToggleButton(
             'media-playlist-shuffle-symbolic')
         self.shuffle_button.set_action_name('app.shuffle-press')
-        buttons.pack_start(self.shuffle_button, False, False, 5)
+        shuffle_button_box.pack_start(Gtk.Box(), True, True, 0)
+        shuffle_button_box.pack_start(self.shuffle_button, False, False, 0)
+        shuffle_button_box.pack_start(Gtk.Box(), True, True, 0)
+        buttons.pack_start(shuffle_button_box, False, False, 5)
 
         buttons.pack_start(Gtk.Box(), True, True, 0)
         box.add(buttons)
