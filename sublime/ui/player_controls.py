@@ -98,11 +98,15 @@ class PlayerControls(Gtk.ActionBar):
                 state.current_song_index < len(state.play_queue) - 1)
 
         # Toggle button states.
-        self.repeat_button.set_active(
-            state.repeat_type in (
-                RepeatType.REPEAT_QUEUE, RepeatType.REPEAT_SONG))
+        self.repeat_button.set_action_name(None)
+        self.shuffle_button.set_action_name(None)
+        repeat_on = state.repeat_type in (
+            RepeatType.REPEAT_QUEUE, RepeatType.REPEAT_SONG)
+        self.repeat_button.set_active(repeat_on)
         self.repeat_button.set_icon(state.repeat_type.icon)
         self.shuffle_button.set_active(state.shuffle_on)
+        self.repeat_button.set_action_name('app.repeat-press')
+        self.shuffle_button.set_action_name('app.shuffle-press')
 
         self.song_scrubber.set_sensitive(has_current_song)
         self.prev_button.set_sensitive(has_current_song)
