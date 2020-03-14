@@ -65,8 +65,8 @@ class IconToggleButton(Gtk.ToggleButton):
     def set_icon(self, icon_name: Optional[str]):
         self.image.set_from_icon_name(icon_name, self.icon_size)
 
-    def get_active(self):
+    def get_active(self) -> bool:
         return super().get_active()
 
-    def set_active(self, active):
+    def set_active(self, active: bool):
         super().set_active(active)
