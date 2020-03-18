@@ -31,7 +31,7 @@ class ServerConfiguration:
     local_network_address: str
     local_network_ssid: str
     username: str
-    _password: str
+    password: str
     sync_enabled: bool
     disable_cert_verify: bool
 
@@ -80,8 +80,6 @@ class ServerConfiguration:
             except Exception:
                 pass
 
-    @property
-    def password(self) -> str:
         try:
             return keyring.get_password(
                 'com.sumnerevans.SublimeMusic',
@@ -89,7 +87,6 @@ class ServerConfiguration:
             )
         except Exception:
             return self._password
-
 
 class AppConfiguration:
     servers: List[ServerConfiguration] = []

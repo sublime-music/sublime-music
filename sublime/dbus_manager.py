@@ -21,7 +21,8 @@ def dbus_propagate(param_self: Any = None) -> Callable:
         @functools.wraps(function)
         def wrapper(*args):
             function(*args)
-            (param_self or args[0]).dbus_manager.property_diff()
+            if (param_self or args[0]).dbus_manager:
+                (param_self or args[0]).dbus_manager.property_diff()
 
         return wrapper
 

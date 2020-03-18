@@ -28,6 +28,7 @@ class SublimeMusicApp(Gtk.Application):
         self.window: Optional[Gtk.Window] = None
         self.state = ApplicationState()
         self.state.config_file = config_file
+        self.dbus_manager = None
 
         self.connect('shutdown', self.on_app_shutdown)
 
@@ -196,7 +197,8 @@ class SublimeMusicApp(Gtk.Application):
             self.update_play_state_from_server(prompt_confirm=True)
 
         # Send out to the bus that we exist.
-        self.dbus_manager.property_diff()
+        if self.dbus_manager:
+            self.dbus_manager.property_diff()
 
     # ########## DBUS MANAGMENT ########## #
     def do_dbus_register(
@@ -245,6 +247,9 @@ class SublimeMusicApp(Gtk.Application):
             self.play_song(song_index)
 
         def get_tracks_metadata(track_ids: List[str]) -> GLib.Variant:
+            if not self.dbus_manager:
+                return
+
             if len(track_ids):
                 # We are lucky, just return an empty list.
                 return GLib.Variant('(aa{sv})', ([], ))
@@ -705,7 +710,9 @@ class SublimeMusicApp(Gtk.Application):
         self.player._song_loaded = False
         self.state.playing = False
 
-        self.dbus_manager.property_diff()
+        if self.dbus_manager:
+            self.dbus_manager.property_diff()
+
         self.update_window()
 
         if device_uuid == 'this device':
@@ -716,7 +723,8 @@ class SublimeMusicApp(Gtk.Application):
 
         if was_playing:
             self.on_play_pause()
-            self.dbus_manager.property_diff()
+            if self.dbus_manager:
+                self.dbus_manager.property_diff()
 
     @dbus_propagate()
     def on_mute_toggle(self, *args):
@@ -770,7 +778,8 @@ class SublimeMusicApp(Gtk.Application):
 
         self.state.save()
         self.save_play_queue()
-        self.dbus_manager.shutdown()
+        if self.dbus_manager:
+            self.dbus_manager.shutdown()
         CacheManager.shutdown()
 
     # ########## HELPER METHODS ########## #
