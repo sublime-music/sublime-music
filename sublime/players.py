@@ -123,11 +123,19 @@ class Player:
 
 
 class MPVPlayer(Player):
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(
+        self,
+        on_timepos_change: Callable[[Optional[float]], None],
+        on_track_end: Callable[[], None],
+        on_player_event: Callable[[PlayerEvent], None],
+        config: AppConfiguration,
+    ):
+        super().__init__(
+            on_timepos_change, on_track_end, on_player_event, config)
 
         self.mpv = mpv.MPV()
         self.mpv.audio_client_name = 'sublime-music'
+        self.mpv.replaygain = config.replay_gain.as_string()
         self.progress_value_lock = threading.Lock()
         self.progress_value_count = 0
         self._muted = False
@@ -301,11 +309,7 @@ class ChromecastPlayer(Player):
         config: AppConfiguration,
     ):
         super().__init__(
-            on_timepos_change,
-            on_track_end,
-            on_player_event,
-            config,
-        )
+            on_timepos_change, on_track_end, on_player_event, config)
         self._timepos = 0.0
         self.time_incrementor_running = False
         self._can_hotswap_source = False

@@ -4,16 +4,20 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
+TextFieldDescription = Tuple[str, str, bool]
+BooleanFieldDescription = Tuple[str, str]
 NumericFieldDescription = Tuple[str, str, Tuple[int, int, int], int]
+OptionFieldDescription = Tuple[str, str, Tuple[str, ...]]
 
 
 class EditFormDialog(Gtk.Dialog):
     entity_name: str
     title: str
     initial_size: Tuple[int, int]
-    text_fields: List[Tuple[str, str, bool]] = []
-    boolean_fields: List[Tuple[str, str]] = []
+    text_fields: List[TextFieldDescription] = []
+    boolean_fields: List[BooleanFieldDescription] = []
     numeric_fields: List[NumericFieldDescription] = []
+    option_fields: List[OptionFieldDescription] = []
     extra_label: Optional[str] = None
     extra_buttons: List[Gtk.Button] = []
 
@@ -72,6 +76,30 @@ class EditFormDialog(Gtk.Dialog):
                 entry.set_visibility(False)
             content_grid.attach(entry, 1, i, 1, 1)
             self.data[value_field_name] = entry
+
+            i += 1
+
+        for label, value_field_name, options in self.option_fields:
+            entry_label = Gtk.Label(label=label + ':')
+            entry_label.set_halign(Gtk.Align.START)
+            content_grid.attach(entry_label, 0, i, 1, 1)
+
+            options_store = Gtk.ListStore(str)
+            for option in options:
+                options_store.append([option])
+
+            combo = Gtk.ComboBox.new_with_model(options_store)
+            combo.set_id_column(0)
+            renderer_text = Gtk.CellRendererText()
+            combo.pack_start(renderer_text, True)
+            combo.add_attribute(renderer_text, "text", 0)
+
+            field_value = getattr(existing_object, value_field_name)
+            if field_value:
+                combo.set_active(field_value.value)
+
+            content_grid.attach(combo, 1, i, 1, 1)
+            self.data[value_field_name] = combo
 
             i += 1
 

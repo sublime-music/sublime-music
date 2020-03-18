@@ -160,16 +160,22 @@ class ApplicationState:
         os.makedirs(os.path.dirname(self.state_filename), exist_ok=True)
 
         # Save the state
+        state_json = json.dumps(self.to_json(), indent=2, sort_keys=True)
+        if not state_json:
+            return
         with open(self.state_filename, 'w+') as f:
-            f.write(json.dumps(self.to_json(), indent=2, sort_keys=True))
+            f.write(state_json)
 
     def save_config(self):
         # Make the necessary directories before writing the config.
         os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
 
+        config_json = json.dumps(
+            self.config.to_json(), indent=2, sort_keys=True)
+        if not config_json:
+            return
         with open(self.config_file, 'w+') as f:
-            f.write(
-                json.dumps(self.config.to_json(), indent=2, sort_keys=True))
+            f.write(config_json)
 
     def get_config(self, filename: str) -> AppConfiguration:
         if not os.path.exists(filename):

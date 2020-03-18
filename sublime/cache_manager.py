@@ -348,6 +348,7 @@ class CacheManager(metaclass=Singleton):
                 logging.info('Migrating cache to version 1.')
                 cover_art_re = re.compile(r'(\d+)_(\d+)')
                 abs_path = self.calculate_abs_path('cover_art/')
+                abs_path.mkdir(parents=True, exist_ok=True)
                 for cover_art_file in Path(abs_path).iterdir():
                     match = cover_art_re.match(cover_art_file.name)
                     if match:
