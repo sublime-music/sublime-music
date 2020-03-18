@@ -68,6 +68,7 @@ Install the |AUR Package|_. Example using ``yay``::
     pip install sublime-music
 
 .. toctree::
+   :numbered:
    :maxdepth: 1
    :caption: Contents:
 
