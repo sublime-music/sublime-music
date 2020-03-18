@@ -8,7 +8,9 @@ flatpak/flatpak_build_dir/
 __pycache__/
 *.py[cod]
 *$py.class
-.vscode/settings.json
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.default.json
 
 # C extensions
 *.so
