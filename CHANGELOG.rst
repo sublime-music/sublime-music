@@ -9,6 +9,9 @@ v0.9.0
   the top level. (#114)
 * The shuffle and repeat buttons are now toggle buttons, and no longer rely on
   the icon theme to provide context as to whether they are activated or not.
+  (#125)
+* Added support for Replay Gain option which is available from the Application
+  Settings dialog. (#137)
 
 * **Bug Fixes**
 
@@ -16,6 +19,7 @@ v0.9.0
     instead of the ``song.id``. (Contributed by @sentriz.)
   * The Albums tab no longer loads infinitely when there are more than 500
     albums in the results. (Contributed by @sentriz.)
+  * Fixed issue with setting the title of the "Edit/Add Server" dialog.
 
 * **Infrastructure**
 

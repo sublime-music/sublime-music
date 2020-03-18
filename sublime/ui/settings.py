@@ -41,6 +41,9 @@ class SettingsDialog(EditFormDialog):
             5,
         ),
     ]
+    option_fields = [
+        ('Replay Gain', 'replay_gain', ('Disabled', 'Track', 'Album')),
+    ]
 
     def __init__(self, *args, **kwargs):
         self.extra_label = Gtk.Label(

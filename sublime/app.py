@@ -11,6 +11,7 @@ gi.require_version('Notify', '0.7')
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Notify
 
 from .cache_manager import CacheManager
+from .config import ReplayGainType
 from .dbus_manager import dbus_propagate, DBusManager
 from .players import ChromecastPlayer, MPVPlayer, PlayerEvent
 from .server.api_objects import Child, Directory, Playlist
@@ -431,6 +432,8 @@ class SublimeMusicApp(Gtk.Application):
                 'prefetch_amount'].get_value_as_int()
             self.state.config.concurrent_download_limit = dialog.data[
                 'concurrent_download_limit'].get_value_as_int()
+            self.state.config.replay_gain = ReplayGainType.from_string(
+                dialog.data['replay_gain'].get_active_id())
             self.state.save_config()
             self.reset_state()
         dialog.destroy()
