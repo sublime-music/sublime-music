@@ -139,7 +139,7 @@ class MPVPlayer(Player):
         self.progress_value_lock = threading.Lock()
         self.progress_value_count = 0
         self._muted = False
-        self._volume = 100
+        self._volume = 100.
         self._can_hotswap_source = True
 
         @self.mpv.property_observer('time-pos')
