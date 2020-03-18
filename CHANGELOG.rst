@@ -19,6 +19,7 @@ v0.9.0
     instead of the ``song.id``. (Contributed by @sentriz.)
   * The Albums tab no longer loads infinitely when there are more than 500
     albums in the results. (Contributed by @sentriz.)
+  * Fixed issue with setting the title of the "Edit/Add Server" dialog.
 
 * **Infrastructure**
 

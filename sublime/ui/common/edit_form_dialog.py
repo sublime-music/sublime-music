@@ -32,7 +32,7 @@ class EditFormDialog(Gtk.Dialog):
 
     def __init__(self, parent: Any, existing_object: Any = None):
         editing = existing_object is not None
-        title = getattr(self, 'title', lambda: None)
+        title = getattr(self, 'title', None)
         if not title:
             if editing:
                 title = f'Edit {self.get_object_name(existing_object)}'
