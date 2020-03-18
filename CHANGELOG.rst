@@ -9,6 +9,9 @@ v0.9.0
   the top level. (#114)
 * The shuffle and repeat buttons are now toggle buttons, and no longer rely on
   the icon theme to provide context as to whether they are activated or not.
+  (#125)
+* Added support for Replay Gain option which is available from the Application
+  Settings dialog. (#137)
 
 * **Bug Fixes**
 
