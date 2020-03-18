@@ -7,8 +7,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import gi
 gi.require_version('Gtk', '3.0')
-gi.require_version('Notify', '0.7')
-from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Notify
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
 
 from .cache_manager import CacheManager
 from .config import ReplayGainType
@@ -24,7 +23,7 @@ from .ui.settings import SettingsDialog
 class SublimeMusicApp(Gtk.Application):
     def __init__(self, config_file: str):
         super().__init__(application_id="com.sumnerevans.sublimemusic")
-        Notify.init('Sublime Music')
+        # Notify.init('Sublime Music')
 
         self.window: Optional[Gtk.Window] = None
         self.state = ApplicationState()
@@ -760,7 +759,7 @@ class SublimeMusicApp(Gtk.Application):
         return False
 
     def on_app_shutdown(self, app: 'SublimeMusicApp'):
-        Notify.uninit()
+        # Notify.uninit()
 
         if self.state.config.server is None:
             return
@@ -874,7 +873,7 @@ class SublimeMusicApp(Gtk.Application):
                 self.should_scrobble_song = True
 
             # Show a song play notification.
-            if self.state.config.song_play_notification:
+            if self.state.config.song_play_notification and False:
                 try:
                     notification_lines = []
                     if song.album:

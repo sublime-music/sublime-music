@@ -3,10 +3,8 @@ import os
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
-import gi
 gi.require_version('NM', '1.0')
 from gi.repository import NM
-
 from .cache_manager import CacheManager
 from .config import AppConfiguration
 from .from_json import from_json
@@ -188,6 +186,7 @@ class ApplicationState:
 
     @property
     def current_ssids(self) -> Set[str]:
+        return set()
         if not self.nmclient_initialized:
             # Only look at the active WiFi connections.
             for ac in self.networkmanager_client.get_active_connections():
