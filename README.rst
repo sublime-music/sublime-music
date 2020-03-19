@@ -1,5 +1,5 @@
-Sublime Music
-=============
+.. image:: https://gitlab.com/sumner/sublime-music/-/raw/master/docs/logo/logo.png
+   :alt: Sublime Music Logo
 
 Sublime Music is a GTK3 `Revel`_/`Gonic`_/`Subsonic`_/`Airsonic`_/\*sonic client
 for the Linux Desktop.
