@@ -1,6 +1,7 @@
 v0.9.0
 ======
 
+* New logo that isn't total garbage (#110)
 * Cover art for a given album is now only stored once at high resolution and
   scaled whenever used.
 * The year inputs on the Albums tab no longer allow for non-numeric inputs, and
@@ -12,6 +13,8 @@ v0.9.0
   (#125)
 * Added support for Replay Gain option which is available from the Application
   Settings dialog. (#137)
+* All of the buttons that are only icons now have tooltips describing what they
+  do.
 
 * **Bug Fixes**
 

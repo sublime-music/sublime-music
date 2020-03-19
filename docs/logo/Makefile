@@ -7,7 +7,7 @@ all: $(PNGFILES)
 builddir:
 	mkdir -p build
 
-build/%.png: logo.svg | builddir
+build/%.png: icon.svg | builddir
 	inkscape -z -e $@ -w $(*F) $<
 
 clean:
