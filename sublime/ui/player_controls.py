@@ -87,6 +87,7 @@ class PlayerControls(Gtk.ActionBar):
 
         icon = 'pause' if state.playing else 'start'
         self.play_button.set_icon(f"media-playback-{icon}-symbolic")
+        self.play_button.set_tooltip_text('Pause' if state.playing else 'Play')
 
         has_current_song = state.current_song is not None
         has_next_song = False
@@ -510,7 +511,8 @@ class PlayerControls(Gtk.ActionBar):
 
         # Repeat button
         repeat_button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.repeat_button = IconToggleButton('media-playlist-repeat')
+        self.repeat_button = IconToggleButton(
+            'media-playlist-repeat', 'Switch between repeat modes')
         self.repeat_button.set_action_name('app.repeat-press')
         repeat_button_box.pack_start(Gtk.Box(), True, True, 0)
         repeat_button_box.pack_start(self.repeat_button, False, False, 0)
@@ -520,6 +522,7 @@ class PlayerControls(Gtk.ActionBar):
         # Previous button
         self.prev_button = IconButton(
             'media-skip-backward-symbolic',
+            'Go to previous song',
             icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         self.prev_button.set_action_name('app.prev-track')
         buttons.pack_start(self.prev_button, False, False, 5)
@@ -527,6 +530,7 @@ class PlayerControls(Gtk.ActionBar):
         # Play button
         self.play_button = IconButton(
             'media-playback-start-symbolic',
+            'Play',
             relief=True,
             icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         self.play_button.set_name('play-button')
@@ -536,6 +540,7 @@ class PlayerControls(Gtk.ActionBar):
         # Next button
         self.next_button = IconButton(
             'media-skip-forward-symbolic',
+            'Go to next song',
             icon_size=Gtk.IconSize.LARGE_TOOLBAR)
         self.next_button.set_action_name('app.next-track')
         buttons.pack_start(self.next_button, False, False, 5)
@@ -543,7 +548,7 @@ class PlayerControls(Gtk.ActionBar):
         # Shuffle button
         shuffle_button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.shuffle_button = IconToggleButton(
-            'media-playlist-shuffle-symbolic')
+            'media-playlist-shuffle-symbolic', 'Toggle playlist shuffling')
         self.shuffle_button.set_action_name('app.shuffle-press')
         shuffle_button_box.pack_start(Gtk.Box(), True, True, 0)
         shuffle_button_box.pack_start(self.shuffle_button, False, False, 0)
@@ -562,7 +567,10 @@ class PlayerControls(Gtk.ActionBar):
 
         # Device button (for chromecast)
         self.device_button = IconButton(
-            'video-display-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+            'video-display-symbolic',
+            'Show available audio output devices',
+            icon_size=Gtk.IconSize.LARGE_TOOLBAR,
+        )
         self.device_button.connect('clicked', self.on_device_click)
         box.pack_start(self.device_button, False, True, 5)
 
@@ -586,7 +594,8 @@ class PlayerControls(Gtk.ActionBar):
         )
         device_popover_header.add(self.popover_label)
 
-        refresh_devices = IconButton('view-refresh-symbolic')
+        refresh_devices = IconButton(
+            'view-refresh-symbolic', 'Refresh device list')
         refresh_devices.connect('clicked', self.on_device_refresh_click)
         device_popover_header.pack_end(refresh_devices, False, False, 0)
 
@@ -619,7 +628,10 @@ class PlayerControls(Gtk.ActionBar):
 
         # Play Queue button
         self.play_queue_button = IconButton(
-            'view-list-symbolic', icon_size=Gtk.IconSize.LARGE_TOOLBAR)
+            'view-list-symbolic',
+            'Open play queue',
+            icon_size=Gtk.IconSize.LARGE_TOOLBAR,
+        )
         self.play_queue_button.connect('clicked', self.on_play_queue_click)
         box.pack_start(self.play_queue_button, False, True, 5)
 
@@ -641,7 +653,8 @@ class PlayerControls(Gtk.ActionBar):
         )
         play_queue_popover_header.add(self.popover_label)
 
-        load_play_queue = Gtk.Button(label='Load Queue from Server', margin=5)
+        load_play_queue = IconButton(
+            'folder-download-symbolic', 'Load Queue from Server', margin=5)
         load_play_queue.set_action_name('app.update-play-queue-from-server')
         play_queue_popover_header.pack_end(load_play_queue, False, False, 0)
 
@@ -725,7 +738,8 @@ class PlayerControls(Gtk.ActionBar):
         self.play_queue_popover.add(play_queue_popover_box)
 
         # Volume mute toggle
-        self.volume_mute_toggle = IconButton('audio-volume-high-symbolic')
+        self.volume_mute_toggle = IconButton(
+            'audio-volume-high-symbolic', 'Toggle mute')
         self.volume_mute_toggle.set_action_name('app.mute-toggle')
         box.pack_start(self.volume_mute_toggle, False, True, 0)
 

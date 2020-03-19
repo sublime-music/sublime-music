@@ -9,6 +9,7 @@ class IconButton(Gtk.Button):
     def __init__(
         self,
         icon_name: Optional[str],
+        tooltip_text: str = '',
         relief: bool = False,
         icon_size: Gtk.IconSize = Gtk.IconSize.BUTTON,
         label: str = None,
@@ -31,6 +32,7 @@ class IconButton(Gtk.Button):
             self.props.relief = Gtk.ReliefStyle.NONE
 
         self.add(box)
+        self.set_tooltip_text(tooltip_text)
 
     def set_icon(self, icon_name: Optional[str]):
         self.image.set_from_icon_name(icon_name, self.icon_size)
@@ -40,6 +42,7 @@ class IconToggleButton(Gtk.ToggleButton):
     def __init__(
         self,
         icon_name: Optional[str],
+        tooltip_text: str = '',
         relief: bool = False,
         icon_size: Gtk.IconSize = Gtk.IconSize.BUTTON,
         label: str = None,
@@ -61,6 +64,7 @@ class IconToggleButton(Gtk.ToggleButton):
             self.props.relief = Gtk.ReliefStyle.NONE
 
         self.add(box)
+        self.set_tooltip_text(tooltip_text)
 
     def set_icon(self, icon_name: Optional[str]):
         self.image.set_from_icon_name(icon_name, self.icon_size)

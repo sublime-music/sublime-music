@@ -76,26 +76,41 @@ class AlbumWithSongs(Gtk.Box):
             ))
 
         self.play_btn = IconButton(
-            'media-playback-start-symbolic', sensitive=False)
+            'media-playback-start-symbolic',
+            'Play all songs in this album',
+            sensitive=False,
+        )
         self.play_btn.connect('clicked', self.play_btn_clicked)
         album_title_and_buttons.pack_start(self.play_btn, False, False, 5)
 
         self.shuffle_btn = IconButton(
-            'media-playlist-shuffle-symbolic', sensitive=False)
+            'media-playlist-shuffle-symbolic',
+            'Shuffle all songs in this album',
+            sensitive=False,
+        )
         self.shuffle_btn.connect('clicked', self.shuffle_btn_clicked)
         album_title_and_buttons.pack_start(self.shuffle_btn, False, False, 5)
 
         self.play_next_btn = IconButton(
-            'go-top-symbolic', action_name='app.play-next')
+            'go-top-symbolic',
+            'Play all of the songs in this album next',
+            action_name='app.play-next',
+        )
         album_title_and_buttons.pack_start(self.play_next_btn, False, False, 5)
 
         self.add_to_queue_btn = IconButton(
-            'go-jump-symbolic', action_name='app.add-to-queue')
+            'go-jump-symbolic',
+            'Add all the songs in this album to the end of the play queue',
+            action_name='app.add-to-queue',
+        )
         album_title_and_buttons.pack_start(
             self.add_to_queue_btn, False, False, 5)
 
         self.download_all_btn = IconButton(
-            'folder-download-symbolic', sensitive=False)
+            'folder-download-symbolic',
+            'Download all songs in this album',
+            sensitive=False,
+        )
         self.download_all_btn.connect('clicked', self.on_download_all_click)
         album_title_and_buttons.pack_end(
             self.download_all_btn, False, False, 5)

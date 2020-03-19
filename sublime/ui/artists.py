@@ -70,7 +70,8 @@ class ArtistList(Gtk.Box):
 
         list_actions = Gtk.ActionBar()
 
-        refresh = IconButton('view-refresh-symbolic')
+        refresh = IconButton(
+            'view-refresh-symbolic', 'Refresh list of artists')
         refresh.connect('clicked', lambda *a: self.update(force=True))
         list_actions.pack_end(refresh)
 
@@ -195,12 +196,14 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_action_buttons = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL)
 
-        view_refresh_button = IconButton('view-refresh-symbolic')
+        view_refresh_button = IconButton(
+            'view-refresh-symbolic', 'Refresh artist info')
         view_refresh_button.connect('clicked', self.on_view_refresh_click)
         self.artist_action_buttons.pack_end(
             view_refresh_button, False, False, 5)
 
-        download_all_btn = IconButton('folder-download-symbolic')
+        download_all_btn = IconButton(
+            'folder-download-symbolic', 'Download all songs by this artist')
         download_all_btn.connect('clicked', self.on_download_all_click)
         self.artist_action_buttons.pack_end(download_all_btn, False, False, 5)
 

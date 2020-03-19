@@ -85,7 +85,7 @@ class AlbumsPanel(Gtk.Box):
         self.to_year_spin_button.connect('value-changed', self.on_year_changed)
         actionbar.pack_start(self.to_year_spin_button)
 
-        refresh = IconButton('view-refresh-symbolic')
+        refresh = IconButton('view-refresh-symbolic', 'Refresh list of albums')
         refresh.connect('clicked', self.on_refresh_clicked)
         actionbar.pack_end(refresh)
 

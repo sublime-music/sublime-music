@@ -209,7 +209,7 @@ class DrilldownList(Gtk.Box):
 
         list_actions = Gtk.ActionBar()
 
-        refresh = IconButton('view-refresh-symbolic')
+        refresh = IconButton('view-refresh-symbolic', 'Refresh folder')
         refresh.connect('clicked', self.on_refresh_clicked)
         list_actions.pack_end(refresh)
 

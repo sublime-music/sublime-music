@@ -95,7 +95,8 @@ class PlaylistList(Gtk.Box):
         new_playlist_button.connect('clicked', self.on_new_playlist_clicked)
         playlist_list_actions.pack_start(new_playlist_button)
 
-        list_refresh_button = IconButton('view-refresh-symbolic')
+        list_refresh_button = IconButton(
+            'view-refresh-symbolic', 'Refresh list of playlists')
         list_refresh_button.connect('clicked', self.on_list_refresh_click)
         playlist_list_actions.pack_end(list_refresh_button)
 
@@ -126,6 +127,7 @@ class PlaylistList(Gtk.Box):
 
         confirm_button = IconButton(
             'object-select-symbolic',
+            'Create playlist',
             name='playlist-list-new-playlist-confirm',
             relief=True,
         )
@@ -134,6 +136,7 @@ class PlaylistList(Gtk.Box):
 
         self.cancel_button = IconButton(
             'process-stop-symbolic',
+            'Cancel create playlist',
             name='playlist-list-new-playlist-cancel',
             relief=True,
         )
@@ -281,18 +284,21 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_action_buttons = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL)
 
-        view_refresh_button = IconButton('view-refresh-symbolic')
+        view_refresh_button = IconButton(
+            'view-refresh-symbolic', 'Refresh playlist info')
         view_refresh_button.connect('clicked', self.on_view_refresh_click)
         self.playlist_action_buttons.pack_end(
             view_refresh_button, False, False, 5)
 
-        playlist_edit_button = IconButton('document-edit-symbolic')
+        playlist_edit_button = IconButton(
+            'document-edit-symbolic', 'Edit paylist')
         playlist_edit_button.connect(
             'clicked', self.on_playlist_edit_button_click)
         self.playlist_action_buttons.pack_end(
             playlist_edit_button, False, False, 5)
 
-        download_all_button = IconButton('folder-download-symbolic')
+        download_all_button = IconButton(
+            'folder-download-symbolic', 'Download all songs in the playlist')
         download_all_button.connect(
             'clicked', self.on_playlist_list_download_all_button_click)
         self.playlist_action_buttons.pack_end(
@@ -363,11 +369,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
             return max(row_score(key, row) for row in rows)
 
         def playlist_song_list_search_fn(
-            model: Gtk.ListStore,
-            col: int,
-            key: str,
-            treeiter: Gtk.TreeIter,
-            data: Any = None,
+                model: Gtk.ListStore,
+                col: int,
+                key: str,
+                treeiter: Gtk.TreeIter,
+                data: Any = None,
         ) -> bool:
             # TODO (#28): this is very inefficient, it's slow when the result
             # is close to the bottom of the list. Would be good to research

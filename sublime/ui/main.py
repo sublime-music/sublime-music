@@ -135,6 +135,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Menu button
         menu_button = Gtk.MenuButton()
+        menu_button.set_tooltip_text('Open application menu')
         menu_button.set_use_popover(True)
         menu_button.set_popover(self._create_menu())
         menu_button.connect('clicked', self._on_menu_clicked)
