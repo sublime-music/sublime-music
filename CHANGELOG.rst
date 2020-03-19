@@ -1,13 +1,9 @@
 v0.9.0
 ======
 
-* New logo that isn't total garbage (#110)
+* New logo that isn't total garbage. By mountdesign_ on Fiverr_. (#110)
 * Cover art for a given album is now only stored once at high resolution and
   scaled whenever used.
-* The year inputs on the Albums tab no longer allow for non-numeric inputs, and
-  are generally way less janky. (#123)
-* The Albums tab doesn't flicker every single time an ``update`` is called from
-  the top level. (#114)
 * The shuffle and repeat buttons are now toggle buttons, and no longer rely on
   the icon theme to provide context as to whether they are activated or not.
   (#125)
@@ -18,10 +14,14 @@ v0.9.0
 
 * **Bug Fixes**
 
+  * The year inputs on the Albums tab no longer allow for non-numeric inputs,
+    and are generally way less janky. (#123)
   * When dealing with track covers, the ``song.coverArt`` property is used
     instead of the ``song.id``. (Contributed by @sentriz.)
   * The Albums tab no longer loads infinitely when there are more than 500
     albums in the results. (Contributed by @sentriz.)
+  * The Albums tab doesn't flicker every single time an ``update`` is called
+    from the top level. (#114)
   * Fixed issue with setting the title of the "Edit/Add Server" dialog.
 
 * **Infrastructure**
@@ -33,6 +33,9 @@ v0.9.0
     * Enforcing no use of ``%`` style string formatting.
 
     These changes resulted in a *lot* of code cleanup.
+
+.. _mountdesign: https://www.fiverr.com/mountdesign
+.. _Fiverr: https://www.fiverr.com
 
 v0.8.13
 =======

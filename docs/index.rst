@@ -1,5 +1,6 @@
 .. image:: ./logo/logo.png
-   :width: 200px
+   :width: 800px
+   :alt: Sublime Music logo
 
 Welcome to Sublime Music's documentation!
 =========================================
