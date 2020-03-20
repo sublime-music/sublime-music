@@ -1,6 +1,11 @@
 v0.9.0
 ======
 
+This is the first ``v0.9.*`` release. I've decided to bump the minor version,
+since this is the first release where I feel that all core functionality works.
+All of the releases in the ``v0.9.*`` series will build towards the ``v1.0.0``
+release.
+
 * New logo that isn't total garbage. By mountdesign_ on Fiverr_. (#110)
 * Cover art for a given album is now only stored once at high resolution and
   scaled whenever used.

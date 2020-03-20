@@ -91,7 +91,8 @@ class PlaylistList(Gtk.Box):
 
         playlist_list_actions = Gtk.ActionBar()
 
-        new_playlist_button = IconButton('list-add-symbolic', label='New Playlist')
+        new_playlist_button = IconButton(
+            'list-add-symbolic', label='New Playlist')
         new_playlist_button.connect('clicked', self.on_new_playlist_clicked)
         playlist_list_actions.pack_start(new_playlist_button)
 
