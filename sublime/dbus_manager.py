@@ -113,6 +113,9 @@ class DBusManager:
         params: GLib.Variant,
         invocation: Gio.DBusMethodInvocation,
     ):
+        if not CacheManager.ready():
+            return
+
         # TODO (#127): I don't even know if this works.
         if interface == 'org.freedesktop.DBus.Properties':
             if method == 'Get':
@@ -171,6 +174,8 @@ class DBusManager:
         return GLib.Variant(variant_type, value)
 
     def property_dict(self) -> Dict[str, Any]:
+        if not CacheManager.ready():
+            return {}
         state, player = self.get_state_and_player()
         has_current_song = state.current_song is not None
         has_next_song = False

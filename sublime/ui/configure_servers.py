@@ -248,4 +248,4 @@ class ConfigureServersDialog(Gtk.Dialog):
         has_selection = self.server_list.get_selected_row()
 
         for button, *_, requires_selection in self.buttons:
-            button.set_sensitive(not requires_selection or has_selection)
+            button.set_sensitive(bool(not requires_selection or has_selection))
