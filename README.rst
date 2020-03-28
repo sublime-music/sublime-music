@@ -20,3 +20,6 @@ See the |contributing|_ document for how to contribute to this project.
 
 .. |contributing| replace:: ``CONTRIBUTING.rst``
 .. _contributing: https://gitlab.com/sumner/sublime-music/-/blob/master/CONTRIBUTING.rst
+
+You can also join the conversation in our Matrix room:
+`#sublime-music:matrix.org <https://matrix.to/#/!veTDkgvBExJGKIBYlU:matrix.org?via=matrix.org>`_.
