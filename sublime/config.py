@@ -52,7 +52,6 @@ class ServerConfiguration:
         self.local_network_ssid = local_network_ssid
         self.username = username
         self.sync_enabled = sync_enabled
-        self._password = password
         self.disable_cert_verify = disable_cert_verify
 
         # Try to save the password in the keyring, but if we can't, then save
