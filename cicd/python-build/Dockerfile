@@ -31,7 +31,7 @@ RUN apt update && \
         python-openssl \
         git \
         libgirepository1.0-dev \
-        gir1.2-networkmanager-1.0 \
+        gir1.2-nm-1.0 \
         dbus
 
 RUN cd /usr/local/src && \

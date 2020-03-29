@@ -26,6 +26,7 @@ lint:
 test:
   stage: test
   before_script:
+    - apt update -y && apt install -y gir1.2-nm-1.0
     - ./cicd/install-project-deps.sh
     - ./cicd/start-dbus.sh
   script:

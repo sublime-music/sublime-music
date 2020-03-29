@@ -4,9 +4,8 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
 import gi
-gi.require_version('NetworkManager', '1.0')
-gi.require_version('NMClient', '1.0')
-from gi.repository import NetworkManager, NMClient
+gi.require_version('NM', '1.0')
+from gi.repository import NM
 
 from .cache_manager import CacheManager
 from .config import AppConfiguration
@@ -82,7 +81,7 @@ class ApplicationState:
 
     active_playlist_id: Optional[str] = None
 
-    networkmanager_client = NMClient.Client.new()
+    networkmanager_client = NM.Client.new()
     nmclient_initialized = False
     _current_ssids: Set[str] = set()
 
@@ -197,7 +196,7 @@ class ApplicationState:
                 devs = ac.get_devices()
                 if len(devs) != 1:
                     continue
-                if devs[0].get_device_type() != NetworkManager.DeviceType.WIFI:
+                if devs[0].get_device_type() != NM.DeviceType.WIFI:
                     continue
 
                 self._current_ssids.add(ac.get_id())
