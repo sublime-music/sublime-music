@@ -2,6 +2,7 @@ import logging
 import math
 import os
 import random
+import sys
 from concurrent.futures import Future
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
@@ -17,13 +18,13 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
 try:
     gi.require_version('Notify', '0.7')
     from gi.repository import Notify
-    notification_daemon_exists = True
+    glib_notify_exists = True
 except Exception:
     # I really don't care what kind of exception it is, all that matters is the
     # import failed for some reason.
     logging.warning(
         'Unable to import Notify from GLib. Notifications will be disabled.')
-    notification_daemon_exists = False
+    glib_notify_exists = False
 
 from .cache_manager import CacheManager
 from .config import ReplayGainType
@@ -39,7 +40,7 @@ from .ui.settings import SettingsDialog
 class SublimeMusicApp(Gtk.Application):
     def __init__(self, config_file: str):
         super().__init__(application_id="com.sumnerevans.sublimemusic")
-        if notification_daemon_exists:
+        if glib_notify_exists:
             Notify.init('Sublime Music')
 
         self.window: Optional[Gtk.Window] = None
@@ -791,7 +792,7 @@ class SublimeMusicApp(Gtk.Application):
         return False
 
     def on_app_shutdown(self, app: 'SublimeMusicApp'):
-        if notification_daemon_exists:
+        if glib_notify_exists:
             Notify.uninit()
 
         if tap_imported and self.tap:
@@ -910,55 +911,65 @@ class SublimeMusicApp(Gtk.Application):
                 self.should_scrobble_song = True
 
             # Show a song play notification.
-            if (self.state.config.song_play_notification
-                    and notification_daemon_exists):
+            if self.state.config.song_play_notification:
                 try:
-                    notification_lines = []
-                    if song.album:
-                        notification_lines.append(f'<i>{song.album}</i>')
-                    if song.artist:
-                        notification_lines.append(song.artist)
-                    song_notification = Notify.Notification.new(
-                        song.title,
-                        '\n'.join(notification_lines),
-                    )
-                    song_notification.add_action(
-                        'clicked',
-                        'Open Sublime Music',
-                        lambda *a: self.window.present()
-                        if self.window else None,
-                    )
-                    song_notification.show()
-
-                    def on_cover_art_download_complete(
-                        cover_art_filename: str,
-                        order_token: int,
-                    ):
-                        if order_token != self.song_playing_order_token:
-                            return
-
-                        # Add the image to the notification, and re-show the
-                        # notification.
-                        song_notification.set_image_from_pixbuf(
-                            GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                                cover_art_filename, 70, 70, True))
+                    if glib_notify_exists:
+                        notification_lines = []
+                        if song.album:
+                            notification_lines.append(f'<i>{song.album}</i>')
+                        if song.artist:
+                            notification_lines.append(song.artist)
+                        song_notification = Notify.Notification.new(
+                            song.title,
+                            '\n'.join(notification_lines),
+                        )
+                        song_notification.add_action(
+                            'clicked',
+                            'Open Sublime Music',
+                            lambda *a: self.window.present()
+                            if self.window else None,
+                        )
                         song_notification.show()
 
-                    def get_cover_art_filename(
-                            order_token: int) -> Tuple[str, int]:
-                        return (
-                            CacheManager.get_cover_art_filename(
-                                song.coverArt).result(),
-                            order_token,
-                        )
+                        def on_cover_art_download_complete(
+                            cover_art_filename: str,
+                            order_token: int,
+                        ):
+                            if order_token != self.song_playing_order_token:
+                                return
 
-                    self.song_playing_order_token += 1
-                    cover_art_future = CacheManager.create_future(
-                        get_cover_art_filename,
-                        self.song_playing_order_token,
-                    )
-                    cover_art_future.add_done_callback(
-                        lambda f: on_cover_art_download_complete(*f.result()))
+                            # Add the image to the notification, and re-show the
+                            # notification.
+                            song_notification.set_image_from_pixbuf(
+                                GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                                    cover_art_filename, 70, 70, True))
+                            song_notification.show()
+
+                        def get_cover_art_filename(
+                                order_token: int) -> Tuple[str, int]:
+                            return (
+                                CacheManager.get_cover_art_filename(
+                                    song.coverArt).result(),
+                                order_token,
+                            )
+
+                        self.song_playing_order_token += 1
+                        cover_art_future = CacheManager.create_future(
+                            get_cover_art_filename,
+                            self.song_playing_order_token,
+                        )
+                        cover_art_future.add_done_callback(
+                            lambda f: on_cover_art_download_complete(*f.result()))
+                    if sys.platform == 'darwin':
+                        notification_lines = []
+                        if song.album:
+                            notification_lines.append(song.album)
+                        if song.artist:
+                            notification_lines.append(song.artist)
+                        notification_text = '\n'.join(notification_lines)
+                        os.system(f"""
+                            osascript -e 'display notification "{notification_text}" with title "{song.title}"'
+                        """)
                 except Exception:
                     logging.warning(
                         'Unable to display notification. Is a notification '
