@@ -5,6 +5,12 @@ import random
 from concurrent.futures import Future
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
+try:
+    import osxmmkeys
+    tap_imported = True
+except Exception:
+    tap_imported = False
+
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
@@ -39,7 +45,7 @@ class SublimeMusicApp(Gtk.Application):
         self.window: Optional[Gtk.Window] = None
         self.state = ApplicationState()
         self.state.config_file = config_file
-        self.dbus_manager = None
+        self.dbus_manager: Optional[DBusManager] = None
 
         self.connect('shutdown', self.on_app_shutdown)
 
@@ -79,6 +85,13 @@ class SublimeMusicApp(Gtk.Application):
             'update-play-queue-from-server',
             lambda a, p: self.update_play_state_from_server(),
         )
+
+        if tap_imported:
+            self.tap = osxmmkeys.Tap()
+            self.tap.on('play_pause', self.on_play_pause)
+            self.tap.on('next_track', self.on_next_track)
+            self.tap.on('prev_track', self.on_prev_track)
+            self.tap.start()
 
     def do_activate(self):
         # We only allow a single window and raise any existing ones
@@ -780,6 +793,9 @@ class SublimeMusicApp(Gtk.Application):
     def on_app_shutdown(self, app: 'SublimeMusicApp'):
         if notification_daemon_exists:
             Notify.uninit()
+
+        if self.tap:
+            self.tap.stop()
 
         if self.state.config.server is None:
             return
