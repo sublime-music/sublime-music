@@ -2,13 +2,29 @@ import logging
 import math
 import os
 import random
+import sys
 from concurrent.futures import Future
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
+try:
+    import osxmmkeys
+    tap_imported = True
+except Exception:
+    tap_imported = False
+
 import gi
 gi.require_version('Gtk', '3.0')
-gi.require_version('Notify', '0.7')
-from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Notify
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
+try:
+    gi.require_version('Notify', '0.7')
+    from gi.repository import Notify
+    glib_notify_exists = True
+except Exception:
+    # I really don't care what kind of exception it is, all that matters is the
+    # import failed for some reason.
+    logging.warning(
+        'Unable to import Notify from GLib. Notifications will be disabled.')
+    glib_notify_exists = False
 
 from .cache_manager import CacheManager
 from .config import ReplayGainType
@@ -24,11 +40,13 @@ from .ui.settings import SettingsDialog
 class SublimeMusicApp(Gtk.Application):
     def __init__(self, config_file: str):
         super().__init__(application_id="com.sumnerevans.sublimemusic")
-        Notify.init('Sublime Music')
+        if glib_notify_exists:
+            Notify.init('Sublime Music')
 
         self.window: Optional[Gtk.Window] = None
         self.state = ApplicationState()
         self.state.config_file = config_file
+        self.dbus_manager: Optional[DBusManager] = None
 
         self.connect('shutdown', self.on_app_shutdown)
 
@@ -68,6 +86,13 @@ class SublimeMusicApp(Gtk.Application):
             'update-play-queue-from-server',
             lambda a, p: self.update_play_state_from_server(),
         )
+
+        if tap_imported:
+            self.tap = osxmmkeys.Tap()
+            self.tap.on('play_pause', self.on_play_pause)
+            self.tap.on('next_track', self.on_next_track)
+            self.tap.on('prev_track', self.on_prev_track)
+            self.tap.start()
 
     def do_activate(self):
         # We only allow a single window and raise any existing ones
@@ -197,7 +222,8 @@ class SublimeMusicApp(Gtk.Application):
             self.update_play_state_from_server(prompt_confirm=True)
 
         # Send out to the bus that we exist.
-        self.dbus_manager.property_diff()
+        if self.dbus_manager:
+            self.dbus_manager.property_diff()
 
     # ########## DBUS MANAGMENT ########## #
     def do_dbus_register(
@@ -246,6 +272,9 @@ class SublimeMusicApp(Gtk.Application):
             self.play_song(song_index)
 
         def get_tracks_metadata(track_ids: List[str]) -> GLib.Variant:
+            if not self.dbus_manager:
+                return
+
             if len(track_ids):
                 # We are lucky, just return an empty list.
                 return GLib.Variant('(aa{sv})', ([], ))
@@ -706,7 +735,9 @@ class SublimeMusicApp(Gtk.Application):
         self.player._song_loaded = False
         self.state.playing = False
 
-        self.dbus_manager.property_diff()
+        if self.dbus_manager:
+            self.dbus_manager.property_diff()
+
         self.update_window()
 
         if device_uuid == 'this device':
@@ -717,7 +748,8 @@ class SublimeMusicApp(Gtk.Application):
 
         if was_playing:
             self.on_play_pause()
-            self.dbus_manager.property_diff()
+            if self.dbus_manager:
+                self.dbus_manager.property_diff()
 
     @dbus_propagate()
     def on_mute_toggle(self, *args):
@@ -760,7 +792,11 @@ class SublimeMusicApp(Gtk.Application):
         return False
 
     def on_app_shutdown(self, app: 'SublimeMusicApp'):
-        Notify.uninit()
+        if glib_notify_exists:
+            Notify.uninit()
+
+        if tap_imported and self.tap:
+            self.tap.stop()
 
         if self.state.config.server is None:
             return
@@ -771,7 +807,8 @@ class SublimeMusicApp(Gtk.Application):
 
         self.state.save()
         self.save_play_queue()
-        self.dbus_manager.shutdown()
+        if self.dbus_manager:
+            self.dbus_manager.shutdown()
         CacheManager.shutdown()
 
     # ########## HELPER METHODS ########## #
@@ -876,52 +913,72 @@ class SublimeMusicApp(Gtk.Application):
             # Show a song play notification.
             if self.state.config.song_play_notification:
                 try:
-                    notification_lines = []
-                    if song.album:
-                        notification_lines.append(f'<i>{song.album}</i>')
-                    if song.artist:
-                        notification_lines.append(song.artist)
-                    song_notification = Notify.Notification.new(
-                        song.title,
-                        '\n'.join(notification_lines),
-                    )
-                    song_notification.add_action(
-                        'clicked',
-                        'Open Sublime Music',
-                        lambda *a: self.window.present()
-                        if self.window else None,
-                    )
-                    song_notification.show()
-
-                    def on_cover_art_download_complete(
-                        cover_art_filename: str,
-                        order_token: int,
-                    ):
-                        if order_token != self.song_playing_order_token:
-                            return
-
-                        # Add the image to the notification, and re-show the
-                        # notification.
-                        song_notification.set_image_from_pixbuf(
-                            GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                                cover_art_filename, 70, 70, True))
+                    if glib_notify_exists:
+                        notification_lines = []
+                        if song.album:
+                            notification_lines.append(f'<i>{song.album}</i>')
+                        if song.artist:
+                            notification_lines.append(song.artist)
+                        song_notification = Notify.Notification.new(
+                            song.title,
+                            '\n'.join(notification_lines),
+                        )
+                        song_notification.add_action(
+                            'clicked',
+                            'Open Sublime Music',
+                            lambda *a: self.window.present()
+                            if self.window else None,
+                        )
                         song_notification.show()
 
-                    def get_cover_art_filename(
-                            order_token: int) -> Tuple[str, int]:
-                        return (
-                            CacheManager.get_cover_art_filename(
-                                song.coverArt).result(),
-                            order_token,
-                        )
+                        def on_cover_art_download_complete(
+                            cover_art_filename: str,
+                            order_token: int,
+                        ):
+                            if order_token != self.song_playing_order_token:
+                                return
 
-                    self.song_playing_order_token += 1
-                    cover_art_future = CacheManager.create_future(
-                        get_cover_art_filename,
-                        self.song_playing_order_token,
-                    )
-                    cover_art_future.add_done_callback(
-                        lambda f: on_cover_art_download_complete(*f.result()))
+                            # Add the image to the notification, and re-show
+                            # the notification.
+                            song_notification.set_image_from_pixbuf(
+                                GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                                    cover_art_filename, 70, 70, True))
+                            song_notification.show()
+
+                        def get_cover_art_filename(
+                                order_token: int) -> Tuple[str, int]:
+                            return (
+                                CacheManager.get_cover_art_filename(
+                                    song.coverArt).result(),
+                                order_token,
+                            )
+
+                        self.song_playing_order_token += 1
+                        cover_art_future = CacheManager.create_future(
+                            get_cover_art_filename,
+                            self.song_playing_order_token,
+                        )
+                        cover_art_future.add_done_callback(
+                            lambda f: on_cover_art_download_complete(
+                                *f.result()))
+                    if sys.platform == 'darwin':
+                        notification_lines = []
+                        if song.album:
+                            notification_lines.append(song.album)
+                        if song.artist:
+                            notification_lines.append(song.artist)
+                        notification_text = '\n'.join(notification_lines)
+                        osascript_command = [
+                            'display',
+                            'notification',
+                            f'"{notification_text}"',
+                            'with',
+                            'title',
+                            f'"{song.title}"',
+                        ]
+
+                        os.system(
+                            f"osascript -e '{' '.join(osascript_command)}'")
                 except Exception:
                     logging.warning(
                         'Unable to display notification. Is a notification '
@@ -952,7 +1009,11 @@ class SublimeMusicApp(Gtk.Application):
                     on_song_download_complete=on_song_download_complete,
                 )
 
-            self.player.play_media(uri, self.state.song_progress, song)
+            self.player.play_media(
+                uri,
+                0 if reset else self.state.song_progress,
+                song,
+            )
             self.state.playing = True
             self.update_window()
 

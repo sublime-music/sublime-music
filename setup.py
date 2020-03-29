@@ -60,6 +60,7 @@ setup(
         'Deprecated',
         'fuzzywuzzy',
         'keyring',
+        'osxmmkeys ; sys_platform=="darwin"',
         'pychromecast',
         'PyGObject',
         'python-dateutil',
