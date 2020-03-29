@@ -1,11 +1,20 @@
 import json
+import logging
 import os
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
-import gi
-gi.require_version('NM', '1.0')
-from gi.repository import NM
+try:
+    import gi
+    gi.require_version('NM', '1.0')
+    from gi.repository import NM
+    networkmanager_imported = True
+except Exception:
+    # I really don't care what kind of exception it is, all that matters is the
+    # import failed for some reason.
+    logging.warning(
+        'Unable to import NM from GLib. Detection of SSID will be disabled.')
+    networkmanager_imported = False
 
 from .cache_manager import CacheManager
 from .config import AppConfiguration
@@ -81,7 +90,8 @@ class ApplicationState:
 
     active_playlist_id: Optional[str] = None
 
-    networkmanager_client = NM.Client.new()
+    if networkmanager_imported:
+        networkmanager_client = NM.Client.new()
     nmclient_initialized = False
     _current_ssids: Set[str] = set()
 
@@ -188,7 +198,8 @@ class ApplicationState:
 
     @property
     def current_ssids(self) -> Set[str]:
-        return set()
+        if not networkmanager_imported:
+            return set()
         if not self.nmclient_initialized:
             # Only look at the active WiFi connections.
             for ac in self.networkmanager_client.get_active_connections():
