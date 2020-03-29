@@ -938,8 +938,8 @@ class SublimeMusicApp(Gtk.Application):
                             if order_token != self.song_playing_order_token:
                                 return
 
-                            # Add the image to the notification, and re-show the
-                            # notification.
+                            # Add the image to the notification, and re-show
+                            # the notification.
                             song_notification.set_image_from_pixbuf(
                                 GdkPixbuf.Pixbuf.new_from_file_at_scale(
                                     cover_art_filename, 70, 70, True))
@@ -959,7 +959,8 @@ class SublimeMusicApp(Gtk.Application):
                             self.song_playing_order_token,
                         )
                         cover_art_future.add_done_callback(
-                            lambda f: on_cover_art_download_complete(*f.result()))
+                            lambda f: on_cover_art_download_complete(
+                                *f.result()))
                     if sys.platform == 'darwin':
                         notification_lines = []
                         if song.album:
@@ -967,9 +968,17 @@ class SublimeMusicApp(Gtk.Application):
                         if song.artist:
                             notification_lines.append(song.artist)
                         notification_text = '\n'.join(notification_lines)
-                        os.system(f"""
-                            osascript -e 'display notification "{notification_text}" with title "{song.title}"'
-                        """)
+                        osascript_command = [
+                            'display',
+                            'notification',
+                            f'"{notification_text}"',
+                            'with',
+                            'title',
+                            f'"{song.title}"',
+                        ]
+
+                        os.system(
+                            f"osascript -e '{' '.join(osascript_command)}'")
                 except Exception:
                     logging.warning(
                         'Unable to display notification. Is a notification '
