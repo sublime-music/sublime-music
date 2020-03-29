@@ -1009,7 +1009,11 @@ class SublimeMusicApp(Gtk.Application):
                     on_song_download_complete=on_song_download_complete,
                 )
 
-            self.player.play_media(uri, self.state.song_progress, song)
+            self.player.play_media(
+                uri,
+                0 if reset else self.state.song_progress,
+                song,
+            )
             self.state.playing = True
             self.update_window()
 
