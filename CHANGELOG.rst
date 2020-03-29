@@ -1,3 +1,18 @@
+v0.9.1
+======
+
+* **macOS Support Alpha:** support for macOS is now in alpha. There is very
+  little documentation, and quite a few hacks, but core functionality works.
+* Sublime Music is more resilient to certain libraries or functionalities not
+  existing on the system. (Namely libnotify, NetworkManager, and DBus)
+
+* **Bug Fixes**
+
+  * Sublime Music no longer explodes when you say "don't save password" in your
+    keyring notification popup.
+  * The ``NM`` library is used instead of the deprecated ``NetworkManager`` and
+    ``NMClient``. (Contributed by @anarcat.)
+
 v0.9.0
 ======
 
