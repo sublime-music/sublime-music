@@ -794,7 +794,7 @@ class SublimeMusicApp(Gtk.Application):
         if notification_daemon_exists:
             Notify.uninit()
 
-        if self.tap:
+        if tap_imported and self.tap:
             self.tap.stop()
 
         if self.state.config.server is None:
