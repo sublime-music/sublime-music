@@ -988,6 +988,8 @@ class SublimeMusicApp(Gtk.Application):
                 if (self.state.current_song
                         and self.state.current_song.id != song.id):
                     return
+                if not self.state.playing:
+                    return
 
                 # Switch to the local media if the player can hotswap (MPV can,
                 # Chromecast cannot hotswap without lag).
