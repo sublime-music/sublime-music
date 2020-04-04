@@ -158,6 +158,8 @@ class Server:
 
     def do_download(self, url: str, **params) -> bytes:
         download = self._get(url, **params)
+        if not download:
+            raise Exception('Download failed')
         if 'json' in download.headers.get('Content-Type'):
             # TODO (#122): make better
             raise Exception("Didn't expect JSON.")

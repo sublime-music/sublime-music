@@ -155,7 +155,7 @@ def show_song_popover(
     y: int,
     relative_to: Any,
     position: Gtk.PositionType = Gtk.PositionType.BOTTOM,
-    on_download_state_change: Callable[[int], None] = lambda x: None,
+    on_download_state_change: Callable[[], None] = lambda: None,
     show_remove_from_playlist_button: bool = False,
     extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = [],
 ):

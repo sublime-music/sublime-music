@@ -12,6 +12,8 @@ v0.9.1
     keyring notification popup.
   * The ``NM`` library is used instead of the deprecated ``NetworkManager`` and
     ``NMClient``. (Contributed by @anarcat.)
+  * Fixed some bugs where the state of the application wouldn't update when you
+    deleted/downloaded songs from certain parts of the application.
 
 v0.9.0
 ======

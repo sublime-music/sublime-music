@@ -860,7 +860,7 @@ class CacheManager(metaclass=Singleton):
                     abs_path = self.calculate_abs_path(relative_path)
                     if abs_path.exists():
                         abs_path.unlink()
-                    on_song_delete(song.id)
+                    on_song_delete()
 
             return CacheManager.create_future(do_delete_cached_songs)
 
@@ -868,7 +868,7 @@ class CacheManager(metaclass=Singleton):
                 self,
                 song_ids: List[int],
                 before_download: Callable[[], None],
-                on_song_download_complete: Callable[[int], None],
+                on_song_download_complete: Callable[[], None],
         ) -> Future:
             def do_download_song(song_id: int):
                 try:
@@ -885,7 +885,7 @@ class CacheManager(metaclass=Singleton):
                         lambda: self.server.download(song.id),
                         before_download=before_download,
                     ).result()
-                    on_song_download_complete(song_id)
+                    on_song_download_complete()
                 finally:
                     # Release the semaphore lock. This will allow the next song
                     # in the queue to be downloaded. I'm doing this in the

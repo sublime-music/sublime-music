@@ -423,7 +423,7 @@ class IndexList(DrilldownList):
 
         self.do_update_store(artists)
 
-    def on_download_state_change(self, song_id: int = None):
+    def on_download_state_change(self):
         self.update(self.selected_id)
 
 
@@ -467,5 +467,5 @@ class MusicDirectoryList(DrilldownList):
 
         self.do_update_store(directory.child)
 
-    def on_download_state_change(self, song_id: int = None):
+    def on_download_state_change(self):
         self.update(self.selected_id, directory_id=self.directory_id)

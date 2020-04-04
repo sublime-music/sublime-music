@@ -645,7 +645,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             store, paths = tree.get_selection().get_selected_rows()
             allow_deselect = False
 
-            def on_download_state_change(song_id: int):
+            def on_download_state_change():
                 GLib.idle_add(
                     lambda: self.update_playlist_view(
                         self.playlist_id,
