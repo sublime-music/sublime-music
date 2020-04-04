@@ -550,10 +550,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
     def on_playlist_edit_button_click(self, _: Any):
-        dialog = EditPlaylistDialog(
-            self.get_toplevel(),
-            CacheManager.get_playlist(self.playlist_id).result(),
-        )
+        playlist = CacheManager.get_playlist(self.playlist_id).result()
+        dialog = EditPlaylistDialog(self.get_toplevel(), playlist)
+        playlist_deleted = False
 
         result = dialog.run()
         # Using ResponseType.NO as the delete event.
@@ -567,7 +566,31 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 )
             elif result == Gtk.ResponseType.NO:
                 # Delete the playlist.
-                CacheManager.delete_playlist(self.playlist_id)
+                confirm_dialog = Gtk.MessageDialog(
+                    transient_for=self.get_toplevel(),
+                    message_type=Gtk.MessageType.WARNING,
+                    buttons=Gtk.ButtonsType.NONE,
+                    text='Confirm deletion',
+                )
+                confirm_dialog.add_buttons(
+                    Gtk.STOCK_DELETE,
+                    Gtk.ResponseType.YES,
+                    Gtk.STOCK_CANCEL,
+                    Gtk.ResponseType.CANCEL,
+                )
+                confirm_dialog.format_secondary_markup(
+                    'Are you sure you want to delete the '
+                    f'"{playlist.name}" playlist?')
+                result = confirm_dialog.run()
+                confirm_dialog.destroy()
+                if result == Gtk.ResponseType.YES:
+                    CacheManager.delete_playlist(self.playlist_id)
+                    playlist_deleted = True
+                else:
+                    # In this case, we don't want to do any invalidation of
+                    # anything.
+                    dialog.destroy()
+                    return
 
             # Invalidate the caches and force a re-fresh of the view
             CacheManager.delete_cached_cover_art(self.playlist_id)
@@ -576,7 +599,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 'refresh-window',
                 {
                     'selected_playlist_id':
-                    None if result == Gtk.ResponseType.NO else self.playlist_id
+                    None if playlist_deleted else self.playlist_id
                 },
                 True,
             )
