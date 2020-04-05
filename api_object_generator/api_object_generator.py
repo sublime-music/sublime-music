@@ -125,7 +125,10 @@ def get_dependencies(xs_el: etree._Element) -> Tuple[Set[str], Dict[str, str]]:
     elif tag_type == 'attribute':
         # <attribute>s depend on their corresponding ``type``.
         depends_on.add(extract_type(xs_el.attrib['type']))
-        type_fields[name] = extract_type(xs_el.attrib['type'])
+        format_str = (
+            'Optional[{}]' if xs_el.attrib['use'] == 'optional' else '{}')
+        type_fields[name] = format_str.format(
+            extract_type(xs_el.attrib['type']))
 
     elif tag_type == 'sequence':
         # <sequence>s depend on their children's types.
@@ -296,7 +299,7 @@ with open(output_file, 'w+') as outfile:
                 '',
                 'from datetime import datetime',
                 'from enum import Enum',
-                'from typing import Any, List',
+                'from typing import Any, List, Optional',
                 '',
                 'from sublime.server.api_object import APIObject',
                 *map(generate_class_for_type, output_order),
