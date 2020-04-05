@@ -135,11 +135,11 @@ class Server:
         :raises Exception: needs some work TODO
         """
         result = self._get(url, **params)
-        subsonic_response = result.json()['subsonic-response']
+        subsonic_response = result.json().get('subsonic-response')
 
         # TODO (#122):  make better
         if not subsonic_response:
-            raise Exception('Fail!')
+            raise Exception(f'[FAIL] get: invalid JSON from {url}')
 
         if subsonic_response['status'] == 'failed':
             code, message = (
@@ -172,18 +172,12 @@ class Server:
         return self._get_json(self._make_url('ping'))
 
     def get_license(self) -> License:
-        """
-        Get details about the software license.
-        """
-        result = self._get_json(self._make_url('getLicense'))
-        return result.license
+        """Get details about the software license."""
+        return self._get_json(self._make_url('getLicense')).license
 
     def get_music_folders(self) -> MusicFolders:
-        """
-        Returns all configured top-level music folders.
-        """
-        result = self._get_json(self._make_url('getMusicFolders'))
-        return result.musicFolders
+        """Returns all configured top-level music folders."""
+        return self._get_json(self._make_url('getMusicFolders')).musicFolders
 
     def get_indexes(
             self,
@@ -201,7 +195,8 @@ class Server:
         result = self._get_json(
             self._make_url('getIndexes'),
             musicFolderId=music_folder_id,
-            ifModifiedSince=if_modified_since)
+            ifModifiedSince=if_modified_since,
+        )
         return result.indexes
 
     def get_music_directory(self, dir_id: Union[int, str]) -> Directory:
@@ -213,15 +208,14 @@ class Server:
             Obtained by calls to ``getIndexes`` or ``getMusicDirectory``.
         """
         result = self._get_json(
-            self._make_url('getMusicDirectory'), id=str(dir_id))
+            self._make_url('getMusicDirectory'),
+            id=str(dir_id),
+        )
         return result.directory
 
     def get_genres(self) -> Genres:
-        """
-        Returns all genres.
-        """
-        result = self._get_json(self._make_url('getGenres'))
-        return result.genres
+        """Returns all genres."""
+        return self._get_json(self._make_url('getGenres')).genres
 
     def get_artists(self, music_folder_id: int = None) -> ArtistsID3:
         """
@@ -231,7 +225,9 @@ class Server:
             folder with the given ID. See ``getMusicFolders``.
         """
         result = self._get_json(
-            self._make_url('getArtists'), musicFolderId=music_folder_id)
+            self._make_url('getArtists'),
+            musicFolderId=music_folder_id,
+        )
         return result.artists
 
     def get_artist(self, artist_id: int) -> ArtistWithAlbumsID3:
@@ -241,8 +237,7 @@ class Server:
 
         :param artist_id: The artist ID.
         """
-        result = self._get_json(self._make_url('getArtist'), id=artist_id)
-        return result.artist
+        return self._get_json(self._make_url('getArtist'), id=artist_id).artist
 
     def get_album(self, album_id: int) -> AlbumWithSongsID3:
         """
@@ -251,8 +246,7 @@ class Server:
 
         :param album_id: The album ID.
         """
-        result = self._get_json(self._make_url('getAlbum'), id=album_id)
-        return result.album
+        return self._get_json(self._make_url('getAlbum'), id=album_id).album
 
     def get_song(self, song_id: int) -> Child:
         """
@@ -260,15 +254,13 @@ class Server:
 
         :param song_id: The song ID.
         """
-        result = self._get_json(self._make_url('getSong'), id=song_id)
-        return result.song
+        return self._get_json(self._make_url('getSong'), id=song_id).song
 
     def get_videos(self) -> Optional[List[Child]]:
         """
         Returns all video files.
         """
-        result = self._get_json(self._make_url('getVideos'))
-        return result.videos.video
+        return self._get_json(self._make_url('getVideos')).videos.video
 
     def get_video_info(self, video_id: int) -> Optional[VideoInfo]:
         """
@@ -547,8 +539,7 @@ class Server:
         Returns what is currently being played by all users. Takes no extra
         parameters.
         """
-        result = self._get_json(self._make_url('getNowPlaying'))
-        return result.nowPlaying
+        return self._get_json(self._make_url('getNowPlaying')).nowPlaying
 
     def get_starred(self, music_folder_id: int = None) -> Starred:
         """
@@ -557,7 +548,10 @@ class Server:
         :param music_folder_id: (Since 1.12.0) Only return results from the
             music folder with the given ID. See ``getMusicFolders``.
         """
-        result = self._get_json(self._make_url('getStarred'))
+        result = self._get_json(
+            self._make_url('getStarred'),
+            musicFolderId=music_folder_id,
+        )
         return result.starred
 
     def get_starred2(self, music_folder_id: int = None) -> Starred2:
@@ -567,7 +561,10 @@ class Server:
         :param music_folder_id: (Since 1.12.0) Only return results from the
             music folder with the given ID. See ``getMusicFolders``.
         """
-        result = self._get_json(self._make_url('getStarred2'))
+        result = self._get_json(
+            self._make_url('getStarred2'),
+            musicFolderId=music_folder_id,
+        )
         return result.starred2
 
     @deprecated(version='1.4.0', reason='You should use search2 instead.')
@@ -702,10 +699,12 @@ class Server:
             must have admin role if this parameter is used.
         """
         result = self._get_json(
-            self._make_url('getPlaylists'), username=username)
+            self._make_url('getPlaylists'),
+            username=username,
+        )
         return result.playlists
 
-    def get_playlist(self, id: int = None) -> PlaylistWithSongs:
+    def get_playlist(self, id: int) -> PlaylistWithSongs:
         """
         Returns a listing of files in a saved playlist.
 
@@ -737,10 +736,7 @@ class Server:
             songId=song_id,
         )
 
-        if result.playlist:
-            return result.playlist
-        else:
-            return result
+        return result.playlist or result
 
     def update_playlist(
             self,
@@ -776,9 +772,7 @@ class Server:
         )
 
     def delete_playlist(self, id: int) -> Response:
-        """
-        Deletes a saved playlist
-        """
+        """Deletes a saved playlist."""
         return self._get_json(self._make_url('deletePlaylist'), id=id)
 
     def get_stream_url(
@@ -850,7 +844,10 @@ class Server:
         :param size: If specified, scale image to this size.
         """
         return self.do_download(
-            self._make_url('getCoverArt'), id=id, size=size)
+            self._make_url('getCoverArt'),
+            id=id,
+            size=size,
+        )
 
     def get_cover_art_url(self, id: str, size: int = 1000) -> str:
         """
@@ -949,7 +946,10 @@ class Server:
             the rating.
         """
         return self._get_json(
-            self._make_url('setRating'), id=id, rating=rating)
+            self._make_url('setRating'),
+            id=id,
+            rating=rating,
+        )
 
     def scrobble(
             self,
@@ -991,8 +991,7 @@ class Server:
         Returns information about shared media this user is allowed to manage.
         Takes no extra parameters.
         """
-        result = self._get_json(self._make_url('getShares'))
-        return result.shares
+        return self._get_json(self._make_url('getShares')).shares
 
     def create_share(
             self,
@@ -1051,9 +1050,7 @@ class Server:
         return self._get_json(self._make_url('deleteShare'), id=id)
 
     def get_internet_radio_stations(self) -> InternetRadioStations:
-        """
-        Returns all internet radio stations. Takes no extra parameters.
-        """
+        """Returns all internet radio stations."""
         result = self._get_json(self._make_url('getInternetRadioStations'))
         return result.internetRadioStations
 
@@ -1110,7 +1107,9 @@ class Server:
         :param id: The ID for the station.
         """
         return self._get_json(
-            self._make_url('deleteInternetRadioStation'), id=id)
+            self._make_url('deleteInternetRadioStation'),
+            id=id,
+        )
 
     def get_user(self, username: str) -> User:
         """
@@ -1130,8 +1129,7 @@ class Server:
         folder access they have. Only users with admin privileges are allowed
         to call this method.
         """
-        result = self._get_json(self._make_url('getUsers'))
-        return result.users
+        return self._get_json(self._make_url('getUsers')).users
 
     def create_user(
             self,
@@ -1305,8 +1303,7 @@ class Server:
         Returns all bookmarks for this user. A bookmark is a position within a
         certain media file.
         """
-        result = self._get_json(self._make_url('getBookmarks'))
-        return result.bookmarks
+        return self._get_json(self._make_url('getBookmarks')).bookmarks
 
     def create_bookmarks(
             self,
@@ -1348,8 +1345,7 @@ class Server:
         retaining the same play queue (for instance when listening to an audio
         book).
         """
-        result = self._get_json(self._make_url('getPlayQueue'))
-        return result.playQueue
+        return self._get_json(self._make_url('getPlayQueue')).playQueue
 
     def save_play_queue(
             self,
@@ -1382,12 +1378,10 @@ class Server:
         Returns the current status for media library scanning. Takes no extra
         parameters.
         """
-        result = self._get_json(self._make_url('getScanStatus'))
-        return result.scanStatus
+        return self._get_json(self._make_url('getScanStatus')).scanStatus
 
     def start_scan(self) -> ScanStatus:
         """
         Initiates a rescan of the media libraries. Takes no extra parameters.
         """
-        result = self._get_json(self._make_url('startScan'))
-        return result.scanStatus
+        return self._get_json(self._make_url('startScan')).scanStatus
