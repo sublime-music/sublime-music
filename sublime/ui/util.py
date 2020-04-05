@@ -1,7 +1,8 @@
 import functools
 import re
 from concurrent.futures import Future
-from typing import Any, Callable, cast, Iterable, List, Match, Tuple, Union
+from typing import (
+    Any, Callable, cast, Iterable, List, Match, Optional, Tuple, Union)
 
 import gi
 from deepdiff import DeepDiff
@@ -13,7 +14,7 @@ from sublime.server.api_objects import Playlist
 from sublime.state_manager import ApplicationState
 
 
-def format_song_duration(duration_secs: int) -> str:
+def format_song_duration(duration_secs: Optional[int]) -> str:
     """
     Formats the song duration as mins:seconds with the seconds being
     zero-padded if necessary.
@@ -23,6 +24,9 @@ def format_song_duration(duration_secs: int) -> str:
     >>> format_song_duration(62)
     '1:02'
     """
+    if not duration_secs:
+        return '-:--'
+
     return f'{duration_secs // 60}:{duration_secs % 60:02}'
 
 
@@ -80,9 +84,9 @@ def format_sequence_duration(duration_secs: int) -> str:
     return ', '.join(format_components)
 
 
-def esc(string: str) -> str:
+def esc(string: Optional[str]) -> str:
     if string is None:
-        return None
+        return ''
     return string.replace('&', '&amp;').replace(" target='_blank'", '')
 
 
