@@ -1007,7 +1007,7 @@ class CacheManager(metaclass=Singleton):
         ) -> 'CacheManager.Result':
             if query == '':
                 search_callback(SearchResult(''), True)
-                return CacheManager.from_data(None)
+                return CacheManager.Result.from_data(None)
 
             before_download()
 
