@@ -5,6 +5,8 @@ v0.9.1
   little documentation, and quite a few hacks, but core functionality works.
 * Sublime Music is more resilient to certain libraries or functionalities not
   existing on the system. (Namely libnotify, NetworkManager, and DBus)
+* Sublime Music now prompts you to confirm you actually want to delete the
+  playlist. (#81)
 
 * **Bug Fixes**
 
