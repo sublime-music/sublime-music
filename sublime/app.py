@@ -253,6 +253,11 @@ class SublimeMusicApp(Gtk.Application):
                 return
             offset_seconds = offset / second_microsecond_conversion
             new_seconds = self.state.song_progress + offset_seconds
+
+            # This should not ever happen. The current_song should always have
+            # a duration, but the Child object has `duration` optional because
+            # it could be a directory.
+            assert self.state.current_song.duration is not None
             self.on_song_scrub(
                 None, new_seconds / self.state.current_song.duration * 100)
 
@@ -713,6 +718,10 @@ class SublimeMusicApp(Gtk.Application):
         if not self.state.current_song or not self.window:
             return
 
+        # This should not ever happen. The current_song should always have
+        # a duration, but the Child object has `duration` optional because
+        # it could be a directory.
+        assert self.state.current_song.duration is not None
         new_time = self.state.current_song.duration * (scrub_value / 100)
 
         self.state.song_progress = new_time
