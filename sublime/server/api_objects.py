@@ -7,7 +7,7 @@ script or run it on a new API version.
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, List
+from typing import Any, List, Optional
 
 from sublime.server.api_object import APIObject
 
@@ -40,36 +40,36 @@ class UserRating(APIObject, int):
 class Child(APIObject):
     id: str
     value: str
-    parent: str
+    parent: Optional[str]
     isDir: bool
     title: str
-    album: str
-    artist: str
-    track: int
-    year: int
-    genre: str
-    coverArt: str
-    size: int
-    contentType: str
-    suffix: str
-    transcodedContentType: str
-    transcodedSuffix: str
-    duration: int
-    bitRate: int
-    path: str
-    isVideo: bool
-    userRating: UserRating
-    averageRating: AverageRating
-    playCount: int
-    discNumber: int
-    created: datetime
-    starred: datetime
-    albumId: str
-    artistId: str
-    type: MediaType
-    bookmarkPosition: int
-    originalWidth: int
-    originalHeight: int
+    album: Optional[str]
+    artist: Optional[str]
+    track: Optional[int]
+    year: Optional[int]
+    genre: Optional[str]
+    coverArt: Optional[str]
+    size: Optional[int]
+    contentType: Optional[str]
+    suffix: Optional[str]
+    transcodedContentType: Optional[str]
+    transcodedSuffix: Optional[str]
+    duration: Optional[int]
+    bitRate: Optional[int]
+    path: Optional[str]
+    isVideo: Optional[bool]
+    userRating: Optional[UserRating]
+    averageRating: Optional[AverageRating]
+    playCount: Optional[int]
+    discNumber: Optional[int]
+    created: Optional[datetime]
+    starred: Optional[datetime]
+    albumId: Optional[str]
+    artistId: Optional[str]
+    type: Optional[MediaType]
+    bookmarkPosition: Optional[int]
+    originalWidth: Optional[int]
+    originalHeight: Optional[int]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -87,16 +87,16 @@ class AlbumID3(APIObject):
     id: str
     value: str
     name: str
-    artist: str
-    artistId: str
-    coverArt: str
+    artist: Optional[str]
+    artistId: Optional[str]
+    coverArt: Optional[str]
     songCount: int
     duration: int
-    playCount: int
+    playCount: Optional[int]
     created: datetime
-    starred: datetime
-    year: int
-    genre: str
+    starred: Optional[datetime]
+    year: Optional[int]
+    genre: Optional[str]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -115,16 +115,16 @@ class AlbumWithSongsID3(APIObject):
     value: str
     id: str
     name: str
-    artist: str
-    artistId: str
-    coverArt: str
+    artist: Optional[str]
+    artistId: Optional[str]
+    coverArt: Optional[str]
     songCount: int
     duration: int
-    playCount: int
+    playCount: Optional[int]
     created: datetime
-    starred: datetime
-    year: int
-    genre: str
+    starred: Optional[datetime]
+    year: Optional[int]
+    genre: Optional[str]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -137,10 +137,10 @@ class Artist(APIObject):
     id: str
     value: str
     name: str
-    artistImageUrl: str
-    starred: datetime
-    userRating: UserRating
-    averageRating: AverageRating
+    artistImageUrl: Optional[str]
+    starred: Optional[datetime]
+    userRating: Optional[UserRating]
+    averageRating: Optional[AverageRating]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -174,10 +174,10 @@ class ArtistID3(APIObject):
     id: str
     value: str
     name: str
-    coverArt: str
-    artistImageUrl: str
+    coverArt: Optional[str]
+    artistImageUrl: Optional[str]
     albumCount: int
-    starred: datetime
+    starred: Optional[datetime]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -202,10 +202,10 @@ class ArtistWithAlbumsID3(APIObject):
     value: str
     id: str
     name: str
-    coverArt: str
-    artistImageUrl: str
+    coverArt: Optional[str]
+    artistImageUrl: Optional[str]
     albumCount: int
-    starred: datetime
+    starred: Optional[datetime]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -231,7 +231,7 @@ class Bookmark(APIObject):
     value: str
     position: int
     username: str
-    comment: str
+    comment: Optional[str]
     created: datetime
     changed: datetime
 
@@ -257,12 +257,12 @@ class Directory(APIObject):
     child: List[Child]
     value: str
     id: str
-    parent: str
+    parent: Optional[str]
     name: str
-    starred: datetime
-    userRating: UserRating
-    averageRating: AverageRating
-    playCount: int
+    starred: Optional[datetime]
+    userRating: Optional[UserRating]
+    averageRating: Optional[AverageRating]
+    playCount: Optional[int]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -274,7 +274,7 @@ class Directory(APIObject):
 class Error(APIObject):
     code: int
     value: str
-    message: str
+    message: Optional[str]
 
 
 class Genre(APIObject):
@@ -308,7 +308,7 @@ class InternetRadioStation(APIObject):
     value: str
     name: str
     streamUrl: str
-    homePageUrl: str
+    homePageUrl: Optional[str]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -327,7 +327,7 @@ class JukeboxStatus(APIObject):
     value: str
     playing: bool
     gain: float
-    position: int
+    position: Optional[int]
 
 
 class JukeboxPlaylist(APIObject):
@@ -336,27 +336,27 @@ class JukeboxPlaylist(APIObject):
     currentIndex: int
     playing: bool
     gain: float
-    position: int
+    position: Optional[int]
 
 
 class License(APIObject):
     valid: bool
     value: str
-    email: str
-    licenseExpires: datetime
-    trialExpires: datetime
+    email: Optional[str]
+    licenseExpires: Optional[datetime]
+    trialExpires: Optional[datetime]
 
 
 class Lyrics(APIObject):
-    artist: str
+    artist: Optional[str]
     value: str
-    title: str
+    title: Optional[str]
 
 
 class MusicFolder(APIObject):
     id: int
     value: str
-    name: str
+    name: Optional[str]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -380,43 +380,43 @@ class PodcastStatus(APIObject, Enum):
 
 
 class PodcastEpisode(APIObject):
-    streamId: str
+    streamId: Optional[str]
     channelId: str
-    description: str
+    description: Optional[str]
     status: PodcastStatus
-    publishDate: datetime
+    publishDate: Optional[datetime]
     value: str
     id: str
-    parent: str
+    parent: Optional[str]
     isDir: bool
     title: str
-    album: str
-    artist: str
-    track: int
-    year: int
-    genre: str
-    coverArt: str
-    size: int
-    contentType: str
-    suffix: str
-    transcodedContentType: str
-    transcodedSuffix: str
-    duration: int
-    bitRate: int
-    path: str
-    isVideo: bool
-    userRating: UserRating
-    averageRating: AverageRating
-    playCount: int
-    discNumber: int
-    created: datetime
-    starred: datetime
-    albumId: str
-    artistId: str
-    type: MediaType
-    bookmarkPosition: int
-    originalWidth: int
-    originalHeight: int
+    album: Optional[str]
+    artist: Optional[str]
+    track: Optional[int]
+    year: Optional[int]
+    genre: Optional[str]
+    coverArt: Optional[str]
+    size: Optional[int]
+    contentType: Optional[str]
+    suffix: Optional[str]
+    transcodedContentType: Optional[str]
+    transcodedSuffix: Optional[str]
+    duration: Optional[int]
+    bitRate: Optional[int]
+    path: Optional[str]
+    isVideo: Optional[bool]
+    userRating: Optional[UserRating]
+    averageRating: Optional[AverageRating]
+    playCount: Optional[int]
+    discNumber: Optional[int]
+    created: Optional[datetime]
+    starred: Optional[datetime]
+    albumId: Optional[str]
+    artistId: Optional[str]
+    type: Optional[MediaType]
+    bookmarkPosition: Optional[int]
+    originalWidth: Optional[int]
+    originalHeight: Optional[int]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -434,39 +434,39 @@ class NowPlayingEntry(APIObject):
     username: str
     minutesAgo: int
     playerId: int
-    playerName: str
+    playerName: Optional[str]
     value: str
     id: str
-    parent: str
+    parent: Optional[str]
     isDir: bool
     title: str
-    album: str
-    artist: str
-    track: int
-    year: int
-    genre: str
-    coverArt: str
-    size: int
-    contentType: str
-    suffix: str
-    transcodedContentType: str
-    transcodedSuffix: str
-    duration: int
-    bitRate: int
-    path: str
-    isVideo: bool
-    userRating: UserRating
-    averageRating: AverageRating
-    playCount: int
-    discNumber: int
-    created: datetime
-    starred: datetime
-    albumId: str
-    artistId: str
-    type: MediaType
-    bookmarkPosition: int
-    originalWidth: int
-    originalHeight: int
+    album: Optional[str]
+    artist: Optional[str]
+    track: Optional[int]
+    year: Optional[int]
+    genre: Optional[str]
+    coverArt: Optional[str]
+    size: Optional[int]
+    contentType: Optional[str]
+    suffix: Optional[str]
+    transcodedContentType: Optional[str]
+    transcodedSuffix: Optional[str]
+    duration: Optional[int]
+    bitRate: Optional[int]
+    path: Optional[str]
+    isVideo: Optional[bool]
+    userRating: Optional[UserRating]
+    averageRating: Optional[AverageRating]
+    playCount: Optional[int]
+    discNumber: Optional[int]
+    created: Optional[datetime]
+    starred: Optional[datetime]
+    albumId: Optional[str]
+    artistId: Optional[str]
+    type: Optional[MediaType]
+    bookmarkPosition: Optional[int]
+    originalWidth: Optional[int]
+    originalHeight: Optional[int]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -483,8 +483,8 @@ class NowPlaying(APIObject):
 class PlayQueue(APIObject):
     entry: List[Child]
     value: str
-    current: int
-    position: int
+    current: Optional[int]
+    position: Optional[int]
     username: str
     changed: datetime
     changedBy: str
@@ -495,14 +495,14 @@ class Playlist(APIObject):
     value: str
     id: str
     name: str
-    comment: str
-    owner: str
-    public: bool
+    comment: Optional[str]
+    owner: Optional[str]
+    public: Optional[bool]
     songCount: int
     duration: int
     created: datetime
     changed: datetime
-    coverArt: str
+    coverArt: Optional[str]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -517,14 +517,14 @@ class PlaylistWithSongs(APIObject):
     allowedUser: List[str]
     id: str
     name: str
-    comment: str
-    owner: str
-    public: bool
+    comment: Optional[str]
+    owner: Optional[str]
+    public: Optional[bool]
     songCount: int
     duration: int
     created: datetime
     changed: datetime
-    coverArt: str
+    coverArt: Optional[str]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -543,12 +543,12 @@ class PodcastChannel(APIObject):
     value: str
     id: str
     url: str
-    title: str
-    description: str
-    coverArt: str
-    originalImageUrl: str
+    title: Optional[str]
+    description: Optional[str]
+    coverArt: Optional[str]
+    originalImageUrl: Optional[str]
     status: PodcastStatus
-    errorMessage: str
+    errorMessage: Optional[str]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -570,7 +570,7 @@ class ResponseStatus(APIObject, Enum):
 class ScanStatus(APIObject):
     scanning: bool
     value: str
-    count: int
+    count: Optional[int]
 
 
 class SearchResult(APIObject):
@@ -599,11 +599,11 @@ class Share(APIObject):
     value: str
     id: str
     url: str
-    description: str
+    description: Optional[str]
     username: str
     created: datetime
-    expires: datetime
-    lastVisited: datetime
+    expires: Optional[datetime]
+    lastVisited: Optional[datetime]
     visitCount: int
 
     def __eq__(self, other: Any) -> bool:
@@ -656,9 +656,9 @@ class User(APIObject):
     folder: List[int]
     value: str
     username: str
-    email: str
+    email: Optional[str]
     scrobblingEnabled: bool
-    maxBitRate: int
+    maxBitRate: Optional[int]
     adminRole: bool
     settingsRole: bool
     downloadRole: bool
@@ -671,7 +671,7 @@ class User(APIObject):
     jukeboxRole: bool
     shareRole: bool
     videoConversionRole: bool
-    avatarLastChanged: datetime
+    avatarLastChanged: Optional[datetime]
 
 
 class Users(APIObject):
@@ -686,8 +686,8 @@ class Version(APIObject, str):
 class AudioTrack(APIObject):
     id: str
     value: str
-    name: str
-    languageCode: str
+    name: Optional[str]
+    languageCode: Optional[str]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -699,7 +699,7 @@ class AudioTrack(APIObject):
 class Captions(APIObject):
     id: str
     value: str
-    name: str
+    name: Optional[str]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
@@ -711,8 +711,8 @@ class Captions(APIObject):
 class VideoConversion(APIObject):
     id: str
     value: str
-    bitRate: int
-    audioTrackId: int
+    bitRate: Optional[int]
+    audioTrackId: Optional[int]
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) == hash(other)
