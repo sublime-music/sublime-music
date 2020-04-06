@@ -1,7 +1,7 @@
 import hashlib
 import os
 import pickle
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional
@@ -37,7 +37,7 @@ class ReplayGainType(Enum):
         }[replay_gain_type.lower()]
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class ServerConfiguration:
     name: str = 'Default'
     server_address: str = 'http://yourhost'
@@ -74,7 +74,7 @@ class ServerConfiguration:
 @dataclass
 class AppConfiguration:
     servers: List[ServerConfiguration] = field(default_factory=list)
-    current_server: int = -1
+    current_server_index: int = -1
     cache_location: str = ''
     max_cache_size_mb: int = -1  # -1 means unlimited
     always_stream: bool = False  # always stream instead of downloading songs
@@ -90,12 +90,14 @@ class AppConfiguration:
 
     @staticmethod
     def load_from_file(filename: Path) -> 'AppConfiguration':
+        args = {}
         if filename.exists():
             with open(filename, 'r') as f:
-                config = AppConfiguration(**yaml.load(f, Loader=yaml.CLoader))
-        else:
-            config = AppConfiguration()
+                field_names = {f.name for f in fields(AppConfiguration)}
+                args = yaml.load(f, Loader=yaml.CLoader).items()
+                args = dict(filter(lambda kv: kv[0] in field_names, args))
 
+        config = AppConfiguration(**args)
         config.filename = filename
         return config
 
@@ -122,8 +124,8 @@ class AppConfiguration:
 
     @property
     def server(self) -> Optional[ServerConfiguration]:
-        if 0 <= self.current_server < len(self.servers):
-            return self.servers[self.current_server]
+        if 0 <= self.current_server_index < len(self.servers):
+            return self.servers[self.current_server_index]
 
         return None
 
@@ -136,12 +138,12 @@ class AppConfiguration:
         # If already retrieved, and the server hasn't changed, then return the
         # state. Don't use strhash because that is much more expensive of an
         # operation.
-        if self._current_server_hash != hash(server) or self._state:
+        if self._current_server_hash != hash(server) or not self._state:
             self._current_server_hash = hash(server)
             if self.state_file_location.exists():
                 try:
                     with open(self.state_file_location, 'rb') as f:
-                        self._state = pickle.load(f)
+                        self._state = UIState(**pickle.load(f))
                 except Exception:
                     # Just ignore any errors, it is only UI state.
                     self._state = UIState()
@@ -149,21 +151,22 @@ class AppConfiguration:
         return self._state
 
     @property
-    def state_file_location(self):
+    def state_file_location(self) -> Path:
+        assert self.server is not None
         server_hash = self.server.strhash()
 
         state_file_location = Path(
             os.environ.get('XDG_DATA_HOME') or '~/.local/share')
-        state_file_location = state_file_location.expanduser().joinpath(
+        return state_file_location.expanduser().joinpath(
             'sublime-music', server_hash, 'state.pickle')
 
     def save(self):
         # Save the config as YAML.
-        self.filename.parent().mkdir(parents=True, exist_ok=True)
+        self.filename.parent.mkdir(parents=True, exist_ok=True)
         with open(self.filename, 'w+') as f:
             f.write(yaml.dump(asdict(self)))
 
         # Save the state for the current server.
-        self.state_file_location.parent().mkdir(parents=True, exist_ok=True)
+        self.state_file_location.parent.mkdir(parents=True, exist_ok=True)
         with open(self.state_file_location, 'wb+') as f:
-            pickle.dump(self.state, f)
+            pickle.dump(asdict(self.state), f)

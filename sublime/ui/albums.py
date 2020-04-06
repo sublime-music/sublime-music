@@ -383,8 +383,9 @@ class AlbumsGrid(Gtk.Overlay):
     ):
         if order_token < self.latest_applied_order_ratchet:
             return
+        if app_config.server is None:
+            return
 
-        assert app_config.server is not None
         new_hash = app_config.server.strhash()
         server_changed = self.server_hash != new_hash
         self.server_hash = new_hash

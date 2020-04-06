@@ -3,7 +3,7 @@ import os
 import re
 
 from collections import defaultdict
-from typing import Any, Callable, DefaultDict, Dict, List, Tuple
+from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
 
 from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
@@ -49,7 +49,8 @@ class DBusManager:
         ], None],
         on_set_property: Callable[
             [Gio.DBusConnection, str, str, str, str, GLib.Variant], None],
-        get_state_and_player: Callable[[], Tuple[AppConfiguration, Player]],
+        get_state_and_player: Callable[[], Tuple[AppConfiguration,
+                                                 Optional[Player]]],
     ):
         self.get_state_and_player = get_state_and_player
         self.do_on_method_call = do_on_method_call
