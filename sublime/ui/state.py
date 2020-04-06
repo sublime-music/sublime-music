@@ -1,19 +1,6 @@
-import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Set
-
-try:
-    import gi
-    gi.require_version('NM', '1.0')
-    from gi.repository import NM
-    networkmanager_imported = True
-except Exception:
-    # I really don't care what kind of exception it is, all that matters is the
-    # import failed for some reason.
-    logging.warning(
-        'Unable to import NM from GLib. Detection of SSID will be disabled.')
-    networkmanager_imported = False
+from typing import Dict, List, Optional
 
 from sublime.server.api_objects import Child
 
@@ -73,34 +60,6 @@ class UIState:
     current_album_to_year: int = 2020
 
     active_playlist_id: Optional[str] = None
-
-    def __post_init__(self):
-        if networkmanager_imported:
-            self.networkmanager_client = NM.Client.new()
-        self.nmclient_initialized = False
-        self._current_ssids: Set[str] = set()
-
-    def migrate(self):
-        pass
-
-    @property
-    def current_ssids(self) -> Set[str]:
-        if not networkmanager_imported:
-            return set()
-        if not self.nmclient_initialized:
-            # Only look at the active WiFi connections.
-            for ac in self.networkmanager_client.get_active_connections():
-                if ac.get_connection_type() != '802-11-wireless':
-                    continue
-                devs = ac.get_devices()
-                if len(devs) != 1:
-                    continue
-                if devs[0].get_device_type() != NM.DeviceType.WIFI:
-                    continue
-
-                self._current_ssids.add(ac.get_id())
-
-        return self._current_ssids
 
     @property
     def current_song(self) -> Optional[Child]:

@@ -49,10 +49,10 @@ class DBusManager:
         ], None],
         on_set_property: Callable[
             [Gio.DBusConnection, str, str, str, str, GLib.Variant], None],
-        get_state_and_player: Callable[[], Tuple[AppConfiguration,
-                                                 Optional[Player]]],
+        get_config_and_player: Callable[[], Tuple[AppConfiguration,
+                                                  Optional[Player]]],
     ):
-        self.get_state_and_player = get_state_and_player
+        self.get_config_and_player = get_config_and_player
         self.do_on_method_call = do_on_method_call
         self.on_set_property = on_set_property
         self.connection = connection
@@ -179,7 +179,8 @@ class DBusManager:
     def property_dict(self) -> Dict[str, Any]:
         if not CacheManager.ready():
             return {}
-        state, player = self.get_state_and_player()
+        config, player = self.get_config_and_player()
+        state = config.state
         has_current_song = state.current_song is not None
         has_next_song = False
         if state.repeat_type in (RepeatType.REPEAT_QUEUE,

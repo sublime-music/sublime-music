@@ -148,6 +148,10 @@ class AppConfiguration:
                     # Just ignore any errors, it is only UI state.
                     self._state = UIState()
 
+            # Do the import in the function to avoid circular imports.
+            from sublime.cache_manager import CacheManager
+            CacheManager.reset(self)
+
         return self._state
 
     @property
