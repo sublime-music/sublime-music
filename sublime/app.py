@@ -4,6 +4,7 @@ import os
 import random
 import sys
 from concurrent.futures import Future
+from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 try:
@@ -27,23 +28,24 @@ except Exception:
     glib_notify_exists = False
 
 from .cache_manager import CacheManager
-from .config import AppConfiguration
+from .config import AppConfiguration, ReplayGainType
 from .dbus_manager import dbus_propagate, DBusManager
 from .players import ChromecastPlayer, MPVPlayer, PlayerEvent
 from .server.api_objects import Child, Directory, Playlist
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.main import MainWindow
 from .ui.settings import SettingsDialog
+from .ui.state import RepeatType
 
 
 class SublimeMusicApp(Gtk.Application):
-    def __init__(self, config_file: str):
+    def __init__(self, config_file: Path):
         super().__init__(application_id="com.sumnerevans.sublimemusic")
         if glib_notify_exists:
             Notify.init('Sublime Music')
 
         self.window: Optional[Gtk.Window] = None
-        self.config = AppConfiguration.load_from_file(config_file)
+        self.app_config = AppConfiguration.load_from_file(config_file)
         self.dbus_manager: Optional[DBusManager] = None
 
         self.connect('shutdown', self.on_app_shutdown)
@@ -131,11 +133,11 @@ class SublimeMusicApp(Gtk.Application):
         self.window.present()
 
         # If there is no current server, show the dialog to select a server.
-        if self.state.config.server is None:
+        if self.app_config.server is None:
             self.show_configure_servers_dialog()
 
             # If they didn't add one with the dialog, close the window.
-            if self.state.config.server is None:
+            if self.app_config.server is None:
                 self.window.close()
                 return
 
@@ -148,32 +150,35 @@ class SublimeMusicApp(Gtk.Application):
 
         def time_observer(value: Optional[float]):
             if (self.loading_state or not self.window
-                    or not self.state.current_song):
+                    or not self.app_config.state.current_song):
                 return
 
             if value is None:
                 self.last_play_queue_update = 0
                 return
 
-            self.state.song_progress = value
+            self.app_config.state.song_progress = value
             GLib.idle_add(
                 self.window.player_controls.update_scrubber,
-                self.state.song_progress,
-                self.state.current_song.duration,
+                self.app_config.state.song_progress,
+                self.app_config.state.current_song.duration,
             )
 
             if self.last_play_queue_update + 15 <= value:
                 self.save_play_queue()
 
             if value > 5 and self.should_scrobble_song:
-                CacheManager.scrobble(self.state.current_song.id)
+                CacheManager.scrobble(self.app_config.state.current_song.id)
                 self.should_scrobble_song = False
 
         def on_track_end():
-            if (self.state.current_song_index == len(self.state.play_queue) - 1
-                    and self.state.repeat_type == RepeatType.NO_REPEAT):
-                self.state.playing = False
-                self.state.current_song_index = -1
+            at_end = self.app_config.state.current_song_index == len(
+                self.app_config.state.play_queue) - 1
+            no_repeat = (
+                self.app_config.state.repeat_type == RepeatType.NO_REPEAT)
+            if at_end and no_repeat:
+                self.app_config.state.playing = False
+                self.app_config.state.current_song_index = -1
                 GLib.idle_add(self.update_window)
                 return
 
@@ -182,9 +187,9 @@ class SublimeMusicApp(Gtk.Application):
         @dbus_propagate(self)
         def on_player_event(event: PlayerEvent):
             if event.name == 'play_state_change':
-                self.state.playing = event.value
+                self.app_config.state.playing = event.value
             elif event.name == 'volume_change':
-                self.state.volume = event.value
+                self.app_config.state.volume = event.value
 
             GLib.idle_add(self.update_window)
 
@@ -192,27 +197,27 @@ class SublimeMusicApp(Gtk.Application):
             time_observer,
             on_track_end,
             on_player_event,
-            self.state.config,
+            self.app_config.state.config,
         )
         self.chromecast_player = ChromecastPlayer(
             time_observer,
             on_track_end,
             on_player_event,
-            self.state.config,
+            self.app_config.state.config,
         )
         self.player = self.mpv_player
 
-        if self.state.current_device != 'this device':
+        if self.app_config.state.current_device != 'this device':
             # TODO (#120)
             pass
 
-        self.state.current_device = 'this device'
+        self.app_config.state.current_device = 'this device'
 
         # Need to do this after we set the current device.
-        self.player.volume = self.state.volume
+        self.player.volume = self.app_config.state.volume
 
         # Prompt to load the play queue from the server.
-        if self.state.config.server.sync_enabled:
+        if self.app_config.server.sync_enabled:
             self.update_play_state_from_server(prompt_confirm=True)
 
         # Send out to the bus that we exist.
@@ -226,7 +231,7 @@ class SublimeMusicApp(Gtk.Application):
             connection,
             self.on_dbus_method_call,
             self.on_dbus_set_property,
-            lambda: (self.state, getattr(self, 'player', None)),
+            lambda: (self.app_config.state, getattr(self, 'player', None)),
         )
         return True
 
@@ -243,29 +248,33 @@ class SublimeMusicApp(Gtk.Application):
         second_microsecond_conversion = 1000000
 
         def seek_fn(offset: float):
-            if not self.state.current_song:
+            if not self.app_config.state.current_song:
                 return
             offset_seconds = offset / second_microsecond_conversion
-            new_seconds = self.state.song_progress + offset_seconds
+            new_seconds = self.app_config.state.song_progress + offset_seconds
 
             # This should not ever happen. The current_song should always have
             # a duration, but the Child object has `duration` optional because
             # it could be a directory.
-            assert self.state.current_song.duration is not None
+            assert self.app_config.state.current_song.duration is not None
             self.on_song_scrub(
-                None, new_seconds / self.state.current_song.duration * 100)
+                None,
+                new_seconds / self.app_config.state.current_song.duration
+                * 100,
+            )
 
         def set_pos_fn(track_id: str, position: float = 0):
-            if self.state.playing:
+            if self.app_config.state.playing:
                 self.on_play_pause()
             pos_seconds = position / second_microsecond_conversion
-            self.state.song_progress = pos_seconds
+            self.app_config.state.song_progress = pos_seconds
             track_id, occurrence = track_id.split('/')[-2:]
 
             # Find the (N-1)th time that the track id shows up in the list. (N
             # is the -*** suffix on the track id.)
             song_index = [
-                i for i, x in enumerate(self.state.play_queue) if x == track_id
+                i for i, x in enumerate(self.app_config.state.play_queue)
+                if x == track_id
             ][int(occurrence) or 0]
 
             self.play_song(song_index)
@@ -281,8 +290,10 @@ class SublimeMusicApp(Gtk.Application):
             # Have to calculate all of the metadatas so that we can deal with
             # repeat song IDs.
             metadatas: Iterable[Any] = [
-                self.dbus_manager.get_mpris_metadata(i, self.state.play_queue)
-                for i in range(len(self.state.play_queue))
+                self.dbus_manager.get_mpris_metadata(
+                    i,
+                    self.app_config.state.play_queue,
+                ) for i in range(len(self.app_config.state.play_queue))
             ]
 
             # Get rid of all of the tracks that were not requested.
@@ -310,7 +321,7 @@ class SublimeMusicApp(Gtk.Application):
 
             # Calculate the song id to play.
             song_idx = 0
-            if self.state.shuffle_on:
+            if self.app_config.state.shuffle_on:
                 song_idx = random.randint(0, len(playlist.entry) - 1)
 
             self.on_song_clicked(
@@ -358,6 +369,14 @@ class SublimeMusicApp(Gtk.Application):
                         for p in playlists[index:(index + max_count)]
                     ], ))
 
+        def play():
+            if not self.app_config.state.playing:
+                self.on_play_pause()
+
+        def pause():
+            if self.app_config.state.playing:
+                self.on_play_pause()
+
         method_call_map: Dict[str, Dict[str, Any]] = {
             'org.mpris.MediaPlayer2': {
                 'Raise': self.window and self.window.present,
@@ -366,10 +385,10 @@ class SublimeMusicApp(Gtk.Application):
             'org.mpris.MediaPlayer2.Player': {
                 'Next': self.on_next_track,
                 'Previous': self.on_prev_track,
-                'Pause': self.state.playing and self.on_play_pause,
+                'Pause': pause,
                 'PlayPause': self.on_play_pause,
-                'Stop': self.state.playing and self.on_play_pause,
-                'Play': not self.state.playing and self.on_play_pause,
+                'Stop': pause,
+                'Play': play,
                 'Seek': seek_fn,
                 'SetPosition': set_pos_fn,
             },
@@ -399,12 +418,13 @@ class SublimeMusicApp(Gtk.Application):
         value: GLib.Variant,
     ):
         def change_loop(new_loop_status: GLib.Variant):
-            self.state.repeat_type = RepeatType.from_mpris_loop_status(
-                new_loop_status.get_string())
+            self.app_config.state.repeat_type = (
+                RepeatType.from_mpris_loop_status(
+                    new_loop_status.get_string()))
             self.update_window()
 
         def set_shuffle(new_val: GLib.Variant):
-            if new_val.get_boolean() != self.state.shuffle_on:
+            if new_val.get_boolean() != self.app_config.state.shuffle_on:
                 self.on_shuffle_press(None, None)
 
         def set_volume(new_val: GLib.Variant):
@@ -435,7 +455,7 @@ class SublimeMusicApp(Gtk.Application):
         force: bool = False,
     ):
         for k, v in state_updates.items():
-            setattr(self.state, k, v)
+            setattr(self.app_config.state, k, v)
         self.update_window(force=force)
 
     def on_configure_servers(self, *args):
@@ -443,26 +463,26 @@ class SublimeMusicApp(Gtk.Application):
 
     def on_settings(self, *args):
         """Show the Settings dialog."""
-        dialog = SettingsDialog(self.window, self.state.config)
+        dialog = SettingsDialog(self.window, self.app_config)
         result = dialog.run()
         if result == Gtk.ResponseType.OK:
-            self.state.config.port_number = int(
+            self.app_config.port_number = int(
                 dialog.data['port_number'].get_text())
-            self.state.config.always_stream = dialog.data[
+            self.app_config.always_stream = dialog.data[
                 'always_stream'].get_active()
-            self.state.config.download_on_stream = dialog.data[
+            self.app_config.download_on_stream = dialog.data[
                 'download_on_stream'].get_active()
-            self.state.config.song_play_notification = dialog.data[
+            self.app_config.song_play_notification = dialog.data[
                 'song_play_notification'].get_active()
-            self.state.config.serve_over_lan = dialog.data[
+            self.app_config.serve_over_lan = dialog.data[
                 'serve_over_lan'].get_active()
-            self.state.config.prefetch_amount = dialog.data[
+            self.app_config.prefetch_amount = dialog.data[
                 'prefetch_amount'].get_value_as_int()
-            self.state.config.concurrent_download_limit = dialog.data[
+            self.app_config.concurrent_download_limit = dialog.data[
                 'concurrent_download_limit'].get_value_as_int()
-            self.state.config.replay_gain = ReplayGainType.from_string(
+            self.app_config.replay_gain = ReplayGainType.from_string(
                 dialog.data['replay_gain'].get_active_id())
-            self.state.save_config()
+            self.app_config.save()
             self.reset_state()
         dialog.destroy()
 
@@ -475,7 +495,7 @@ class SublimeMusicApp(Gtk.Application):
 
     @dbus_propagate()
     def on_play_pause(self, *args):
-        if self.state.current_song_index < 0:
+        if self.app_config.state.current_song_index < 0:
             return
 
         if self.player.song_loaded:
@@ -483,87 +503,96 @@ class SublimeMusicApp(Gtk.Application):
             self.save_play_queue()
         else:
             # This is from a restart, start playing the file.
-            self.play_song(self.state.current_song_index)
+            self.play_song(self.app_config.state.current_song_index)
 
-        self.state.playing = not self.state.playing
+        self.app_config.state.playing = not self.app_config.state.playing
         self.update_window()
 
     def on_next_track(self, *args):
         # Handle song repeating
-        if self.state.repeat_type == RepeatType.REPEAT_SONG:
-            song_index_to_play = self.state.current_song_index
+        if self.app_config.state.repeat_type == RepeatType.REPEAT_SONG:
+            song_index_to_play = self.app_config.state.current_song_index
         # Wrap around the play queue if at the end.
-        elif self.state.current_song_index == len(self.state.play_queue) - 1:
+        elif self.app_config.state.current_song_index == len(
+                self.app_config.state.play_queue) - 1:
             # This may happen due to D-Bus.
-            if self.state.repeat_type == RepeatType.NO_REPEAT:
+            if self.app_config.state.repeat_type == RepeatType.NO_REPEAT:
                 return
             song_index_to_play = 0
         else:
-            song_index_to_play = self.state.current_song_index + 1
+            song_index_to_play = self.app_config.state.current_song_index + 1
 
         self.play_song(song_index_to_play, reset=True)
 
     def on_prev_track(self, *args):
         # Go back to the beginning of the song if we are past 5 seconds.
         # Otherwise, go to the previous song.
-        if self.state.repeat_type == RepeatType.REPEAT_SONG:
-            song_index_to_play = self.state.current_song_index
-        elif self.state.song_progress < 5:
-            if (self.state.current_song_index == 0
-                    and self.state.repeat_type == RepeatType.NO_REPEAT):
+        no_repeat = self.app_config.state.repeat_type == RepeatType.NO_REPEAT
+        if self.app_config.state.repeat_type == RepeatType.REPEAT_SONG:
+            song_index_to_play = self.app_config.state.current_song_index
+        elif self.app_config.state.song_progress < 5:
+            if self.app_config.state.current_song_index == 0 and no_repeat:
                 song_index_to_play = 0
             else:
-                song_index_to_play = (self.state.current_song_index - 1) % len(
-                    self.state.play_queue)
+                song_index_to_play = (
+                    self.app_config.state.current_song_index - 1) % len(
+                        self.app_config.state.play_queue)
         else:
-            song_index_to_play = self.state.current_song_index
+            # Go back to the beginning of the song.
+            song_index_to_play = self.app_config.state.current_song_index
 
         self.play_song(song_index_to_play, reset=True)
 
     @dbus_propagate()
     def on_repeat_press(self, *args):
         # Cycle through the repeat types.
-        new_repeat_type = RepeatType((self.state.repeat_type.value + 1) % 3)
-        self.state.repeat_type = new_repeat_type
+        new_repeat_type = RepeatType(
+            (self.app_config.state.repeat_type.value + 1) % 3)
+        self.app_config.state.repeat_type = new_repeat_type
         self.update_window()
 
     @dbus_propagate()
     def on_shuffle_press(self, *args):
-        if self.state.shuffle_on:
+        if self.app_config.state.shuffle_on:
             # Revert to the old play queue.
-            self.state.current_song_index = self.state.old_play_queue.index(
-                self.state.current_song.id)
-            self.state.play_queue = self.state.old_play_queue.copy()
+            self.app_config.state.current_song_index = (
+                self.app_config.state.old_play_queue.index(
+                    self.app_config.state.current_song.id))
+            self.app_config.state.play_queue = (
+                self.app_config.state.old_play_queue.copy())
         else:
-            self.state.old_play_queue = self.state.play_queue.copy()
+            self.app_config.state.old_play_queue = (
+                self.app_config.state.play_queue.copy())
 
             # Remove the current song, then shuffle and put the song back.
-            song_id = self.state.current_song.id
-            del self.state.play_queue[self.state.current_song_index]
-            random.shuffle(self.state.play_queue)
-            self.state.play_queue = [song_id] + self.state.play_queue
-            self.state.current_song_index = 0
+            song_id = self.app_config.state.current_song.id
+            del self.app_config.state.play_queue[
+                self.app_config.state.current_song_index]
+            random.shuffle(self.app_config.state.play_queue)
+            self.app_config.state.play_queue = (
+                [song_id] + self.app_config.state.play_queue)
+            self.app_config.state.current_song_index = 0
 
-        self.state.shuffle_on = not self.state.shuffle_on
+        self.app_config.state.shuffle_on = not self.app_config.state.shuffle_on
         self.update_window()
 
     @dbus_propagate()
     def on_play_next(self, action: Any, song_ids: List[str]):
-        if self.state.current_song is None:
+        if self.app_config.state.current_song is None:
             insert_at = 0
         else:
-            insert_at = self.state.current_song_index + 1
+            insert_at = self.app_config.state.current_song_index + 1
 
-        self.state.play_queue = (
-            self.state.play_queue[:insert_at] + list(song_ids)
-            + self.state.play_queue[insert_at:])
-        self.state.old_play_queue.extend(song_ids)
+        self.app_config.state.play_queue = (
+            self.app_config.state.play_queue[:insert_at] + list(song_ids)
+            + self.app_config.state.play_queue[insert_at:])
+        self.app_config.state.old_play_queue.extend(song_ids)
         self.update_window()
 
     @dbus_propagate()
     def on_add_to_queue(self, action: Any, song_ids: GLib.Variant):
-        self.state.play_queue.extend(song_ids)
-        self.state.old_play_queue.extend(song_ids)
+        self.app_config.state.play_queue.extend(song_ids)
+        self.app_config.state.old_play_queue.extend(song_ids)
         self.update_window()
 
     def on_go_to_album(self, action: Any, album_id: GLib.Variant):
@@ -575,12 +604,12 @@ class SublimeMusicApp(Gtk.Application):
                 album = album.child[0]
 
         if album.get('year'):
-            self.state.current_album_sort = 'byYear'
-            self.state.current_album_from_year = album.year
-            self.state.current_album_to_year = album.year
+            self.app_config.state.current_album_sort = 'byYear'
+            self.app_config.state.current_album_from_year = album.year
+            self.app_config.state.current_album_to_year = album.year
         elif album.get('genre'):
-            self.state.current_album_sort = 'byGenre'
-            self.state.current_album_genre = album.genre
+            self.app_config.state.current_album_sort = 'byGenre'
+            self.app_config.state.current_album_genre = album.genre
         else:
             dialog = Gtk.MessageDialog(
                 transient_for=self.window,
@@ -595,23 +624,23 @@ class SublimeMusicApp(Gtk.Application):
             dialog.destroy()
             return
 
-        self.state.current_tab = 'albums'
-        self.state.selected_album_id = album_id.get_string()
+        self.app_config.state.current_tab = 'albums'
+        self.app_config.state.selected_album_id = album_id.get_string()
         self.update_window(force=True)
 
     def on_go_to_artist(self, action: Any, artist_id: GLib.Variant):
-        self.state.current_tab = 'artists'
-        self.state.selected_artist_id = artist_id.get_string()
+        self.app_config.state.current_tab = 'artists'
+        self.app_config.state.selected_artist_id = artist_id.get_string()
         self.update_window()
 
     def browse_to(self, action: Any, item_id: GLib.Variant):
-        self.state.current_tab = 'browse'
-        self.state.selected_browse_element_id = item_id.get_string()
+        self.app_config.state.current_tab = 'browse'
+        self.app_config.state.selected_browse_element_id = item_id.get_string()
         self.update_window()
 
     def on_go_to_playlist(self, action: Any, playlist_id: GLib.Variant):
-        self.state.current_tab = 'playlists'
-        self.state.selected_playlist_id = playlist_id.get_string()
+        self.app_config.state.current_tab = 'playlists'
+        self.app_config.state.selected_playlist_id = playlist_id.get_string()
         self.update_window()
 
     def on_server_list_changed(self, action: Any, servers: GLib.Variant):
@@ -630,26 +659,26 @@ class SublimeMusicApp(Gtk.Application):
         #         )
         #     except Exception:
         #         return self.password
-        self.state.config.servers = servers
-        self.state.save_config()
+        self.app_config.servers = servers
+        self.app_config.save()
 
     def on_connected_server_changed(
         self,
         action: Any,
         current_server: GLib.Variant,
     ):
-        if self.state.config.server:
-            self.state.save()
-        self.state.config.current_server = current_server
-        self.state.save_config()
+        if self.app_config.server:
+            self.app_config.save()
+        self.app_config.current_server = current_server
+        self.app_config.save()
 
         self.reset_state()
 
     def reset_state(self):
-        if self.state.playing:
+        if self.app_config.state.playing:
             self.on_play_pause()
         self.loading_state = True
-        self.state.load()
+        self.app_config.state.load()
         self.player.reset()
         self.loading_state = False
 
@@ -657,7 +686,7 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     def on_stack_change(self, stack: Gtk.Stack, _: Any):
-        self.state.current_tab = stack.get_visible_child_name()
+        self.app_config.state.current_tab = stack.get_visible_child_name()
         self.update_window()
 
     def on_song_clicked(
@@ -672,15 +701,17 @@ class SublimeMusicApp(Gtk.Application):
         old_play_queue = song_queue.copy()
 
         if metadata.get('force_shuffle_state') is not None:
-            self.state.shuffle_on = metadata['force_shuffle_state']
+            self.app_config.state.shuffle_on = metadata['force_shuffle_state']
 
         if metadata.get('active_playlist_id') is not None:
-            self.state.active_playlist_id = metadata.get('active_playlist_id')
+            self.app_config.state.active_playlist_id = metadata.get(
+                'active_playlist_id')
         else:
-            self.state.active_playlist_id = None
+            self.app_config.state.active_playlist_id = None
 
         # If shuffle is enabled, then shuffle the playlist.
-        if self.state.shuffle_on and not metadata.get('no_reshuffle'):
+        if self.app_config.state.shuffle_on and not metadata.get(
+                'no_reshuffle'):
             song_id = song_queue[song_index]
 
             del song_queue[song_index]
@@ -696,8 +727,9 @@ class SublimeMusicApp(Gtk.Application):
         )
 
     def on_songs_removed(self, win: Any, song_indexes_to_remove: List[int]):
-        self.state.play_queue = [
-            song_id for i, song_id in enumerate(self.state.play_queue)
+        self.app_config.state.play_queue = [
+            song_id
+            for i, song_id in enumerate(self.app_config.state.play_queue)
             if i not in song_indexes_to_remove
         ]
 
@@ -705,37 +737,43 @@ class SublimeMusicApp(Gtk.Application):
         # deleted.
         before_current = [
             i for i in song_indexes_to_remove
-            if i < self.state.current_song_index
+            if i < self.app_config.state.current_song_index
         ]
 
-        if self.state.current_song_index in song_indexes_to_remove:
-            if len(self.state.play_queue) == 0:
+        if self.app_config.state.current_song_index in song_indexes_to_remove:
+            if len(self.app_config.state.play_queue) == 0:
                 self.on_play_pause()
-                self.state.current_song_index = -1
+                self.app_config.state.current_song_index = -1
                 self.update_window()
                 return
 
-            self.state.current_song_index -= len(before_current)
-            self.play_song(self.state.current_song_index, reset=True)
+            self.app_config.state.current_song_index -= len(before_current)
+            self.play_song(
+                self.app_config.state.current_song_index,
+                reset=True,
+            )
         else:
-            self.state.current_song_index -= len(before_current)
+            self.app_config.state.current_song_index -= len(before_current)
             self.update_window()
             self.save_play_queue()
 
     @dbus_propagate()
     def on_song_scrub(self, win: Any, scrub_value: float):
-        if not self.state.current_song or not self.window:
+        if not self.app_config.state.current_song or not self.window:
             return
 
         # This should not ever happen. The current_song should always have
         # a duration, but the Child object has `duration` optional because
         # it could be a directory.
-        assert self.state.current_song.duration is not None
-        new_time = self.state.current_song.duration * (scrub_value / 100)
+        assert self.app_config.state.current_song.duration is not None
+        new_time = self.app_config.state.current_song.duration * (
+            scrub_value / 100)
 
-        self.state.song_progress = new_time
+        self.app_config.state.song_progress = new_time
         self.window.player_controls.update_scrubber(
-            self.state.song_progress, self.state.current_song.duration)
+            self.app_config.state.song_progress,
+            self.app_config.state.current_song.duration,
+        )
 
         # If already playing, then make the player itself seek.
         if self.player.song_loaded:
@@ -744,14 +782,14 @@ class SublimeMusicApp(Gtk.Application):
         self.save_play_queue()
 
     def on_device_update(self, win: Any, device_uuid: str):
-        if device_uuid == self.state.current_device:
+        if device_uuid == self.app_config.state.current_device:
             return
-        self.state.current_device = device_uuid
+        self.app_config.state.current_device = device_uuid
 
-        was_playing = self.state.playing
+        was_playing = self.app_config.state.playing
         self.player.pause()
         self.player._song_loaded = False
-        self.state.playing = False
+        self.app_config.state.playing = False
 
         if self.dbus_manager:
             self.dbus_manager.property_diff()
@@ -771,14 +809,14 @@ class SublimeMusicApp(Gtk.Application):
 
     @dbus_propagate()
     def on_mute_toggle(self, *args):
-        self.state.is_muted = not self.state.is_muted
-        self.player.is_muted = self.state.is_muted
+        self.app_config.state.is_muted = not self.app_config.state.is_muted
+        self.player.is_muted = self.app_config.state.is_muted
         self.update_window()
 
     @dbus_propagate()
     def on_volume_change(self, _: Any, value: float):
-        self.state.volume = value
-        self.player.volume = self.state.volume
+        self.app_config.state.volume = value
+        self.player.volume = self.app_config.state.volume
         self.update_window()
 
     def on_window_key_press(
@@ -816,14 +854,14 @@ class SublimeMusicApp(Gtk.Application):
         if tap_imported and self.tap:
             self.tap.stop()
 
-        if self.state.config.server is None:
+        if self.app_config.server is None:
             return
 
         self.player.pause()
         self.chromecast_player.shutdown()
         self.mpv_player.shutdown()
 
-        self.state.save()
+        self.app_config.save()
         self.save_play_queue()
         if self.dbus_manager:
             self.dbus_manager.shutdown()
@@ -832,7 +870,7 @@ class SublimeMusicApp(Gtk.Application):
     # ########## HELPER METHODS ########## #
     def show_configure_servers_dialog(self):
         """Show the Connect to Server dialog."""
-        dialog = ConfigureServersDialog(self.window, self.state.config)
+        dialog = ConfigureServersDialog(self.window, self.app_config)
         dialog.connect('server-list-changed', self.on_server_list_changed)
         dialog.connect(
             'connected-server-changed', self.on_connected_server_changed)
@@ -842,14 +880,15 @@ class SublimeMusicApp(Gtk.Application):
     def update_window(self, force: bool = False):
         if not self.window:
             return
-        GLib.idle_add(lambda: self.window.update(self.state, force=force))
+        GLib.idle_add(
+            lambda: self.window.update(self.app_config, force=force))
 
     def update_play_state_from_server(self, prompt_confirm: bool = False):
         # TODO (#129): need to make the up next list loading for the duration
         # here if prompt_confirm is False.
-        was_playing = self.state.playing
+        was_playing = self.app_config.state.playing
         self.player.pause()
-        self.state.playing = False
+        self.app_config.state.playing = False
         self.update_window()
 
         def do_update(f: Future):
@@ -861,15 +900,16 @@ class SublimeMusicApp(Gtk.Application):
             if prompt_confirm:
                 # If there's not a significant enough difference, don't prompt.
                 progress_diff = 15
-                if self.state.song_progress:
+                if self.app_config.state.song_progress:
                     progress_diff = abs(
-                        self.state.song_progress - new_song_progress)
+                        self.app_config.state.song_progress
+                        - new_song_progress)
 
-                if (self.state.play_queue == new_play_queue
-                        and self.state.current_song
-                        and self.state.current_song.id == new_current_song_id
-                        and progress_diff < 15):
-                    return
+                if (self.app_config.state.play_queue == new_play_queue
+                        and self.app_config.state.current_song):
+                    song_id = self.app_config.state.current_song.id
+                    if song_id == new_current_song_id and progress_diff < 15:
+                        return
 
                 dialog = Gtk.MessageDialog(
                     transient_for=self.window,
@@ -888,11 +928,11 @@ class SublimeMusicApp(Gtk.Application):
                 if result != Gtk.ResponseType.YES:
                     return
 
-            self.state.play_queue = new_play_queue
-            self.state.song_progress = play_queue.position / 1000
+            self.app_config.state.play_queue = new_play_queue
+            self.app_config.state.song_progress = play_queue.position / 1000
 
-            self.state.current_song_index = self.state.play_queue.index(
-                new_current_song_id)
+            self.app_config.state.current_song_index = (
+                self.app_config.state.play_queue.index(new_current_song_id))
 
             self.player.reset()
             self.update_window()
@@ -919,17 +959,17 @@ class SublimeMusicApp(Gtk.Application):
         def do_play_song(song: Child):
             uri, stream = CacheManager.get_song_filename_or_stream(
                 song,
-                force_stream=self.state.config.always_stream,
+                force_stream=self.app_config.state.config.always_stream,
             )
             # Prevent it from doing the thing where it continually loads
             # songs when it has to download.
             if reset:
                 self.player.reset()
-                self.state.song_progress = 0
+                self.app_config.state.song_progress = 0
                 self.should_scrobble_song = True
 
             # Show a song play notification.
-            if self.state.config.song_play_notification:
+            if self.app_config.song_play_notification:
                 try:
                     if glib_notify_exists:
                         notification_lines = []
@@ -1003,10 +1043,10 @@ class SublimeMusicApp(Gtk.Application):
                         'daemon running?')
 
             def on_song_download_complete(song_id: int):
-                if (self.state.current_song
-                        and self.state.current_song.id != song.id):
+                if (self.app_config.state.current_song
+                        and self.app_config.state.current_song.id != song.id):
                     return
-                if not self.state.playing:
+                if not self.app_config.state.playing:
                     return
 
                 # Switch to the local media if the player can hotswap (MPV can,
@@ -1014,15 +1054,15 @@ class SublimeMusicApp(Gtk.Application):
                 if self.player.can_hotswap_source:
                     self.player.play_media(
                         CacheManager.get_song_filename_or_stream(song)[0],
-                        self.state.song_progress,
+                        self.app_config.state.song_progress,
                         song,
                     )
                 GLib.idle_add(self.update_window)
 
             # If streaming, also download the song, unless configured not to,
             # or configured to always stream.
-            if (stream and self.state.config.download_on_stream
-                    and not self.state.config.always_stream):
+            if (stream and self.app_config.download_on_stream
+                    and not self.app_config.always_stream):
                 CacheManager.batch_download_songs(
                     [song.id],
                     before_download=lambda: self.update_window(),
@@ -1031,56 +1071,62 @@ class SublimeMusicApp(Gtk.Application):
 
             self.player.play_media(
                 uri,
-                0 if reset else self.state.song_progress,
+                0 if reset else self.app_config.state.song_progress,
                 song,
             )
-            self.state.playing = True
+            self.app_config.state.playing = True
             self.update_window()
 
             # Prefetch songs
-            if self.state.repeat_type != RepeatType.REPEAT_SONG:
-                song_idx = self.state.play_queue.index(song.id)
+            if self.app_config.state.repeat_type != RepeatType.REPEAT_SONG:
+                song_idx = self.app_config.state.play_queue.index(song.id)
+                repeat_type = self.app_config.state.repeat_type
+                is_repeat_queue = RepeatType.REPEAT_QUEUE == repeat_type
                 prefetch_idxs = []
-                for i in range(self.state.config.prefetch_amount):
+                for i in range(self.app_config.prefetch_amount):
                     prefetch_idx: int = song_idx + 1 + i
-                    play_queue_len: int = len(self.state.play_queue)
-                    if (self.state.repeat_type == RepeatType.REPEAT_QUEUE
-                            or prefetch_idx < play_queue_len):
+                    play_queue_len: int = len(self.app_config.state.play_queue)
+                    if (is_repeat_queue or prefetch_idx < play_queue_len):
                         prefetch_idxs.append(
                             prefetch_idx % play_queue_len)  # noqa: S001
                 CacheManager.batch_download_songs(
-                    [self.state.play_queue[i] for i in prefetch_idxs],
+                    [
+                        self.app_config.state.play_queue[i]
+                        for i in prefetch_idxs
+                    ],
                     before_download=lambda: GLib.idle_add(self.update_window),
                     on_song_download_complete=lambda _: GLib.idle_add(
                         self.update_window),
                 )
 
         if old_play_queue:
-            self.state.old_play_queue = old_play_queue
+            self.app_config.state.old_play_queue = old_play_queue
 
         if play_queue:
-            self.state.play_queue = play_queue
+            self.app_config.state.play_queue = play_queue
 
-        self.state.current_song_index = song_index
+        self.app_config.state.current_song_index = song_index
 
         if play_queue:
             self.save_play_queue()
 
         song_details_future = CacheManager.get_song_details(
-            self.state.play_queue[self.state.current_song_index])
+            self.app_config.state.play_queue[
+                self.app_config.state.current_song_index])
         song_details_future.add_done_callback(
             lambda f: GLib.idle_add(do_play_song, f.result()), )
 
     def save_play_queue(self):
-        if len(self.state.play_queue) == 0:
+        if len(self.app_config.state.play_queue) == 0:
             return
 
-        position = self.state.song_progress
+        position = self.app_config.state.song_progress
         self.last_play_queue_update = position or 0
 
-        if self.state.config.server.sync_enabled and self.state.current_song:
+        if (self.app_config.server.sync_enabled
+                and self.app_config.state.current_song):
             CacheManager.save_play_queue(
-                play_queue=self.state.play_queue,
-                current=self.state.current_song.id,
+                play_queue=self.app_config.state.play_queue,
+                current=self.app_config.state.current_song.id,
                 position=math.floor(position * 1000) if position else None,
             )

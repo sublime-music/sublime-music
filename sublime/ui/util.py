@@ -10,8 +10,8 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gdk, GLib, Gtk
 
 from sublime.cache_manager import CacheManager, SongCacheStatus
+from sublime.config import AppConfiguration
 from sublime.server.api_objects import Playlist
-from sublime.state_manager import ApplicationState
 
 
 def format_song_duration(duration_secs: Optional[int]) -> str:
@@ -330,7 +330,7 @@ def async_callback(
         def wrapper(
             self: Any,
             *args,
-            state: ApplicationState = None,
+            app_config: AppConfiguration = None,
             force: bool = False,
             order_token: int = None,
             **kwargs,
@@ -353,7 +353,7 @@ def async_callback(
                     lambda: callback_fn(
                         self,
                         result,
-                        state=state,
+                        app_config=app_config,
                         force=force,
                         order_token=order_token,
                     ))

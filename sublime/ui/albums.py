@@ -6,8 +6,8 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from sublime.cache_manager import CacheManager
+from sublime.config import AppConfiguration
 from sublime.server.api_objects import AlbumWithSongsID3, Child
-from sublime.state_manager import ApplicationState
 from sublime.ui import util
 from sublime.ui.common import AlbumWithSongs, IconButton, SpinnerImage
 
@@ -122,7 +122,7 @@ class AlbumsPanel(Gtk.Box):
 
     def populate_genre_combo(
         self,
-        state: ApplicationState,
+        app_config: AppConfiguration,
         force: bool = False,
     ):
         if not CacheManager.ready():
@@ -136,8 +136,10 @@ class AlbumsPanel(Gtk.Box):
 
                 util.diff_song_store(self.genre_combo.get_model(), new_store)
 
-                if self.get_id(self.genre_combo) != state.current_album_genre:
-                    self.genre_combo.set_active_id(state.current_album_genre)
+                current_genre_id = self.get_id(self.genre_combo)
+                if current_genre_id != app_config.state.current_album_genre:
+                    self.genre_combo.set_active_id(
+                        app_config.state.current_album_genre)
             finally:
                 self.updating_query = False
 
@@ -147,20 +149,22 @@ class AlbumsPanel(Gtk.Box):
         genres_future.add_done_callback(
             lambda f: GLib.idle_add(get_genres_done, f))
 
-    def update(self, state: ApplicationState, force: bool = False):
+    def update(self, app_config: AppConfiguration, force: bool = False):
         self.updating_query = True
 
-        self.sort_type_combo.set_active_id(state.current_album_sort)
+        self.sort_type_combo.set_active_id(app_config.state.current_album_sort)
         self.alphabetical_type_combo.set_active_id(
-            state.current_album_alphabetical_sort)
-        self.from_year_spin_button.set_value(state.current_album_from_year)
-        self.to_year_spin_button.set_value(state.current_album_to_year)
-        self.populate_genre_combo(state, force=force)
+            app_config.state.current_album_alphabetical_sort)
+        self.from_year_spin_button.set_value(
+            app_config.state.current_album_from_year)
+        self.to_year_spin_button.set_value(
+            app_config.state.current_album_to_year)
+        self.populate_genre_combo(app_config, force=force)
 
         # Show/hide the combo boxes.
         def show_if(sort_type: str, *elements):
             for element in elements:
-                if state.current_album_sort == sort_type:
+                if app_config.state.current_album_sort == sort_type:
                     element.show()
                 else:
                     element.hide()
@@ -170,7 +174,7 @@ class AlbumsPanel(Gtk.Box):
         show_if('byYear', self.from_year_label, self.from_year_spin_button)
         show_if('byYear', self.to_year_label, self.to_year_spin_button)
 
-        self.grid.update(self.grid_order_token, state, force=force)
+        self.grid.update(self.grid_order_token, app_config, force=force)
 
     def get_id(self, combo: Gtk.ComboBox) -> Optional[int]:
         tree_iter = combo.get_active_iter()
@@ -374,19 +378,20 @@ class AlbumsGrid(Gtk.Overlay):
     def update(
         self,
         order_token: int,
-        state: ApplicationState,
+        app_config: AppConfiguration,
         force: bool = False,
     ):
         if order_token < self.latest_applied_order_ratchet:
             return
 
-        new_hash = CacheManager.calculate_server_hash(state.config.server)
+        assert app_config.server is not None
+        new_hash = app_config.server.strhash()
         server_changed = self.server_hash != new_hash
         self.server_hash = new_hash
         self.update_grid(
             order_token,
             force=force or server_changed,
-            selected_id=state.selected_album_id,
+            selected_id=app_config.state.selected_album_id,
         )
 
         # Update the detail panel.

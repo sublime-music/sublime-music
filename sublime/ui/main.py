@@ -6,7 +6,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from sublime.cache_manager import CacheManager, SearchResult
-from sublime.state_manager import ApplicationState
+from sublime.config import AppConfiguration
 from sublime.ui import (
     albums, artists, browse, player_controls, playlists, util)
 from sublime.ui.common import SpinnerImage
@@ -71,24 +71,24 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self.connect('button-release-event', self._on_button_release)
 
-    def update(self, state: ApplicationState, force: bool = False):
+    def update(self, app_config: AppConfiguration, force: bool = False):
         # Update the Connected to label on the popup menu.
-        if state.config.current_server >= 0:
-            server_name = state.config.servers[
-                state.config.current_server].name
+        if app_config.current_server >= 0:
+            server_name = app_config.servers[
+                app_config.current_server].name
             self.connected_to_label.set_markup(
                 f'<b>Connected to {server_name}</b>')
         else:
             self.connected_to_label.set_markup(
                 f'<span style="italic">Not Connected to a Server</span>')
 
-        self.stack.set_visible_child_name(state.current_tab)
+        self.stack.set_visible_child_name(app_config.state.current_tab)
 
         active_panel = self.stack.get_visible_child()
         if hasattr(active_panel, 'update'):
-            active_panel.update(state, force=force)
+            active_panel.update(app_config, force=force)
 
-        self.player_controls.update(state)
+        self.player_controls.update(app_config)
 
     def _create_stack(self, **kwargs: Gtk.Widget) -> Gtk.Stack:
         stack = Gtk.Stack()

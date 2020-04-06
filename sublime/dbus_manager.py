@@ -8,9 +8,10 @@ from typing import Any, Callable, DefaultDict, Dict, List, Tuple
 from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
 
-from .cache_manager import CacheManager
-from .players import Player
-from .state_manager import ApplicationState, RepeatType
+from sublime.cache_manager import CacheManager
+from sublime.config import AppConfiguration
+from sublime.players import Player
+from sublime.ui.state import RepeatType
 
 
 def dbus_propagate(param_self: Any = None) -> Callable:
@@ -48,7 +49,7 @@ class DBusManager:
         ], None],
         on_set_property: Callable[
             [Gio.DBusConnection, str, str, str, str, GLib.Variant], None],
-        get_state_and_player: Callable[[], Tuple[ApplicationState, Player]],
+        get_state_and_player: Callable[[], Tuple[AppConfiguration, Player]],
     ):
         self.get_state_and_player = get_state_and_player
         self.do_on_method_call = do_on_method_call

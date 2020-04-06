@@ -5,8 +5,8 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from sublime.cache_manager import CacheManager
+from sublime.config import AppConfiguration
 from sublime.server.api_objects import Artist, Child, Directory
-from sublime.state_manager import ApplicationState
 from sublime.ui import util
 from sublime.ui.common import IconButton, SongListColumn
 
@@ -55,7 +55,7 @@ class BrowsePanel(Gtk.Overlay):
         )
         self.add_overlay(self.spinner)
 
-    def update(self, state: ApplicationState, force: bool = False):
+    def update(self, app_config: AppConfiguration, force: bool = False):
         if not CacheManager.ready:
             return
 
@@ -67,18 +67,18 @@ class BrowsePanel(Gtk.Overlay):
 
             self.root_directory_listing.update(
                 id_stack,
-                state=state,
+                app_config=app_config,
                 force=force,
             )
             self.spinner.hide()
 
         def calculate_path(update_order_token: int) -> Tuple[List[str], int]:
-            if state.selected_browse_element_id is None:
+            if app_config.state.selected_browse_element_id is None:
                 return [], update_order_token
 
             id_stack = []
             directory = None
-            current_dir_id = state.selected_browse_element_id
+            current_dir_id = app_config.state.selected_browse_element_id
             while directory is None or directory.parent is not None:
                 directory = CacheManager.get_music_directory(
                     current_dir_id,
@@ -133,13 +133,13 @@ class ListAndDrilldown(Gtk.Paned):
     def update(
         self,
         id_stack: List[int],
-        state: ApplicationState,
+        app_config: AppConfiguration,
         force: bool = False,
         directory_id: int = None,
     ):
         self.list.update(
             None if len(id_stack) == 0 else id_stack[-1],
-            state=state,
+            app_config,
             force=force,
             directory_id=directory_id,
         )
@@ -150,7 +150,7 @@ class ListAndDrilldown(Gtk.Paned):
             if isinstance(self.drilldown, ListAndDrilldown):
                 self.drilldown.update(
                     id_stack[:-1],
-                    state,
+                    app_config,
                     force=force,
                     directory_id=id_stack[-1],
                 )
@@ -170,7 +170,7 @@ class ListAndDrilldown(Gtk.Paned):
             )
             self.drilldown.update(
                 id_stack[:-1],
-                state,
+                app_config,
                 force=force,
                 directory_id=id_stack[-1],
             )
@@ -391,7 +391,7 @@ class IndexList(DrilldownList):
     def update(
         self,
         selected_id: int,
-        state: ApplicationState = None,
+        app_config: AppConfiguration = None,
         force: bool = False,
         **kwargs,
     ):
@@ -399,7 +399,7 @@ class IndexList(DrilldownList):
         self.selected_id = selected_id
         self.update_store(
             force=force,
-            state=state,
+            app_config=app_config,
             order_token=self.update_order_token,
         )
 
@@ -414,7 +414,7 @@ class IndexList(DrilldownList):
     def update_store(
         self,
         artists: List[Artist],
-        state: ApplicationState = None,
+        app_config: AppConfiguration = None,
         force: bool = False,
         order_token: int = None,
     ):
@@ -433,7 +433,7 @@ class MusicDirectoryList(DrilldownList):
     def update(
         self,
         selected_id: int,
-        state: ApplicationState = None,
+        app_config: AppConfiguration = None,
         force: bool = False,
         directory_id: int = None,
     ):
@@ -442,7 +442,7 @@ class MusicDirectoryList(DrilldownList):
         self.update_store(
             directory_id,
             force=force,
-            state=state,
+            app_config=app_config,
             order_token=self.update_order_token,
         )
 
@@ -458,7 +458,7 @@ class MusicDirectoryList(DrilldownList):
     def update_store(
         self,
         directory: Directory,
-        state: ApplicationState = None,
+        app_config: AppConfiguration = None,
         force: bool = False,
         order_token: int = None,
     ):

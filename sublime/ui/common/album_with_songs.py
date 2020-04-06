@@ -6,8 +6,8 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
 from sublime.cache_manager import CacheManager
+from sublime.config import AppConfiguration
 from sublime.server.api_objects import AlbumWithSongsID3, Child, Directory
-from sublime.state_manager import ApplicationState
 from sublime.ui import util
 from sublime.ui.common.icon_button import IconButton
 from sublime.ui.common.song_list_column import SongListColumn
@@ -281,7 +281,7 @@ class AlbumWithSongs(Gtk.Box):
     def update_album_songs(
         self,
         album: Union[AlbumWithSongsID3, Child, Directory],
-        state: ApplicationState,
+        app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
     ):

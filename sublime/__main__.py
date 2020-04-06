@@ -2,6 +2,7 @@
 import argparse
 import logging
 import os
+from pathlib import Path
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -57,11 +58,10 @@ def main():
     config_file = args.config
     if not config_file:
         # Default to ~/.config/sublime-music.
-        config_folder = (
+        config_file = Path(
             os.environ.get('XDG_CONFIG_HOME') or os.environ.get('APPDATA')
-            or os.path.join(os.environ.get('HOME'), '.config'))
-        config_folder = os.path.join(config_folder, 'sublime-music')
-        config_file = os.path.join(config_folder, 'config.yaml')
+            or os.path.join('~/.config')).expanduser().joinpath(
+                'sublime-music', 'config.yaml')
 
-    app = SublimeMusicApp(config_file)
+    app = SublimeMusicApp(Path(config_file))
     app.run(unknown_args)
