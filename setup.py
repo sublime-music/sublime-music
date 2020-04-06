@@ -48,10 +48,10 @@ setup(
             'ui/app_styles.css',
             'ui/images/play-queue-play.png',
             'ui/images/default-album-art.png',
-            'ui/mpris_specs/org.mpris.MediaPlayer2.xml',
-            'ui/mpris_specs/org.mpris.MediaPlayer2.Player.xml',
-            'ui/mpris_specs/org.mpris.MediaPlayer2.Playlists.xml',
-            'ui/mpris_specs/org.mpris.MediaPlayer2.TrackList.xml',
+            'mpris_specs/org.mpris.MediaPlayer2.xml',
+            'mpris_specs/org.mpris.MediaPlayer2.Player.xml',
+            'mpris_specs/org.mpris.MediaPlayer2.Playlists.xml',
+            'mpris_specs/org.mpris.MediaPlayer2.TrackList.xml',
         ]
     },
     install_requires=[

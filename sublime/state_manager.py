@@ -16,8 +16,6 @@ except Exception:
         'Unable to import NM from GLib. Detection of SSID will be disabled.')
     networkmanager_imported = False
 
-from .cache_manager import CacheManager
-from .config import AppConfiguration
 from .from_json import from_json
 from .server.api_objects import Child
 
@@ -50,11 +48,9 @@ class RepeatType(Enum):
 
 class ApplicationState:
     """
-    Represents the state of the application. In general, there are two things
-    that are stored here: configuration, and UI state.
-
-    Configuration is stored in ``config`` which is an ``AppConfiguration``
-    object. UI state is stored as separate properties on this class.
+    Represents the UI state of the application. In general, there are two
+    things that are stored here: configuration, and UI state.  UI state is
+    stored as separate properties on this class.
 
     Configuration is stored to disk in $XDG_CONFIG_HOME/sublime-music. State is
     stored in $XDG_CACHE_HOME. Nothing in state should be assumed to be
@@ -63,7 +59,6 @@ class ApplicationState:
     loads.
     """
     version: int = 1
-    config: AppConfiguration = AppConfiguration()
     config_file: Optional[str] = None
     playing: bool = False
     current_song_index: int = -1
@@ -185,16 +180,6 @@ class ApplicationState:
             return
         with open(self.config_file, 'w+') as f:
             f.write(config_json)
-
-    def get_config(self, filename: str) -> AppConfiguration:
-        if not os.path.exists(filename):
-            return AppConfiguration()
-
-        with open(filename, 'r') as f:
-            try:
-                return from_json(AppConfiguration, json.load(f))
-            except json.decoder.JSONDecodeError:
-                return AppConfiguration()
 
     @property
     def current_ssids(self) -> Set[str]:

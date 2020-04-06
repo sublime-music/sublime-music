@@ -61,7 +61,7 @@ def main():
             os.environ.get('XDG_CONFIG_HOME') or os.environ.get('APPDATA')
             or os.path.join(os.environ.get('HOME'), '.config'))
         config_folder = os.path.join(config_folder, 'sublime-music')
-        config_file = os.path.join(config_folder, 'config.json')
+        config_file = os.path.join(config_folder, 'config.yaml')
 
     app = SublimeMusicApp(config_file)
     app.run(unknown_args)

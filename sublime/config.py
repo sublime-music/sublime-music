@@ -1,7 +1,10 @@
-import logging
+import hashlib
 import os
+import yaml
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import List, Optional
 
 try:
     import keyring
@@ -9,6 +12,8 @@ try:
     has_keyring = True
 except ImportError:
     has_keyring = False
+
+from sublime.state_manager import ApplicationState
 
 
 class ReplayGainType(Enum):
@@ -29,82 +34,45 @@ class ReplayGainType(Enum):
         }[replay_gain_type.lower()]
 
 
+@dataclass
 class ServerConfiguration:
-    version: int
-    name: str
-    server_address: str
-    local_network_address: str
-    local_network_ssid: str
-    username: str
-    _password: str
-    sync_enabled: bool
-    disable_cert_verify: bool
-
-    def __init__(
-        self,
-        name: str = 'Default',
-        server_address: str = 'http://yourhost',
-        local_network_address: str = '',
-        local_network_ssid: str = '',
-        username: str = '',
-        password: str = '',
-        sync_enabled: bool = True,
-        disable_cert_verify: bool = False,
-    ):
-        self.name = name
-        self.server_address = server_address
-        self.local_network_address = local_network_address
-        self.local_network_ssid = local_network_ssid
-        self.username = username
-        self.sync_enabled = sync_enabled
-        self.disable_cert_verify = disable_cert_verify
-
-        # Try to save the password in the keyring, but if we can't, then save
-        # it in the config JSON.
-        if not has_keyring:
-            self._password = password
-        else:
-            try:
-                keyring.set_password(
-                    'com.sumnerevans.SublimeMusic',
-                    f'{self.username}@{self.server_address}',
-                    password,
-                )
-            except Exception:
-                self._password = password
+    name: str = 'Default'
+    server_address: str = 'http://yourhost'
+    local_network_address: str = ''
+    local_network_ssid: str = ''
+    username: str = ''
+    password: str = ''
+    sync_enabled: bool = True
+    disable_cert_verify: bool = False
+    version: int = 0
 
     def migrate(self):
-        # Try and migrate to use the system keyring, but if it fails, then we
-        # don't care.
-        if self._password and has_keyring:
-            try:
-                keyring.set_password(
-                    'com.sumnerevans.SublimeMusic',
-                    f'{self.username}@{self.server_address}',
-                    self._password,
-                )
-                self._password = None
-            except Exception:
-                pass
+        self.version = 0
 
-    @property
-    def password(self) -> str:
-        if not has_keyring:
-            return self._password
+    def strhash(self) -> str:
+        """
+        Returns the MD5 hash of the server's name, server address, and
+        username. This should be used whenever it's necessary to uniquely
+        identify the server, rather than using the name (which is not
+        necessarily unique).
 
-        try:
-            return keyring.get_password(
-                'com.sumnerevans.SublimeMusic',
-                f'{self.username}@{self.server_address}',
-            )
-        except Exception:
-            return self._password
+        >>> sc = ServerConfiguration(
+        ...     name='foo',
+        ...     server_address='bar',
+        ...     username='baz',
+        ... )
+        >>> sc.strhash()
+        '6df23dc03f9b54cc38a0fc1483df6e21'
+        """
+        server_info = (self.name + self.server_address + self.username)
+        return hashlib.md5(server_info.encode('utf-8')).hexdigest()
 
 
+@dataclass
 class AppConfiguration:
-    servers: List[ServerConfiguration] = []
+    servers: List[ServerConfiguration] = field(default_factory=list)
     current_server: int = -1
-    _cache_location: str = ''
+    cache_location: str = ''
     max_cache_size_mb: int = -1  # -1 means unlimited
     always_stream: bool = False  # always stream instead of downloading songs
     download_on_stream: bool = True  # also download when streaming a song
@@ -116,48 +84,32 @@ class AppConfiguration:
     serve_over_lan: bool = True
     replay_gain: ReplayGainType = ReplayGainType.NO
 
-    def to_json(self) -> Dict[str, Any]:
-        exclude = ('servers', 'replay_gain')
-        json_object = {
-            k: getattr(self, k)
-            for k in self.__annotations__.keys()
-            if k not in exclude
-        }
-        json_object.update(
-            {
-                'servers': [s.__dict__ for s in self.servers],
-                'replay_gain':
-                getattr(self, 'replay_gain', ReplayGainType.NO).value,
-            })
-        return json_object
+    @staticmethod
+    def load_from_file(filename: str) -> 'AppConfiguration':
+        if not Path(filename).exists():
+            return AppConfiguration()
+
+        with open(filename, 'r') as f:
+            return AppConfiguration(**yaml.load(f, Loader=yaml.CLoader))
+
+    def __post_init__(self):
+        # Default the cache_location to ~/.local/share/sublime-music
+        if not self.cache_location:
+            path = Path(os.environ.get('XDG_DATA_HOME') or '~/.local/share')
+            path = path.expanduser().joinpath('sublime-music').resolve()
+            self.cache_location = path.as_posix()
+
+        # Deserialize the YAML into the ServerConfiguration object.
+        if (len(self.servers) > 0
+                and type(self.servers[0]) != ServerConfiguration):
+            self.servers = [ServerConfiguration(**sc) for sc in self.servers]
+
+        self._state = None
 
     def migrate(self):
         for server in self.servers:
             server.migrate()
-
-        if (getattr(self, 'version') or 0) < 2:
-            logging.info('Migrating app configuration to version 2.')
-            logging.info('Setting serve_over_lan to True')
-            self.serve_over_lan = True
-
-        if (getattr(self, 'version') or 0) < 3:
-            logging.info('Migrating app configuration to version 3.')
-            logging.info('Setting replay_gain to ReplayGainType.NO')
-            self.replay_gain = ReplayGainType.NO
-
         self.version = 3
-
-    @property
-    def cache_location(self) -> str:
-        if (hasattr(self, '_cache_location')
-                and self._cache_location is not None
-                and self._cache_location != ''):
-            return self._cache_location
-        else:
-            default_cache_location = (
-                os.environ.get('XDG_DATA_HOME')
-                or os.path.expanduser('~/.local/share'))
-            return os.path.join(default_cache_location, 'sublime-music')
 
     @property
     def server(self) -> Optional[ServerConfiguration]:
@@ -165,3 +117,7 @@ class AppConfiguration:
             return self.servers[self.current_server]
 
         return None
+
+    @property
+    def state(self) -> ApplicationState:
+        pass
