@@ -6,6 +6,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
 from sublime.cache_manager import CacheManager
+from sublime.config import AppConfiguration
 from sublime.server.api_objects import (
     AlbumID3,
     ArtistID3,
@@ -13,7 +14,6 @@ from sublime.server.api_objects import (
     ArtistWithAlbumsID3,
     Child,
 )
-from sublime.state_manager import ApplicationState
 from sublime.ui import util
 from sublime.ui.common import AlbumWithSongs, IconButton, SpinnerImage
 
@@ -47,9 +47,9 @@ class ArtistsPanel(Gtk.Paned):
         )
         self.pack2(self.artist_detail_panel, True, False)
 
-    def update(self, state: ApplicationState, force: bool = False):
-        self.artist_list.update(state=state)
-        self.artist_detail_panel.update(state=state)
+    def update(self, app_config: AppConfiguration, force: bool = False):
+        self.artist_list.update(app_config=app_config)
+        self.artist_detail_panel.update(app_config=app_config)
 
 
 class _ArtistModel(GObject.GObject):
@@ -126,13 +126,14 @@ class ArtistList(Gtk.Box):
     def update(
         self,
         artists: List[ArtistID3],
-        state: ApplicationState,
+        app_config: AppConfiguration,
         **kwargs,
     ):
         new_store = []
         selected_idx = None
         for i, artist in enumerate(artists):
-            if state and state.selected_artist_id == artist.id:
+            if (app_config.state
+                    and app_config.state.selected_artist_id == artist.id):
                 selected_idx = i
 
             new_store.append(
@@ -269,9 +270,9 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
 
         self.add(artist_info_box)
 
-    def update(self, state: ApplicationState):
-        self.artist_id = state.selected_artist_id
-        if state.selected_artist_id is None:
+    def update(self, app_config: AppConfiguration):
+        self.artist_id = app_config.state.selected_artist_id
+        if app_config.state.selected_artist_id is None:
             self.artist_action_buttons.hide()
             self.artist_indicator.set_text('')
             self.artist_name.set_markup('')
@@ -289,8 +290,8 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
             self.update_order_token += 1
             self.artist_action_buttons.show()
             self.update_artist_view(
-                state.selected_artist_id,
-                state=state,
+                app_config.state.selected_artist_id,
+                app_config=app_config,
                 order_token=self.update_order_token,
             )
 
@@ -302,7 +303,7 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
     def update_artist_view(
         self,
         artist: ArtistWithAlbumsID3,
-        state: ApplicationState,
+        app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
     ):
@@ -333,7 +334,7 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
     def update_artist_info(
         self,
         artist_info: ArtistInfo2,
-        state: ApplicationState,
+        app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
     ):
@@ -368,7 +369,7 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
     def update_artist_artwork(
         self,
         cover_art_filename: str,
-        state: ApplicationState,
+        app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
     ):

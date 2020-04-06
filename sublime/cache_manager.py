@@ -32,7 +32,7 @@ from typing import (
 import requests
 from fuzzywuzzy import fuzz
 
-from .config import AppConfiguration, ServerConfiguration
+from .config import AppConfiguration
 from .server import Server
 from .server.api_object import APIObject
 from .server.api_objects import (
@@ -262,14 +262,6 @@ class CacheManager(metaclass=Singleton):
         CacheManager._instance.save_cache_info()
         logging.info('CacheManager shutdown complete')
 
-    @staticmethod
-    def calculate_server_hash(
-            server: Optional[ServerConfiguration]) -> Optional[str]:
-        if server is None:
-            return None
-        server_info = (server.name + server.server_address + server.username)
-        return hashlib.md5(server_info.encode('utf-8')).hexdigest()[:8]
-
     class CacheEncoder(json.JSONEncoder):
         def default(self, obj: Any) -> Optional[Union[int, List, Dict]]:
             """
@@ -314,13 +306,14 @@ class CacheManager(metaclass=Singleton):
             current_ssids: Set[str],
         ):
             self.app_config = app_config
+            assert self.app_config.server is not None
             self.app_config.server
 
             # If connected to the "Local Network SSID", use the "Local Network
             # Address" instead of the "Server Address".
             hostname = self.app_config.server.server_address
-            if self.self.app_config.server.local_network_ssid in current_ssids:
-                hostname = self.self.app_config.server.local_network_address
+            if self.app_config.server.local_network_ssid in current_ssids:
+                hostname = self.app_config.server.local_network_address
 
             self.server = Server(
                 name=self.app_config.server.name,

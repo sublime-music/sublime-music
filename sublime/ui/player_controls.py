@@ -2,7 +2,7 @@ import math
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Optional
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -10,11 +10,12 @@ from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
 from pychromecast import Chromecast
 
 from sublime.cache_manager import CacheManager
+from sublime.config import AppConfiguration
 from sublime.players import ChromecastPlayer
 from sublime.server.api_objects import Child
-from sublime.state_manager import ApplicationState, RepeatType
 from sublime.ui import util
 from sublime.ui.common import IconButton, IconToggleButton, SpinnerImage
+from sublime.ui.state import RepeatType
 
 
 class PlayerControls(Gtk.ActionBar):
@@ -77,35 +78,37 @@ class PlayerControls(Gtk.ActionBar):
         self.set_center_widget(playback_controls)
         self.pack_end(play_queue_volume)
 
-    def update(self, state: ApplicationState):
-        self.current_device = state.current_device
+    def update(self, app_config: AppConfiguration):
+        self.current_device = app_config.state.current_device
 
-        self.update_scrubber(
-            getattr(state, 'song_progress', None),
-            getattr(state.current_song, 'duration', None),
-        )
+        duration = (
+            app_config.state.current_song.duration
+            if app_config.state.current_song else None)
+        self.update_scrubber(app_config.state.song_progress, duration)
 
-        icon = 'pause' if state.playing else 'start'
+        icon = 'pause' if app_config.state.playing else 'start'
         self.play_button.set_icon(f"media-playback-{icon}-symbolic")
-        self.play_button.set_tooltip_text('Pause' if state.playing else 'Play')
+        self.play_button.set_tooltip_text(
+            'Pause' if app_config.state.playing else 'Play')
 
-        has_current_song = state.current_song is not None
+        has_current_song = app_config.state.current_song is not None
         has_next_song = False
-        if state.repeat_type in (RepeatType.REPEAT_QUEUE,
-                                 RepeatType.REPEAT_SONG):
+        if app_config.state.repeat_type in (RepeatType.REPEAT_QUEUE,
+                                            RepeatType.REPEAT_SONG):
             has_next_song = True
         elif has_current_song:
+            last_idx_in_queue = len(app_config.state.play_queue) - 1
             has_next_song = (
-                state.current_song_index < len(state.play_queue) - 1)
+                app_config.state.current_song_index < last_idx_in_queue)
 
         # Toggle button states.
         self.repeat_button.set_action_name(None)
         self.shuffle_button.set_action_name(None)
-        repeat_on = state.repeat_type in (
+        repeat_on = app_config.state.repeat_type in (
             RepeatType.REPEAT_QUEUE, RepeatType.REPEAT_SONG)
         self.repeat_button.set_active(repeat_on)
-        self.repeat_button.set_icon(state.repeat_type.icon)
-        self.shuffle_button.set_active(state.shuffle_on)
+        self.repeat_button.set_icon(app_config.state.repeat_type.icon)
+        self.shuffle_button.set_active(app_config.state.shuffle_on)
         self.repeat_button.set_action_name('app.repeat-press')
         self.shuffle_button.set_action_name('app.shuffle-press')
 
@@ -115,11 +118,11 @@ class PlayerControls(Gtk.ActionBar):
         self.next_button.set_sensitive(has_current_song and has_next_song)
 
         # Volume button and slider
-        if state.is_muted:
+        if app_config.state.is_muted:
             icon_name = 'muted'
-        elif state.volume < 30:
+        elif app_config.state.volume < 30:
             icon_name = 'low'
-        elif state.volume < 70:
+        elif app_config.state.volume < 70:
             icon_name = 'medium'
         else:
             icon_name = 'high'
@@ -127,21 +130,24 @@ class PlayerControls(Gtk.ActionBar):
         self.volume_mute_toggle.set_icon(f'audio-volume-{icon_name}-symbolic')
 
         self.editing = True
-        self.volume_slider.set_value(0 if state.is_muted else state.volume)
+        self.volume_slider.set_value(
+            0 if app_config.state.is_muted else app_config.state.volume)
         self.editing = False
 
         # Update the current song information.
         # TODO (#126): add popup of bigger cover art photo here
-        if state.current_song is not None:
+        if app_config.state.current_song is not None:
             self.cover_art_update_order_token += 1
             self.update_cover_art(
-                state.current_song.coverArt,
+                app_config.state.current_song.coverArt,
                 order_token=self.cover_art_update_order_token,
             )
 
-            self.song_title.set_markup(util.esc(state.current_song.title))
-            self.album_name.set_markup(util.esc(state.current_song.album))
-            artist_name = util.esc(state.current_song.artist)
+            self.song_title.set_markup(
+                util.esc(app_config.state.current_song.title))
+            self.album_name.set_markup(
+                util.esc(app_config.state.current_song.album))
+            artist_name = util.esc(app_config.state.current_song.artist)
             self.artist_name.set_markup(artist_name or '')
         else:
             # Clear out the cover art and song tite if no song
@@ -155,118 +161,118 @@ class PlayerControls(Gtk.ActionBar):
             self.update_device_list()
 
         # Set the Play Queue button popup.
-        if hasattr(state, 'play_queue'):
-            play_queue_len = len(state.play_queue)
-            if play_queue_len == 0:
-                self.popover_label.set_markup('<b>Play Queue</b>')
+        play_queue_len = len(app_config.state.play_queue)
+        if play_queue_len == 0:
+            self.popover_label.set_markup('<b>Play Queue</b>')
+        else:
+            song_label = util.pluralize('song', play_queue_len)
+            self.popover_label.set_markup(
+                f'<b>Play Queue:</b> {play_queue_len} {song_label}')
+
+        self.editing_play_queue_song_list = True
+
+        new_store = []
+
+        def calculate_label(song_details: Child) -> str:
+            title = util.esc(song_details.title)
+            album = util.esc(song_details.album)
+            artist = util.esc(song_details.artist)
+            return f'<b>{title}</b>\n{util.dot_join(album, artist)}'
+
+        def make_idle_index_capturing_function(
+            idx: int,
+            order_tok: int,
+            fn: Callable[[int, int, Any], None],
+        ) -> Callable[[CacheManager.Result], None]:
+            return lambda f: GLib.idle_add(fn, idx, order_tok, f.result())
+
+        def on_cover_art_future_done(
+            idx: int,
+            order_token: int,
+            cover_art_filename: str,
+        ):
+            if order_token != self.play_queue_update_order_token:
+                return
+
+            self.play_queue_store[idx][0] = cover_art_filename
+
+        def on_song_details_future_done(
+            idx: int,
+            order_token: int,
+            song_details: Child,
+        ):
+            if order_token != self.play_queue_update_order_token:
+                return
+
+            self.play_queue_store[idx][1] = calculate_label(song_details)
+
+            # Cover Art
+            cover_art_result = CacheManager.get_cover_art_filename(
+                song_details.coverArt)
+            if cover_art_result.is_future:
+                # We don't have the cover art already cached.
+                cover_art_result.add_done_callback(
+                    make_idle_index_capturing_function(
+                        idx,
+                        order_token,
+                        on_cover_art_future_done,
+                    ))
             else:
-                song_label = util.pluralize('song', play_queue_len)
-                self.popover_label.set_markup(
-                    f'<b>Play Queue:</b> {play_queue_len} {song_label}')
+                # We have the cover art already cached.
+                self.play_queue_store[idx][0] = cover_art_result.result()
 
-            self.editing_play_queue_song_list = True
+        current_play_queue = [x[-1] for x in self.play_queue_store]
+        if app_config.state.play_queue != current_play_queue:
+            self.play_queue_update_order_token += 1
 
-            new_store = []
+        song_details_results = []
+        for i, song_id in enumerate(app_config.state.play_queue):
+            song_details_result = CacheManager.get_song_details(song_id)
 
-            def calculate_label(song_details: Child) -> str:
-                title = util.esc(song_details.title)
-                album = util.esc(song_details.album)
-                artist = util.esc(song_details.artist)
-                return f'<b>{title}</b>\n{util.dot_join(album, artist)}'
+            cover_art_filename = ''
+            label = '\n'
 
-            def make_idle_index_capturing_function(
-                idx: int,
-                order_tok: int,
-                fn: Callable[[int, int, Any], None],
-            ) -> Callable[[CacheManager.Result], None]:
-                return lambda f: GLib.idle_add(fn, idx, order_tok, f.result())
+            if song_details_result.is_future:
+                song_details_results.append((i, song_details_result))
+            else:
+                # We have the details of the song already cached.
+                song_details = song_details_result.result()
+                label = calculate_label(song_details)
 
-            def on_cover_art_future_done(
-                idx: int,
-                order_token: int,
-                cover_art_filename: str,
-            ):
-                if order_token != self.play_queue_update_order_token:
-                    return
-
-                self.play_queue_store[idx][0] = cover_art_filename
-
-            def on_song_details_future_done(
-                idx: int,
-                order_token: int,
-                song_details: Child,
-            ):
-                if order_token != self.play_queue_update_order_token:
-                    return
-
-                self.play_queue_store[idx][1] = calculate_label(song_details)
-
-                # Cover Art
                 cover_art_result = CacheManager.get_cover_art_filename(
                     song_details.coverArt)
                 if cover_art_result.is_future:
                     # We don't have the cover art already cached.
                     cover_art_result.add_done_callback(
                         make_idle_index_capturing_function(
-                            idx,
-                            order_token,
+                            i,
+                            self.play_queue_update_order_token,
                             on_cover_art_future_done,
                         ))
                 else:
                     # We have the cover art already cached.
-                    self.play_queue_store[idx][0] = cover_art_result.result()
+                    cover_art_filename = cover_art_result.result()
 
-            if state.play_queue != [x[-1] for x in self.play_queue_store]:
-                self.play_queue_update_order_token += 1
+            new_store.append(
+                [
+                    cover_art_filename,
+                    label,
+                    i == app_config.state.current_song_index,
+                    song_id,
+                ])
 
-            song_details_results = []
-            for i, song_id in enumerate(state.play_queue):
-                song_details_result = CacheManager.get_song_details(song_id)
+        util.diff_song_store(self.play_queue_store, new_store)
 
-                cover_art_filename = ''
-                label = '\n'
+        # Do this after the diff to avoid race conditions.
+        for idx, song_details_result in song_details_results:
+            song_details_result.add_done_callback(
+                make_idle_index_capturing_function(
+                    idx,
+                    self.play_queue_update_order_token,
+                    on_song_details_future_done,
+                ))
 
-                if song_details_result.is_future:
-                    song_details_results.append((i, song_details_result))
-                else:
-                    # We have the details of the song already cached.
-                    song_details = song_details_result.result()
-                    label = calculate_label(song_details)
-
-                    cover_art_result = CacheManager.get_cover_art_filename(
-                        song_details.coverArt)
-                    if cover_art_result.is_future:
-                        # We don't have the cover art already cached.
-                        cover_art_result.add_done_callback(
-                            make_idle_index_capturing_function(
-                                i,
-                                self.play_queue_update_order_token,
-                                on_cover_art_future_done,
-                            ))
-                    else:
-                        # We have the cover art already cached.
-                        cover_art_filename = cover_art_result.result()
-
-                new_store.append(
-                    [
-                        cover_art_filename,
-                        label,
-                        i == state.current_song_index,
-                        song_id,
-                    ])
-
-            util.diff_song_store(self.play_queue_store, new_store)
-
-            # Do this after the diff to avoid race conditions.
-            for idx, song_details_result in song_details_results:
-                song_details_result.add_done_callback(
-                    make_idle_index_capturing_function(
-                        idx,
-                        self.play_queue_update_order_token,
-                        on_song_details_future_done,
-                    ))
-
-            self.editing_play_queue_song_list = False
+        self.editing_play_queue_song_list = False
 
     @util.async_callback(
         lambda *k, **v: CacheManager.get_cover_art_filename(*k, **v),
@@ -276,7 +282,7 @@ class PlayerControls(Gtk.ActionBar):
     def update_cover_art(
         self,
         cover_art_filename: str,
-        state: ApplicationState,
+        app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
     ):
@@ -286,7 +292,11 @@ class PlayerControls(Gtk.ActionBar):
         self.album_art.set_from_file(cover_art_filename)
         self.album_art.set_loading(False)
 
-    def update_scrubber(self, current: float, duration: int):
+    def update_scrubber(
+        self,
+        current: Optional[float],
+        duration: Optional[int],
+    ):
         if current is None or duration is None:
             self.song_duration_label.set_text('-:--')
             self.song_progress_label.set_text('-:--')

@@ -8,8 +8,8 @@ from fuzzywuzzy import process
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from sublime.cache_manager import CacheManager
+from sublime.config import AppConfiguration
 from sublime.server.api_objects import PlaylistWithSongs
-from sublime.state_manager import ApplicationState
 from sublime.ui import util
 from sublime.ui.common import (
     EditFormDialog,
@@ -63,9 +63,9 @@ class PlaylistsPanel(Gtk.Paned):
         )
         self.pack2(self.playlist_detail_panel, True, False)
 
-    def update(self, state: ApplicationState = None, force: bool = False):
-        self.playlist_list.update(state=state, force=force)
-        self.playlist_detail_panel.update(state=state, force=force)
+    def update(self, app_config: AppConfiguration = None, force: bool = False):
+        self.playlist_list.update(app_config=app_config, force=force)
+        self.playlist_detail_panel.update(app_config=app_config, force=force)
 
 
 class PlaylistList(Gtk.Box):
@@ -188,14 +188,15 @@ class PlaylistList(Gtk.Box):
     def update_list(
         self,
         playlists: List[PlaylistWithSongs],
-        state: ApplicationState,
+        app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
     ):
         new_store = []
         selected_idx = None
         for i, playlist in enumerate(playlists or []):
-            if state and state.selected_playlist_id == playlist.id:
+            if (app_config.state
+                    and app_config.state.selected_playlist_id == playlist.id):
                 selected_idx = i
 
             new_store.append(
@@ -439,8 +440,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     update_playlist_view_order_token = 0
 
-    def update(self, state: ApplicationState, force: bool = False):
-        if state.selected_playlist_id is None:
+    def update(self, app_config: AppConfiguration, force: bool = False):
+        if app_config.state.selected_playlist_id is None:
             self.playlist_artwork.set_from_file(None)
             self.playlist_indicator.set_markup('')
             self.playlist_name.set_markup('')
@@ -453,8 +454,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
         else:
             self.update_playlist_view_order_token += 1
             self.update_playlist_view(
-                state.selected_playlist_id,
-                state=state,
+                app_config.state.selected_playlist_id,
+                app_config=app_config,
                 force=force,
                 order_token=self.update_playlist_view_order_token,
             )
@@ -467,7 +468,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
     def update_playlist_view(
         self,
         playlist: PlaylistWithSongs,
-        state: ApplicationState = None,
+        app_config: AppConfiguration = None,
         force: bool = False,
         order_token: int = None,
     ):
@@ -529,7 +530,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
     def update_playlist_artwork(
         self,
         cover_art_filename: str,
-        state: ApplicationState,
+        app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
     ):
@@ -756,7 +757,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
     def _update_playlist_order(
         self,
         playlist: PlaylistWithSongs,
-        state: ApplicationState,
+        app_config: AppConfiguration,
         **kwargs,
     ):
         self.playlist_view_loading_box.show_all()
