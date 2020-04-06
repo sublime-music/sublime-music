@@ -95,7 +95,7 @@ class ConfigureServersDialog(Gtk.Dialog):
         )
 
         self.server_configs = config.servers
-        self.selected_server_index = config.current_server
+        self.selected_server_index = config.current_server_index
         self.set_default_size(500, 300)
 
         # Flow box to hold the server list and the buttons.

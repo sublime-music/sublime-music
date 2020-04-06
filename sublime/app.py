@@ -46,6 +46,7 @@ class SublimeMusicApp(Gtk.Application):
 
         self.window: Optional[Gtk.Window] = None
         self.app_config = AppConfiguration.load_from_file(config_file)
+        self.player = None
         self.dbus_manager: Optional[DBusManager] = None
 
         self.connect('shutdown', self.on_app_shutdown)
@@ -197,13 +198,13 @@ class SublimeMusicApp(Gtk.Application):
             time_observer,
             on_track_end,
             on_player_event,
-            self.app_config.state.config,
+            self.app_config,
         )
         self.chromecast_player = ChromecastPlayer(
             time_observer,
             on_track_end,
             on_player_event,
-            self.app_config.state.config,
+            self.app_config,
         )
         self.player = self.mpv_player
 
@@ -231,7 +232,7 @@ class SublimeMusicApp(Gtk.Application):
             connection,
             self.on_dbus_method_call,
             self.on_dbus_set_property,
-            lambda: (self.app_config.state, getattr(self, 'player', None)),
+            lambda: (self.app_config, self.player),
         )
         return True
 
@@ -665,11 +666,11 @@ class SublimeMusicApp(Gtk.Application):
     def on_connected_server_changed(
         self,
         action: Any,
-        current_server: GLib.Variant,
+        current_server_index: int,
     ):
         if self.app_config.server:
             self.app_config.save()
-        self.app_config.current_server = current_server
+        self.app_config.current_server_index = current_server_index
         self.app_config.save()
 
         self.reset_state()
@@ -880,8 +881,7 @@ class SublimeMusicApp(Gtk.Application):
     def update_window(self, force: bool = False):
         if not self.window:
             return
-        GLib.idle_add(
-            lambda: self.window.update(self.app_config, force=force))
+        GLib.idle_add(lambda: self.window.update(self.app_config, force=force))
 
     def update_play_state_from_server(self, prompt_confirm: bool = False):
         # TODO (#129): need to make the up next list loading for the duration

@@ -73,11 +73,9 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def update(self, app_config: AppConfiguration, force: bool = False):
         # Update the Connected to label on the popup menu.
-        if app_config.current_server >= 0:
-            server_name = app_config.servers[
-                app_config.current_server].name
+        if app_config.server:
             self.connected_to_label.set_markup(
-                f'<b>Connected to {server_name}</b>')
+                f'<b>Connected to {app_config.server.name}</b>')
         else:
             self.connected_to_label.set_markup(
                 f'<span style="italic">Not Connected to a Server</span>')
