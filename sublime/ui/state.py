@@ -61,6 +61,9 @@ class UIState:
 
     active_playlist_id: Optional[str] = None
 
+    def migrate(self):
+        pass
+
     @property
     def current_song(self) -> Optional[Child]:
         if (not self.play_queue or self.current_song_index < 0
