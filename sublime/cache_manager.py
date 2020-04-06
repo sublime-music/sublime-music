@@ -32,6 +32,18 @@ from typing import (
 import requests
 from fuzzywuzzy import fuzz
 
+try:
+    import gi
+    gi.require_version('NM', '1.0')
+    from gi.repository import NM
+    networkmanager_imported = True
+except Exception:
+    # I really don't care what kind of exception it is, all that matters is the
+    # import failed for some reason.
+    logging.warning(
+        'Unable to import NM from GLib. Detection of SSID will be disabled.')
+    networkmanager_imported = False
+
 from .config import AppConfiguration
 from .server import Server
 from .server.api_object import APIObject
@@ -300,11 +312,7 @@ class CacheManager(metaclass=Singleton):
         download_set_lock = threading.Lock()
         current_downloads: Set[str] = set()
 
-        def __init__(
-            self,
-            app_config: AppConfiguration,
-            current_ssids: Set[str],
-        ):
+        def __init__(self, app_config: AppConfiguration):
             self.app_config = app_config
             assert self.app_config.server is not None
             self.app_config.server
@@ -312,7 +320,7 @@ class CacheManager(metaclass=Singleton):
             # If connected to the "Local Network SSID", use the "Local Network
             # Address" instead of the "Server Address".
             hostname = self.app_config.server.server_address
-            if self.app_config.server.local_network_ssid in current_ssids:
+            if self.app_config.server.local_network_ssid in self.current_ssids:
                 hostname = self.app_config.server.local_network_address
 
             self.server = Server(
@@ -326,6 +334,29 @@ class CacheManager(metaclass=Singleton):
                 self.app_config.concurrent_download_limit)
 
             self.load_cache_info()
+
+        @property
+        def current_ssids(self) -> Set[str]:
+            if not networkmanager_imported:
+                return set()
+
+            self.networkmanager_client = NM.Client.new()
+            self.nmclient_initialized = False
+            self._current_ssids: Set[str] = set()
+            if not self.nmclient_initialized:
+                # Only look at the active WiFi connections.
+                for ac in self.networkmanager_client.get_active_connections():
+                    if ac.get_connection_type() != '802-11-wireless':
+                        continue
+                    devs = ac.get_devices()
+                    if len(devs) != 1:
+                        continue
+                    if devs[0].get_device_type() != NM.DeviceType.WIFI:
+                        continue
+
+                    self._current_ssids.add(ac.get_id())
+
+            return self._current_ssids
 
         def load_cache_info(self):
             cache_meta_file = self.calculate_abs_path('.cache_meta')
@@ -1072,9 +1103,7 @@ class CacheManager(metaclass=Singleton):
         raise Exception('Do not instantiate the CacheManager.')
 
     @staticmethod
-    def reset(app_config: AppConfiguration, current_ssids: Set[str]):
+    def reset(app_config: AppConfiguration):
         CacheManager._instance = CacheManager.__CacheManagerInternal(
-            app_config,
-            current_ssids,
-        )
+            app_config)
         similarity_ratio.cache_clear()

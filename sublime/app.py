@@ -959,7 +959,7 @@ class SublimeMusicApp(Gtk.Application):
         def do_play_song(song: Child):
             uri, stream = CacheManager.get_song_filename_or_stream(
                 song,
-                force_stream=self.app_config.state.config.always_stream,
+                force_stream=self.app_config.always_stream,
             )
             # Prevent it from doing the thing where it continually loads
             # songs when it has to download.
