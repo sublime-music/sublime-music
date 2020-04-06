@@ -27,11 +27,10 @@ except Exception:
     glib_notify_exists = False
 
 from .cache_manager import CacheManager
-from .config import ReplayGainType
+from .config import AppConfiguration
 from .dbus_manager import dbus_propagate, DBusManager
 from .players import ChromecastPlayer, MPVPlayer, PlayerEvent
 from .server.api_objects import Child, Directory, Playlist
-from .state_manager import ApplicationState, RepeatType
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.main import MainWindow
 from .ui.settings import SettingsDialog
@@ -44,8 +43,7 @@ class SublimeMusicApp(Gtk.Application):
             Notify.init('Sublime Music')
 
         self.window: Optional[Gtk.Window] = None
-        self.state = ApplicationState()
-        self.state.config_file = config_file
+        self.config = AppConfiguration.load_from_file(config_file)
         self.dbus_manager: Optional[DBusManager] = None
 
         self.connect('shutdown', self.on_app_shutdown)
@@ -131,10 +129,6 @@ class SublimeMusicApp(Gtk.Application):
 
         self.window.show_all()
         self.window.present()
-
-        # Load the configuration and update the UI with the curent server, if
-        # it exists.
-        self.state.load()
 
         # If there is no current server, show the dialog to select a server.
         if self.state.config.server is None:
@@ -621,6 +615,21 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     def on_server_list_changed(self, action: Any, servers: GLib.Variant):
+        # TODO do the save to the keyring here
+
+        # keyring.set_password(
+        #     'com.sumnerevans.SublimeMusic',
+        #     f'{self.username}@{self.server_address}',
+        #     password,
+        # )
+        # def get_password(self) -> str:
+        #     try:
+        #         return keyring.get_password(
+        #             'com.sumnerevans.SublimeMusic',
+        #             f'{self.username}@{self.server_address}',
+        #         )
+        #     except Exception:
+        #         return self.password
         self.state.config.servers = servers
         self.state.save_config()
 

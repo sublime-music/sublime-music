@@ -65,7 +65,7 @@ class DBusManager:
             for spec in specs:
                 spec_path = os.path.join(
                     os.path.dirname(__file__),
-                    f'ui/mpris_specs/{spec}',
+                    f'mpris_specs/{spec}',
                 )
                 with open(spec_path) as f:
                     node_info = Gio.DBusNodeInfo.new_for_xml(f.read())

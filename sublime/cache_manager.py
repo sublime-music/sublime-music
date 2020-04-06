@@ -178,6 +178,11 @@ class CacheManager(metaclass=Singleton):
     should_exit: bool = False
 
     class Result(Generic[T]):
+        # This needs to accept some way of:
+        # 1. getting data from the server to fulfill the request
+        # 2. coercing the data to the schema of the cachedb
+        # 3. queries for retriving the data from the cachedb
+        # All results should be retrieved using select statements from the DB
         """
         A result from a CacheManager function. This is effectively a wrapper
         around a Future, but it can also resolve immediately if the data
@@ -306,24 +311,23 @@ class CacheManager(metaclass=Singleton):
         def __init__(
             self,
             app_config: AppConfiguration,
-            server_config: ServerConfiguration,
             current_ssids: Set[str],
         ):
             self.app_config = app_config
-            self.server_config = server_config
+            self.app_config.server
 
             # If connected to the "Local Network SSID", use the "Local Network
             # Address" instead of the "Server Address".
-            hostname = server_config.server_address
-            if self.server_config.local_network_ssid in current_ssids:
-                hostname = self.server_config.local_network_address
+            hostname = self.app_config.server.server_address
+            if self.self.app_config.server.local_network_ssid in current_ssids:
+                hostname = self.self.app_config.server.local_network_address
 
             self.server = Server(
-                name=server_config.name,
+                name=self.app_config.server.name,
                 hostname=hostname,
-                username=server_config.username,
-                password=server_config.password,
-                disable_cert_verify=server_config.disable_cert_verify,
+                username=self.app_config.server.username,
+                password=self.app_config.server.password,
+                disable_cert_verify=self.app_config.server.disable_cert_verify,
             )
             self.download_limiter_semaphore = threading.Semaphore(
                 self.app_config.concurrent_download_limit)
@@ -417,28 +421,23 @@ class CacheManager(metaclass=Singleton):
                 f.write(data)
 
         def calculate_abs_path(self, *relative_paths) -> Path:
-            server_hash = CacheManager.calculate_server_hash(
-                self.server_config)
-            if not server_hash:
-                raise Exception(
-                    "Could not calculate the current server's hash.")
+            assert self.app_config.server is not None
             return Path(self.app_config.cache_location).joinpath(
-                server_hash, *relative_paths)
+                self.app_config.server.strhash(), *relative_paths)
 
         def calculate_download_path(self, *relative_paths) -> Path:
             """
             Determine where to temporarily put the file as it is downloading.
             """
-            server_hash = CacheManager.calculate_server_hash(
-                self.server_config)
-            if not server_hash:
-                raise Exception(
-                    "Could not calculate the current server's hash.")
+            assert self.app_config.server is not None
             xdg_cache_home = (
                 os.environ.get('XDG_CACHE_HOME')
                 or os.path.expanduser('~/.cache'))
             return Path(xdg_cache_home).joinpath(
-                'sublime-music', server_hash, *relative_paths)
+                'sublime-music',
+                self.app_config.server.strhash(),
+                *relative_paths,
+            )
 
         def return_cached_or_download(
                 self,
@@ -503,9 +502,7 @@ class CacheManager(metaclass=Singleton):
 
         @staticmethod
         def create_future(fn: Callable, *args) -> Future:
-            """
-            Creates a future on the CacheManager's executor.
-            """
+            """Creates a future on the CacheManager's executor."""
             return CacheManager.executor.submit(fn, *args)
 
         def delete_cached_cover_art(self, id: int):
@@ -972,13 +969,9 @@ class CacheManager(metaclass=Singleton):
                 force_stream: bool = False,
         ) -> Tuple[str, bool]:
             abs_path = self.calculate_abs_path(song.path)
-            if not abs_path.exists() or force_stream:
-                return (
-                    self.server.get_stream_url(song.id, format=format),
-                    True,
-                )
-
-            return (str(abs_path), False)
+            if abs_path.exists() and not force_stream:
+                return (str(abs_path), False)
+            return (self.server.get_stream_url(song.id, format=format), True)
 
         def get_genres(
                 self,
@@ -1086,14 +1079,9 @@ class CacheManager(metaclass=Singleton):
         raise Exception('Do not instantiate the CacheManager.')
 
     @staticmethod
-    def reset(
-        app_config: AppConfiguration,
-        server_config: ServerConfiguration,
-        current_ssids: Set[str],
-    ):
+    def reset(app_config: AppConfiguration, current_ssids: Set[str]):
         CacheManager._instance = CacheManager.__CacheManagerInternal(
             app_config,
-            server_config,
             current_ssids,
         )
         similarity_ratio.cache_clear()
