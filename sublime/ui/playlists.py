@@ -194,7 +194,7 @@ class PlaylistList(Gtk.Box):
     ):
         new_store = []
         selected_idx = None
-        for i, playlist in enumerate(playlists):
+        for i, playlist in enumerate(playlists or []):
             if state and state.selected_playlist_id == playlist.id:
                 selected_idx = i
 
