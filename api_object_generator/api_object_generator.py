@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+# TODO use dataclasses
 """
 Autogenerates Python classes for Subsonic API objects.
 
@@ -62,7 +63,10 @@ def extract_tag_type(tag_type_str: str) -> str:
     return match.group(1)
 
 
-def get_dependencies(xs_el: etree._Element) -> Tuple[Set[str], Dict[str, str]]:
+def get_dependencies(
+        xs_el: etree._Element,
+        is_response_obj=False,
+) -> Tuple[Set[str], Dict[str, str]]:
     """
     Return the types which ``xs_el`` depends on as well as the type of the
     object for embedding in other objects.
@@ -83,6 +87,8 @@ def get_dependencies(xs_el: etree._Element) -> Tuple[Set[str], Dict[str, str]]:
         # There is only one field: name -> type.
         type_ = extract_type(xs_el.attrib['type'])
         depends_on.add(type_)
+        if is_response_obj:
+            type_ = f'Optional[{type_}] = None'
         type_fields[name] = type_
 
     elif tag_type == 'simpleType':
@@ -108,25 +114,28 @@ def get_dependencies(xs_el: etree._Element) -> Tuple[Set[str], Dict[str, str]]:
     elif tag_type == 'complexType':
         # <complexType>s depend on all of the types that their children have.
         for el in xs_el.getchildren():
-            deps, fields = get_dependencies(el)
+            deps, fields = get_dependencies(
+                el,
+                is_response_obj=name == 'Response',
+            )
 
             # Genres has this.
-            fields['value'] = 'str'
+            fields['value'] = 'Optional[str] = None'
             depends_on |= deps
             type_fields.update(fields)
 
     elif tag_type == 'choice':
         # <choice>s depend on all of their choices (children) types.
         for choice in xs_el.getchildren():
-            deps, fields = get_dependencies(choice)
+            deps, fields = get_dependencies(choice, is_response_obj)
             depends_on |= deps
             type_fields.update(fields)
 
     elif tag_type == 'attribute':
         # <attribute>s depend on their corresponding ``type``.
         depends_on.add(extract_type(xs_el.attrib['type']))
-        format_str = (
-            'Optional[{}]' if xs_el.attrib['use'] == 'optional' else '{}')
+        is_optional = is_response_obj or xs_el.attrib['use'] == 'optional'
+        format_str = 'Optional[{}] = None' if is_optional else '{}'
         type_fields[name] = format_str.format(
             extract_type(xs_el.attrib['type']))
 
@@ -141,7 +150,7 @@ def get_dependencies(xs_el: etree._Element) -> Tuple[Set[str], Dict[str, str]]:
                 continue
 
             name, type_ = list(fields.items())[0]
-            type_fields[name] = f'List[{type_}]'
+            type_fields[name] = f'List[{type_}] = field(default_factory=list)'
 
     elif tag_type == 'complexContent':
         # <complexContent>s depend on the extension's types.
@@ -255,9 +264,17 @@ def generate_class_for_type(type_name: str) -> str:
 
     format_str = '    ' + ("{} = '{}'" if is_enum else '{}: {}')
 
+    if not is_enum:
+        code.append('@dataclass_json')
+        code.append('@dataclass(frozen=True)')
+
     code.append(f"class {type_name}({', '.join(inherits_from)}):")
     has_properties = False
-    for key, value in fields.items():
+    sorted_fields = sorted(
+        fields.items(),
+        key=lambda f: f[1].startswith('Optional[') or f[1].startswith('List['),
+    )
+    for key, value in sorted_fields:
         if key.startswith('__'):
             continue
 
@@ -270,18 +287,6 @@ def generate_class_for_type(type_name: str) -> str:
     indent_str = '    {}'
     if not has_properties:
         code.append(indent_str.format('pass'))
-
-    # Auto-generated __eq__ and  __hash__ functions if there's an ID field.
-    if not is_enum and has_properties and 'id' in fields:
-        code.append('')
-        code.append(indent_str.format('def __eq__(self, other: Any) -> bool:'))
-        code.append(indent_str.format('    return hash(self) == hash(other)'))
-
-        hash_name = inherits or type_name
-        code.append('')
-        code.append(indent_str.format('def __hash__(self) -> int:'))
-        code.append(
-            indent_str.format(f"    return hash(f'{hash_name}.{{self.id}}')"))
 
     return '\n'.join(code)
 
@@ -297,9 +302,11 @@ with open(output_file, 'w+') as outfile:
                 'script or run it on a new API version.',
                 '"""',
                 '',
+                'from dataclasses import dataclass, field',
+                'from dataclasses_json import dataclass_json',
                 'from datetime import datetime',
                 'from enum import Enum',
-                'from typing import Any, List, Optional',
+                'from typing import List, Optional',
                 '',
                 'from sublime.server.api_object import APIObject',
                 *map(generate_class_for_type, output_order),

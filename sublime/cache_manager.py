@@ -411,6 +411,7 @@ class CacheManager(metaclass=Singleton):
                 ('artist_details', ArtistWithAlbumsID3, dict),
                 ('artist_infos', ArtistInfo2, dict),
             ]
+            return
             for name, type_name, default in cache_configs:
                 if default == list:
                     self.cache[name] = [
