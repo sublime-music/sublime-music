@@ -726,15 +726,26 @@ class CacheManager(metaclass=Singleton):
                     artist_info: ArtistInfo2) -> 'CacheManager.Result[str]':
                 lastfm_url = ''.join(artist_info.largeImageUrl or [])
 
+                is_placeholder = lastfm_url == ''
+                is_placeholder |= lastfm_url.endswith(
+                    '2a96cbd8b46e442fc41c2b86b821562f.png')
+                is_placeholder |= lastfm_url.endswith(
+                    '1024px-No_image_available.svg.png')
+
                 # If it is the placeholder LastFM image, try and use the cover
                 # art filename given by the server.
-                if (lastfm_url == '' or lastfm_url.endswith(
-                        '2a96cbd8b46e442fc41c2b86b821562f.png')):
+                if is_placeholder:
                     if isinstance(artist, (ArtistWithAlbumsID3, ArtistID3)):
-                        return CacheManager.get_cover_art_filename(
-                            artist.coverArt)
+                        if artist.coverArt:
+                            return CacheManager.get_cover_art_filename(
+                                artist.coverArt)
+                        elif (isinstance(artist, ArtistWithAlbumsID3)
+                              and artist.album and len(artist.album) > 0):
+                            return CacheManager.get_cover_art_filename(
+                                artist.album[0].coverArt)
+
                     elif (isinstance(artist, Directory)
-                          and len(artist.child) > 0):
+                            and len(artist.child) > 0):
                         # Retrieve the first album's cover art
                         return CacheManager.get_cover_art_filename(
                             artist.child[0].coverArt)
