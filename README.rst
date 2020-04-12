@@ -1,13 +1,15 @@
 .. image:: https://gitlab.com/sumner/sublime-music/-/raw/master/docs/logo/logo.png
    :alt: Sublime Music Logo
 
-Sublime Music is a GTK3 `Revel`_/`Gonic`_/`Subsonic`_/`Airsonic`_/\*sonic client
-for the Linux Desktop.
+Sublime Music is a GTK3
+`Subsonic`_/`Airsonic`_/`Revel`_/`Gonic`_/`Navidrome`_/\*sonic client for the
+Linux Desktop.
 
-.. _Revel: https://gitlab.com/robozman/revel
-.. _Gonic: https://github.com/sentriz/gonic
 .. _Subsonic: http://www.subsonic.org/pages/index.jsp
 .. _Airsonic: https://airsonic.github.io/
+.. _Revel: https://gitlab.com/robozman/revel
+.. _Gonic: https://github.com/sentriz/gonic
+.. _Navidrome: https://www.navidrome.org/
 
 -------------------------------------------------------------------------------
 
