@@ -152,7 +152,7 @@ class ArtistList(Gtk.Box):
         self.loading_indicator.hide()
 
 
-class ArtistDetailPanel(Gtk.Box):
+class ArtistDetailPanel(Gtk.ScrolledWindow):
     """Defines the artists list."""
 
     __gsignals__ = {
@@ -166,12 +166,7 @@ class ArtistDetailPanel(Gtk.Box):
     update_order_token = 0
 
     def __init__(self, *args, **kwargs):
-        super().__init__(
-            *args,
-            orientation=Gtk.Orientation.VERTICAL,
-            name='artist-detail-panel',
-            **kwargs,
-        )
+        super().__init__(*args, name='artist-detail-panel', **kwargs)
         self.albums: Union[List[AlbumID3], List[Child]] = []
         self.artist_id = None
 
@@ -480,10 +475,8 @@ class AlbumsListWithSongs(Gtk.Overlay):
 
     def __init__(self):
         Gtk.Overlay.__init__(self)
-        self.scrolled_window = Gtk.ScrolledWindow(vexpand=True)
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.scrolled_window.add(self.box)
-        self.add(self.scrolled_window)
+        self.add(self.box)
 
         self.spinner = Gtk.Spinner(
             name='albumslist-with-songs-spinner',

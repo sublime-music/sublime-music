@@ -262,6 +262,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     def __init__(self):
         Gtk.Overlay.__init__(self, name='playlist-view-overlay')
+        playlist_view_scroll_window = Gtk.ScrolledWindow()
         playlist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Playlist info panel
@@ -350,8 +351,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
         playlist_box.pack_start(self.big_info_panel, False, True, 0)
 
         # Playlist songs list
-        playlist_view_scroll_window = Gtk.ScrolledWindow()
-
         self.playlist_song_store = Gtk.ListStore(
             str,  # cache status
             str,  # title
@@ -421,10 +420,10 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_song_store.connect(
             'row-deleted', self.on_playlist_model_row_move)
 
-        playlist_view_scroll_window.add(self.playlist_songs)
+        playlist_box.add(self.playlist_songs)
 
-        playlist_box.pack_end(playlist_view_scroll_window, True, True, 0)
-        self.add(playlist_box)
+        playlist_view_scroll_window.add(playlist_box)
+        self.add(playlist_view_scroll_window)
 
         playlist_view_spinner = Gtk.Spinner(active=True)
         playlist_view_spinner.start()
