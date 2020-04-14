@@ -387,17 +387,17 @@ class CacheManager(metaclass=Singleton):
                 if default == list:
                     self.cache[name] = [
                         type_name.from_json(x)
-                        for x in meta_json.get(name, [])
+                        for x in meta_json.get(name) or []
                     ]
                 elif default == dict:
                     self.cache[name] = {
                         id: type_name.from_json(x)
-                        for id, x in meta_json.get(name, {}).items()
+                        for id, x in (meta_json.get(name) or {}).items()
                     }
                 elif default == 'dict-list':
                     self.cache[name] = {
                         n: [type_name.from_json(x) for x in xs]
-                        for n, xs in meta_json.get(name, {}).items()
+                        for n, xs in (meta_json.get(name) or {}).items()
                     }
 
         def save_cache_info(self):
@@ -522,7 +522,8 @@ class CacheManager(metaclass=Singleton):
             force: bool = False,
         ) -> 'CacheManager.Result[List[Playlist]]':
             if self.cache.get('playlists') and not force:
-                return CacheManager.Result.from_data(self.cache['playlists'])
+                return CacheManager.Result.from_data(
+                    self.cache['playlists'] or [])
 
             def after_download(playlists: List[Playlist]):
                 with self.cache_lock:
@@ -530,7 +531,7 @@ class CacheManager(metaclass=Singleton):
                 self.save_cache_info()
 
             return CacheManager.Result.from_server(
-                lambda: self.server.get_playlists().playlist,
+                lambda: self.server.get_playlists().playlist or [],
                 before_download=before_download,
                 after_download=after_download,
             )
@@ -745,7 +746,7 @@ class CacheManager(metaclass=Singleton):
                                 artist.album[0].coverArt)
 
                     elif (isinstance(artist, Directory)
-                            and len(artist.child) > 0):
+                          and len(artist.child) > 0):
                         # Retrieve the first album's cover art
                         return CacheManager.get_cover_art_filename(
                             artist.child[0].coverArt)

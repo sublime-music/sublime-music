@@ -7,6 +7,9 @@ v0.9.1
   existing on the system. (Namely libnotify, NetworkManager, and DBus)
 * Sublime Music now prompts you to confirm you actually want to delete the
   playlist. (#81)
+* Playlist and Artist info now scroll with the rest of the content which makes
+  Sublime Music usable on smaller screens. (#152)
+* Worked with deluan_ to support the Navidrome_ server.
 
 * **Bug Fixes**
 
@@ -16,6 +19,9 @@ v0.9.1
     ``NMClient``. (Contributed by @anarcat.)
   * Fixed some bugs where the state of the application wouldn't update when you
     deleted/downloaded songs from certain parts of the application.
+
+.. _deluan: https://www.deluan.com/
+.. _Navidrome: https://www.navidrome.org/
 
 v0.9.0
 ======
