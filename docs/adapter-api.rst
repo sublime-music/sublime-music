@@ -49,7 +49,7 @@ functions and properties first:
 * ``get_config_parameters``: This property
 
   .. TODO
-* ``verify_configuration``: This property
+* ``verify_configuration``: This function
 
   .. TODO
 
@@ -58,6 +58,15 @@ functions and properties first:
    While developing the adapter, setting ``is_available`` to ``True`` will
    indicate to the UI that your adapter is always ready to service requests.
    This can be a useful debugging tool.
+
+.. note::
+
+   The :class:`sublime.adapters.Adapter` class is an `Abstract Base Class
+   <abc_>`_ and all required functions are annotated with the
+   ``@abstractmethod`` decorator. This means that your adapter will fail to
+   instantiate if the abstract methods are not implemented.
+
+   .. _abc: https://docs.python.org/3/library/abc.html
 
 Implementing Data Retrieval Methods
 ===================================

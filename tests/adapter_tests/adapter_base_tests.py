@@ -1,7 +1,10 @@
 import pytest
 
-from sublime.adapters import Adapter
+from sublime.adapters import Adapter, AdapterManager
 
+def test_adapter_manager_singleton():
+    AdapterManager.reset()
+    AdapterManager.get_playlists()
 
 def test_functions_not_implemented():
     with pytest.raises(NotImplementedError):
