@@ -6,7 +6,6 @@ script or run it on a new API version.
 """
 
 from dataclasses import dataclass, field
-from dataclasses_json import dataclass_json
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
@@ -14,7 +13,6 @@ from typing import List, Optional
 from sublime.server.api_object import APIObject
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class AlbumInfo(APIObject):
     notes: List[str] = field(default_factory=list)
@@ -26,7 +24,6 @@ class AlbumInfo(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class AverageRating(APIObject, float):
     pass
@@ -39,13 +36,11 @@ class MediaType(APIObject, Enum):
     VIDEO = 'video'
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class UserRating(APIObject, int):
     pass
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Child(APIObject):
     id: str
@@ -82,14 +77,12 @@ class Child(APIObject):
     originalHeight: Optional[int] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class AlbumList(APIObject):
     album: List[Child] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class AlbumID3(APIObject):
     id: str
@@ -107,14 +100,12 @@ class AlbumID3(APIObject):
     genre: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class AlbumList2(APIObject):
     album: List[AlbumID3] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class AlbumWithSongsID3(APIObject):
     id: str
@@ -133,7 +124,6 @@ class AlbumWithSongsID3(APIObject):
     genre: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Artist(APIObject):
     id: str
@@ -145,7 +135,6 @@ class Artist(APIObject):
     averageRating: Optional[AverageRating] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class ArtistInfoBase(APIObject):
     biography: List[str] = field(default_factory=list)
@@ -157,7 +146,6 @@ class ArtistInfoBase(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class ArtistInfo(APIObject):
     similarArtist: List[Artist] = field(default_factory=list)
@@ -170,7 +158,6 @@ class ArtistInfo(APIObject):
     largeImageUrl: List[str] = field(default_factory=list)
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class ArtistID3(APIObject):
     id: str
@@ -182,7 +169,6 @@ class ArtistID3(APIObject):
     starred: Optional[datetime] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class ArtistInfo2(APIObject):
     similarArtist: List[ArtistID3] = field(default_factory=list)
@@ -195,7 +181,6 @@ class ArtistInfo2(APIObject):
     largeImageUrl: List[str] = field(default_factory=list)
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class ArtistWithAlbumsID3(APIObject):
     id: str
@@ -208,7 +193,6 @@ class ArtistWithAlbumsID3(APIObject):
     starred: Optional[datetime] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class IndexID3(APIObject):
     name: str
@@ -216,7 +200,6 @@ class IndexID3(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class ArtistsID3(APIObject):
     ignoredArticles: str
@@ -224,7 +207,6 @@ class ArtistsID3(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Bookmark(APIObject):
     position: int
@@ -236,14 +218,12 @@ class Bookmark(APIObject):
     comment: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Bookmarks(APIObject):
     bookmark: List[Bookmark] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class ChatMessage(APIObject):
     username: str
@@ -252,14 +232,12 @@ class ChatMessage(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class ChatMessages(APIObject):
     chatMessage: List[ChatMessage] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Directory(APIObject):
     id: str
@@ -273,7 +251,6 @@ class Directory(APIObject):
     playCount: Optional[int] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Error(APIObject):
     code: int
@@ -281,7 +258,6 @@ class Error(APIObject):
     message: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Genre(APIObject):
     songCount: int
@@ -289,14 +265,12 @@ class Genre(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Genres(APIObject):
     genre: List[Genre] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Index(APIObject):
     name: str
@@ -304,7 +278,6 @@ class Index(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Indexes(APIObject):
     lastModified: int
@@ -315,7 +288,6 @@ class Indexes(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class InternetRadioStation(APIObject):
     id: str
@@ -325,14 +297,12 @@ class InternetRadioStation(APIObject):
     homePageUrl: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class InternetRadioStations(APIObject):
     internetRadioStation: List[InternetRadioStation] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class JukeboxStatus(APIObject):
     currentIndex: int
@@ -342,7 +312,6 @@ class JukeboxStatus(APIObject):
     position: Optional[int] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class JukeboxPlaylist(APIObject):
     currentIndex: int
@@ -353,7 +322,6 @@ class JukeboxPlaylist(APIObject):
     position: Optional[int] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class License(APIObject):
     valid: bool
@@ -363,7 +331,6 @@ class License(APIObject):
     trialExpires: Optional[datetime] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Lyrics(APIObject):
     artist: Optional[str] = None
@@ -371,7 +338,6 @@ class Lyrics(APIObject):
     title: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class MusicFolder(APIObject):
     id: int
@@ -379,7 +345,6 @@ class MusicFolder(APIObject):
     name: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class MusicFolders(APIObject):
     musicFolder: List[MusicFolder] = field(default_factory=list)
@@ -395,7 +360,6 @@ class PodcastStatus(APIObject, Enum):
     SKIPPED = 'skipped'
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class PodcastEpisode(APIObject):
     channelId: str
@@ -437,14 +401,12 @@ class PodcastEpisode(APIObject):
     originalHeight: Optional[int] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class NewestPodcasts(APIObject):
     episode: List[PodcastEpisode] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class NowPlayingEntry(APIObject):
     username: str
@@ -485,14 +447,12 @@ class NowPlayingEntry(APIObject):
     originalHeight: Optional[int] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class NowPlaying(APIObject):
     entry: List[NowPlayingEntry] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class PlayQueue(APIObject):
     username: str
@@ -504,7 +464,6 @@ class PlayQueue(APIObject):
     position: Optional[int] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Playlist(APIObject):
     id: str
@@ -521,7 +480,6 @@ class Playlist(APIObject):
     coverArt: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class PlaylistWithSongs(APIObject):
     id: str
@@ -539,14 +497,12 @@ class PlaylistWithSongs(APIObject):
     coverArt: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Playlists(APIObject):
     playlist: List[Playlist] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class PodcastChannel(APIObject):
     id: str
@@ -561,7 +517,6 @@ class PodcastChannel(APIObject):
     errorMessage: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Podcasts(APIObject):
     channel: List[PodcastChannel] = field(default_factory=list)
@@ -573,7 +528,6 @@ class ResponseStatus(APIObject, Enum):
     FAILED = 'failed'
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class ScanStatus(APIObject):
     scanning: bool
@@ -581,7 +535,6 @@ class ScanStatus(APIObject):
     count: Optional[int] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class SearchResult(APIObject):
     offset: int
@@ -590,7 +543,6 @@ class SearchResult(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class SearchResult2(APIObject):
     artist: List[Artist] = field(default_factory=list)
@@ -599,7 +551,6 @@ class SearchResult2(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class SearchResult3(APIObject):
     artist: List[ArtistID3] = field(default_factory=list)
@@ -608,7 +559,6 @@ class SearchResult3(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Share(APIObject):
     id: str
@@ -623,35 +573,30 @@ class Share(APIObject):
     lastVisited: Optional[datetime] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Shares(APIObject):
     share: List[Share] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class SimilarSongs(APIObject):
     song: List[Child] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class SimilarSongs2(APIObject):
     song: List[Child] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Songs(APIObject):
     song: List[Child] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Starred(APIObject):
     artist: List[Artist] = field(default_factory=list)
@@ -660,7 +605,6 @@ class Starred(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Starred2(APIObject):
     artist: List[ArtistID3] = field(default_factory=list)
@@ -669,14 +613,12 @@ class Starred2(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class TopSongs(APIObject):
     song: List[Child] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class User(APIObject):
     username: str
@@ -700,20 +642,17 @@ class User(APIObject):
     avatarLastChanged: Optional[datetime] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Users(APIObject):
     user: List[User] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Version(APIObject, str):
     pass
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class AudioTrack(APIObject):
     id: str
@@ -722,7 +661,6 @@ class AudioTrack(APIObject):
     languageCode: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Captions(APIObject):
     id: str
@@ -730,7 +668,6 @@ class Captions(APIObject):
     name: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class VideoConversion(APIObject):
     id: str
@@ -739,7 +676,6 @@ class VideoConversion(APIObject):
     audioTrackId: Optional[int] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class VideoInfo(APIObject):
     id: str
@@ -749,14 +685,12 @@ class VideoInfo(APIObject):
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Videos(APIObject):
     video: List[Child] = field(default_factory=list)
     value: Optional[str] = None
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class Response(APIObject):
     musicFolders: Optional[MusicFolders] = None

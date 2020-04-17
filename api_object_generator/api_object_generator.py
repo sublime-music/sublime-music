@@ -265,7 +265,6 @@ def generate_class_for_type(type_name: str) -> str:
     format_str = '    ' + ("{} = '{}'" if is_enum else '{}: {}')
 
     if not is_enum:
-        code.append('@dataclass_json')
         code.append('@dataclass(frozen=True)')
 
     code.append(f"class {type_name}({', '.join(inherits_from)}):")
@@ -303,7 +302,6 @@ with open(output_file, 'w+') as outfile:
                 '"""',
                 '',
                 'from dataclasses import dataclass, field',
-                'from dataclasses_json import dataclass_json',
                 'from datetime import datetime',
                 'from enum import Enum',
                 'from typing import List, Optional',
