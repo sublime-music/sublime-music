@@ -81,6 +81,7 @@ plain-text::
 
    screenshots.rst
    settings.rst
+   adapter-api.rst
    api/sublime.rst
 
 Indices and tables
