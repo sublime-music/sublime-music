@@ -1,5 +1,7 @@
-from dataclasses import Field, fields
+# from dataclasses import Field, fields
 from typing import Any, Dict
+
+from sublime.from_json import from_json as _from_json
 
 
 class APIObject:
@@ -15,11 +17,4 @@ class APIObject:
         :param data: a Python dictionary representation of the data to
             deserialize
         """
-        if data is None:
-            return data
-        print('=' * 80)
-        deserialized = cls.__call__(**data)
-        for field in fields(cls):
-            print(field)
-            value = getattr(deserialized, field.name)
-            print('ohea', value)
+        return _from_json(cls, data)

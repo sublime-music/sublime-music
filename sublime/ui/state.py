@@ -66,6 +66,7 @@ class UIState:
 
     @property
     def current_song(self) -> Optional[Child]:
+        from sublime.cache_manager import CacheManager
         if (not self.play_queue or self.current_song_index < 0
                 or not CacheManager.ready()):
             return None

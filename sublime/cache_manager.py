@@ -368,7 +368,8 @@ class CacheManager(metaclass=Singleton):
                         meta_json = json.load(f)
                     except json.decoder.JSONDecodeError:
                         # Just continue with the default meta_json.
-                        pass
+                        logging.warning(
+                            'Unable to load cache', stack_info=True)
 
             cache_version = meta_json.get('version', 0)
 
@@ -411,7 +412,6 @@ class CacheManager(metaclass=Singleton):
                 ('artist_details', ArtistWithAlbumsID3, dict),
                 ('artist_infos', ArtistInfo2, dict),
             ]
-            return
             for name, type_name, default in cache_configs:
                 if default == list:
                     self.cache[name] = [

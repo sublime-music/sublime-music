@@ -148,8 +148,7 @@ class Server:
             )
             raise Exception(f'Subsonic API Error #{code}: {message}')
 
-        print(subsonic_response)
-        response = Response.from_dict(subsonic_response)
+        response = Response.from_json(subsonic_response)
 
         # Check for an error and if it exists, raise it.
         if response.error:

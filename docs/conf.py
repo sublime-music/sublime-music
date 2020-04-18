@@ -34,7 +34,7 @@ release = f'v{sublime.__version__}'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinx_autodoc_typehints',
+    'sphinx.ext.autosectionlabel',
     'sphinx.ext.intersphinx',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
@@ -45,6 +45,10 @@ autodoc_default_options = {
     'undoc-members': True,
     'show-inheritance': True,
     'special-members': '__init__',
+}
+autosectionlabel_prefix_document = True
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
 }
 
 # Add any paths that contain templates here, relative to this directory.

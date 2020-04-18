@@ -33,25 +33,29 @@ def from_json(template_type: Any, data: Any) -> Any:
         instance = None
     # Handle generics. List[*], Dict[*, *] in particular.
     elif type(template_type) == typing._GenericAlias:  # type: ignore
-        # Having to use this because things changed in Python 3.7.
-        class_name = template_type._name
-
-        # This is not very elegant since it doesn't allow things which sublass
-        # from List or Dict. For my purposes, this doesn't matter.
-        if class_name == 'List':
-            inner_type = template_type.__args__[0]
-            instance = [from_json(inner_type, value) for value in data]
-
-        elif class_name == 'Dict':
-            key_type, val_type = template_type.__args__
-            instance = {
-                from_json(key_type, key): from_json(val_type, value)
-                for key, value in data.items()
-            }
+        if getattr(template_type, '__origin__') == typing.Union:
+            template_type = template_type.__args__[0]
+            instance = from_json(template_type, data)
         else:
-            raise Exception(
-                'Trying to deserialize an unsupported type: {}'.format(
-                    template_type._name))
+            # Having to use this because things changed in Python 3.7.
+            class_name = template_type._name
+
+            # This is not very elegant since it doesn't allow things which
+            # sublass from List or Dict. For my purposes, this doesn't matter.
+            if class_name == 'List':
+                inner_type = template_type.__args__[0]
+                instance = [from_json(inner_type, value) for value in data]
+
+            elif class_name == 'Dict':
+                key_type, val_type = template_type.__args__
+                instance = {
+                    from_json(key_type, key): from_json(val_type, value)
+                    for key, value in data.items()
+                }
+            else:
+                raise Exception(
+                    'Trying to deserialize an unsupported type: {}'.format(
+                        template_type._name))
     elif template_type == str or issubclass(template_type, str):
         instance = data
     elif template_type == int or issubclass(template_type, int):
@@ -72,9 +76,13 @@ def from_json(template_type: Any, data: Any) -> Any:
     # Handle everything else by first instantiating the class, then adding
     # all of the sub-elements, recursively calling from_json on them.
     else:
-        instance = template_type()
-        for field, field_type in annotations.items():
-            value = data.get(field)
-            setattr(instance, field, from_json(field_type, value))
+        # for field, field_type in annotations.items():
+        #     value = data.get(field)
+        #     setattr(instance, field, from_json(field_type, value))
+        instance = template_type(
+            **{
+                field: from_json(field_type, data.get(field))
+                for field, field_type in annotations.items()
+            })
 
     return instance

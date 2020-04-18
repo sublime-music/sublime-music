@@ -8,7 +8,7 @@ script or run it on a new API version.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from sublime.server.api_object import APIObject
 
@@ -23,6 +23,9 @@ class AlbumInfo(APIObject):
     largeImageUrl: List[str] = field(default_factory=list)
     value: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class AverageRating(APIObject, float):
@@ -34,6 +37,9 @@ class MediaType(APIObject, Enum):
     PODCAST = 'podcast'
     AUDIOBOOK = 'audiobook'
     VIDEO = 'video'
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -76,11 +82,17 @@ class Child(APIObject):
     originalWidth: Optional[int] = None
     originalHeight: Optional[int] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class AlbumList(APIObject):
     album: List[Child] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -99,11 +111,17 @@ class AlbumID3(APIObject):
     year: Optional[int] = None
     genre: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class AlbumList2(APIObject):
     album: List[AlbumID3] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -123,6 +141,9 @@ class AlbumWithSongsID3(APIObject):
     year: Optional[int] = None
     genre: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class Artist(APIObject):
@@ -134,6 +155,9 @@ class Artist(APIObject):
     userRating: Optional[UserRating] = None
     averageRating: Optional[AverageRating] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class ArtistInfoBase(APIObject):
@@ -144,6 +168,9 @@ class ArtistInfoBase(APIObject):
     mediumImageUrl: List[str] = field(default_factory=list)
     largeImageUrl: List[str] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -157,6 +184,9 @@ class ArtistInfo(APIObject):
     mediumImageUrl: List[str] = field(default_factory=list)
     largeImageUrl: List[str] = field(default_factory=list)
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class ArtistID3(APIObject):
@@ -167,6 +197,9 @@ class ArtistID3(APIObject):
     coverArt: Optional[str] = None
     artistImageUrl: Optional[str] = None
     starred: Optional[datetime] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -180,6 +213,9 @@ class ArtistInfo2(APIObject):
     mediumImageUrl: List[str] = field(default_factory=list)
     largeImageUrl: List[str] = field(default_factory=list)
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class ArtistWithAlbumsID3(APIObject):
@@ -192,6 +228,9 @@ class ArtistWithAlbumsID3(APIObject):
     artistImageUrl: Optional[str] = None
     starred: Optional[datetime] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class IndexID3(APIObject):
@@ -199,12 +238,18 @@ class IndexID3(APIObject):
     artist: List[ArtistID3] = field(default_factory=list)
     value: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class ArtistsID3(APIObject):
     ignoredArticles: str
     index: List[IndexID3] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -217,11 +262,17 @@ class Bookmark(APIObject):
     value: Optional[str] = None
     comment: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class Bookmarks(APIObject):
     bookmark: List[Bookmark] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -231,11 +282,17 @@ class ChatMessage(APIObject):
     message: str
     value: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class ChatMessages(APIObject):
     chatMessage: List[ChatMessage] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -250,12 +307,18 @@ class Directory(APIObject):
     averageRating: Optional[AverageRating] = None
     playCount: Optional[int] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class Error(APIObject):
     code: int
     value: Optional[str] = None
     message: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -264,11 +327,17 @@ class Genre(APIObject):
     albumCount: int
     value: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class Genres(APIObject):
     genre: List[Genre] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -276,6 +345,9 @@ class Index(APIObject):
     name: str
     artist: List[Artist] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -287,6 +359,9 @@ class Indexes(APIObject):
     child: List[Child] = field(default_factory=list)
     value: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class InternetRadioStation(APIObject):
@@ -296,11 +371,17 @@ class InternetRadioStation(APIObject):
     value: Optional[str] = None
     homePageUrl: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class InternetRadioStations(APIObject):
     internetRadioStation: List[InternetRadioStation] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -310,6 +391,9 @@ class JukeboxStatus(APIObject):
     gain: float
     value: Optional[str] = None
     position: Optional[int] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -321,6 +405,9 @@ class JukeboxPlaylist(APIObject):
     value: Optional[str] = None
     position: Optional[int] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class License(APIObject):
@@ -330,12 +417,18 @@ class License(APIObject):
     licenseExpires: Optional[datetime] = None
     trialExpires: Optional[datetime] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class Lyrics(APIObject):
     artist: Optional[str] = None
     value: Optional[str] = None
     title: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -344,11 +437,17 @@ class MusicFolder(APIObject):
     value: Optional[str] = None
     name: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class MusicFolders(APIObject):
     musicFolder: List[MusicFolder] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 class PodcastStatus(APIObject, Enum):
@@ -358,6 +457,9 @@ class PodcastStatus(APIObject, Enum):
     ERROR = 'error'
     DELETED = 'deleted'
     SKIPPED = 'skipped'
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -400,11 +502,17 @@ class PodcastEpisode(APIObject):
     originalWidth: Optional[int] = None
     originalHeight: Optional[int] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class NewestPodcasts(APIObject):
     episode: List[PodcastEpisode] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -446,11 +554,17 @@ class NowPlayingEntry(APIObject):
     originalWidth: Optional[int] = None
     originalHeight: Optional[int] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class NowPlaying(APIObject):
     entry: List[NowPlayingEntry] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -462,6 +576,9 @@ class PlayQueue(APIObject):
     value: Optional[str] = None
     current: Optional[int] = None
     position: Optional[int] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -478,6 +595,9 @@ class Playlist(APIObject):
     owner: Optional[str] = None
     public: Optional[bool] = None
     coverArt: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -496,11 +616,17 @@ class PlaylistWithSongs(APIObject):
     public: Optional[bool] = None
     coverArt: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class Playlists(APIObject):
     playlist: List[Playlist] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -516,16 +642,25 @@ class PodcastChannel(APIObject):
     originalImageUrl: Optional[str] = None
     errorMessage: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class Podcasts(APIObject):
     channel: List[PodcastChannel] = field(default_factory=list)
     value: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 class ResponseStatus(APIObject, Enum):
     OK = 'ok'
     FAILED = 'failed'
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -533,6 +668,9 @@ class ScanStatus(APIObject):
     scanning: bool
     value: Optional[str] = None
     count: Optional[int] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -542,6 +680,9 @@ class SearchResult(APIObject):
     match: List[Child] = field(default_factory=list)
     value: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class SearchResult2(APIObject):
@@ -550,6 +691,9 @@ class SearchResult2(APIObject):
     song: List[Child] = field(default_factory=list)
     value: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class SearchResult3(APIObject):
@@ -557,6 +701,9 @@ class SearchResult3(APIObject):
     album: List[AlbumID3] = field(default_factory=list)
     song: List[Child] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -572,11 +719,17 @@ class Share(APIObject):
     expires: Optional[datetime] = None
     lastVisited: Optional[datetime] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class Shares(APIObject):
     share: List[Share] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -584,17 +737,26 @@ class SimilarSongs(APIObject):
     song: List[Child] = field(default_factory=list)
     value: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class SimilarSongs2(APIObject):
     song: List[Child] = field(default_factory=list)
     value: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class Songs(APIObject):
     song: List[Child] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -604,6 +766,9 @@ class Starred(APIObject):
     song: List[Child] = field(default_factory=list)
     value: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class Starred2(APIObject):
@@ -612,11 +777,17 @@ class Starred2(APIObject):
     song: List[Child] = field(default_factory=list)
     value: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class TopSongs(APIObject):
     song: List[Child] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -641,11 +812,17 @@ class User(APIObject):
     maxBitRate: Optional[int] = None
     avatarLastChanged: Optional[datetime] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class Users(APIObject):
     user: List[User] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -660,12 +837,18 @@ class AudioTrack(APIObject):
     name: Optional[str] = None
     languageCode: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class Captions(APIObject):
     id: str
     value: Optional[str] = None
     name: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -674,6 +857,9 @@ class VideoConversion(APIObject):
     value: Optional[str] = None
     bitRate: Optional[int] = None
     audioTrackId: Optional[int] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -684,11 +870,17 @@ class VideoInfo(APIObject):
     conversion: List[VideoConversion] = field(default_factory=list)
     value: Optional[str] = None
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
 
 @dataclass(frozen=True)
 class Videos(APIObject):
     video: List[Child] = field(default_factory=list)
     value: Optional[str] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
 
 
 @dataclass(frozen=True)
@@ -739,3 +931,6 @@ class Response(APIObject):
     value: Optional[str] = None
     status: Optional[ResponseStatus] = None
     version: Optional[Version] = None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)

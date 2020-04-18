@@ -286,6 +286,13 @@ def generate_class_for_type(type_name: str) -> str:
     indent_str = '    {}'
     if not has_properties:
         code.append(indent_str.format('pass'))
+    else:
+        code.append('')
+        code.append(
+            indent_str.format(
+                'def get(self, key: str, default: Any = None) -> Any:'))
+        code.append(
+            indent_str.format('    return getattr(self, key, default)'))
 
     return '\n'.join(code)
 
@@ -304,7 +311,7 @@ with open(output_file, 'w+') as outfile:
                 'from dataclasses import dataclass, field',
                 'from datetime import datetime',
                 'from enum import Enum',
-                'from typing import List, Optional',
+                'from typing import Any, List, Optional',
                 '',
                 'from sublime.server.api_object import APIObject',
                 *map(generate_class_for_type, output_order),

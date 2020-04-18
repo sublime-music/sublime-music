@@ -451,7 +451,7 @@ class SublimeMusicApp(Gtk.Application):
     @dbus_propagate()
     def on_refresh_window(
         self,
-        _: Any,
+        _,
         state_updates: Dict[str, Any],
         force: bool = False,
     ):
@@ -686,7 +686,7 @@ class SublimeMusicApp(Gtk.Application):
         # Update the window according to the new server configuration.
         self.update_window()
 
-    def on_stack_change(self, stack: Gtk.Stack, _: Any):
+    def on_stack_change(self, stack: Gtk.Stack, _):
         self.app_config.state.current_tab = stack.get_visible_child_name()
         self.update_window()
 
@@ -815,7 +815,7 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     @dbus_propagate()
-    def on_volume_change(self, _: Any, value: float):
+    def on_volume_change(self, _, value: float):
         self.app_config.state.volume = value
         self.player.volume = self.app_config.state.volume
         self.update_window()
