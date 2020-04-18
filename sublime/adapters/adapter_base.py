@@ -82,7 +82,7 @@ class Adapter(abc.ABC):
         """
         Specifies the settings which can be configured for the adapter.
 
-        :returns: An ordered dictionary where the keys are the name of the
+        :returns: An dictionary where the keys are the name of the
             configuration paramter and the values are the
             :class:`ConfigParamDescriptor` object corresponding to that
             configuration parameter. The order of the keys in the dictionary
@@ -100,10 +100,9 @@ class Adapter(abc.ABC):
         :param config: The adapter configuration. The keys of are the
             configuration parameter names as defined by the return value of the
             :class:`get_config_parameters` function. The values are the actual
-            value of the configuration parameter.
-
-            It is guaranteed that all configuration parameters that are marked
-            as required will have a value in ``config``.
+            value of the configuration parameter. It is guaranteed that all
+            configuration parameters that are marked as required will have a
+            value in ``config``.
 
         :returns: A dictionary containing varification errors. The keys of the
             returned dictionary should be the same as the passed in via the

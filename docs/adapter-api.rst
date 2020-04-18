@@ -7,7 +7,9 @@ but can be backed by a variety of music stores including a Subsonic-compatible
 server, data on the local filesystem, or even an entirely different service.
 
 This document is designed to help you understand the Adapter API so that you can
-create your own custom adapters.
+create your own custom adapters. This document is best read in conjunction with
+the :class:`sublime.adapters.Adapter` documentation. This document is meant as a
+guide to tell you a general order in which to implement things.
 
 Terms
 =====
@@ -75,16 +77,22 @@ must do the following:
 1. Choose a name for your configuration parameter. The configuration parameter
    name must be unique within your adapter.
 
-2. Add a new entry to the return value of your ``get_config_parameters``
-   function with the key being the name from (1), and the value being a
-   :class:`sublime.adapters.ConfigParamDescriptor`.
+2. Add a new entry to the return value of your
+   :class:`sublime.adapters.Adapter.get_config_parameters` function with the key
+   being the name from (1), and the value being a
+   :class:`sublime.adapters.ConfigParamDescriptor`. The order of the keys in the
+   dictionary matters, since the UI uses that to determine the order in which
+   the configuration parameters will be shown in the UI.
 
-This function should return a dictionary of config parameter names to
-:class:`sublime.adapters.ConfigParamDescriptor` objects which describe the
-various options that a user can configure on your adapter.
+3. Add any verifications that are necessary for your configuration parameter in
+   your :class:`sublime.adapters.Adapter.verify_configuration` function. If you
+   parameter descriptor has ``required = True``, then that parameter is
+   guaranteed to appear in the configuration.
 
-This function should return a dictionary of verification error strings for each
-of the values passed in to it.
+4. The configuration parameter will be passed into your
+   :class:`sublime.adapters.Adapter.init` function. It is guaranteed that the
+   ``verify_configuration`` will have been called first, so there is no need to
+   re-verify the config that is passed.
 
 Implementing Data Retrieval Methods
 -----------------------------------
@@ -109,8 +117,8 @@ such as making sure that the user is able to access the server.
     def can_service_requests(self) -> bool:
         return self.check_can_access_server()
 
-Here is an example implementation of a ``get_playlists`` interface for an
-external server:
+Here is an example of what a ``get_playlists`` interface for an external server
+might look like:
 
 .. code:: python
 
@@ -121,6 +129,13 @@ external server:
     can_get_playlist_details = True
     def get_playlist_details(self, playlist_id: str) -> PlaylistDetails:
         return my_server.get_playlist(playlist_id)
+
+.. tip::
+
+   By default, all ``can_``-prefixed properties are ``False``, which means that
+   you can implement them one-by-one, testing as you go. The UI should
+   dynamically enable features as new ``can_``-prefixed properties become
+   ``True``.
 
 Usage Parameters
 ----------------
