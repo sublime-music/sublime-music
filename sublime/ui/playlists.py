@@ -7,6 +7,7 @@ gi.require_version('Gtk', '3.0')
 from fuzzywuzzy import process
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
+from sublime.adapters import AdapterManager
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.server.api_objects import PlaylistWithSongs
@@ -181,7 +182,7 @@ class PlaylistList(Gtk.Box):
         self.update_list(**kwargs)
 
     @util.async_callback(
-        lambda *a, **k: CacheManager.get_playlists(*a, **k),
+        lambda *a, **k: AdapterManager.get_playlists(*a, **k),
         before_download=lambda self: self.loading_indicator.show_all(),
         on_failure=lambda self, e: self.loading_indicator.hide(),
     )
@@ -195,7 +196,7 @@ class PlaylistList(Gtk.Box):
         new_store = []
         selected_idx = None
         for i, playlist in enumerate(playlists or []):
-            if (app_config.state
+            if (app_config and app_config.state
                     and app_config.state.selected_playlist_id == playlist.id):
                 selected_idx = i
 

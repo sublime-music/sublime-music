@@ -46,12 +46,10 @@ functions and properties first:
   adapter can currently service requests. (See the
   :class:`sublime.adapters.Adapter.is_available` documentation for examples of
   what you may want to check in this property.)
-* ``get_config_parameters``: This property
-
-  .. TODO
-* ``verify_configuration``: This function
-
-  .. TODO
+* ``get_config_parameters``: Specifies the settings which can be configured on
+  for the adapter. See :ref:`adapter-api:Handling Configuration` for details.
+* ``verify_configuration``: Verifies whether or not a given set of configuration
+  values are valid. See :ref:`adapter-api:Handling Configuration` for details.
 
 .. tip::
 
@@ -68,8 +66,28 @@ functions and properties first:
 
    .. _abc: https://docs.python.org/3/library/abc.html
 
+Handling Configuration
+----------------------
+
+For each configuration parameter you want to allow your adapter to accept, you
+must do the following:
+
+1. Choose a name for your configuration parameter. The configuration parameter
+   name must be unique within your adapter.
+
+2. Add a new entry to the return value of your ``get_config_parameters``
+   function with the key being the name from (1), and the value being a
+   :class:`sublime.adapters.ConfigParamDescriptor`.
+
+This function should return a dictionary of config parameter names to
+:class:`sublime.adapters.ConfigParamDescriptor` objects which describe the
+various options that a user can configure on your adapter.
+
+This function should return a dictionary of verification error strings for each
+of the values passed in to it.
+
 Implementing Data Retrieval Methods
-===================================
+-----------------------------------
 
 After you've done the initial configuration of your adapter class, you will want
 to implement the actual adapter data retrieval functions.
@@ -105,7 +123,7 @@ external server:
         return my_server.get_playlist(playlist_id)
 
 Usage Parameters
-================
+----------------
 
 There are a few special properties dictate how the adapter can be used. You
 probably do not need to use this except for very specific purposes. Read the

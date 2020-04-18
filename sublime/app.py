@@ -27,6 +27,7 @@ except Exception:
         'Unable to import Notify from GLib. Notifications will be disabled.')
     glib_notify_exists = False
 
+from .adapters import AdapterManager
 from .cache_manager import CacheManager
 from .config import AppConfiguration, ReplayGainType
 from .dbus_manager import dbus_propagate, DBusManager
@@ -867,6 +868,7 @@ class SublimeMusicApp(Gtk.Application):
         if self.dbus_manager:
             self.dbus_manager.shutdown()
         CacheManager.shutdown()
+        AdapterManager.shutdown()
 
     # ########## HELPER METHODS ########## #
     def show_configure_servers_dialog(self):

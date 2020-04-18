@@ -53,6 +53,7 @@ class ServerConfiguration:
         self.version = 0
 
     def strhash(self) -> str:
+        # TODO: needs to change to something better
         """
         Returns the MD5 hash of the server's name, server address, and
         username. This should be used whenever it's necessary to uniquely
@@ -150,7 +151,9 @@ class AppConfiguration:
 
             # Do the import in the function to avoid circular imports.
             from sublime.cache_manager import CacheManager
+            from sublime.adapters import AdapterManager
             CacheManager.reset(self)
+            AdapterManager.reset(self)
 
         return self._state
 
