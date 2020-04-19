@@ -1,12 +1,18 @@
 import logging
 import os
-import requests
-from datetime import datetime
+import re
+from datetime import datetime, timedelta
+from pathlib import Path
 from time import sleep
 from typing import Any, Dict, List, Optional, Union
-from pathlib import Path
 
-from sublime.adapters.api_objects import (Playlist, PlaylistDetails)
+import requests
+
+from sublime.adapters.api_objects import (
+    Playlist,
+    PlaylistDetails,
+    Song,
+)
 from .. import Adapter, ConfigParamDescriptor
 
 
@@ -35,7 +41,6 @@ class SubsonicAdapter(Adapter):
         errors: Dict[str, Optional[str]] = {}
 
         # TODO: verify the URL
-
         return errors
 
     def __init__(self, config: dict, data_directory: Path):
@@ -125,22 +130,30 @@ class SubsonicAdapter(Adapter):
             raise Exception(f'Subsonic API Error #{code}: {message}')
 
         return subsonic_response
-        response = Response.from_json(subsonic_response)
 
-        # Check for an error and if it exists, raise it.
-        if response.error:
-            raise Server.SubsonicServerError(response.error)
+    _snake_case_re = re.compile(r'(?<!^)(?=[A-Z])')
 
-        return response
+    def _to_snake_case(self, obj: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            self._snake_case_re.sub('_', k).lower(): v
+            for k, v in obj.items()
+        }
 
     # Data Retrieval Methods
     # =========================================================================
     can_get_playlists = True
 
     def get_playlists(self) -> List[Playlist]:
-        result = self._get_json(self._make_url('getPlaylists')).get(
-            'playlists', {}).get('playlist')
-        return [Playlist(**p) for p in result]
+        result = [
+            {
+                **p,
+                'duration':
+                timedelta(
+                    seconds=p['duration']) if p.get('duration') else None,
+            } for p in self._get_json(self._make_url('getPlaylists')).get(
+                'playlists', {}).get('playlist')
+        ]
+        return [Playlist(**self._to_snake_case(p)) for p in result]
 
     can_get_playlist_details = True
 
@@ -148,5 +161,15 @@ class SubsonicAdapter(Adapter):
             self,
             playlist_id: str,
     ) -> PlaylistDetails:
-        raise NotImplementedError()
-
+        result = self._get_json(
+            self._make_url('getPlaylist'),
+            id=playlist_id,
+        ).get('playlist')
+        print(result)
+        assert result
+        result['duration'] = result.get('duration') or sum(
+            s.get('duration') or 0 for s in result['entry'])
+        result['songCount'] = result.get('songCount') or len(result['entry'])
+        songs = [Song(id=s['id']) for s in result['entry']]
+        del result['entry']
+        return PlaylistDetails(**self._to_snake_case(result), songs=songs)

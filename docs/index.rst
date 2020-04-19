@@ -16,7 +16,7 @@ Linux Desktop.
 .. _Navidrome: https://www.navidrome.org/
 
 .. figure:: ./_static/screenshots/play-queue.png
-   :width: 80 %
+   :width: 80%
    :align: center
    :target: ./_static/screenshots/play-queue.png
 

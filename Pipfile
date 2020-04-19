@@ -22,6 +22,7 @@ sphinx = "*"
 sphinx-rtd-theme = "*"
 termcolor = "*"
 yapf = "*"
+flake8-import-order = "*"
 
 [packages]
 sublime-music = {editable = true,extras = ["keyring"],path = "."}

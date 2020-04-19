@@ -73,6 +73,7 @@ class Result(Generic[T]):
 class AdapterManager:
     available_adapters: Set[Any] = {FilesystemAdapter, SubsonicAdapter}
     executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=50)
+    is_shutting_down: bool = False
 
     @dataclass
     class _AdapterManagerInternal:
@@ -104,8 +105,13 @@ class AdapterManager:
 
     @staticmethod
     def shutdown():
-        assert AdapterManager._instance
-        AdapterManager._instance.shutdown()
+        logging.info('AdapterManager shutdown start')
+        AdapterManager.is_shutting_down = True
+        AdapterManager.executor.shutdown()
+        if AdapterManager._instance:
+            AdapterManager._instance.shutdown()
+
+        logging.info('CacheManager shutdown complete')
 
     @staticmethod
     def reset(config: AppConfiguration):
@@ -131,7 +137,7 @@ class AdapterManager:
 
         caching_adapter_type = FilesystemAdapter
         caching_adapter = None
-        if caching_adapter_type:
+        if caching_adapter_type and ground_truth_adapter_type.can_be_cached:
             caching_adapter = caching_adapter_type(
                 {
                     key: getattr(config.server, key)
@@ -147,12 +153,23 @@ class AdapterManager:
         )
 
     @staticmethod
+    def can_get_playlists() -> bool:
+        # It only matters that the ground truth one can service the request.
+        return (
+            AdapterManager._instance.ground_truth_adapter.can_service_requests
+            and
+            AdapterManager._instance.ground_truth_adapter.can_get_playlists)
+
+    @staticmethod
     def get_playlists(
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
     ) -> Result[List[Playlist]]:
         assert AdapterManager._instance
-        if not force and AdapterManager._instance.caching_adapter:
+        if (not force and AdapterManager._instance.caching_adapter and
+                AdapterManager._instance.caching_adapter.can_service_requests
+                and
+                AdapterManager._instance.caching_adapter.can_get_playlists):
             try:
                 return Result(
                     AdapterManager._instance.caching_adapter.get_playlists())
@@ -161,6 +178,13 @@ class AdapterManager:
             except Exception:
                 logging.exception(
                     f'Error on {"get_playlists"} retrieving from cache.')
+
+        if (AdapterManager._instance.ground_truth_adapter
+                and not AdapterManager._instance.ground_truth_adapter
+                .can_service_requests and not AdapterManager._instance
+                .ground_truth_adapter.can_get_playlists):
+            raise Exception(
+                f'No adapters can service {"get_playlists"} at the moment.')
 
         def future_fn() -> List[Playlist]:
             assert AdapterManager._instance
@@ -176,7 +200,6 @@ class AdapterManager:
             def future_finished(f: Future):
                 assert AdapterManager._instance
                 assert AdapterManager._instance.caching_adapter
-                print(' ohea', f)
                 AdapterManager._instance.caching_adapter.ingest_new_data(
                     'get_playlists',
                     (),
@@ -188,5 +211,64 @@ class AdapterManager:
         return future
 
     @staticmethod
-    def get_playlist_details(playlist_id: str) -> Result[PlaylistDetails]:
-        raise NotImplementedError()
+    def can_get_playlist_details() -> bool:
+        # It only matters that the ground truth one can service the request.
+        return (
+            AdapterManager._instance.ground_truth_adapter.can_service_requests
+            and AdapterManager._instance.ground_truth_adapter
+            .can_get_playlist_details)
+
+    @staticmethod
+    def get_playlist_details(
+        playlist_id: str,
+        before_download: Callable[[], None] = lambda: None,
+        force: bool = False,  # TODO: rename to use_ground_truth_adapter?
+    ) -> Result[PlaylistDetails]:
+        assert AdapterManager._instance
+        if (not force and AdapterManager._instance.caching_adapter and
+                AdapterManager._instance.caching_adapter.can_service_requests
+                and AdapterManager._instance.caching_adapter
+                .can_get_playlist_details):
+            try:
+                return Result(
+                    AdapterManager._instance.caching_adapter
+                    .get_playlist_details(playlist_id))
+            except CacheMissError:
+                logging.debug(f'Cache Miss on {"get_playlist_details"}.')
+            except Exception:
+                logging.exception(
+                    f'Error on {"get_playlist_details"} retrieving from cache.'
+                )
+
+        if (AdapterManager._instance.ground_truth_adapter
+                and not AdapterManager._instance.ground_truth_adapter
+                .can_service_requests and not AdapterManager._instance
+                .ground_truth_adapter.can_get_playlist_details):
+            raise Exception(
+                f'No adapters can service {"get_playlist_details"} at the moment.'
+            )
+
+        def future_fn() -> PlaylistDetails:
+            assert AdapterManager._instance
+            if before_download:
+                before_download()
+            return (
+                AdapterManager._instance.ground_truth_adapter
+                .get_playlist_details(playlist_id))
+
+        future: Result[PlaylistDetails] = Result(future_fn)
+
+        if AdapterManager._instance.caching_adapter:
+
+            def future_finished(f: Future):
+                assert AdapterManager._instance
+                assert AdapterManager._instance.caching_adapter
+                AdapterManager._instance.caching_adapter.ingest_new_data(
+                    'get_playlist_details',
+                    (playlist_id, ),
+                    f.result(),
+                )
+
+            future.add_done_callback(future_finished)
+
+        return future

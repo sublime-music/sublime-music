@@ -268,8 +268,8 @@ class CacheManager(metaclass=Singleton):
 
     @staticmethod
     def shutdown():
-        CacheManager.should_exit = True
         logging.info('CacheManager shutdown start')
+        CacheManager.should_exit = True
         CacheManager.executor.shutdown()
         CacheManager._instance.save_cache_info()
         logging.info('CacheManager shutdown complete')

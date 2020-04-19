@@ -462,7 +462,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             )
 
     @util.async_callback(
-        lambda *a, **k: CacheManager.get_playlist(*a, **k),
+        lambda *a, **k: AdapterManager.get_playlist_details(*a, **k),
         before_download=lambda self: self.show_loading_all(),
         on_failure=lambda self, e: self.playlist_view_loading_box.hide(),
     )

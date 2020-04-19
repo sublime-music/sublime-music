@@ -160,7 +160,8 @@ class Adapter(abc.ABC):
     def can_service_requests(self) -> bool:
         """
         Specifies whether or not the adapter can currently service requests. If
-        this is ``False``, none of the other functions are expected to work.
+        this is ``False``, none of the other data retrieval functions are
+        expected to work.
 
         For example, if your adapter requires access to an external service,
         use this function to determine if it is currently possible to connect
