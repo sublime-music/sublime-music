@@ -138,3 +138,94 @@ def test_get_playlists(subsonic_adapter: SubsonicAdapter):
         ),
     ]
     assert subsonic_adapter.get_playlists() == expected
+
+    # When playlists is null, expect an empty list.
+    subsonic_adapter._set_mock_data(mock_json())
+    assert subsonic_adapter.get_playlists() == []
+
+
+def test_get_playlist_details(subsonic_adapter: SubsonicAdapter):
+    playlist = {
+        "id":
+        "6",
+        "name":
+        "Playlist 1",
+        "comment":
+        "Foo",
+        "owner":
+        "test",
+        "public":
+        True,
+        "songCount":
+        2,
+        "duration":
+        952,
+        "created":
+        "2020-03-27T05:39:43.327Z",
+        "changed":
+        "2020-03-27T05:44:37.275Z",
+        "coverArt":
+        "pl-6",
+        "entry": [
+            {
+                "id": "202",
+                "parent": "318",
+                "isDir": False,
+                "title": "What a Beautiful Name",
+                "album": "What a Beautiful Name - Single",
+                "artist": "Hillsong Worship",
+                "track": 1,
+                "year": 2016,
+                "genre": "Christian & Gospel",
+                "coverArt": "318",
+                "size": 8381640,
+                "contentType": "audio/mp4",
+                "suffix": "m4a",
+                "transcodedContentType": "audio/mpeg",
+                "transcodedSuffix": "mp3",
+                "duration": 238,
+                "bitRate": 256,
+                "path":
+                "Hillsong Worship/What a Beautiful Name - Single/01 What a Beautiful Name.m4a",
+                "isVideo": False,
+                "playCount": 20,
+                "discNumber": 1,
+                "created": "2020-03-27T05:17:07.000Z",
+                "albumId": "48",
+                "artistId": "38",
+                "type": "music"
+            },
+            {
+                "id": "203",
+                "parent": "319",
+                "isDir": False,
+                "title": "Great Are You Lord",
+                "album": "Great Are You Lord EP",
+                "artist": "one sonic society",
+                "track": 1,
+                "year": 2016,
+                "genre": "Christian & Gospel",
+                "coverArt": "319",
+                "size": 8245813,
+                "contentType": "audio/mp4",
+                "suffix": "m4a",
+                "transcodedContentType": "audio/mpeg",
+                "transcodedSuffix": "mp3",
+                "duration": 232,
+                "bitRate": 256,
+                "path":
+                "one sonic society/Great Are You Lord EP/01 Great Are You Lord.m4a",
+                "isVideo": False,
+                "playCount": 18,
+                "discNumber": 1,
+                "created": "2020-03-27T05:32:42.000Z",
+                "albumId": "10",
+                "artistId": "8",
+                "type": "music"
+            },
+        ],
+    }
+    subsonic_adapter._set_mock_data(mock_json(playlist=playlist))
+
+    playlist_details = subsonic_adapter.get_playlist_details('6')
+    assert len(playlist_details.songs) == 2

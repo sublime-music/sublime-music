@@ -8,9 +8,9 @@ from fuzzywuzzy import process
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from sublime.adapters import AdapterManager
+from sublime.adapters.api_objects import Playlist, PlaylistDetails
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
-from sublime.server.api_objects import PlaylistWithSongs
 from sublime.ui import util
 from sublime.ui.common import (
     EditFormDialog,
@@ -188,7 +188,7 @@ class PlaylistList(Gtk.Box):
     )
     def update_list(
         self,
-        playlists: List[PlaylistWithSongs],
+        playlists: List[Playlist],
         app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
@@ -468,7 +468,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
     )
     def update_playlist_view(
         self,
-        playlist: PlaylistWithSongs,
+        playlist: PlaylistDetails,
         app_config: AppConfiguration = None,
         force: bool = False,
         order_token: int = None,
@@ -495,7 +495,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         # Update the artwork.
         self.update_playlist_artwork(
-            playlist.coverArt,
+            playlist.cover_art,
             order_token=order_token,
         )
 
@@ -512,7 +512,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 song.artist,
                 util.format_song_duration(song.duration),
                 song.id,
-            ] for song in (playlist.entry or [])
+            ] for song in playlist.songs
         ]
 
         util.diff_song_store(self.playlist_song_store, new_store)
@@ -757,14 +757,14 @@ class PlaylistDetailPanel(Gtk.Overlay):
     @util.async_callback(lambda *a, **k: CacheManager.get_playlist(*a, **k))
     def _update_playlist_order(
         self,
-        playlist: PlaylistWithSongs,
+        playlist: PlaylistDetails,
         app_config: AppConfiguration,
         **kwargs,
     ):
         self.playlist_view_loading_box.show_all()
         update_playlist_future = CacheManager.update_playlist(
             playlist_id=playlist.id,
-            song_index_to_remove=list(range(playlist.songCount)),
+            song_index_to_remove=list(range(playlist.song_count)),
             song_id_to_add=[s[-1] for s in self.playlist_song_store],
         )
 
@@ -776,7 +776,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                     order_token=self.update_playlist_view_order_token,
                 )))
 
-    def _format_stats(self, playlist: PlaylistWithSongs) -> str:
+    def _format_stats(self, playlist: PlaylistDetails) -> str:
         created_date = playlist.created.strftime('%B %d, %Y')
         lines = [
             util.dot_join(
@@ -785,8 +785,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
             ),
             util.dot_join(
                 '{} {}'.format(
-                    playlist.songCount,
-                    util.pluralize("song", playlist.songCount)),
+                    playlist.song_count,
+                    util.pluralize("song", playlist.song_count)),
                 util.format_sequence_duration(playlist.duration),
             ),
         ]

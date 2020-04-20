@@ -1,8 +1,9 @@
 import functools
 import re
 from concurrent.futures import Future
+from datetime import timedelta
 from typing import (
-    Any, Callable, cast, Iterable, List, Match, Optional, Tuple, Union)
+    Any, Callable, cast, Iterable, List, Match, Optional,Tuple, Union,)
 
 import gi
 from deepdiff import DeepDiff
@@ -50,7 +51,7 @@ def pluralize(
     return string
 
 
-def format_sequence_duration(duration_secs: int) -> str:
+def format_sequence_duration(duration_secs: Union[int, timedelta]) -> str:
     """
     Formats duration in English.
 
@@ -61,6 +62,9 @@ def format_sequence_duration(duration_secs: int) -> str:
     >>> format_sequence_duration(60 * 60 + 120)
     '1 hour, 2 minutes'
     """
+    # TODO remove int compatibility eventually
+    if isinstance(duration_secs, timedelta):
+        duration_secs = int(duration_secs.total_seconds())
     duration_mins = (duration_secs // 60) % 60
     duration_hrs = duration_secs // 60 // 60
     duration_secs = duration_secs % 60

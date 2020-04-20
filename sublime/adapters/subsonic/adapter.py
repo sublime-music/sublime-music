@@ -117,6 +117,7 @@ class SubsonicAdapter(Adapter):
     def _get_json(
         self,
         url: str,
+        timeout: Union[float, Tuple[float, float], None] = None,
         **params: Union[None, str, datetime, int, Sequence[int]],
     ) -> Response:
         """
@@ -126,7 +127,7 @@ class SubsonicAdapter(Adapter):
         :returns: a dictionary of the subsonic response.
         :raises Exception: needs some work TODO
         """
-        result = self._get(url, **params)
+        result = self._get(url, timeout=timeout, **params)
         subsonic_response = result.json().get('subsonic-response')
 
         # TODO (#122):  make better
@@ -185,12 +186,5 @@ class SubsonicAdapter(Adapter):
             self._make_url('getPlaylist'),
             id=playlist_id,
         ).playlist
-        print(result)
+        assert result, f'Error getting playlist {playlist_id}'
         return result
-        # assert result
-        # result['duration'] = result.get('duration') or sum(
-        #     s.get('duration') or 0 for s in result['entry'])
-        # result['songCount'] = result.get('songCount') or len(result['entry'])
-        # songs = [Song(id=s['id']) for s in result['entry']]
-        # del result['entry']
-        # return API.PlaylistDetails(**self._to_snake_case(result), songs=songs)

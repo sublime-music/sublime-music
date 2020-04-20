@@ -13,22 +13,18 @@ from marshmallow import fields
 
 from .. import api_objects as SublimeAPI
 
-datetime_metadata = config(
-    encoder=datetime.isoformat,
-    decoder=lambda d: parser.parse(d) if d else None,
-    mm_field=fields.DateTime(format='iso'),
-)
-
-timedelta_metadata = config(
-    encoder=datetime.isoformat,
-    decoder=lambda s: timedelta(seconds=s) if s else None,
-    mm_field=fields.TimeDelta(),
-)
+dataclasses_json.cfg.global_config.encoders[datetime] = datetime.isoformat
+dataclasses_json.cfg.global_config.decoders[datetime] = parser.parse
+dataclasses_json.cfg.global_config.encoders[timedelta] = (
+    timedelta.total_seconds)
+dataclasses_json.cfg.global_config.decoders[timedelta] = lambda s: timedelta(
+    seconds=s)
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass(frozen=True)
-class Child(SublimeAPI.Song, DataClassJsonMixin):
+class Child(SublimeAPI.Song):
+    id: str
     title: str
     value: Optional[str] = None
     parent: Optional[str] = None
@@ -37,7 +33,7 @@ class Child(SublimeAPI.Song, DataClassJsonMixin):
     track: Optional[int] = None
     year: Optional[int] = None
     genre: Optional[str] = None
-    coverArt: Optional[str] = None
+    cover_art: Optional[str] = None
     size: Optional[int] = None
     content_type: Optional[str] = None
     suffix: Optional[str] = None
@@ -46,16 +42,16 @@ class Child(SublimeAPI.Song, DataClassJsonMixin):
     duration: Optional[int] = None
     bit_rate: Optional[int] = None
     path: Optional[str] = None
-    isVideo: Optional[bool] = None
-    # userRating: Optional[UserRating] = None
-    # averageRating: Optional[AverageRating] = None
+    is_video: Optional[bool] = None
+    user_rating: Optional[int] = None
+    average_rating: Optional[float] = None
     play_count: Optional[int] = None
     disc_number: Optional[int] = None
     created: Optional[datetime] = None
     starred: Optional[datetime] = None
-    albumId: Optional[str] = None
-    artistId: Optional[str] = None
-    # type_: Optional[MediaType] = None
+    album_id: Optional[str] = None
+    artist_id: Optional[str] = None
+    type: Optional[SublimeAPI.MediaType] = None
     bookmark_position: Optional[int] = None
     original_width: Optional[int] = None
     original_height: Optional[int] = None
@@ -67,12 +63,9 @@ class Playlist(SublimeAPI.Playlist):
     id: str
     name: str
     song_count: Optional[int] = None
-    duration: Optional[timedelta] = field(
-        default=None, metadata=timedelta_metadata)
-    created: Optional[datetime] = field(
-        default=None, metadata=datetime_metadata)
-    changed: Optional[datetime] = field(
-        default=None, metadata=datetime_metadata)
+    duration: Optional[timedelta] = None
+    created: Optional[datetime] = None
+    changed: Optional[datetime] = None
     comment: Optional[str] = None
     owner: Optional[str] = None
     public: Optional[bool] = None
@@ -82,16 +75,22 @@ class Playlist(SublimeAPI.Playlist):
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class PlaylistWithSongs(SublimeAPI.PlaylistDetails):
-    duration: timedelta = field(
-        default_factory=timedelta, metadata=timedelta_metadata)
-    songs: List[SublimeAPI.Song] = field(
-        default_factory=list,
-        metadata=config(field_name='entry'),
-    )
-    created: Optional[datetime] = field(
-        default=None, metadata=datetime_metadata)
-    changed: Optional[datetime] = field(
-        default=None, metadata=datetime_metadata)
+    id: str
+    name: str
+    songs: List[Child] = field(metadata=config(field_name='entry'))
+    song_count: int = field(default=0)
+    duration: timedelta = field(default=timedelta())
+    created: Optional[datetime] = None
+    changed: Optional[datetime] = None
+    comment: Optional[str] = None
+    owner: Optional[str] = None
+    public: Optional[bool] = None
+    cover_art: Optional[str] = None
+
+    def __post_init__(self):
+        self.song_count = self.song_count or len(self.songs)
+        self.duration = self.duration or timedelta(
+            seconds=sum(s.duration for s in self.songs))
 
 
 @dataclass(frozen=True)
@@ -107,4 +106,3 @@ class Response(DataClassJsonMixin):
     song: Optional[Child] = None
     playlists: Optional[Playlists] = None
     playlist: Optional[PlaylistWithSongs] = None
-    value: Optional[str] = None
