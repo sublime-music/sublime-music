@@ -283,7 +283,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _on_search_entry_changed(self, entry: Gtk.Entry):
         now = datetime.now()
-        if (now - self.last_search_change_time).seconds < 0.5:
+        if (now - self.last_search_change_time).total_seconds() < 0.5:
             while len(self.searches) > 0:
                 search = self.searches.pop()
                 if search:
