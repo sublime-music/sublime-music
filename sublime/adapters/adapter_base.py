@@ -1,16 +1,16 @@
 import abc
 from dataclasses import dataclass
+from pathlib import Path
 from typing import (
     Any,
     Dict,
     Iterable,
-    List,
+    Sequence,
     Optional,
-    Type,
     Tuple,
+    Type,
     Union,
 )
-from pathlib import Path
 
 from .api_objects import (
     Playlist,
@@ -187,7 +187,7 @@ class Adapter(abc.ABC):
     # These properties determine if what things the adapter can be used to do
     # at the current moment.
     # =========================================================================
-    def get_playlists(self) -> List[Playlist]:
+    def get_playlists(self) -> Sequence[Playlist]:
         """
         Gets a list of all of the :class:`sublime.adapter.api_objects.Playlist`
         objects known to the adapter.

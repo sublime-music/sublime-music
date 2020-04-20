@@ -1,19 +1,16 @@
+import json
 import logging
 import os
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Sequence, Optional, Tuple, Union
 
 import requests
 
-from sublime.adapters.api_objects import (
-    Playlist,
-    PlaylistDetails,
-    Song,
-)
-from .. import Adapter, ConfigParamDescriptor
+from .api_objects import Response
+from .. import Adapter, api_objects as API, ConfigParamDescriptor
 
 
 class SubsonicAdapter(Adapter):
@@ -47,14 +44,20 @@ class SubsonicAdapter(Adapter):
         self.hostname = config['server_address']
         self.username = config['username']
         self.password = config['password']
-        self.disable_cert_verify = config['disable_cert_verify']
+        self.disable_cert_verify = config.get('disable_cert_verify')
+
+        # TODO support XML | JSON
 
     # Availability Properties
     # =========================================================================
     @property
     def can_service_requests(self) -> bool:
-        # TODO: detect ping
-        return True
+        try:
+            self._get_json('ping', timeout=2)
+            return True
+        except Exception:
+            logging.exception(f'Could not connect to {self.hostname}')
+            return False
 
     # Helper mothods for making requests
     # =========================================================================
@@ -74,8 +77,12 @@ class SubsonicAdapter(Adapter):
     def _make_url(self, endpoint: str) -> str:
         return f'{self.hostname}/rest/{endpoint}.view'
 
-    # def _get(self, url, timeout=(3.05, 2), **params):
-    def _get(self, url: str, **params) -> Any:
+    def _get(
+            self,
+            url: str,
+            timeout: Union[float, Tuple[float, float], None] = None,
+            **params,
+    ) -> Any:
         params = {**self._get_params(), **params}
         logging.info(f'[START] get: {url}')
 
@@ -90,12 +97,16 @@ class SubsonicAdapter(Adapter):
             if type(v) == datetime:
                 params[k] = int(v.timestamp() * 1000)
 
+        if self._is_mock:
+            return self._get_mock_data()
+
         result = requests.get(
             url,
             params=params,
             verify=not self.disable_cert_verify,
-            # timeout=timeout,
+            timeout=timeout,
         )
+
         # TODO (#122): make better
         if result.status_code != 200:
             raise Exception(f'[FAIL] get: {url} status={result.status_code}')
@@ -106,8 +117,8 @@ class SubsonicAdapter(Adapter):
     def _get_json(
         self,
         url: str,
-        **params: Union[None, str, datetime, int, List[int]],
-    ) -> Dict[str, Any]:
+        **params: Union[None, str, datetime, int, Sequence[int]],
+    ) -> Response:
         """
         Make a get request to a *Sonic REST API. Handle all types of errors
         including *Sonic ``<error>`` responses.
@@ -129,47 +140,57 @@ class SubsonicAdapter(Adapter):
             )
             raise Exception(f'Subsonic API Error #{code}: {message}')
 
-        return subsonic_response
+        logging.debug(f'Response from {url}', subsonic_response)
+        return Response.from_dict(subsonic_response)
 
-    _snake_case_re = re.compile(r'(?<!^)(?=[A-Z])')
+    # Helper Methods for Testing
+    _get_mock_data: Any = None
+    _is_mock: bool = False
 
-    def _to_snake_case(self, obj: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            self._snake_case_re.sub('_', k).lower(): v
-            for k, v in obj.items()
-        }
+    def _set_mock_data(self, data: Any):
+        class MockResult:
+            def __init__(self, content: Any):
+                self._content = content
+
+            def content(self) -> Any:
+                return self._content
+
+            def json(self) -> Any:
+                return json.loads(self._content)
+
+        def get_mock_data() -> Any:
+            if type(data) == Exception:
+                raise data
+            return MockResult(data)
+
+        self._get_mock_data = get_mock_data
 
     # Data Retrieval Methods
     # =========================================================================
     can_get_playlists = True
 
-    def get_playlists(self) -> List[Playlist]:
-        result = [
-            {
-                **p,
-                'duration':
-                timedelta(
-                    seconds=p['duration']) if p.get('duration') else None,
-            } for p in self._get_json(self._make_url('getPlaylists')).get(
-                'playlists', {}).get('playlist')
-        ]
-        return [Playlist(**self._to_snake_case(p)) for p in result]
+    def get_playlists(self) -> Sequence[API.Playlist]:
+        response = self._get_json(self._make_url('getPlaylists')).playlists
+        if not response:
+            return []
+        return response.playlist
 
     can_get_playlist_details = True
 
     def get_playlist_details(
             self,
             playlist_id: str,
-    ) -> PlaylistDetails:
+    ) -> API.PlaylistDetails:
         result = self._get_json(
             self._make_url('getPlaylist'),
             id=playlist_id,
-        ).get('playlist')
+        ).playlist
         print(result)
-        assert result
-        result['duration'] = result.get('duration') or sum(
-            s.get('duration') or 0 for s in result['entry'])
-        result['songCount'] = result.get('songCount') or len(result['entry'])
-        songs = [Song(id=s['id']) for s in result['entry']]
-        del result['entry']
-        return PlaylistDetails(**self._to_snake_case(result), songs=songs)
+        return result
+        # assert result
+        # result['duration'] = result.get('duration') or sum(
+        #     s.get('duration') or 0 for s in result['entry'])
+        # result['songCount'] = result.get('songCount') or len(result['entry'])
+        # songs = [Song(id=s['id']) for s in result['entry']]
+        # del result['entry']
+        # return API.PlaylistDetails(**self._to_snake_case(result), songs=songs)

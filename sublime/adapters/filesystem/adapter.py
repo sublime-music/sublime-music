@@ -1,7 +1,7 @@
 import logging
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Sequence, Optional, Tuple
 
 from playhouse.sqliteq import SqliteQueueDatabase
 
@@ -60,7 +60,7 @@ class FilesystemAdapter(CachingAdapter):
     # =========================================================================
     can_get_playlists: bool = True
 
-    def get_playlists(self) -> List[Playlist]:
+    def get_playlists(self) -> Sequence[Playlist]:
         playlists = list(database.Playlist.select())
         if len(playlists) == 0:  # TODO not necessarily a cache miss
             raise CacheMissError()

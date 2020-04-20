@@ -156,6 +156,7 @@ class AdapterManager:
     def can_get_playlists() -> bool:
         # It only matters that the ground truth one can service the request.
         return (
+            AdapterManager._instance is not None and
             AdapterManager._instance.ground_truth_adapter.can_service_requests
             and
             AdapterManager._instance.ground_truth_adapter.can_get_playlists)

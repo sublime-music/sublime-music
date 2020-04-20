@@ -1,40 +1,37 @@
 """
 Defines the objects that are returned by adapter methods.
 """
-from dataclasses import dataclass
+import abc
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Optional, Sequence
 
 
-@dataclass(frozen=True)
-class Song:
+class Song(abc.ABC):
     id: str
 
 
-@dataclass(frozen=True)
-class Playlist:
+class Playlist(abc.ABC):
     id: str
     name: str
-    song_count: Optional[int] = None
-    duration: Optional[timedelta] = None
-    created: Optional[datetime] = None
-    changed: Optional[datetime] = None
-    comment: Optional[str] = None
-    owner: Optional[str] = None
-    public: Optional[bool] = None
-    cover_art: Optional[str] = None
+    song_count: Optional[int]
+    duration: Optional[timedelta]
+    created: Optional[datetime]
+    changed: Optional[datetime]
+    comment: Optional[str]
+    owner: Optional[str]
+    public: Optional[bool]
+    cover_art: Optional[str]
 
 
-@dataclass(frozen=True)
-class PlaylistDetails:
+class PlaylistDetails(abc.ABC):
     id: str
     name: str
     song_count: int
     duration: timedelta
-    songs: List[Song]
-    created: Optional[datetime] = None
-    changed: Optional[datetime] = None
-    comment: Optional[str] = None
-    owner: Optional[str] = None
-    public: Optional[bool] = None
-    cover_art: Optional[str] = None
+    songs: Sequence[Song]
+    created: Optional[datetime]
+    changed: Optional[datetime]
+    comment: Optional[str]
+    owner: Optional[str]
+    public: Optional[bool]
+    cover_art: Optional[str]
