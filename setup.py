@@ -56,6 +56,7 @@ setup(
     },
     install_requires=[
         'bottle',
+        'dataclasses-json',
         'deepdiff',
         'Deprecated',
         'fuzzywuzzy',
