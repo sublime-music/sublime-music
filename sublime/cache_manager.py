@@ -1030,7 +1030,7 @@ class CacheManager(metaclass=Singleton):
             # This future actually does the search and calls the
             # search_callback when each of the futures completes.
             def do_search():
-                # Sleep far a little while before returning the local results.
+                # Sleep for a little while before returning the local results.
                 # They are less expensive to retrieve (but they still incur
                 # some overhead due to the GTK UI main loop queue).
                 sleep(0.2)
