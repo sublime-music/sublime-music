@@ -4,12 +4,16 @@ These are the API objects that are returned by Subsonic.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
-from typing import List, Optional, Sequence
+from typing import List, Optional
 
-from dataclasses_json import config, dataclass_json, DataClassJsonMixin, LetterCase
+import dataclasses_json
+from dataclasses_json import (
+    config,
+    dataclass_json,
+    DataClassJsonMixin,
+    LetterCase,
+)
 from dateutil import parser
-from marshmallow import fields
 
 from .. import api_objects as SublimeAPI
 

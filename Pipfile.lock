@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "ada2f525e7d89500110d3063b4c271d60dd9e8a026ced396d5f3058b3e29e386"
+            "sha256": "71577f2c34a30d79301fb7a2c0c80e81d8bec18f7f7038b15ef38980f6c7bea7"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -509,14 +509,6 @@
             ],
             "version": "==1.2.0"
         },
-        "jedi": {
-            "hashes": [
-                "sha256:1349c1e8c107095a55386628bb3b2a79422f3a2cab8381e34ce19909e0cf5064",
-                "sha256:e909527104a903606dd63bea6e8e888833f0ef087057829b89a18364a856f807"
-            ],
-            "index": "pypi",
-            "version": "==0.15.2"
-        },
         "jinja2": {
             "hashes": [
                 "sha256:89aab215427ef59c34ad58735269eb58b1a5808103067f7bb9d5836c651b3bb0",
@@ -642,13 +634,6 @@
                 "sha256:82f77b9bee21c1bafbf35a84905d604d5d1223801d639cf3ed140bd651c08752"
             ],
             "version": "==20.3"
-        },
-        "parso": {
-            "hashes": [
-                "sha256:158c140fc04112dc45bca311633ae5033c2c2a7b732fa33d0955bad8152a8dd0",
-                "sha256:908e9fae2144a076d72ae4e25539143d40b8e3eafbaeae03c1bfe226f4cdf12c"
-            ],
-            "version": "==0.7.0"
         },
         "pluggy": {
             "hashes": [
