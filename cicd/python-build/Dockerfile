@@ -1,6 +1,6 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
-MAINTAINER sumner "https://gitlab.com/sumner"
+LABEL maintainer sumner "https://gitlab.com/sumner"
 
 RUN apt update && \
     export TZ=America/Denver DEBIAN_FRONTEND=noninteractive && \

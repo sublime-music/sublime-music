@@ -46,7 +46,7 @@ build:
     expire_in: 7 days
 
 build_logo:
-  image: ubuntu:19.10
+  image: ubuntu:20.04
   stage: build
   before_script:
     - apt update && apt install -y inkscape make wget unzip
@@ -87,7 +87,7 @@ pages:
       - public
 
 deploy_pypi:
-  image: python:3.6-alpine
+  image: python:3.8-alpine
   stage: deploy
   only:
     variables:
