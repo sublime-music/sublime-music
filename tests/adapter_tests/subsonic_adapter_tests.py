@@ -1,11 +1,10 @@
 import importlib
-import importlib.util
 import json
 import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, Generator, Optional, Tuple
+from typing import Any, Dict, Generator, Optional, Tuple, Union
 
 import pytest
 
@@ -34,7 +33,7 @@ def adapter(tmp_path: Path):
 def mock_data_files(
         request_name: str,
         mode: str = 'r',
-) -> Generator[str, None, None]:
+) -> Generator[Tuple[Path, Any], None, None]:
     """
     Yields all of the files in the mock_data directory that start with
     ``request_name``.

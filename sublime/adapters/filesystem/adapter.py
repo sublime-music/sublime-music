@@ -2,12 +2,13 @@ import logging
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, Sequence, Optional, Tuple
+from time import sleep
 
 from playhouse.sqliteq import SqliteQueueDatabase
 
 from sublime.adapters.api_objects import (Playlist, PlaylistDetails)
 
-from . import database
+from . import models
 from .. import CacheMissError, CachingAdapter, ConfigParamDescriptor
 
 
@@ -36,13 +37,12 @@ class FilesystemAdapter(CachingAdapter):
         self.data_directory = data_directory
         logging.info('Opening connection to the database.')
         database_filename = data_directory.joinpath('cache.db')
-        self.database = SqliteQueueDatabase(
-            database_filename,
-            autorollback=True,
-        )
-        database.proxy.initialize(self.database)
-        self.database.connect()
-        self.database.create_tables(database.ALL_TABLES)
+        models.database.initialize(
+            SqliteQueueDatabase(database_filename, autorollback=True))
+        models.database.connect()
+        models.database.create_tables(models.ALL_TABLES)
+        sleep(1)
+        assert len(models.database.get_tables()) > 0
 
     def shutdown(self):
         logging.info('Shutdown complete')
@@ -61,7 +61,7 @@ class FilesystemAdapter(CachingAdapter):
     can_get_playlists: bool = True
 
     def get_playlists(self) -> Sequence[Playlist]:
-        playlists = list(database.Playlist.select())
+        playlists = list(models.Playlist.select())
         if len(playlists) == 0:  # TODO not necessarily a cache miss
             raise CacheMissError()
         return playlists
@@ -84,6 +84,6 @@ class FilesystemAdapter(CachingAdapter):
     ):
         if function_name == 'get_playlists':
             (
-                database.Playlist.insert_many(
-                    map(lambda p: database.Playlist(**asdict(p)),
+                models.Playlist.insert_many(
+                    map(lambda p: models.Playlist(**asdict(p)),
                         data)).on_conflict_replace())

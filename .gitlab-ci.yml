@@ -20,7 +20,7 @@ lint:
   script:
     - pipenv run python setup.py check -mrs
     - pipenv run flake8
-    - pipenv run mypy sublime
+    - pipenv run mypy sublime tests/**/*.py
     - pipenv run cicd/custom_style_check.py
 
 test:

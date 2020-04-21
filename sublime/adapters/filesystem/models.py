@@ -3,8 +3,8 @@ from typing import Any, Optional
 
 from peewee import (
     BooleanField,
-    DatabaseProxy,
     DateTimeField,
+    DatabaseProxy,
     Field,
     ForeignKeyField,
     IntegerField,
@@ -12,12 +12,12 @@ from peewee import (
     TextField,
 )
 
-proxy = DatabaseProxy()
+database = DatabaseProxy()
 
 
 class BaseModel(Model):
     class Meta:
-        database = proxy
+        database = database
 
 
 class DurationField(IntegerField):

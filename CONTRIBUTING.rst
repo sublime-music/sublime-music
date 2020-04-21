@@ -95,6 +95,14 @@ yourself with the following commands::
     $ mypy sublime
     $ ./cicd/custom_style_check.py
 
+Testing
+-------
+
+This project uses ``pytest`` for testing. Tests can be added in the docstrings
+of the methods that are being tested or in the ``tests`` directory. 100% test
+coverage is **not** a goal of this project, and will never be. There is a lot of
+code that just doesn't need tested, or is better if just tested manually.
+
 CI/CD Pipeline
 --------------
 
