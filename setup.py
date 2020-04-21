@@ -56,7 +56,7 @@ setup(
     },
     install_requires=[
         'bottle',
-        'dataclasses-json',
+        'dataclasses-json @ git+https://github.com/sumnerevans/dataclasses-json@cc2eaeb#egg=dataclasses-json',
         'deepdiff',
         'Deprecated',
         'fuzzywuzzy',

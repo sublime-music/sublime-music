@@ -4,6 +4,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+dataclasses-json = {git = "https://github.com/sumnerevans/dataclasses-json",ref = "cc2eaeb"}
 docutils = "*"
 flake8 = "*"
 flake8-annotations = "*"

@@ -13,20 +13,24 @@ from dataclasses_json import (
     DataClassJsonMixin,
     LetterCase,
 )
-from dateutil import parser
 
 from .. import api_objects as SublimeAPI
 
-dataclasses_json.cfg.global_config.encoders[datetime] = datetime.isoformat
-dataclasses_json.cfg.global_config.decoders[datetime] = parser.parse
-dataclasses_json.cfg.global_config.encoders[timedelta] = (
-    timedelta.total_seconds)
-dataclasses_json.cfg.global_config.decoders[timedelta] = lambda s: timedelta(
-    seconds=s)
+# Translation map
+extra_translation_map = {
+    datetime:
+    (lambda s: datetime.strptime(s, '%Y-%m-%dT%H:%M:%S.%f%z') if s else None),
+    timedelta: (lambda s: timedelta(seconds=s) if s else None),
+}
+
+for type_, translation_function in extra_translation_map.items():
+    dataclasses_json.cfg.global_config.decoders[type_] = translation_function
+    dataclasses_json.cfg.global_config.decoders[
+        Optional[type_]] = translation_function
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
-@dataclass(frozen=True)
+@dataclass
 class Child(SublimeAPI.Song):
     id: str
     title: str
@@ -81,7 +85,8 @@ class Playlist(SublimeAPI.Playlist):
 class PlaylistWithSongs(SublimeAPI.PlaylistDetails):
     id: str
     name: str
-    songs: List[Child] = field(metadata=config(field_name='entry'))
+    songs: List[Child] = field(
+        default_factory=list, metadata=config(field_name='entry'))
     song_count: int = field(default=0)
     duration: timedelta = field(default=timedelta())
     created: Optional[datetime] = None
@@ -97,12 +102,12 @@ class PlaylistWithSongs(SublimeAPI.PlaylistDetails):
             seconds=sum(s.duration for s in self.songs))
 
 
-@dataclass(frozen=True)
+@dataclass
 class Playlists(DataClassJsonMixin):
     playlist: List[Playlist] = field(default_factory=list)
 
 
-@dataclass(frozen=True)
+@dataclass
 class Response(DataClassJsonMixin):
     """
     The base Subsonic response object.

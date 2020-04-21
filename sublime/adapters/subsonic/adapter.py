@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
@@ -53,7 +52,8 @@ class SubsonicAdapter(Adapter):
     @property
     def can_service_requests(self) -> bool:
         try:
-            self._get_json('ping', timeout=2)
+            # Try to ping the server with a timeout of 2 seconds.
+            self._get_json(self._make_url('ping'), timeout=2)
             return True
         except Exception:
             logging.exception(f'Could not connect to {self.hostname}')
@@ -98,6 +98,7 @@ class SubsonicAdapter(Adapter):
                 params[k] = int(v.timestamp() * 1000)
 
         if self._is_mock:
+            logging.debug('Using mock data')
             return self._get_mock_data()
 
         result = requests.get(
