@@ -1,4 +1,5 @@
 import abc
+from enum import Enum
 from dataclasses import dataclass
 from pathlib import Path
 from typing import (
@@ -250,10 +251,14 @@ class CachingAdapter(Adapter):
 
     # Data Ingestion Methods
     # =========================================================================
+    class FunctionNames(Enum):
+        GET_PLAYLISTS = 'get_playlists'
+        GET_PLAYLIST_DETAILS = 'get_playlist_details'
+
     @abc.abstractmethod
     def ingest_new_data(
         self,
-        function_name: str,
+        function: 'CachingAdapter.FunctionNames',
         params: Tuple[Any, ...],
         data: Any,
     ):

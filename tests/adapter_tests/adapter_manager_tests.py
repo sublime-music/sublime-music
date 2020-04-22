@@ -3,7 +3,7 @@ import pytest
 from sublime.adapters import Adapter, AdapterManager
 
 
-class TestAdapter(Adapter):
+class MyAdapter(Adapter):
     pass
 
 

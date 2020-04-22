@@ -1,4 +1,5 @@
 import json
+from time import sleep
 import logging
 import re
 from datetime import datetime, timedelta, timezone
@@ -7,6 +8,8 @@ from typing import Any, Dict, Generator, Optional, Tuple
 
 import pytest
 
+from sublime.adapters import CacheMissError
+from sublime.adapters.subsonic import api_objects as SubsonicAPI
 from sublime.adapters.filesystem import (
     models,
     FilesystemAdapter,
@@ -43,5 +46,79 @@ def mock_data_files(
                 yield file, f.read()
 
 
-def test_get_playlists(adapter: FilesystemAdapter, tmp_path: Path):
-    assert adapter.get_playlists() == []
+def test_caching_get_playlists(
+    cache_adapter: FilesystemAdapter,
+    tmp_path: Path,
+):
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_playlists()
+
+    # Ingest an empty list (for example, no playlists added yet to server).
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.FunctionNames.GET_PLAYLISTS, (), [])
+
+    # After the first cache miss of get_playlists, even if an empty list is
+    # returned, the next one should not be a cache miss.
+    cache_adapter.get_playlists()
+
+    # Ingest two playlists.
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.FunctionNames.GET_PLAYLISTS,
+        (),
+        [
+            SubsonicAPI.Playlist('1', 'test1', comment='comment'),
+            SubsonicAPI.Playlist('2', 'test2'),
+        ],
+    )
+
+    playlists = cache_adapter.get_playlists()
+    assert len(playlists) == 2
+    assert (playlists[0].id, playlists[0].name,
+            playlists[0].comment) == ('1', 'test1', 'comment')
+    assert (playlists[1].id, playlists[1].name) == ('2', 'test2')
+
+
+def test_no_caching_get_playlists(adapter: FilesystemAdapter, tmp_path: Path):
+    adapter.get_playlists()
+
+    # TODO: Create a playlist (that should be allowed only if this is acting as
+    # a ground truth adapter)
+    # cache_adapter.create_playlist()
+
+    adapter.get_playlists()
+    # TODO: verify playlist
+
+
+def test_caching_get_playlist_details(
+    cache_adapter: FilesystemAdapter,
+    tmp_path: Path,
+):
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_playlist_details('1')
+
+    # Ingest an empty list (for example, no playlists added yet to server).
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.FunctionNames.GET_PLAYLIST_DETAILS, ('1', ),
+        SubsonicAPI.PlaylistWithSongs('1', 'test1', songs=[]))
+
+    playlist = cache_adapter.get_playlist_details('1')
+    assert playlist.id == '1'
+    assert playlist.name == 'test1'
+
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_playlist_details('2')
+
+
+def test_no_caching_get_playlist_details(
+    adapter: FilesystemAdapter,
+    tmp_path: Path,
+):
+    with pytest.raises(Exception):
+        adapter.get_playlist_details('1')
+
+    # TODO: Create a playlist (that should be allowed only if this is acting as
+    # a ground truth adapter)
+    # cache_adapter.create_playlist()
+
+    # adapter.get_playlist_details('1')
+    # TODO: verify playlist details

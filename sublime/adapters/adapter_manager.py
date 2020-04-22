@@ -202,7 +202,7 @@ class AdapterManager:
                 assert AdapterManager._instance
                 assert AdapterManager._instance.caching_adapter
                 AdapterManager._instance.caching_adapter.ingest_new_data(
-                    'get_playlists',
+                    CachingAdapter.FunctionNames.GET_PLAYLISTS,
                     (),
                     f.result(),
                 )
@@ -265,7 +265,7 @@ class AdapterManager:
                 assert AdapterManager._instance
                 assert AdapterManager._instance.caching_adapter
                 AdapterManager._instance.caching_adapter.ingest_new_data(
-                    'get_playlist_details',
+                    CachingAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
                     (playlist_id, ),
                     f.result(),
                 )
