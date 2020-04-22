@@ -96,7 +96,7 @@ def test_caching_get_playlist_details(
     with pytest.raises(CacheMissError):
         cache_adapter.get_playlist_details('1')
 
-    # Ingest an empty list (for example, no playlists added yet to server).
+    # Create the playlist
     cache_adapter.ingest_new_data(
         FilesystemAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
         ('1', ),
@@ -119,6 +119,30 @@ def test_caching_get_playlist_details(
     assert playlist.duration == timedelta(seconds=31)
     assert (playlist.songs[0].id, playlist.songs[0].title) == ('1', 'Song 1')
     assert (playlist.songs[1].id, playlist.songs[1].title) == ('2', 'Song 2')
+
+    # "Force refresh" the playlist
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
+        ('1', ),
+        SubsonicAPI.PlaylistWithSongs(
+            '1',
+            'foo',
+            songs=[
+                SubsonicAPI.Child(
+                    '1', 'Song 1', duration=timedelta(seconds=10.2)),
+                SubsonicAPI.Child(
+                    '3', 'Song 3', duration=timedelta(seconds=20.8)),
+            ],
+        ),
+    )
+
+    playlist = cache_adapter.get_playlist_details('1')
+    assert playlist.id == '1'
+    assert playlist.name == 'foo'
+    assert playlist.song_count == 2
+    assert playlist.duration == timedelta(seconds=31)
+    assert (playlist.songs[0].id, playlist.songs[0].title) == ('1', 'Song 1')
+    assert (playlist.songs[1].id, playlist.songs[1].title) == ('3', 'Song 3')
 
     with pytest.raises(CacheMissError):
         cache_adapter.get_playlist_details('2')

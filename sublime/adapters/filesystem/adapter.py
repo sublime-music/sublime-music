@@ -108,21 +108,30 @@ class FilesystemAdapter(CachingAdapter):
                 asdict, data)).on_conflict_replace().execute()
         elif function == CachingAdapter.FunctionNames.GET_PLAYLIST_DETAILS:
             playlist_data = asdict(data)
-            playlist, created = models.Playlist.get_or_create(
+            playlist, playlist_created = models.Playlist.get_or_create(
                 id=playlist_data['id'],
                 defaults=playlist_data,
             )
 
             # Handle the songs.
-            f = ('id', 'title', 'duration')
-            playlist.songs = [
-                models.Song.create(
-                    **dict(filter(lambda kv: kv[0] in f, s.items())))
-                for s in playlist_data['songs']
-            ]
+            songs = []
+            for song_data in playlist_data['songs']:
+                # args = dict(filter(lambda kv: kv[0] in f, song_data.items()))
+                song, song_created = models.Song.get_or_create(
+                    id=song_data['id'], defaults=song_data)
+
+                if not song_created:
+                    song.title = song_data['title']
+                    song.duration = song_data['duration']
+                    song.save()
+
+                songs.append(song)
+
+            playlist.songs = songs
+            del playlist_data['songs']
 
             # Update the values if the playlist already existed.
-            if not created:
+            if not playlist_created:
                 for k, v in playlist_data.items():
                     setattr(playlist, k, v)
 
