@@ -5,6 +5,8 @@ These are the API objects that are returned by Subsonic.
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import List, Optional
+import operator
+from functools import reduce
 
 import dataclasses_json
 from dataclasses_json import (
@@ -34,7 +36,6 @@ for type_, translation_function in extra_translation_map.items():
 class Child(SublimeAPI.Song):
     id: str
     title: str
-    value: Optional[str] = None
     parent: Optional[str] = None
     album: Optional[str] = None
     artist: Optional[str] = None
@@ -47,7 +48,7 @@ class Child(SublimeAPI.Song):
     suffix: Optional[str] = None
     transcoded_content_type: Optional[str] = None
     transcoded_suffix: Optional[str] = None
-    duration: Optional[int] = None
+    duration: Optional[timedelta] = None
     bit_rate: Optional[int] = None
     path: Optional[str] = None
     is_video: Optional[bool] = None
@@ -99,7 +100,7 @@ class PlaylistWithSongs(SublimeAPI.PlaylistDetails):
     def __post_init__(self):
         self.song_count = self.song_count or len(self.songs)
         self.duration = self.duration or timedelta(
-            seconds=sum(s.duration for s in self.songs))
+            seconds=sum(s.duration.total_seconds() if s.duration else 0 for s in self.songs))
 
 
 @dataclass

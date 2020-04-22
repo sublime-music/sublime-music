@@ -187,5 +187,6 @@ class SubsonicAdapter(Adapter):
             self._make_url('getPlaylist'),
             id=playlist_id,
         ).playlist
+        # TODO better error
         assert result, f'Error getting playlist {playlist_id}'
         return result

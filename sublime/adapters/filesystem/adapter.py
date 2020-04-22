@@ -39,7 +39,9 @@ class FilesystemAdapter(CachingAdapter):
         database_filename = data_directory.joinpath('cache.db')
         models.database.init(database_filename)
         models.database.connect()
-        models.database.create_tables(models.ALL_TABLES)
+
+        with models.database.atomic():
+            models.database.create_tables(models.ALL_TABLES)
 
     def shutdown(self):
         logging.info('Shutdown complete')
@@ -86,6 +88,7 @@ class FilesystemAdapter(CachingAdapter):
 
     # Data Ingestion Methods
     # =========================================================================
+    @models.database.atomic()
     def ingest_new_data(
         self,
         function: 'CachingAdapter.FunctionNames',
@@ -105,7 +108,22 @@ class FilesystemAdapter(CachingAdapter):
                 asdict, data)).on_conflict_replace().execute()
         elif function == CachingAdapter.FunctionNames.GET_PLAYLIST_DETAILS:
             playlist_data = asdict(data)
-            # TODO deal with the songs
-            del playlist_data['songs']
-            models.Playlist.insert(
-                playlist_data).on_conflict_replace().execute()
+            playlist, created = models.Playlist.get_or_create(
+                id=playlist_data['id'],
+                defaults=playlist_data,
+            )
+
+            # Handle the songs.
+            f = ('id', 'title', 'duration')
+            playlist.songs = [
+                models.Song.create(
+                    **dict(filter(lambda kv: kv[0] in f, s.items())))
+                for s in playlist_data['songs']
+            ]
+
+            # Update the values if the playlist already existed.
+            if not created:
+                for k, v in playlist_data.items():
+                    setattr(playlist, k, v)
+
+            playlist.save()

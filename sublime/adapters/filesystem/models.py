@@ -24,10 +24,10 @@ database = SqliteDatabase(None)
 # =============================================================================
 class DurationField(IntegerField):
     def db_value(self, value: timedelta) -> Optional[int]:
-        return value.microseconds if value else None
+        return value.total_seconds() if value else None
 
     def python_value(self, value: Optional[int]) -> Optional[timedelta]:
-        return timedelta(microseconds=value) if value else None
+        return timedelta(seconds=value) if value else None
 
 
 class CacheConstantsField(TextField):
@@ -53,6 +53,37 @@ class CoverArt(BaseModel):
 
 class Song(BaseModel):
     id = TextField(unique=True, primary_key=True)
+    title = TextField()
+    duration = DurationField()
+
+    # parent: Optional[str] = None
+    # album: Optional[str] = None
+    # artist: Optional[str] = None
+    # track: Optional[int] = None
+    # year: Optional[int] = None
+    # genre: Optional[str] = None
+    # cover_art: Optional[str] = None
+    # size: Optional[int] = None
+    # content_type: Optional[str] = None
+    # suffix: Optional[str] = None
+    # transcoded_content_type: Optional[str] = None
+    # transcoded_suffix: Optional[str] = None
+    # duration: Optional[int] = None
+    # bit_rate: Optional[int] = None
+    # path: Optional[str] = None
+    # is_video: Optional[bool] = None
+    # user_rating: Optional[int] = None
+    # average_rating: Optional[float] = None
+    # play_count: Optional[int] = None
+    # disc_number: Optional[int] = None
+    # created: Optional[datetime] = None
+    # starred: Optional[datetime] = None
+    # album_id: Optional[str] = None
+    # artist_id: Optional[str] = None
+    # type: Optional[SublimeAPI.MediaType] = None
+    # bookmark_position: Optional[int] = None
+    # original_width: Optional[int] = None
+    # original_height: Optional[int] = None
 
 
 class CacheInfo(BaseModel):

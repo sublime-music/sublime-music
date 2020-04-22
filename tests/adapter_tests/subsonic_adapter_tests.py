@@ -159,7 +159,7 @@ def test_get_playlist_details(adapter: SubsonicAdapter):
             suffix="m4a",
             transcoded_content_type="audio/mpeg",
             transcoded_suffix="mp3",
-            duration=238,
+            duration=timedelta(seconds=238),
             bit_rate=256,
             path='/'.join(
                 (
