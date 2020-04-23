@@ -138,7 +138,7 @@ class SortedManyToManyField(ManyToManyField):
             database = self.model._meta.database
             schema = self.model._meta.schema
             table_name = '{}_{}_through'.format(*tables)
-            indexes = (((lhs._meta.name, rhs._meta.name), True), )
+            indexes = (((lhs._meta.name, rhs._meta.name, 'position'), True), )
 
         params = {'on_delete': self._on_delete, 'on_update': self._on_update}
         attrs = {

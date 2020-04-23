@@ -28,11 +28,12 @@ except Exception:
     glib_notify_exists = False
 
 from .adapters import AdapterManager
+from .adapters.api_objects import Playlist
 from .cache_manager import CacheManager
 from .config import AppConfiguration, ReplayGainType
 from .dbus_manager import dbus_propagate, DBusManager
 from .players import ChromecastPlayer, MPVPlayer, PlayerEvent
-from .server.api_objects import Child, Directory, Playlist
+from .server.api_objects import Child, Directory
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.main import MainWindow
 from .ui.settings import SettingsDialog
@@ -288,7 +289,7 @@ class SublimeMusicApp(Gtk.Application):
             if not self.dbus_manager:
                 return
 
-            if len(track_ids):
+            if len(track_ids) == 0:
                 # We are lucky, just return an empty list.
                 return GLib.Variant('(aa{sv})', ([], ))
 
@@ -302,8 +303,10 @@ class SublimeMusicApp(Gtk.Application):
             ]
 
             # Get rid of all of the tracks that were not requested.
-            metadatas = filter(
-                lambda m: m['mpris:trackid'] in track_ids, metadatas)
+            metadatas = list(
+                filter(lambda m: m['mpris:trackid'] in track_ids, metadatas))
+
+            assert len(metadatas) == len(track_ids)
 
             # Sort them so they get returned in the same order as they were
             # requested.
@@ -322,17 +325,18 @@ class SublimeMusicApp(Gtk.Application):
 
         def activate_playlist(playlist_id: str):
             playlist_id = playlist_id.split('/')[-1]
-            playlist = CacheManager.get_playlist(playlist_id).result()
+            playlist = AdapterManager.get_playlist_details(
+                playlist_id).result()
 
             # Calculate the song id to play.
             song_idx = 0
             if self.app_config.state.shuffle_on:
-                song_idx = random.randint(0, len(playlist.entry) - 1)
+                song_idx = random.randint(0, len(playlist.songs) - 1)
 
             self.on_song_clicked(
                 None,
                 song_idx,
-                [s.id for s in playlist.entry],
+                [s.id for s in playlist.songs],
                 {'active_playlist_id': playlist_id},
             )
 
@@ -342,13 +346,13 @@ class SublimeMusicApp(Gtk.Application):
                 order: str,
                 reverse_order: bool,
         ) -> GLib.Variant:
-            playlists_result = CacheManager.get_playlists()
-            if playlists_result.is_future:
+            playlists_result = AdapterManager.get_playlists()
+            if not playlists_result.data_is_available:
                 # We don't want to wait for the response in this case, so just
                 # return an empty array.
                 return GLib.Variant('(a(oss))', ([], ))
 
-            playlists = playlists_result.result()
+            playlists = list(playlists_result.result())
 
             sorters = {
                 'Alphabetical': lambda p: p.name,
@@ -362,7 +366,7 @@ class SublimeMusicApp(Gtk.Application):
 
             def make_playlist_tuple(p: Playlist) -> GLib.Variant:
                 cover_art_filename = CacheManager.get_cover_art_filename(
-                    p.coverArt,
+                    p.cover_art,
                     allow_download=False,
                 ).result()
                 return (f'/playlist/{p.id}', p.name, cover_art_filename or '')
@@ -400,6 +404,7 @@ class SublimeMusicApp(Gtk.Application):
             'org.mpris.MediaPlayer2.TrackList': {
                 'GoTo': set_pos_fn,
                 'GetTracksMetadata': get_tracks_metadata,
+                # 'RemoveTrack': remove_track,
             },
             'org.mpris.MediaPlayer2.Playlists': {
                 'ActivatePlaylist': activate_playlist,

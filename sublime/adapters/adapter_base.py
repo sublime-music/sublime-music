@@ -199,6 +199,9 @@ class Adapter(abc.ABC):
         """
         return False
 
+    # TODO some way of specifying what types of schemas can be provided (for
+    # example, http, https, file)
+
     # Data Retrieval Methods
     # These properties determine if what things the adapter can be used to do
     # at the current moment.

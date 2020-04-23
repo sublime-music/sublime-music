@@ -140,6 +140,15 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
             duration=timedelta(seconds=21.8),
             path='/foo/song1.mp3',
         ),
+        SubsonicAPI.Song(
+            '1',
+            'Song 1',
+            parent='foo',
+            album='foo',
+            artist='foo',
+            duration=timedelta(seconds=21.8),
+            path='/foo/song1.mp3',
+        ),
     ]
     cache_adapter.ingest_new_data(
         FilesystemAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
@@ -150,8 +159,8 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
     playlist = cache_adapter.get_playlist_details('1')
     assert playlist.id == '1'
     assert playlist.name == 'foo'
-    assert playlist.song_count == 2
-    assert playlist.duration == timedelta(seconds=32)
+    assert playlist.song_count == 3
+    assert playlist.duration == timedelta(seconds=53.8)
     for actual, song in zip(playlist.songs, songs):
         for k, v in asdict(song).items():
             assert getattr(actual, k, None) == v
