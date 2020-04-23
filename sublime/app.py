@@ -31,7 +31,7 @@ from .adapters import AdapterManager
 from .adapters.api_objects import Playlist
 from .cache_manager import CacheManager
 from .config import AppConfiguration, ReplayGainType
-from .dbus_manager import dbus_propagate, DBusManager
+from .dbus import dbus_propagate, DBusManager
 from .players import ChromecastPlayer, MPVPlayer, PlayerEvent
 from .server.api_objects import Child, Directory
 from .ui.configure_servers import ConfigureServersDialog
