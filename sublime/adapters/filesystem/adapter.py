@@ -62,8 +62,10 @@ class FilesystemAdapter(CachingAdapter):
     def get_playlists(self) -> Sequence[Playlist]:
         playlists = list(models.Playlist.select())
         if self.is_cache and len(playlists) == 0:
-            # Determine if the adapter has ingested data for get_playlists
-            # before. If not, cache miss.
+            # This does not necessary mean that we have a cache miss. It could
+            # just mean that the list of playlists is actually empty. Determine
+            # if the adapter has ingested data for get_playlists before, and if
+            # not, cache miss.
             function_name = CachingAdapter.FunctionNames.GET_PLAYLISTS
             if not models.CacheInfo.get_or_none(
                     models.CacheInfo.query_name == function_name):
@@ -78,11 +80,17 @@ class FilesystemAdapter(CachingAdapter):
     ) -> PlaylistDetails:
         playlist = models.Playlist.get_or_none(
             models.Playlist.id == playlist_id)
-        if not playlist:
-            if self.is_cache:
-                raise CacheMissError()
-            else:
-                raise Exception(f'Playlist {playlist_id} does not exist.')
+        if not playlist and not self.is_cache:
+            raise Exception(f'Playlist {playlist_id} does not exist.')
+
+        # If we haven't ingested data for this playlist before, raise a
+        # CacheMissError with the partial playlist data.
+        function_name = CachingAdapter.FunctionNames.GET_PLAYLIST_DETAILS
+        cache_info = models.CacheInfo.get_or_none(
+            models.CacheInfo.query_name == function_name,
+            params_hash=hash((playlist_id, ), ))
+        if not cache_info:
+            raise CacheMissError(partial_data=playlist)
 
         return playlist
 
@@ -100,6 +108,7 @@ class FilesystemAdapter(CachingAdapter):
 
         models.CacheInfo.insert(
             query_name=function,
+            params_hash=hash(params),
             last_ingestion_time=datetime.now(),
         ).on_conflict_replace().execute()
 

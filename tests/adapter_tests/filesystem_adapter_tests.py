@@ -47,10 +47,7 @@ def mock_data_files(
                 yield file, f.read()
 
 
-def test_caching_get_playlists(
-    cache_adapter: FilesystemAdapter,
-    tmp_path: Path,
-):
+def test_caching_get_playlists(cache_adapter: FilesystemAdapter):
     with pytest.raises(CacheMissError):
         cache_adapter.get_playlists()
 
@@ -79,7 +76,7 @@ def test_caching_get_playlists(
     assert (playlists[1].id, playlists[1].name) == ('2', 'test2')
 
 
-def test_no_caching_get_playlists(adapter: FilesystemAdapter, tmp_path: Path):
+def test_no_caching_get_playlists(adapter: FilesystemAdapter):
     adapter.get_playlists()
 
     # TODO: Create a playlist (that should be allowed only if this is acting as
@@ -90,10 +87,7 @@ def test_no_caching_get_playlists(adapter: FilesystemAdapter, tmp_path: Path):
     # TODO: verify playlist
 
 
-def test_caching_get_playlist_details(
-    cache_adapter: FilesystemAdapter,
-    tmp_path: Path,
-):
+def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
     with pytest.raises(CacheMissError):
         cache_adapter.get_playlist_details('1')
 
@@ -136,22 +130,22 @@ def test_caching_get_playlist_details(
     # "Force refresh" the playlist
     songs = [
         SubsonicAPI.Song(
-            '1',
-            'Song 1',
-            parent='foo',
-            album='foo',
-            artist='foo',
-            duration=timedelta(seconds=10.2),
-            path='/foo/song1.mp3',
-        ),
-        SubsonicAPI.Song(
             '3',
             'Song 3',
             parent='foo',
             album='foo',
             artist='foo',
-            duration=timedelta(seconds=21.8),
+            duration=timedelta(seconds=10.2),
             path='/foo/song3.mp3',
+        ),
+        SubsonicAPI.Song(
+            '1',
+            'Song 1',
+            parent='foo',
+            album='foo',
+            artist='foo',
+            duration=timedelta(seconds=21.8),
+            path='/foo/song1.mp3',
         ),
     ]
     cache_adapter.ingest_new_data(
@@ -173,10 +167,7 @@ def test_caching_get_playlist_details(
         cache_adapter.get_playlist_details('2')
 
 
-def test_no_caching_get_playlist_details(
-    adapter: FilesystemAdapter,
-    tmp_path: Path,
-):
+def test_no_caching_get_playlist_details(adapter: FilesystemAdapter):
     with pytest.raises(Exception):
         adapter.get_playlist_details('1')
 
@@ -186,3 +177,25 @@ def test_no_caching_get_playlist_details(
 
     # adapter.get_playlist_details('1')
     # TODO: verify playlist details
+
+
+def test_caching_get_playlist_then_details(cache_adapter: FilesystemAdapter):
+    # Ingest a list of playlists (like the sidebar, without songs)
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.FunctionNames.GET_PLAYLISTS,
+        (),
+        [
+            SubsonicAPI.Playlist('1', 'test1', comment='comment'),
+            SubsonicAPI.Playlist('2', 'test2'),
+        ],
+    )
+
+    # Trying to get playlist details should generate a cache miss, but should
+    # include the data that we know about.
+    try:
+        cache_adapter.get_playlist_details('1')
+        assert False, 'DID NOT raise CacheMissError'
+    except CacheMissError as e:
+        assert e.partial_data
+        assert e.partial_data.id == '1'
+        assert e.partial_data.name == 'test1'

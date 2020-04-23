@@ -21,10 +21,25 @@ from .api_objects import (
 
 class CacheMissError(Exception):
     """
-    This exception should be thrown by caching adapters when the request
-    data is not available or is invalid.
+    This exception should be thrown by caching adapters when the request data
+    is not available or is invalid. If some of the data is available, but not
+    all of it, the ``partial_data`` parameter should be set with the partial
+    data. If the ground truth adapter can't service the request, or errors for
+    some reason, the UI will try to populate itself with the partial data
+    returned in this exception (with the necessary error text to inform the
+    user that retrieval from the ground truth adapter failed).
     """
-    pass
+    def __init__(self, *args, partial_data: Any = None):
+        """
+        Create a :class:`CacheMissError` exception.
+
+        :param args: arguments to pass to the :class:`BaseException` base
+            class.
+        :param partial_data: the actual partial data for the UI to use in case
+            of ground truth adapter failure.
+        """
+        self.partial_data = partial_data
+        super().__init__(*args)
 
 
 @dataclass

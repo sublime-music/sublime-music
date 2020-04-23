@@ -209,6 +209,7 @@ class Song(BaseModel):
 
 class CacheInfo(BaseModel):
     query_name = CacheConstantsField(unique=True, primary_key=True)
+    params_hash = IntegerField(null=False)
     last_ingestion_time = TzDateTimeField(null=False)
 
 
