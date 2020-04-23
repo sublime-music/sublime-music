@@ -6,8 +6,8 @@ from typing import (
     Any,
     Callable,
     Generic,
-    List,
     Optional,
+    Sequence,
     Set,
     Type,
     TypeVar,
@@ -166,7 +166,7 @@ class AdapterManager:
     def get_playlists(
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
-    ) -> Result[List[Playlist]]:
+    ) -> Result[Sequence[Playlist]]:
         assert AdapterManager._instance
         if (not force and AdapterManager._instance.caching_adapter and
                 AdapterManager._instance.caching_adapter.can_service_requests
@@ -188,14 +188,14 @@ class AdapterManager:
             raise Exception(
                 f'No adapters can service {"get_playlists"} at the moment.')
 
-        def future_fn() -> List[Playlist]:
+        def future_fn() -> Sequence[Playlist]:
             assert AdapterManager._instance
             if before_download:
                 before_download()
             return (
                 AdapterManager._instance.ground_truth_adapter.get_playlists())
 
-        future: Result[List[Playlist]] = Result(future_fn)
+        future: Result[Sequence[Playlist]] = Result(future_fn)
 
         if AdapterManager._instance.caching_adapter:
 
