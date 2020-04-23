@@ -115,14 +115,16 @@ class FilesystemAdapter(CachingAdapter):
 
             # Handle the songs.
             songs = []
-            for song_data in playlist_data['songs']:
+            for index, song_data in enumerate(playlist_data['songs']):
                 # args = dict(filter(lambda kv: kv[0] in f, song_data.items()))
+                song_data['index'] = index
                 song, song_created = models.Song.get_or_create(
                     id=song_data['id'], defaults=song_data)
 
+                keys = ('title', 'duration', 'path', 'index')
                 if not song_created:
-                    song.title = song_data['title']
-                    song.duration = song_data['duration']
+                    for key in keys:
+                        setattr(song, key, song_data[key])
                     song.save()
 
                 songs.append(song)

@@ -33,12 +33,12 @@ for type_, translation_function in extra_translation_map.items():
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class Child(SublimeAPI.Song):
+class Song(SublimeAPI.Song):
     id: str
     title: str
-    parent: Optional[str] = None
-    album: Optional[str] = None
-    artist: Optional[str] = None
+    parent: str
+    album: str
+    artist: str
     track: Optional[int] = None
     year: Optional[int] = None
     genre: Optional[str] = None
@@ -61,9 +61,6 @@ class Child(SublimeAPI.Song):
     album_id: Optional[str] = None
     artist_id: Optional[str] = None
     type: Optional[SublimeAPI.MediaType] = None
-    bookmark_position: Optional[int] = None
-    original_width: Optional[int] = None
-    original_height: Optional[int] = None
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -86,7 +83,7 @@ class Playlist(SublimeAPI.Playlist):
 class PlaylistWithSongs(SublimeAPI.PlaylistDetails):
     id: str
     name: str
-    songs: List[Child] = field(
+    songs: List[Song] = field(
         default_factory=list, metadata=config(field_name='entry'))
     song_count: int = field(default=0)
     duration: timedelta = field(default=timedelta())
@@ -100,7 +97,9 @@ class PlaylistWithSongs(SublimeAPI.PlaylistDetails):
     def __post_init__(self):
         self.song_count = self.song_count or len(self.songs)
         self.duration = self.duration or timedelta(
-            seconds=sum(s.duration.total_seconds() if s.duration else 0 for s in self.songs))
+            seconds=sum(
+                s.duration.total_seconds() if s.duration else 0
+                for s in self.songs))
 
 
 @dataclass
@@ -113,6 +112,6 @@ class Response(DataClassJsonMixin):
     """
     The base Subsonic response object.
     """
-    song: Optional[Child] = None
+    song: Optional[Song] = None
     playlists: Optional[Playlists] = None
     playlist: Optional[PlaylistWithSongs] = None

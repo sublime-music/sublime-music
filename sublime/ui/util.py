@@ -15,7 +15,7 @@ from sublime.config import AppConfiguration
 from sublime.server.api_objects import Playlist
 
 
-def format_song_duration(duration_secs: Optional[int]) -> str:
+def format_song_duration(duration_secs: Union[int, timedelta, None]) -> str:
     """
     Formats the song duration as mins:seconds with the seconds being
     zero-padded if necessary.
@@ -25,6 +25,8 @@ def format_song_duration(duration_secs: Optional[int]) -> str:
     >>> format_song_duration(62)
     '1:02'
     """
+    if isinstance(duration_secs, timedelta):
+        duration_secs = round(duration_secs.total_seconds())
     if not duration_secs:
         return '-:--'
 

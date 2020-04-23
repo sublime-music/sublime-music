@@ -2,6 +2,7 @@ import json
 from time import sleep
 import logging
 import re
+from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Generator, Optional, Tuple
@@ -96,20 +97,31 @@ def test_caching_get_playlist_details(
     with pytest.raises(CacheMissError):
         cache_adapter.get_playlist_details('1')
 
-    # Create the playlist
+    # Simulate the playlist being retrieved from Subsonic.
+    songs = [
+        SubsonicAPI.Song(
+            '2',
+            'Song 2',
+            parent='foo',
+            album='foo',
+            artist='foo',
+            duration=timedelta(seconds=20.8),
+            path='/foo/song2.mp3',
+        ),
+        SubsonicAPI.Song(
+            '1',
+            'Song 1',
+            parent='foo',
+            album='foo',
+            artist='foo',
+            duration=timedelta(seconds=10.2),
+            path='/foo/song1.mp3',
+        ),
+    ]
     cache_adapter.ingest_new_data(
         FilesystemAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
         ('1', ),
-        SubsonicAPI.PlaylistWithSongs(
-            '1',
-            'test1',
-            songs=[
-                SubsonicAPI.Child(
-                    '1', 'Song 1', duration=timedelta(seconds=10.2)),
-                SubsonicAPI.Child(
-                    '2', 'Song 2', duration=timedelta(seconds=20.8)),
-            ],
-        ),
+        SubsonicAPI.PlaylistWithSongs('1', 'test1', songs=songs),
     )
 
     playlist = cache_adapter.get_playlist_details('1')
@@ -117,32 +129,45 @@ def test_caching_get_playlist_details(
     assert playlist.name == 'test1'
     assert playlist.song_count == 2
     assert playlist.duration == timedelta(seconds=31)
-    assert (playlist.songs[0].id, playlist.songs[0].title) == ('1', 'Song 1')
-    assert (playlist.songs[1].id, playlist.songs[1].title) == ('2', 'Song 2')
+    for actual, song in zip(playlist.songs, songs):
+        for k, v in asdict(song).items():
+            assert getattr(actual, k, None) == v
 
     # "Force refresh" the playlist
+    songs = [
+        SubsonicAPI.Song(
+            '1',
+            'Song 1',
+            parent='foo',
+            album='foo',
+            artist='foo',
+            duration=timedelta(seconds=10.2),
+            path='/foo/song1.mp3',
+        ),
+        SubsonicAPI.Song(
+            '3',
+            'Song 3',
+            parent='foo',
+            album='foo',
+            artist='foo',
+            duration=timedelta(seconds=21.8),
+            path='/foo/song3.mp3',
+        ),
+    ]
     cache_adapter.ingest_new_data(
         FilesystemAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
         ('1', ),
-        SubsonicAPI.PlaylistWithSongs(
-            '1',
-            'foo',
-            songs=[
-                SubsonicAPI.Child(
-                    '1', 'Song 1', duration=timedelta(seconds=10.2)),
-                SubsonicAPI.Child(
-                    '3', 'Song 3', duration=timedelta(seconds=20.8)),
-            ],
-        ),
+        SubsonicAPI.PlaylistWithSongs('1', 'foo', songs=songs),
     )
 
     playlist = cache_adapter.get_playlist_details('1')
     assert playlist.id == '1'
     assert playlist.name == 'foo'
     assert playlist.song_count == 2
-    assert playlist.duration == timedelta(seconds=31)
-    assert (playlist.songs[0].id, playlist.songs[0].title) == ('1', 'Song 1')
-    assert (playlist.songs[1].id, playlist.songs[1].title) == ('3', 'Song 3')
+    assert playlist.duration == timedelta(seconds=32)
+    for actual, song in zip(playlist.songs, songs):
+        for k, v in asdict(song).items():
+            assert getattr(actual, k, None) == v
 
     with pytest.raises(CacheMissError):
         cache_adapter.get_playlist_details('2')

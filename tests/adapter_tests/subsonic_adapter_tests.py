@@ -144,7 +144,7 @@ def test_get_playlist_details(adapter: SubsonicAdapter):
         assert playlist_details.duration == timedelta(seconds=470)
 
         # Make sure that at least the first song got decoded properly.
-        assert playlist_details.songs[0] == SubsonicAPI.Child(
+        assert playlist_details.songs[0] == SubsonicAPI.Song(
             id='202',
             parent='318',
             title='What a Beautiful Name',

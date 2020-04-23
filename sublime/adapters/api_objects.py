@@ -17,10 +17,9 @@ class MediaType(Enum):
 class Song(abc.ABC):
     id: str
     title: str
-    value: Optional[str]
-    parent: Optional[str]
-    album: Optional[str]
-    artist: Optional[str]
+    parent: str
+    album: str
+    artist: str
     track: Optional[int]
     year: Optional[int]
     genre: Optional[str]
@@ -30,7 +29,7 @@ class Song(abc.ABC):
     suffix: Optional[str]
     transcoded_content_type: Optional[str]
     transcoded_suffix: Optional[str]
-    duration: Optional[int]
+    duration: Optional[timedelta]
     bit_rate: Optional[int]
     path: Optional[str]
     is_video: Optional[bool]
@@ -43,10 +42,7 @@ class Song(abc.ABC):
     album_id: Optional[str]
     artist_id: Optional[str]
     type: Optional[MediaType]
-    bookmark_position: Optional[int]
-    original_width: Optional[int]
-    original_height: Optional[int]
-    # TODO trim down
+    # TODO trim down, make another data structure for directory?
 
 
 class Playlist(abc.ABC):
