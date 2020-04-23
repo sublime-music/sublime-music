@@ -5,8 +5,6 @@ These are the API objects that are returned by Subsonic.
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import List, Optional
-import operator
-from functools import reduce
 
 import dataclasses_json
 from dataclasses_json import (

@@ -1,10 +1,7 @@
 import logging
-import threading
-from dataclasses import asdict, fields
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from queue import PriorityQueue
-from time import sleep
 from typing import Any, Dict, Optional, Sequence, Tuple
 
 from sublime.adapters.api_objects import (Playlist, PlaylistDetails)
@@ -21,7 +18,9 @@ class FilesystemAdapter(CachingAdapter):
     # =========================================================================
     @staticmethod
     def get_config_parameters() -> Dict[str, ConfigParamDescriptor]:
-        return {}
+        return {
+            # TODO: download on play?
+        }
 
     @staticmethod
     def verify_configuration(
@@ -103,8 +102,7 @@ class FilesystemAdapter(CachingAdapter):
         params: Tuple[Any, ...],
         data: Any,
     ):
-        if not self.is_cache:
-            raise Exception('FilesystemAdapter is not in cache mode')
+        assert self.is_cache, 'FilesystemAdapter is not in cache mode'
 
         models.CacheInfo.insert(
             query_name=function,

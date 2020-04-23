@@ -1,7 +1,7 @@
 from .adapter_base import (
     Adapter,
-    CachingAdapter,
     CacheMissError,
+    CachingAdapter,
     ConfigParamDescriptor,
 )
 from .adapter_manager import AdapterManager

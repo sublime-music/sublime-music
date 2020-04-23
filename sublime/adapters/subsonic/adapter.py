@@ -1,10 +1,10 @@
 import json
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from time import sleep
-from typing import Any, Dict, Sequence, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 import requests
 

@@ -7,15 +7,16 @@ from typing import (
     Callable,
     Generic,
     List,
-    Set,
     Optional,
+    Set,
     Type,
     TypeVar,
     Union,
 )
 
 from sublime.config import AppConfiguration
-from .adapter_base import Adapter, CachingAdapter, CacheMissError
+
+from .adapter_base import Adapter, CacheMissError, CachingAdapter
 from .api_objects import Playlist, PlaylistDetails
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter

@@ -1,21 +1,17 @@
 from datetime import datetime, timedelta
-from enum import Enum
-from typing import Any, Optional, Sequence, List
+from typing import Any, Optional, Sequence
 
 from peewee import (
-    ensure_tuple,
-    SelectQuery,
-    FieldAccessor,
-    Value,
-    ManyToManyFieldAccessor,
     BooleanField,
     DoubleField,
-    Field,
+    ensure_tuple,
     ForeignKeyField,
     IntegerField,
     ManyToManyField,
+    ManyToManyFieldAccessor,
     ManyToManyQuery,
     Model,
+    SelectQuery,
     SqliteDatabase,
     TextField,
 )

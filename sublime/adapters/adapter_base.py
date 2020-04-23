@@ -1,13 +1,13 @@
 import abc
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import (
     Any,
     Dict,
     Iterable,
-    Sequence,
     Optional,
+    Sequence,
     Tuple,
     Type,
     Union,

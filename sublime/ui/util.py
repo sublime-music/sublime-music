@@ -3,7 +3,16 @@ import re
 from concurrent.futures import Future
 from datetime import timedelta
 from typing import (
-    Any, Callable, cast, Iterable, List, Match, Optional,Tuple, Union,)
+    Any,
+    Callable,
+    cast,
+    Iterable,
+    List,
+    Match,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import gi
 from deepdiff import DeepDiff
