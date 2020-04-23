@@ -226,6 +226,7 @@ class AdapterManager:
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
     ) -> Result[PlaylistDetails]:
         assert AdapterManager._instance
+        partial_playlist_data = None
         if (not force and AdapterManager._instance.caching_adapter and
                 AdapterManager._instance.caching_adapter.can_service_requests
                 and AdapterManager._instance.caching_adapter
@@ -234,7 +235,8 @@ class AdapterManager:
                 return Result(
                     AdapterManager._instance.caching_adapter
                     .get_playlist_details(playlist_id))
-            except CacheMissError:
+            except CacheMissError as e:
+                partial_playlist_data = e.partial_data
                 logging.debug(f'Cache Miss on {"get_playlist_details"}.')
             except Exception:
                 logging.exception(
@@ -245,6 +247,9 @@ class AdapterManager:
                 and not AdapterManager._instance.ground_truth_adapter
                 .can_service_requests and not AdapterManager._instance
                 .ground_truth_adapter.can_get_playlist_details):
+            if partial_playlist_data:
+                # TODO do something here
+                pass
             raise Exception(
                 f'No adapters can service {"get_playlist_details"} at the moment.'
             )
