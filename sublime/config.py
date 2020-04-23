@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import os
 import pickle
 from dataclasses import asdict, dataclass, field, fields
@@ -68,7 +69,7 @@ class ServerConfiguration:
         >>> sc.strhash()
         '6df23dc03f9b54cc38a0fc1483df6e21'
         """
-        server_info = (self.name + self.server_address + self.username)
+        server_info = self.name + self.server_address + self.username
         return hashlib.md5(server_info.encode('utf-8')).hexdigest()
 
 
@@ -100,6 +101,7 @@ class AppConfiguration:
 
         config = AppConfiguration(**args)
         config.filename = filename
+
         return config
 
     def __post_init__(self):
@@ -136,26 +138,33 @@ class AppConfiguration:
         if not server:
             return UIState()
 
-        # If already retrieved, and the server hasn't changed, then return the
-        # state. Don't use strhash because that is much more expensive of an
-        # operation.
-        if self._current_server_hash != hash(server) or not self._state:
-            self._current_server_hash = hash(server)
-            if self.state_file_location.exists():
-                try:
-                    with open(self.state_file_location, 'rb') as f:
-                        self._state = UIState(**pickle.load(f))
-                except Exception:
-                    # Just ignore any errors, it is only UI state.
-                    self._state = UIState()
-
-            # Do the import in the function to avoid circular imports.
-            from sublime.cache_manager import CacheManager
-            from sublime.adapters import AdapterManager
-            CacheManager.reset(self)
-            AdapterManager.reset(self)
+        # If the server has changed, then retrieve the new server's state.
+        # TODO: if things are slow, then use a different hash
+        if self._current_server_hash != server.strhash():
+            self.load_state()
 
         return self._state
+
+    def load_state(self):
+        if not self.server:
+            return
+
+        self._current_server_hash = self.server.strhash()
+        if self.state_file_location.exists():
+            try:
+                with open(self.state_file_location, 'rb') as f:
+                    self._state = UIState(**pickle.load(f))
+            except Exception:
+                logging.warning(
+                    f"Couldn't load state from {self.state_file_location}")
+                # Just ignore any errors, it is only UI state.
+                self._state = UIState()
+
+        # Do the import in the function to avoid circular imports.
+        from sublime.cache_manager import CacheManager
+        from sublime.adapters import AdapterManager
+        CacheManager.reset(self)
+        AdapterManager.reset(self)
 
     @property
     def state_file_location(self) -> Path:

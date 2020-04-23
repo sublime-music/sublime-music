@@ -134,6 +134,9 @@ class SublimeMusicApp(Gtk.Application):
         self.window.show_all()
         self.window.present()
 
+        # Load the state for the server, if it exists.
+        self.app_config.load_state()
+
         # If there is no current server, show the dialog to select a server.
         if self.app_config.server is None:
             self.show_configure_servers_dialog()

@@ -1,4 +1,7 @@
+import hashlib
+import json
 import logging
+from base64 import b64encode
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -54,6 +57,11 @@ class FilesystemAdapter(CachingAdapter):
     # =========================================================================
     can_service_requests: bool = True
 
+    # Data Helper Methods
+    # =========================================================================
+    def _params_hash(self, *params: Any) -> str:
+        return hashlib.sha1(bytes(json.dumps(params), 'utf8')).hexdigest()
+
     # Data Retrieval Methods
     # =========================================================================
     can_get_playlists: bool = True
@@ -87,7 +95,8 @@ class FilesystemAdapter(CachingAdapter):
         function_name = CachingAdapter.FunctionNames.GET_PLAYLIST_DETAILS
         cache_info = models.CacheInfo.get_or_none(
             models.CacheInfo.query_name == function_name,
-            params_hash=hash((playlist_id, ), ))
+            params_hash=self._params_hash(playlist_id),
+        )
         if not cache_info:
             raise CacheMissError(partial_data=playlist)
 
@@ -106,7 +115,7 @@ class FilesystemAdapter(CachingAdapter):
 
         models.CacheInfo.insert(
             query_name=function,
-            params_hash=hash(params),
+            params_hash=self._params_hash(*params),
             last_ingestion_time=datetime.now(),
         ).on_conflict_replace().execute()
 

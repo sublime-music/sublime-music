@@ -3,6 +3,7 @@ from typing import Any, Optional, Sequence
 
 from peewee import (
     BooleanField,
+    CompositeKey,
     DoubleField,
     ensure_tuple,
     ForeignKeyField,
@@ -23,20 +24,20 @@ database = SqliteDatabase(None)
 
 # Custom Fields
 # =============================================================================
-class DurationField(DoubleField):
-    def db_value(self, value: timedelta) -> Optional[float]:
-        return value.total_seconds() if value else None
-
-    def python_value(self, value: Optional[float]) -> Optional[timedelta]:
-        return timedelta(seconds=value) if value else None
-
-
 class CacheConstantsField(TextField):
     def db_value(self, value: CachingAdapter.FunctionNames) -> str:
         return value.value
 
     def python_value(self, value: str) -> CachingAdapter.FunctionNames:
         return CachingAdapter.FunctionNames(value)
+
+
+class DurationField(DoubleField):
+    def db_value(self, value: timedelta) -> Optional[float]:
+        return value.total_seconds() if value else None
+
+    def python_value(self, value: Optional[float]) -> Optional[timedelta]:
+        return timedelta(seconds=value) if value else None
 
 
 class TzDateTimeField(TextField):
@@ -204,9 +205,12 @@ class Song(BaseModel):
 
 
 class CacheInfo(BaseModel):
-    query_name = CacheConstantsField(unique=True, primary_key=True)
-    params_hash = IntegerField(null=False)
+    query_name = CacheConstantsField()
+    params_hash = TextField()
     last_ingestion_time = TzDateTimeField(null=False)
+
+    class Meta:
+        primary_key = CompositeKey('query_name', 'params_hash')
 
 
 class Playlist(BaseModel):

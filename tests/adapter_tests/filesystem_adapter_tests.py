@@ -178,7 +178,7 @@ def test_caching_get_playlist_then_details(cache_adapter: FilesystemAdapter):
         FilesystemAdapter.FunctionNames.GET_PLAYLISTS,
         (),
         [
-            SubsonicAPI.Playlist('1', 'test1', comment='comment'),
+            SubsonicAPI.Playlist('1', 'test1'),
             SubsonicAPI.Playlist('2', 'test2'),
         ],
     )
@@ -192,3 +192,33 @@ def test_caching_get_playlist_then_details(cache_adapter: FilesystemAdapter):
         assert e.partial_data
         assert e.partial_data.id == '1'
         assert e.partial_data.name == 'test1'
+
+    # Simulate getting playlist details for id=1, then id=2
+    songs = [
+        SubsonicAPI.Song(
+            '3',
+            'Song 3',
+            parent='foo',
+            album='foo',
+            artist='foo',
+            duration=timedelta(seconds=10.2),
+            path='/foo/song3.mp3',
+        ),
+    ]
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
+        ('1', ),
+        SubsonicAPI.PlaylistWithSongs('1', 'test1', songs=songs),
+    )
+
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
+        ('2', ),
+        SubsonicAPI.PlaylistWithSongs('2', 'test2', songs=songs),
+    )
+
+    # Going back and getting playlist details for the first one should not
+    # cache miss.
+    playlist = cache_adapter.get_playlist_details('1')
+    assert playlist.id == '1'
+    assert playlist.name == 'test1'
