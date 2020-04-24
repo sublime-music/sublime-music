@@ -70,7 +70,7 @@ class CacheInfo(BaseModel):
     last_ingestion_time = TzDateTimeField(null=False)
 
     class Meta:
-        primary_key = CompositeKey('query_name', 'params_hash')
+        primary_key = CompositeKey("query_name", "params_hash")
 
 
 class Playlist(BaseModel):
@@ -85,7 +85,7 @@ class Playlist(BaseModel):
     public = BooleanField(null=True)
     cover_art = TextField(null=True)
 
-    songs = SortedManyToManyField(Song, backref='playlists')
+    songs = SortedManyToManyField(Song, backref="playlists")
 
 
 ALL_TABLES = (

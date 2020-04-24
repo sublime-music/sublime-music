@@ -34,14 +34,17 @@ from fuzzywuzzy import fuzz
 
 try:
     import gi
-    gi.require_version('NM', '1.0')
+
+    gi.require_version("NM", "1.0")
     from gi.repository import NM
+
     networkmanager_imported = True
 except Exception:
     # I really don't care what kind of exception it is, all that matters is the
     # import failed for some reason.
     logging.warning(
-        'Unable to import NM from GLib. Detection of SSID will be disabled.')
+        "Unable to import NM from GLib. Detection of SSID will be disabled."
+    )
     networkmanager_imported = False
 
 from .config import AppConfiguration
@@ -67,6 +70,7 @@ class Singleton(type):
     Metaclass for :class:`CacheManager` so that it can be used like a
     singleton.
     """
+
     def __getattr__(cls, name: str) -> Any:
         if not CacheManager._instance:
             return None
@@ -103,7 +107,7 @@ def similarity_ratio(query: str, string: str) -> int:
     return fuzz.partial_ratio(query.lower(), string.lower())
 
 
-S = TypeVar('S')
+S = TypeVar("S")
 
 
 class SearchResult:
@@ -111,6 +115,7 @@ class SearchResult:
     An object representing the aggregate results of a search which can include
     both server and local results.
     """
+
     _artist: Set[ArtistID3] = set()
     _album: Set[AlbumID3] = set()
     _song: Set[Child] = set()
@@ -124,21 +129,15 @@ class SearchResult:
         if results is None:
             return
 
-        member = f'_{result_type}'
+        member = f"_{result_type}"
         if getattr(self, member) is None:
             setattr(self, member, set())
 
         setattr(
-            self,
-            member,
-            getattr(getattr(self, member, set()), 'union')(set(results)),
+            self, member, getattr(getattr(self, member, set()), "union")(set(results)),
         )
 
-    def _to_result(
-            self,
-            it: Iterable[S],
-            transform: Callable[[S], str],
-    ) -> List[S]:
+    def _to_result(self, it: Iterable[S], transform: Callable[[S], str],) -> List[S]:
         all_results = sorted(
             ((similarity_ratio(self.query, transform(x)), x) for x in it),
             key=lambda rx: rx[0],
@@ -164,13 +163,13 @@ class SearchResult:
         if self._album is None:
             return None
 
-        return self._to_result(self._album, lambda a: f'{a.name} - {a.artist}')
+        return self._to_result(self._album, lambda a: f"{a.name} - {a.artist}")
 
     @property
     def song(self) -> Optional[List[Child]]:
         if self._song is None:
             return None
-        return self._to_result(self._song, lambda s: f'{s.title} - {s.artist}')
+        return self._to_result(self._song, lambda s: f"{s.title} - {s.artist}")
 
     @property
     def playlist(self) -> Optional[List[Playlist]]:
@@ -179,13 +178,14 @@ class SearchResult:
         return self._to_result(self._playlist, lambda p: p.name)
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class CacheManager(metaclass=Singleton):
     """
     Handles everything related to caching metadata and song files.
     """
+
     executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=50)
     should_exit: bool = False
 
@@ -205,8 +205,8 @@ class CacheManager(metaclass=Singleton):
         on_cancel: Optional[Callable[[], None]] = None
 
         @staticmethod
-        def from_data(data: T) -> 'CacheManager.Result[T]':
-            result: 'CacheManager.Result[T]' = CacheManager.Result()
+        def from_data(data: T) -> "CacheManager.Result[T]":
+            result: "CacheManager.Result[T]" = CacheManager.Result()
             result.data = data
             return result
 
@@ -216,8 +216,8 @@ class CacheManager(metaclass=Singleton):
             before_download: Callable[[], Any] = None,
             after_download: Callable[[T], Any] = None,
             on_cancel: Callable[[], Any] = None,
-        ) -> 'CacheManager.Result[T]':
-            result: 'CacheManager.Result[T]' = CacheManager.Result()
+        ) -> "CacheManager.Result[T]":
+            result: "CacheManager.Result[T]" = CacheManager.Result()
 
             def future_fn() -> T:
                 if before_download:
@@ -229,7 +229,8 @@ class CacheManager(metaclass=Singleton):
 
             if after_download is not None:
                 result.future.add_done_callback(
-                    lambda f: after_download and after_download(f.result()))
+                    lambda f: after_download and after_download(f.result())
+                )
 
             return result
 
@@ -240,8 +241,8 @@ class CacheManager(metaclass=Singleton):
                 return self.future.result()
 
             raise Exception(
-                'CacheManager.Result did not have either a data or future '
-                'member.')
+                "CacheManager.Result did not have either a data or future " "member."
+            )
 
         def add_done_callback(self, fn: Callable, *args):
             if self.future is not None:
@@ -268,11 +269,11 @@ class CacheManager(metaclass=Singleton):
 
     @staticmethod
     def shutdown():
-        logging.info('CacheManager shutdown start')
+        logging.info("CacheManager shutdown start")
         CacheManager.should_exit = True
         CacheManager.executor.shutdown()
         CacheManager._instance.save_cache_info()
-        logging.info('CacheManager shutdown complete')
+        logging.info("CacheManager shutdown complete")
 
     class CacheEncoder(json.JSONEncoder):
         def default(self, obj: Any) -> Optional[Union[int, List, Dict]]:
@@ -331,7 +332,8 @@ class CacheManager(metaclass=Singleton):
                 disable_cert_verify=self.app_config.server.disable_cert_verify,
             )
             self.download_limiter_semaphore = threading.Semaphore(
-                self.app_config.concurrent_download_limit)
+                self.app_config.concurrent_download_limit
+            )
 
             self.load_cache_info()
 
@@ -346,7 +348,7 @@ class CacheManager(metaclass=Singleton):
             if not self.nmclient_initialized:
                 # Only look at the active WiFi connections.
                 for ac in self.networkmanager_client.get_active_connections():
-                    if ac.get_connection_type() != '802-11-wireless':
+                    if ac.get_connection_type() != "802-11-wireless":
                         continue
                     devs = ac.get_devices()
                     if len(devs) != 1:
@@ -359,71 +361,65 @@ class CacheManager(metaclass=Singleton):
             return self._current_ssids
 
         def load_cache_info(self):
-            cache_meta_file = self.calculate_abs_path('.cache_meta')
+            cache_meta_file = self.calculate_abs_path(".cache_meta")
 
             meta_json = {}
             if cache_meta_file.exists():
-                with open(cache_meta_file, 'r') as f:
+                with open(cache_meta_file, "r") as f:
                     try:
                         meta_json = json.load(f)
                     except json.decoder.JSONDecodeError:
                         # Just continue with the default meta_json.
-                        logging.warning(
-                            'Unable to load cache', stack_info=True)
+                        logging.warning("Unable to load cache", stack_info=True)
 
-            cache_version = meta_json.get('version', 0)
+            cache_version = meta_json.get("version", 0)
 
             if cache_version < 1:
-                logging.info('Migrating cache to version 1.')
-                cover_art_re = re.compile(r'(\d+)_(\d+)')
-                abs_path = self.calculate_abs_path('cover_art/')
+                logging.info("Migrating cache to version 1.")
+                cover_art_re = re.compile(r"(\d+)_(\d+)")
+                abs_path = self.calculate_abs_path("cover_art/")
                 abs_path.mkdir(parents=True, exist_ok=True)
                 for cover_art_file in abs_path.iterdir():
                     match = cover_art_re.match(cover_art_file.name)
                     if match:
                         art_id, dimensions = map(int, match.groups())
                         if dimensions == 1000:
-                            no_dimens = cover_art_file.parent.joinpath(
-                                '{art_id}')
-                            logging.debug(
-                                f'Moving {cover_art_file} to {no_dimens}')
+                            no_dimens = cover_art_file.parent.joinpath("{art_id}")
+                            logging.debug(f"Moving {cover_art_file} to {no_dimens}")
                             shutil.move(cover_art_file, no_dimens)
                         else:
-                            logging.debug(f'Deleting {cover_art_file}')
+                            logging.debug(f"Deleting {cover_art_file}")
                             cover_art_file.unlink()
 
-            self.cache['version'] = 1
+            self.cache["version"] = 1
 
             cache_configs = [
                 # Playlists
-                ('playlists', Playlist, list),
-                ('playlist_details', PlaylistWithSongs, dict),
-                ('genres', Genre, list),
-                ('song_details', Child, dict),
-
+                ("playlists", Playlist, list),
+                ("playlist_details", PlaylistWithSongs, dict),
+                ("genres", Genre, list),
+                ("song_details", Child, dict),
                 # Non-ID3 caches
-                ('music_directories', Directory, dict),
-                ('indexes', Artist, list),
-
+                ("music_directories", Directory, dict),
+                ("indexes", Artist, list),
                 # ID3 caches
-                ('albums', AlbumWithSongsID3, 'dict-list'),
-                ('album_details', AlbumWithSongsID3, dict),
-                ('artists', ArtistID3, list),
-                ('artist_details', ArtistWithAlbumsID3, dict),
-                ('artist_infos', ArtistInfo2, dict),
+                ("albums", AlbumWithSongsID3, "dict-list"),
+                ("album_details", AlbumWithSongsID3, dict),
+                ("artists", ArtistID3, list),
+                ("artist_details", ArtistWithAlbumsID3, dict),
+                ("artist_infos", ArtistInfo2, dict),
             ]
             for name, type_name, default in cache_configs:
                 if default == list:
                     self.cache[name] = [
-                        type_name.from_json(x)
-                        for x in meta_json.get(name) or []
+                        type_name.from_json(x) for x in meta_json.get(name) or []
                     ]
                 elif default == dict:
                     self.cache[name] = {
                         id: type_name.from_json(x)
                         for id, x in (meta_json.get(name) or {}).items()
                     }
-                elif default == 'dict-list':
+                elif default == "dict-list":
                     self.cache[name] = {
                         n: [type_name.from_json(x) for x in xs]
                         for n, xs in (meta_json.get(name) or {}).items()
@@ -432,46 +428,43 @@ class CacheManager(metaclass=Singleton):
         def save_cache_info(self):
             os.makedirs(self.app_config.cache_location, exist_ok=True)
 
-            cache_meta_file = self.calculate_abs_path('.cache_meta')
+            cache_meta_file = self.calculate_abs_path(".cache_meta")
             os.makedirs(os.path.dirname(cache_meta_file), exist_ok=True)
-            with open(cache_meta_file, 'w+') as f, self.cache_lock:
-                f.write(
-                    json.dumps(
-                        self.cache, indent=2, cls=CacheManager.CacheEncoder))
+            with open(cache_meta_file, "w+") as f, self.cache_lock:
+                f.write(json.dumps(self.cache, indent=2, cls=CacheManager.CacheEncoder))
 
         def save_file(self, absolute_path: Path, data: bytes):
             # Make the necessary directories and write to file.
             os.makedirs(absolute_path.parent, exist_ok=True)
-            with open(absolute_path, 'wb+') as f:
+            with open(absolute_path, "wb+") as f:
                 f.write(data)
 
         def calculate_abs_path(self, *relative_paths) -> Path:
             assert self.app_config.server is not None
             return Path(self.app_config.cache_location).joinpath(
-                self.app_config.server.strhash(), *relative_paths)
+                self.app_config.server.strhash(), *relative_paths
+            )
 
         def calculate_download_path(self, *relative_paths) -> Path:
             """
             Determine where to temporarily put the file as it is downloading.
             """
             assert self.app_config.server is not None
-            xdg_cache_home = (
-                os.environ.get('XDG_CACHE_HOME')
-                or os.path.expanduser('~/.cache'))
+            xdg_cache_home = os.environ.get("XDG_CACHE_HOME") or os.path.expanduser(
+                "~/.cache"
+            )
             return Path(xdg_cache_home).joinpath(
-                'sublime-music',
-                self.app_config.server.strhash(),
-                *relative_paths,
+                "sublime-music", self.app_config.server.strhash(), *relative_paths,
             )
 
         def return_cached_or_download(
-                self,
-                relative_path: Union[Path, str],
-                download_fn: Callable[[], bytes],
-                before_download: Callable[[], None] = lambda: None,
-                force: bool = False,
-                allow_download: bool = True,
-        ) -> 'CacheManager.Result[str]':
+            self,
+            relative_path: Union[Path, str],
+            download_fn: Callable[[], bytes],
+            before_download: Callable[[], None] = lambda: None,
+            force: bool = False,
+            allow_download: bool = True,
+        ) -> "CacheManager.Result[str]":
             abs_path = self.calculate_abs_path(relative_path)
             abs_path_str = str(abs_path)
             download_path = self.calculate_download_path(relative_path)
@@ -480,7 +473,7 @@ class CacheManager(metaclass=Singleton):
                 return CacheManager.Result.from_data(abs_path_str)
 
             if not allow_download:
-                return CacheManager.Result.from_data('')
+                return CacheManager.Result.from_data("")
 
             def do_download() -> str:
                 resource_downloading = False
@@ -491,14 +484,14 @@ class CacheManager(metaclass=Singleton):
                     self.current_downloads.add(abs_path_str)
 
                 if resource_downloading:
-                    logging.info(f'{abs_path} already being downloaded.')
+                    logging.info(f"{abs_path} already being downloaded.")
                     # The resource is already being downloaded. Busy loop until
                     # it has completed. Then, just return the path to the
                     # resource.
                     while abs_path_str in self.current_downloads:
                         sleep(0.2)
                 else:
-                    logging.info(f'{abs_path} not found. Downloading...')
+                    logging.info(f"{abs_path} not found. Downloading...")
 
                     os.makedirs(download_path.parent, exist_ok=True)
                     try:
@@ -512,7 +505,7 @@ class CacheManager(metaclass=Singleton):
                     if download_path.exists():
                         shutil.move(str(download_path), abs_path)
 
-                logging.info(f'{abs_path} downloaded. Returning.')
+                logging.info(f"{abs_path} downloaded. Returning.")
                 return abs_path_str
 
             def after_download(path: str):
@@ -531,7 +524,7 @@ class CacheManager(metaclass=Singleton):
             return CacheManager.executor.submit(fn, *args)
 
         def delete_cached_cover_art(self, id: int):
-            relative_path = f'cover_art/*{id}*'
+            relative_path = f"cover_art/*{id}*"
 
             abs_path = self.calculate_abs_path(relative_path)
 
@@ -542,14 +535,13 @@ class CacheManager(metaclass=Singleton):
             self,
             before_download: Callable[[], None] = lambda: None,
             force: bool = False,
-        ) -> 'CacheManager.Result[List[Playlist]]':
-            if self.cache.get('playlists') and not force:
-                return CacheManager.Result.from_data(
-                    self.cache['playlists'] or [])
+        ) -> "CacheManager.Result[List[Playlist]]":
+            if self.cache.get("playlists") and not force:
+                return CacheManager.Result.from_data(self.cache["playlists"] or [])
 
             def after_download(playlists: List[Playlist]):
                 with self.cache_lock:
-                    self.cache['playlists'] = playlists
+                    self.cache["playlists"] = playlists
                 self.save_cache_info()
 
             return CacheManager.Result.from_server(
@@ -559,11 +551,11 @@ class CacheManager(metaclass=Singleton):
             )
 
         def invalidate_playlists_cache(self):
-            if not self.cache.get('playlists'):
+            if not self.cache.get("playlists"):
                 return
 
             with self.cache_lock:
-                self.cache['playlists'] = []
+                self.cache["playlists"] = []
             self.save_cache_info()
 
         def get_playlist(
@@ -571,19 +563,18 @@ class CacheManager(metaclass=Singleton):
             playlist_id: int,
             before_download: Callable[[], None] = lambda: None,
             force: bool = False,
-        ) -> 'CacheManager.Result[PlaylistWithSongs]':
-            playlist_details = self.cache.get('playlist_details', {})
+        ) -> "CacheManager.Result[PlaylistWithSongs]":
+            playlist_details = self.cache.get("playlist_details", {})
             if playlist_id in playlist_details and not force:
-                return CacheManager.Result.from_data(
-                    playlist_details[playlist_id])
+                return CacheManager.Result.from_data(playlist_details[playlist_id])
 
             def after_download(playlist: PlaylistWithSongs):
                 with self.cache_lock:
-                    self.cache['playlist_details'][playlist_id] = playlist
+                    self.cache["playlist_details"][playlist_id] = playlist
 
                     # Playlists have the song details, so save those too.
-                    for song in (playlist.entry or []):
-                        self.cache['song_details'][song.id] = song
+                    for song in playlist.entry or []:
+                        self.cache["song_details"][song.id] = song
 
                 self.save_cache_info()
 
@@ -608,7 +599,7 @@ class CacheManager(metaclass=Singleton):
             def do_update_playlist():
                 self.server.update_playlist(playlist_id, *args, **kwargs)
                 with self.cache_lock:
-                    del self.cache['playlist_details'][playlist_id]
+                    del self.cache["playlist_details"][playlist_id]
 
             return CacheManager.create_future(do_update_playlist)
 
@@ -616,8 +607,8 @@ class CacheManager(metaclass=Singleton):
             self,
             before_download: Callable[[], None] = lambda: None,
             force: bool = False,
-        ) -> 'CacheManager.Result[List[ArtistID3]]':
-            cache_name = 'artists'
+        ) -> "CacheManager.Result[List[ArtistID3]]":
+            cache_name = "artists"
 
             if self.cache.get(cache_name) and not force:
                 return CacheManager.Result.from_data(self.cache[cache_name])
@@ -644,12 +635,11 @@ class CacheManager(metaclass=Singleton):
             artist_id: int,
             before_download: Callable[[], None] = lambda: None,
             force: bool = False,
-        ) -> 'CacheManager.Result[ArtistWithAlbumsID3]':
-            cache_name = 'artist_details'
+        ) -> "CacheManager.Result[ArtistWithAlbumsID3]":
+            cache_name = "artist_details"
 
             if artist_id in self.cache.get(cache_name, {}) and not force:
-                return CacheManager.Result.from_data(
-                    self.cache[cache_name][artist_id])
+                return CacheManager.Result.from_data(self.cache[cache_name][artist_id])
 
             def after_download(artist: ArtistWithAlbumsID3):
                 with self.cache_lock:
@@ -663,11 +653,11 @@ class CacheManager(metaclass=Singleton):
             )
 
         def get_indexes(
-                self,
-                before_download: Callable[[], None] = lambda: None,
-                force: bool = False,
-        ) -> 'CacheManager.Result[List[Artist]]':
-            cache_name = 'indexes'
+            self,
+            before_download: Callable[[], None] = lambda: None,
+            force: bool = False,
+        ) -> "CacheManager.Result[List[Artist]]":
+            cache_name = "indexes"
 
             if self.cache.get(cache_name) and not force:
                 return CacheManager.Result.from_data(self.cache[cache_name])
@@ -690,16 +680,15 @@ class CacheManager(metaclass=Singleton):
             )
 
         def get_music_directory(
-                self,
-                id: int,
-                before_download: Callable[[], None] = lambda: None,
-                force: bool = False,
-        ) -> 'CacheManager.Result[Directory]':
-            cache_name = 'music_directories'
+            self,
+            id: int,
+            before_download: Callable[[], None] = lambda: None,
+            force: bool = False,
+        ) -> "CacheManager.Result[Directory]":
+            cache_name = "music_directories"
 
             if id in self.cache.get(cache_name, {}) and not force:
-                return CacheManager.Result.from_data(
-                    self.cache[cache_name][id])
+                return CacheManager.Result.from_data(self.cache[cache_name][id])
 
             def after_download(directory: Directory):
                 with self.cache_lock:
@@ -713,16 +702,15 @@ class CacheManager(metaclass=Singleton):
             )
 
         def get_artist_info(
-                self,
-                artist_id: int,
-                before_download: Callable[[], None] = lambda: None,
-                force: bool = False,
-        ) -> 'CacheManager.Result[ArtistInfo2]':
-            cache_name = 'artist_infos'
+            self,
+            artist_id: int,
+            before_download: Callable[[], None] = lambda: None,
+            force: bool = False,
+        ) -> "CacheManager.Result[ArtistInfo2]":
+            cache_name = "artist_infos"
 
             if artist_id in self.cache.get(cache_name, {}) and not force:
-                return CacheManager.Result.from_data(
-                    self.cache[cache_name][artist_id])
+                return CacheManager.Result.from_data(self.cache[cache_name][artist_id])
 
             def after_download(artist_info: ArtistInfo2):
                 if not artist_info:
@@ -733,59 +721,63 @@ class CacheManager(metaclass=Singleton):
                 self.save_cache_info()
 
             return CacheManager.Result.from_server(
-                lambda:
-                (self.server.get_artist_info2(id=artist_id) or ArtistInfo2()),
+                lambda: (self.server.get_artist_info2(id=artist_id) or ArtistInfo2()),
                 before_download=before_download,
                 after_download=after_download,
             )
 
         def get_artist_artwork(
-                self,
-                artist: Union[Artist, ArtistID3],
-                before_download: Callable[[], None] = lambda: None,
-                force: bool = False,
-        ) -> 'CacheManager.Result[str]':
+            self,
+            artist: Union[Artist, ArtistID3],
+            before_download: Callable[[], None] = lambda: None,
+            force: bool = False,
+        ) -> "CacheManager.Result[str]":
             def do_get_artist_artwork(
-                    artist_info: ArtistInfo2) -> 'CacheManager.Result[str]':
-                lastfm_url = ''.join(artist_info.largeImageUrl or [])
+                artist_info: ArtistInfo2,
+            ) -> "CacheManager.Result[str]":
+                lastfm_url = "".join(artist_info.largeImageUrl or [])
 
-                is_placeholder = lastfm_url == ''
+                is_placeholder = lastfm_url == ""
                 is_placeholder |= lastfm_url.endswith(
-                    '2a96cbd8b46e442fc41c2b86b821562f.png')
+                    "2a96cbd8b46e442fc41c2b86b821562f.png"
+                )
                 is_placeholder |= lastfm_url.endswith(
-                    '1024px-No_image_available.svg.png')
+                    "1024px-No_image_available.svg.png"
+                )
 
                 # If it is the placeholder LastFM image, try and use the cover
                 # art filename given by the server.
                 if is_placeholder:
                     if isinstance(artist, (ArtistWithAlbumsID3, ArtistID3)):
                         if artist.coverArt:
+                            return CacheManager.get_cover_art_filename(artist.coverArt)
+                        elif (
+                            isinstance(artist, ArtistWithAlbumsID3)
+                            and artist.album
+                            and len(artist.album) > 0
+                        ):
                             return CacheManager.get_cover_art_filename(
-                                artist.coverArt)
-                        elif (isinstance(artist, ArtistWithAlbumsID3)
-                              and artist.album and len(artist.album) > 0):
-                            return CacheManager.get_cover_art_filename(
-                                artist.album[0].coverArt)
+                                artist.album[0].coverArt
+                            )
 
-                    elif (isinstance(artist, Directory)
-                          and len(artist.child) > 0):
+                    elif isinstance(artist, Directory) and len(artist.child) > 0:
                         # Retrieve the first album's cover art
                         return CacheManager.get_cover_art_filename(
-                            artist.child[0].coverArt)
+                            artist.child[0].coverArt
+                        )
 
-                if lastfm_url == '':
-                    return CacheManager.Result.from_data('')
+                if lastfm_url == "":
+                    return CacheManager.Result.from_data("")
 
-                url_hash = hashlib.md5(lastfm_url.encode('utf-8')).hexdigest()
+                url_hash = hashlib.md5(lastfm_url.encode("utf-8")).hexdigest()
                 return self.return_cached_or_download(
-                    f'cover_art/artist.{url_hash}',
+                    f"cover_art/artist.{url_hash}",
                     lambda: requests.get(lastfm_url).content,
                     before_download=before_download,
                     force=force,
                 )
 
-            def download_fn(
-                    artist_info: CacheManager.Result[ArtistInfo2]) -> str:
+            def download_fn(artist_info: CacheManager.Result[ArtistInfo2]) -> str:
                 # In this case, artist_info is a future, so we have to wait for
                 # its result before calculating. Then, immediately unwrap the
                 # result() because we are already within a future.
@@ -794,8 +786,7 @@ class CacheManager(metaclass=Singleton):
             artist_info = CacheManager.get_artist_info(artist.id)
             if artist_info.is_future:
                 return CacheManager.Result.from_server(
-                    lambda: download_fn(artist_info),
-                    before_download=before_download,
+                    lambda: download_fn(artist_info), before_download=before_download,
                 )
             else:
                 return do_get_artist_artwork(artist_info.result())
@@ -807,27 +798,22 @@ class CacheManager(metaclass=Singleton):
             force: bool = False,
             # Look at documentation for get_album_list in server.py:
             **params,
-        ) -> 'CacheManager.Result[List[AlbumID3]]':
-            cache_name = 'albums'
+        ) -> "CacheManager.Result[List[AlbumID3]]":
+            cache_name = "albums"
 
-            if (len(self.cache.get(cache_name, {}).get(type_, [])) > 0
-                    and not force):
-                return CacheManager.Result.from_data(
-                    self.cache[cache_name][type_])
+            if len(self.cache.get(cache_name, {}).get(type_, [])) > 0 and not force:
+                return CacheManager.Result.from_data(self.cache[cache_name][type_])
 
             def do_get_album_list() -> List[AlbumID3]:
-                def get_page(
-                        offset: int,
-                        page_size: int = 500,
-                ) -> List[AlbumID3]:
-                    return self.server.get_album_list2(
-                        type_,
-                        size=page_size,
-                        offset=offset,
-                        **params,
-                    ).album or []
+                def get_page(offset: int, page_size: int = 500,) -> List[AlbumID3]:
+                    return (
+                        self.server.get_album_list2(
+                            type_, size=page_size, offset=offset, **params,
+                        ).album
+                        or []
+                    )
 
-                page_size = 40 if type_ == 'random' else 500
+                page_size = 40 if type_ == "random" else 500
                 offset = 0
 
                 next_page = get_page(offset, page_size=page_size)
@@ -859,20 +845,19 @@ class CacheManager(metaclass=Singleton):
             album_id: int,
             before_download: Callable[[], None] = lambda: None,
             force: bool = False,
-        ) -> 'CacheManager.Result[AlbumWithSongsID3]':
-            cache_name = 'album_details'
+        ) -> "CacheManager.Result[AlbumWithSongsID3]":
+            cache_name = "album_details"
 
             if album_id in self.cache.get(cache_name, {}) and not force:
-                return CacheManager.Result.from_data(
-                    self.cache[cache_name][album_id])
+                return CacheManager.Result.from_data(self.cache[cache_name][album_id])
 
             def after_download(album: AlbumWithSongsID3):
                 with self.cache_lock:
                     self.cache[cache_name][album_id] = album
 
                     # Albums have the song details as well, so save those too.
-                    for song in album.get('song', []):
-                        self.cache['song_details'][song.id] = song
+                    for song in album.get("song", []):
+                        self.cache["song_details"][song.id] = song
                 self.save_cache_info()
 
             return CacheManager.Result.from_server(
@@ -882,9 +867,7 @@ class CacheManager(metaclass=Singleton):
             )
 
         def batch_delete_cached_songs(
-                self,
-                song_ids: List[int],
-                on_song_delete: Callable[[], None],
+            self, song_ids: List[int], on_song_delete: Callable[[], None],
         ) -> Future:
             def do_delete_cached_songs():
                 # Do the actual download.
@@ -899,10 +882,10 @@ class CacheManager(metaclass=Singleton):
             return CacheManager.create_future(do_delete_cached_songs)
 
         def batch_download_songs(
-                self,
-                song_ids: List[int],
-                before_download: Callable[[], None],
-                on_song_download_complete: Callable[[], None],
+            self,
+            song_ids: List[int],
+            before_download: Callable[[], None],
+            on_song_download_complete: Callable[[], None],
         ) -> Future:
             def do_download_song(song_id: int):
                 try:
@@ -941,18 +924,19 @@ class CacheManager(metaclass=Singleton):
             return CacheManager.create_future(do_batch_download_songs)
 
         def get_cover_art_filename(
-                self,
-                id: str,
-                before_download: Callable[[], None] = lambda: None,
-                force: bool = False,
-                allow_download: bool = True,
-        ) -> 'CacheManager.Result[str]':
+            self,
+            id: str,
+            before_download: Callable[[], None] = lambda: None,
+            force: bool = False,
+            allow_download: bool = True,
+        ) -> "CacheManager.Result[str]":
             if id is None:
-                default_art_path = 'ui/images/default-album-art.png'
+                default_art_path = "ui/images/default-album-art.png"
                 return CacheManager.Result.from_data(
-                    str(Path(__file__).parent.joinpath(default_art_path)))
+                    str(Path(__file__).parent.joinpath(default_art_path))
+                )
             return self.return_cached_or_download(
-                f'cover_art/{id}',
+                f"cover_art/{id}",
                 lambda: self.server.get_cover_art(id),
                 before_download=before_download,
                 force=force,
@@ -960,15 +944,14 @@ class CacheManager(metaclass=Singleton):
             )
 
         def get_song_details(
-                self,
-                song_id: int,
-                before_download: Callable[[], None] = lambda: None,
-                force: bool = False,
-        ) -> 'CacheManager.Result[Child]':
-            cache_name = 'song_details'
+            self,
+            song_id: int,
+            before_download: Callable[[], None] = lambda: None,
+            force: bool = False,
+        ) -> "CacheManager.Result[Child]":
+            cache_name = "song_details"
             if self.cache[cache_name].get(song_id) and not force:
-                return CacheManager.Result.from_data(
-                    self.cache[cache_name][song_id])
+                return CacheManager.Result.from_data(self.cache[cache_name][song_id])
 
             def after_download(song_details: Child):
                 with self.cache_lock:
@@ -985,13 +968,11 @@ class CacheManager(metaclass=Singleton):
             return CacheManager.create_future(self.server.get_play_queue)
 
         def save_play_queue(
-            self,
-            play_queue: List[str],
-            current: str,
-            position: float,
+            self, play_queue: List[str], current: str, position: float,
         ):
             CacheManager.create_future(
-                self.server.save_play_queue, play_queue, current, position)
+                self.server.save_play_queue, play_queue, current, position
+            )
 
         def scrobble(self, song_id: int) -> Future:
             def do_scrobble():
@@ -1000,10 +981,7 @@ class CacheManager(metaclass=Singleton):
             return CacheManager.create_future(do_scrobble)
 
         def get_song_filename_or_stream(
-                self,
-                song: Child,
-                format: str = None,
-                force_stream: bool = False,
+            self, song: Child, format: str = None, force_stream: bool = False,
         ) -> Tuple[str, bool]:
             abs_path = self.calculate_abs_path(song.path)
             if abs_path.exists() and not force_stream:
@@ -1011,16 +989,16 @@ class CacheManager(metaclass=Singleton):
             return (self.server.get_stream_url(song.id, format=format), True)
 
         def get_genres(
-                self,
-                before_download: Callable[[], None] = lambda: None,
-                force: bool = False,
-        ) -> 'CacheManager.Result[List[Genre]]':
-            if self.cache.get('genres') and not force:
-                return CacheManager.Result.from_data(self.cache['genres'])
+            self,
+            before_download: Callable[[], None] = lambda: None,
+            force: bool = False,
+        ) -> "CacheManager.Result[List[Genre]]":
+            if self.cache.get("genres") and not force:
+                return CacheManager.Result.from_data(self.cache["genres"])
 
             def after_download(genres: List[Genre]):
                 with self.cache_lock:
-                    self.cache['genres'] = genres
+                    self.cache["genres"] = genres
                 self.save_cache_info()
 
             return CacheManager.Result.from_server(
@@ -1034,9 +1012,9 @@ class CacheManager(metaclass=Singleton):
             query: str,
             search_callback: Callable[[SearchResult, bool], None],
             before_download: Callable[[], None] = lambda: None,
-        ) -> 'CacheManager.Result':
-            if query == '':
-                search_callback(SearchResult(''), True)
+        ) -> "CacheManager.Result":
+            if query == "":
+                search_callback(SearchResult(""), True)
                 return CacheManager.Result.from_data(None)
 
             before_download()
@@ -1058,11 +1036,11 @@ class CacheManager(metaclass=Singleton):
                 # Local Results
                 search_result = SearchResult(query)
                 search_result.add_results(
-                    'album', itertools.chain(*self.cache['albums'].values()))
-                search_result.add_results('artist', self.cache['artists'])
-                search_result.add_results(
-                    'song', self.cache['song_details'].values())
-                search_result.add_results('playlist', self.cache['playlists'])
+                    "album", itertools.chain(*self.cache["albums"].values())
+                )
+                search_result.add_results("artist", self.cache["artists"])
+                search_result.add_results("song", self.cache["song_details"].values())
+                search_result.add_results("playlist", self.cache["playlists"])
                 search_callback(search_result, False)
 
                 # Wait longer to see if the user types anything else so we
@@ -1078,9 +1056,9 @@ class CacheManager(metaclass=Singleton):
                     # SearchResult. If it fails, that's fine, we will use the
                     # finally to always return a final SearchResult to the UI.
                     server_result = search_fn(query)
-                    search_result.add_results('album', server_result.album)
-                    search_result.add_results('artist', server_result.artist)
-                    search_result.add_results('song', server_result.song)
+                    search_result.add_results("album", server_result.album)
+                    search_result.add_results("artist", server_result.artist)
+                    search_result.add_results("song", server_result.song)
                 except Exception:
                     # We really don't care about what the exception was (could
                     # be connection error, could be invalid JSON, etc.) because
@@ -1095,8 +1073,7 @@ class CacheManager(metaclass=Singleton):
                 nonlocal cancelled
                 cancelled = True
 
-            return CacheManager.Result.from_server(
-                do_search, on_cancel=on_cancel)
+            return CacheManager.Result.from_server(do_search, on_cancel=on_cancel)
 
         def get_cached_status(self, song: Child) -> SongCacheStatus:
             cache_path = self.calculate_abs_path(song.path)
@@ -1113,10 +1090,9 @@ class CacheManager(metaclass=Singleton):
     _instance: Optional[__CacheManagerInternal] = None
 
     def __init__(self):
-        raise Exception('Do not instantiate the CacheManager.')
+        raise Exception("Do not instantiate the CacheManager.")
 
     @staticmethod
     def reset(app_config: AppConfiguration):
-        CacheManager._instance = CacheManager.__CacheManagerInternal(
-            app_config)
+        CacheManager._instance = CacheManager.__CacheManagerInternal(app_config)
         similarity_ratio.cache_clear()

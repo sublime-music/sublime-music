@@ -1,3 +1,3 @@
-from .manager import DBusManager, dbus_propagate
+from .manager import dbus_propagate, DBusManager
 
-__all__ = ('DBusManager', 'dbus_propagate')
+__all__ = ("dbus_propagate", "DBusManager")

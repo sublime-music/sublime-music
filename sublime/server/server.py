@@ -61,9 +61,10 @@ class Server:
     * The ``server`` module is stateless. The only thing that it does is allow
       the module's user to query the \\*sonic server via the API.
     """
+
     class SubsonicServerError(Exception):
-        def __init__(self: 'Server.SubsonicServerError', error: Error):
-            super().__init__(f'{error.code}: {error.message}')
+        def __init__(self: "Server.SubsonicServerError", error: Error):
+            super().__init__(f"{error.code}: {error.message}")
 
     def __init__(
         self,
@@ -82,26 +83,27 @@ class Server:
     def _get_params(self) -> Dict[str, str]:
         """See Subsonic API Introduction for details."""
         return {
-            'u': self.username,
-            'p': self.password,
-            'c': 'Sublime Music',
-            'f': 'json',
-            'v': '1.15.0',
+            "u": self.username,
+            "p": self.password,
+            "c": "Sublime Music",
+            "f": "json",
+            "v": "1.15.0",
         }
 
     def _make_url(self, endpoint: str) -> str:
-        return f'{self.hostname}/rest/{endpoint}.view'
+        return f"{self.hostname}/rest/{endpoint}.view"
 
     # def _get(self, url, timeout=(3.05, 2), **params):
     def _get(self, url: str, **params) -> Any:
         params = {**self._get_params(), **params}
-        logging.info(f'[START] get: {url}')
+        logging.info(f"[START] get: {url}")
 
-        if os.environ.get('SUBLIME_MUSIC_DEBUG_DELAY'):
+        if os.environ.get("SUBLIME_MUSIC_DEBUG_DELAY"):
             logging.info(
                 "SUBLIME_MUSIC_DEBUG_DELAY enabled. Pausing for "
-                f"{os.environ['SUBLIME_MUSIC_DEBUG_DELAY']} seconds.")
-            sleep(float(os.environ['SUBLIME_MUSIC_DEBUG_DELAY']))
+                f"{os.environ['SUBLIME_MUSIC_DEBUG_DELAY']} seconds."
+            )
+            sleep(float(os.environ["SUBLIME_MUSIC_DEBUG_DELAY"]))
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():
@@ -116,15 +118,13 @@ class Server:
         )
         # TODO (#122): make better
         if result.status_code != 200:
-            raise Exception(f'[FAIL] get: {url} status={result.status_code}')
+            raise Exception(f"[FAIL] get: {url} status={result.status_code}")
 
-        logging.info(f'[FINISH] get: {url}')
+        logging.info(f"[FINISH] get: {url}")
         return result
 
     def _get_json(
-        self,
-        url: str,
-        **params: Union[None, str, datetime, int, List[int]],
+        self, url: str, **params: Union[None, str, datetime, int, List[int]],
     ) -> Response:
         """
         Make a get request to a *Sonic REST API. Handle all types of errors
@@ -135,18 +135,18 @@ class Server:
         :raises Exception: needs some work TODO
         """
         result = self._get(url, **params)
-        subsonic_response = result.json().get('subsonic-response')
+        subsonic_response = result.json().get("subsonic-response")
 
         # TODO (#122):  make better
         if not subsonic_response:
-            raise Exception(f'[FAIL] get: invalid JSON from {url}')
+            raise Exception(f"[FAIL] get: invalid JSON from {url}")
 
-        if subsonic_response['status'] == 'failed':
+        if subsonic_response["status"] == "failed":
             code, message = (
-                subsonic_response['error'].get('code'),
-                subsonic_response['error'].get('message'),
+                subsonic_response["error"].get("code"),
+                subsonic_response["error"].get("message"),
             )
-            raise Exception(f'Subsonic API Error #{code}: {message}')
+            raise Exception(f"Subsonic API Error #{code}: {message}")
 
         response = Response.from_json(subsonic_response)
 
@@ -159,8 +159,8 @@ class Server:
     def do_download(self, url: str, **params) -> bytes:
         download = self._get(url, **params)
         if not download:
-            raise Exception('Download failed')
-        if 'json' in download.headers.get('Content-Type'):
+            raise Exception("Download failed")
+        if "json" in download.headers.get("Content-Type"):
             # TODO (#122): make better
             raise Exception("Didn't expect JSON.")
         return download.content
@@ -169,20 +169,18 @@ class Server:
         """
         Used to test connectivity with the server.
         """
-        return self._get_json(self._make_url('ping'))
+        return self._get_json(self._make_url("ping"))
 
     def get_license(self) -> License:
         """Get details about the software license."""
-        return self._get_json(self._make_url('getLicense')).license
+        return self._get_json(self._make_url("getLicense")).license
 
     def get_music_folders(self) -> MusicFolders:
         """Returns all configured top-level music folders."""
-        return self._get_json(self._make_url('getMusicFolders')).musicFolders
+        return self._get_json(self._make_url("getMusicFolders")).musicFolders
 
     def get_indexes(
-            self,
-            music_folder_id: int = None,
-            if_modified_since: int = None,
+        self, music_folder_id: int = None, if_modified_since: int = None,
     ) -> Indexes:
         """
         Returns an indexed structure of all artists.
@@ -193,7 +191,7 @@ class Server:
             artist collection has changed since the given time.
         """
         result = self._get_json(
-            self._make_url('getIndexes'),
+            self._make_url("getIndexes"),
             musicFolderId=music_folder_id,
             ifModifiedSince=if_modified_since,
         )
@@ -207,15 +205,12 @@ class Server:
         :param dir_id: A string which uniquely identifies the music folder.
             Obtained by calls to ``getIndexes`` or ``getMusicDirectory``.
         """
-        result = self._get_json(
-            self._make_url('getMusicDirectory'),
-            id=str(dir_id),
-        )
+        result = self._get_json(self._make_url("getMusicDirectory"), id=str(dir_id),)
         return result.directory
 
     def get_genres(self) -> Genres:
         """Returns all genres."""
-        return self._get_json(self._make_url('getGenres')).genres
+        return self._get_json(self._make_url("getGenres")).genres
 
     def get_artists(self, music_folder_id: int = None) -> ArtistsID3:
         """
@@ -225,8 +220,7 @@ class Server:
             folder with the given ID. See ``getMusicFolders``.
         """
         result = self._get_json(
-            self._make_url('getArtists'),
-            musicFolderId=music_folder_id,
+            self._make_url("getArtists"), musicFolderId=music_folder_id,
         )
         return result.artists
 
@@ -237,7 +231,7 @@ class Server:
 
         :param artist_id: The artist ID.
         """
-        return self._get_json(self._make_url('getArtist'), id=artist_id).artist
+        return self._get_json(self._make_url("getArtist"), id=artist_id).artist
 
     def get_album(self, album_id: int) -> AlbumWithSongsID3:
         """
@@ -246,7 +240,7 @@ class Server:
 
         :param album_id: The album ID.
         """
-        return self._get_json(self._make_url('getAlbum'), id=album_id).album
+        return self._get_json(self._make_url("getAlbum"), id=album_id).album
 
     def get_song(self, song_id: int) -> Child:
         """
@@ -254,13 +248,13 @@ class Server:
 
         :param song_id: The song ID.
         """
-        return self._get_json(self._make_url('getSong'), id=song_id).song
+        return self._get_json(self._make_url("getSong"), id=song_id).song
 
     def get_videos(self) -> Optional[List[Child]]:
         """
         Returns all video files.
         """
-        return self._get_json(self._make_url('getVideos')).videos.video
+        return self._get_json(self._make_url("getVideos")).videos.video
 
     def get_video_info(self, video_id: int) -> Optional[VideoInfo]:
         """
@@ -269,14 +263,11 @@ class Server:
 
         :param video_id: The video ID.
         """
-        result = self._get_json(self._make_url('getVideoInfo'), id=video_id)
+        result = self._get_json(self._make_url("getVideoInfo"), id=video_id)
         return result.videoInfo
 
     def get_artist_info(
-            self,
-            id: int,
-            count: int = None,
-            include_not_present: bool = None,
+        self, id: int, count: int = None, include_not_present: bool = None,
     ) -> Optional[ArtistInfo]:
         """
         Returns artist info with biography, image URLs and similar artists,
@@ -290,7 +281,7 @@ class Server:
             Spec.
         """
         result = self._get_json(
-            self._make_url('getArtistInfo'),
+            self._make_url("getArtistInfo"),
             id=id,
             count=count,
             includeNotPresent=include_not_present,
@@ -298,10 +289,7 @@ class Server:
         return result.artistInfo
 
     def get_artist_info2(
-            self,
-            id: int,
-            count: int = None,
-            include_not_present: bool = None,
+        self, id: int, count: int = None, include_not_present: bool = None,
     ) -> Optional[ArtistInfo2]:
         """
         Similar to getArtistInfo, but organizes music according to ID3 tags.
@@ -314,7 +302,7 @@ class Server:
             Spec.
         """
         result = self._get_json(
-            self._make_url('getArtistInfo2'),
+            self._make_url("getArtistInfo2"),
             id=id,
             count=count,
             includeNotPresent=include_not_present,
@@ -327,7 +315,7 @@ class Server:
 
         :param id: The album or song ID.
         """
-        result = self._get_json(self._make_url('getAlbumInfo'), id=id)
+        result = self._get_json(self._make_url("getAlbumInfo"), id=id)
         return result.albumInfo
 
     def get_album_info2(self, id: int) -> Optional[AlbumInfo]:
@@ -336,7 +324,7 @@ class Server:
 
         :param id: The album or song ID.
         """
-        result = self._get_json(self._make_url('getAlbumInfo2'), id=id)
+        result = self._get_json(self._make_url("getAlbumInfo2"), id=id)
         return result.albumInfo
 
     def get_similar_songs(self, id: int, count: int = None) -> List[Child]:
@@ -349,11 +337,7 @@ class Server:
         :param count: Max number of songs to return. Defaults to 50 according
             to API Spec.
         """
-        result = self._get_json(
-            self._make_url('getSimilarSongs'),
-            id=id,
-            count=count,
-        )
+        result = self._get_json(self._make_url("getSimilarSongs"), id=id, count=count,)
         return result.similarSongs.song
 
     def get_similar_songs2(self, id: int, count: int = None) -> List[Child]:
@@ -364,11 +348,7 @@ class Server:
         :param count: Max number of songs to return. Defaults to 50 according
             to API Spec.
         """
-        result = self._get_json(
-            self._make_url('getSimilarSongs2'),
-            id=id,
-            count=count,
-        )
+        result = self._get_json(self._make_url("getSimilarSongs2"), id=id, count=count,)
         return result.similarSongs2.song
 
     def get_top_songs(self, artist: str, count: int = None) -> List[Child]:
@@ -380,21 +360,19 @@ class Server:
             to API Spec.
         """
         result = self._get_json(
-            self._make_url('getTopSongs'),
-            artist=artist,
-            count=count,
+            self._make_url("getTopSongs"), artist=artist, count=count,
         )
         return result.topSongs.song
 
     def get_album_list(
-            self,
-            type: str,
-            size: int = None,
-            offset: int = None,
-            from_year: int = None,
-            to_year: int = None,
-            genre: str = None,
-            music_folder_id: int = None,
+        self,
+        type: str,
+        size: int = None,
+        offset: int = None,
+        from_year: int = None,
+        to_year: int = None,
+        genre: str = None,
+        music_folder_id: int = None,
     ) -> AlbumList:
         """
         Returns a list of random, newest, highest rated etc. albums. Similar to
@@ -422,7 +400,7 @@ class Server:
             folder with the given ID. See ``getMusicFolders``.
         """
         result = self._get_json(
-            self._make_url('getAlbumList'),
+            self._make_url("getAlbumList"),
             type=type,
             size=size,
             offset=offset,
@@ -434,14 +412,14 @@ class Server:
         return result.albumList
 
     def get_album_list2(
-            self,
-            type: str,
-            size: int = None,
-            offset: int = None,
-            from_year: int = None,
-            to_year: int = None,
-            genre: str = None,
-            music_folder_id: int = None,
+        self,
+        type: str,
+        size: int = None,
+        offset: int = None,
+        from_year: int = None,
+        to_year: int = None,
+        genre: str = None,
+        music_folder_id: int = None,
     ) -> AlbumList2:
         """
         Similar to getAlbumList, but organizes music according to ID3 tags.
@@ -467,7 +445,7 @@ class Server:
             folder with the given ID. See ``getMusicFolders``.
         """
         result = self._get_json(
-            self._make_url('getAlbumList2'),
+            self._make_url("getAlbumList2"),
             type=type,
             size=size,
             offset=offset,
@@ -479,12 +457,12 @@ class Server:
         return result.albumList2
 
     def get_random_songs(
-            self,
-            size: int = None,
-            genre: str = None,
-            from_year: str = None,
-            to_year: str = None,
-            music_folder_id: int = None,
+        self,
+        size: int = None,
+        genre: str = None,
+        from_year: str = None,
+        to_year: str = None,
+        music_folder_id: int = None,
     ) -> Songs:
         """
         Returns random songs matching the given criteria.
@@ -498,7 +476,7 @@ class Server:
             given ID. See ``getMusicFolders``.
         """
         result = self._get_json(
-            self._make_url('getRandomSongs'),
+            self._make_url("getRandomSongs"),
             size=size,
             genre=genre,
             fromYear=from_year,
@@ -508,11 +486,11 @@ class Server:
         return result.randomSongs
 
     def get_songs_by_genre(
-            self,
-            genre: str,
-            count: int = None,
-            offset: int = None,
-            music_folder_id: int = None,
+        self,
+        genre: str,
+        count: int = None,
+        offset: int = None,
+        music_folder_id: int = None,
     ) -> Songs:
         """
         Returns songs in a given genre.
@@ -526,7 +504,7 @@ class Server:
             folder with the given ID. See ``getMusicFolders``.
         """
         result = self._get_json(
-            self._make_url('getSongsByGenre'),
+            self._make_url("getSongsByGenre"),
             genre=genre,
             count=count,
             offset=offset,
@@ -539,7 +517,7 @@ class Server:
         Returns what is currently being played by all users. Takes no extra
         parameters.
         """
-        return self._get_json(self._make_url('getNowPlaying')).nowPlaying
+        return self._get_json(self._make_url("getNowPlaying")).nowPlaying
 
     def get_starred(self, music_folder_id: int = None) -> Starred:
         """
@@ -549,8 +527,7 @@ class Server:
             music folder with the given ID. See ``getMusicFolders``.
         """
         result = self._get_json(
-            self._make_url('getStarred'),
-            musicFolderId=music_folder_id,
+            self._make_url("getStarred"), musicFolderId=music_folder_id,
         )
         return result.starred
 
@@ -562,21 +539,20 @@ class Server:
             music folder with the given ID. See ``getMusicFolders``.
         """
         result = self._get_json(
-            self._make_url('getStarred2'),
-            musicFolderId=music_folder_id,
+            self._make_url("getStarred2"), musicFolderId=music_folder_id,
         )
         return result.starred2
 
-    @deprecated(version='1.4.0', reason='You should use search2 instead.')
+    @deprecated(version="1.4.0", reason="You should use search2 instead.")
     def search(
-            self,
-            artist: str = None,
-            album: str = None,
-            title: str = None,
-            any: str = None,
-            count: int = None,
-            offset: int = None,
-            newer_than: datetime = None,
+        self,
+        artist: str = None,
+        album: str = None,
+        title: str = None,
+        any: str = None,
+        count: int = None,
+        offset: int = None,
+        newer_than: datetime = None,
     ) -> SearchResult:
         """
         Returns a listing of files matching the given search criteria. Supports
@@ -591,28 +567,27 @@ class Server:
         :param newer_than: Only return matches that are newer than this.
         """
         result = self._get_json(
-            self._make_url('search'),
+            self._make_url("search"),
             artist=artist,
             album=album,
             title=title,
             any=any,
             count=count,
             offset=offset,
-            newerThan=math.floor(newer_than.timestamp()
-                                 * 1000) if newer_than else None,
+            newerThan=math.floor(newer_than.timestamp() * 1000) if newer_than else None,
         )
         return result.searchResult
 
     def search2(
-            self,
-            query: str,
-            artist_count: int = None,
-            artist_offset: int = None,
-            album_count: int = None,
-            album_offset: int = None,
-            song_count: int = None,
-            song_offset: int = None,
-            music_folder_id: int = None,
+        self,
+        query: str,
+        artist_count: int = None,
+        artist_offset: int = None,
+        album_count: int = None,
+        album_offset: int = None,
+        song_count: int = None,
+        song_offset: int = None,
+        music_folder_id: int = None,
     ) -> SearchResult2:
         """
         Returns albums, artists and songs matching the given search criteria.
@@ -635,7 +610,7 @@ class Server:
             music folder with the given ID. See ``getMusicFolders``.
         """
         result = self._get_json(
-            self._make_url('search2'),
+            self._make_url("search2"),
             query=query,
             artistCount=artist_count,
             artistOffset=artist_offset,
@@ -648,15 +623,15 @@ class Server:
         return result.searchResult2
 
     def search3(
-            self,
-            query: str,
-            artist_count: int = None,
-            artist_offset: int = None,
-            album_count: int = None,
-            album_offset: int = None,
-            song_count: int = None,
-            song_offset: int = None,
-            music_folder_id: int = None,
+        self,
+        query: str,
+        artist_count: int = None,
+        artist_offset: int = None,
+        album_count: int = None,
+        album_offset: int = None,
+        song_count: int = None,
+        song_offset: int = None,
+        music_folder_id: int = None,
     ) -> SearchResult3:
         """
         Similar to search2, but organizes music according to ID3 tags.
@@ -678,7 +653,7 @@ class Server:
             music folder with the given ID. See ``getMusicFolders``.
         """
         result = self._get_json(
-            self._make_url('search3'),
+            self._make_url("search3"),
             query=query,
             artistCount=artist_count,
             artistOffset=artist_offset,
@@ -698,10 +673,7 @@ class Server:
             user rather than for the authenticated user. The authenticated user
             must have admin role if this parameter is used.
         """
-        result = self._get_json(
-            self._make_url('getPlaylists'),
-            username=username,
-        )
+        result = self._get_json(self._make_url("getPlaylists"), username=username,)
         return result.playlists
 
     def get_playlist(self, id: int) -> PlaylistWithSongs:
@@ -711,7 +683,7 @@ class Server:
         :param username: ID of the playlist to return, as obtained by
             ``getPlaylists``.
         """
-        result = self._get_json(self._make_url('getPlaylist'), id=id)
+        result = self._get_json(self._make_url("getPlaylist"), id=id)
         return result.playlist
 
     def create_playlist(
@@ -730,7 +702,7 @@ class Server:
             a list of IDs.
         """
         result = self._get_json(
-            self._make_url('createPlaylist'),
+            self._make_url("createPlaylist"),
             playlistId=playlist_id,
             name=name,
             songId=song_id,
@@ -739,13 +711,13 @@ class Server:
         return result.playlist or result
 
     def update_playlist(
-            self,
-            playlist_id: int,
-            name: str = None,
-            comment: str = None,
-            public: bool = None,
-            song_id_to_add: Union[int, List[int]] = None,
-            song_index_to_remove: Union[int, List[int]] = None,
+        self,
+        playlist_id: int,
+        name: str = None,
+        comment: str = None,
+        public: bool = None,
+        song_id_to_add: Union[int, List[int]] = None,
+        song_index_to_remove: Union[int, List[int]] = None,
     ) -> Response:
         """
         Updates a playlist. Only the owner of a playlist is allowed to update
@@ -762,7 +734,7 @@ class Server:
             the playlist. Can be a single ID or a list of IDs.
         """
         return self._get_json(
-            self._make_url('updatePlaylist'),
+            self._make_url("updatePlaylist"),
             playlistId=playlist_id,
             name=name,
             comment=comment,
@@ -773,17 +745,17 @@ class Server:
 
     def delete_playlist(self, id: int) -> Response:
         """Deletes a saved playlist."""
-        return self._get_json(self._make_url('deletePlaylist'), id=id)
+        return self._get_json(self._make_url("deletePlaylist"), id=id)
 
     def get_stream_url(
-            self,
-            id: str,
-            max_bit_rate: int = None,
-            format: str = None,
-            time_offset: int = None,
-            size: int = None,
-            estimate_content_length: bool = False,
-            converted: bool = False,
+        self,
+        id: str,
+        max_bit_rate: int = None,
+        format: str = None,
+        time_offset: int = None,
+        size: int = None,
+        estimate_content_length: bool = False,
+        converted: bool = False,
     ) -> str:
         """
         Gets the URL to stream a given file.
@@ -824,7 +796,7 @@ class Server:
             converted=converted,
         )
         params = {k: v for k, v in params.items() if v}
-        return self._make_url('stream') + '?' + urlencode(params)
+        return self._make_url("stream") + "?" + urlencode(params)
 
     def download(self, id: str) -> bytes:
         """
@@ -834,7 +806,7 @@ class Server:
         :param id: A string which uniquely identifies the file to stream.
             Obtained by calls to ``getMusicDirectory``.
         """
-        return self.do_download(self._make_url('download'), id=id)
+        return self.do_download(self._make_url("download"), id=id)
 
     def get_cover_art(self, id: str, size: int = 1000) -> bytes:
         """
@@ -843,11 +815,7 @@ class Server:
         :param id: The ID of a song, album or artist.
         :param size: If specified, scale image to this size.
         """
-        return self.do_download(
-            self._make_url('getCoverArt'),
-            id=id,
-            size=size,
-        )
+        return self.do_download(self._make_url("getCoverArt"), id=id, size=size,)
 
     def get_cover_art_url(self, id: str, size: int = 1000) -> str:
         """
@@ -858,7 +826,7 @@ class Server:
         """
         params = dict(**self._get_params(), id=id, size=size)
         params = {k: v for k, v in params.items() if v}
-        return self._make_url('getCoverArt') + '?' + urlencode(params)
+        return self._make_url("getCoverArt") + "?" + urlencode(params)
 
     def get_lyrics(self, artist: str = None, title: str = None) -> Lyrics:
         """
@@ -868,9 +836,7 @@ class Server:
         :param title: The song title.
         """
         result = self._get_json(
-            self._make_url('getLyrics'),
-            artist=artist,
-            title=title,
+            self._make_url("getLyrics"), artist=artist, title=title,
         )
         return result.lyrics
 
@@ -880,13 +846,13 @@ class Server:
 
         :param username: the user in question.
         """
-        return self.do_download(self._make_url('getAvatar'), username=username)
+        return self.do_download(self._make_url("getAvatar"), username=username)
 
     def star(
-            self,
-            id: Union[int, List[int]] = None,
-            album_id: Union[int, List[int]] = None,
-            artist_id: Union[int, List[int]] = None,
+        self,
+        id: Union[int, List[int]] = None,
+        album_id: Union[int, List[int]] = None,
+        artist_id: Union[int, List[int]] = None,
     ) -> Response:
         """
         Attaches a star to a song, album or artist.
@@ -903,17 +869,14 @@ class Server:
             ID or a list of IDs.
         """
         return self._get_json(
-            self._make_url('star'),
-            id=id,
-            albumId=album_id,
-            artistId=artist_id,
+            self._make_url("star"), id=id, albumId=album_id, artistId=artist_id,
         )
 
     def unstar(
-            self,
-            id: Union[int, List[int]] = None,
-            album_id: Union[int, List[int]] = None,
-            artist_id: Union[int, List[int]] = None,
+        self,
+        id: Union[int, List[int]] = None,
+        album_id: Union[int, List[int]] = None,
+        artist_id: Union[int, List[int]] = None,
     ) -> Response:
         """
         Removes the star from a song, album or artist.
@@ -930,10 +893,7 @@ class Server:
             ID or a list of IDs.
         """
         return self._get_json(
-            self._make_url('unstar'),
-            id=id,
-            albumId=album_id,
-            artistId=artist_id,
+            self._make_url("unstar"), id=id, albumId=album_id, artistId=artist_id,
         )
 
     def set_rating(self, id: int, rating: int) -> Response:
@@ -945,17 +905,10 @@ class Server:
         :param rating: The rating between 1 and 5 (inclusive), or 0 to remove
             the rating.
         """
-        return self._get_json(
-            self._make_url('setRating'),
-            id=id,
-            rating=rating,
-        )
+        return self._get_json(self._make_url("setRating"), id=id, rating=rating,)
 
     def scrobble(
-            self,
-            id: int,
-            time: datetime = None,
-            submission: bool = True,
+        self, id: int, time: datetime = None, submission: bool = True,
     ) -> Response:
         """
         Registers the local playback of one or more media files. Typically used
@@ -980,10 +933,7 @@ class Server:
             notification.
         """
         return self._get_json(
-            self._make_url('scrobble'),
-            id=id,
-            time=time,
-            submission=submission,
+            self._make_url("scrobble"), id=id, time=time, submission=submission,
         )
 
     def get_shares(self) -> Shares:
@@ -991,13 +941,13 @@ class Server:
         Returns information about shared media this user is allowed to manage.
         Takes no extra parameters.
         """
-        return self._get_json(self._make_url('getShares')).shares
+        return self._get_json(self._make_url("getShares")).shares
 
     def create_share(
-            self,
-            id: Union[int, List[int]],
-            description: str = None,
-            expires: datetime = None,
+        self,
+        id: Union[int, List[int]],
+        description: str = None,
+        expires: datetime = None,
     ) -> Shares:
         """
         Creates a public URL that can be used by anyone to stream music or
@@ -1013,7 +963,7 @@ class Server:
         :param expires: The time at which the share expires.
         """
         result = self._get_json(
-            self._make_url('createShare'),
+            self._make_url("createShare"),
             id=id,
             description=description,
             expires=expires,
@@ -1021,10 +971,7 @@ class Server:
         return result.shares
 
     def update_share(
-            self,
-            id: int,
-            description: str = None,
-            expires: datetime = None,
+        self, id: int, description: str = None, expires: datetime = None,
     ) -> Response:
         """
         Updates the description and/or expiration date for an existing share.
@@ -1035,7 +982,7 @@ class Server:
         :param expires: The time at which the share expires.
         """
         return self._get_json(
-            self._make_url('updateShare'),
+            self._make_url("updateShare"),
             id=id,
             description=description,
             expires=expires,
@@ -1047,18 +994,15 @@ class Server:
 
         :param id: ID of the share to delete.
         """
-        return self._get_json(self._make_url('deleteShare'), id=id)
+        return self._get_json(self._make_url("deleteShare"), id=id)
 
     def get_internet_radio_stations(self) -> InternetRadioStations:
         """Returns all internet radio stations."""
-        result = self._get_json(self._make_url('getInternetRadioStations'))
+        result = self._get_json(self._make_url("getInternetRadioStations"))
         return result.internetRadioStations
 
     def create_internet_radio_station(
-            self,
-            stream_url: str,
-            name: str,
-            homepage_url: str = None,
+        self, stream_url: str, name: str, homepage_url: str = None,
     ) -> Response:
         """
         Adds a new internet radio station. Only users with admin privileges are
@@ -1069,18 +1013,14 @@ class Server:
         :param homepage_url: The home page URL for the station.
         """
         return self._get_json(
-            self._make_url('createInternetRadioStation'),
+            self._make_url("createInternetRadioStation"),
             streamUrl=stream_url,
             name=name,
             homepageUrl=homepage_url,
         )
 
     def update_internet_radio_station(
-            self,
-            id: int,
-            stream_url: str,
-            name: str,
-            homepage_url: str = None,
+        self, id: int, stream_url: str, name: str, homepage_url: str = None,
     ) -> Response:
         """
         Updates an existing internet radio station. Only users with admin
@@ -1092,7 +1032,7 @@ class Server:
         :param homepage_url: The home page URL for the station.
         """
         return self._get_json(
-            self._make_url('updateInternetRadioStation'),
+            self._make_url("updateInternetRadioStation"),
             id=id,
             streamUrl=stream_url,
             name=name,
@@ -1106,10 +1046,7 @@ class Server:
 
         :param id: The ID for the station.
         """
-        return self._get_json(
-            self._make_url('deleteInternetRadioStation'),
-            id=id,
-        )
+        return self._get_json(self._make_url("deleteInternetRadioStation"), id=id,)
 
     def get_user(self, username: str) -> User:
         """
@@ -1120,7 +1057,7 @@ class Server:
         :param username: The name of the user to retrieve. You can only
             retrieve your own user unless you have admin privileges.
         """
-        result = self._get_json(self._make_url('getUser'), username=username)
+        result = self._get_json(self._make_url("getUser"), username=username)
         return result.user
 
     def get_users(self) -> Users:
@@ -1129,27 +1066,27 @@ class Server:
         folder access they have. Only users with admin privileges are allowed
         to call this method.
         """
-        return self._get_json(self._make_url('getUsers')).users
+        return self._get_json(self._make_url("getUsers")).users
 
     def create_user(
-            self,
-            username: str,
-            password: str,
-            email: str,
-            ldap_authenticated: bool = False,
-            admin_role: bool = False,
-            settings_role: bool = True,
-            stream_role: bool = True,
-            jukebox_role: bool = False,
-            download_role: bool = False,
-            upload_role: bool = False,
-            playlist_role: bool = False,
-            covert_art_role: bool = False,
-            comment_role: bool = False,
-            podcast_role: bool = False,
-            share_role: bool = False,
-            video_conversion_role: bool = False,
-            music_folder_id: Union[int, List[int]] = None,
+        self,
+        username: str,
+        password: str,
+        email: str,
+        ldap_authenticated: bool = False,
+        admin_role: bool = False,
+        settings_role: bool = True,
+        stream_role: bool = True,
+        jukebox_role: bool = False,
+        download_role: bool = False,
+        upload_role: bool = False,
+        playlist_role: bool = False,
+        covert_art_role: bool = False,
+        comment_role: bool = False,
+        podcast_role: bool = False,
+        share_role: bool = False,
+        video_conversion_role: bool = False,
+        music_folder_id: Union[int, List[int]] = None,
     ) -> Response:
         """
         Creates a new Subsonic user.
@@ -1183,7 +1120,7 @@ class Server:
             user is allowed access to. Can be a single ID or a list of IDs.
         """
         return self._get_json(
-            self._make_url('createUser'),
+            self._make_url("createUser"),
             username=username,
             password=password,
             email=email,
@@ -1204,24 +1141,24 @@ class Server:
         )
 
     def update_user(
-            self,
-            username: str,
-            password: str = None,
-            email: str = None,
-            ldap_authenticated: bool = False,
-            admin_role: bool = False,
-            settings_role: bool = True,
-            stream_role: bool = True,
-            jukebox_role: bool = False,
-            download_role: bool = False,
-            upload_role: bool = False,
-            playlist_role: bool = False,
-            covert_art_role: bool = False,
-            comment_role: bool = False,
-            podcast_role: bool = False,
-            share_role: bool = False,
-            video_conversion_role: bool = False,
-            music_folder_id: Union[int, List[int]] = None,
+        self,
+        username: str,
+        password: str = None,
+        email: str = None,
+        ldap_authenticated: bool = False,
+        admin_role: bool = False,
+        settings_role: bool = True,
+        stream_role: bool = True,
+        jukebox_role: bool = False,
+        download_role: bool = False,
+        upload_role: bool = False,
+        playlist_role: bool = False,
+        covert_art_role: bool = False,
+        comment_role: bool = False,
+        podcast_role: bool = False,
+        share_role: bool = False,
+        video_conversion_role: bool = False,
+        music_folder_id: Union[int, List[int]] = None,
     ) -> Response:
         """
         Modifies an existing Subsonic user.
@@ -1255,7 +1192,7 @@ class Server:
             user is allowed access to. Can be a single ID or a list of IDs.
         """
         return self._get_json(
-            self._make_url('updateUser'),
+            self._make_url("updateUser"),
             username=username,
             password=password,
             email=email,
@@ -1281,7 +1218,7 @@ class Server:
 
         :param username: The name of the new user.
         """
-        return self._get_json(self._make_url('deleteUser'), username=username)
+        return self._get_json(self._make_url("deleteUser"), username=username)
 
     def change_password(self, username: str, password: str) -> Response:
         """
@@ -1293,9 +1230,7 @@ class Server:
             of hex-encoded.
         """
         return self._get_json(
-            self._make_url('changePassword'),
-            username=username,
-            password=password,
+            self._make_url("changePassword"), username=username, password=password,
         )
 
     def get_bookmarks(self) -> Bookmarks:
@@ -1303,13 +1238,10 @@ class Server:
         Returns all bookmarks for this user. A bookmark is a position within a
         certain media file.
         """
-        return self._get_json(self._make_url('getBookmarks')).bookmarks
+        return self._get_json(self._make_url("getBookmarks")).bookmarks
 
     def create_bookmarks(
-            self,
-            id: int,
-            position: int,
-            comment: str = None,
+        self, id: int, position: int, comment: str = None,
     ) -> Response:
         """
         Creates or updates a bookmark (a position within a media file).
@@ -1321,10 +1253,7 @@ class Server:
         :param comment: A user-defined comment.
         """
         return self._get_json(
-            self._make_url('createBookmark'),
-            id=id,
-            position=position,
-            comment=comment,
+            self._make_url("createBookmark"), id=id, position=position, comment=comment,
         )
 
     def delete_bookmark(self, id: int) -> Response:
@@ -1334,7 +1263,7 @@ class Server:
         :param id: ID of the media file for which to delete the bookmark. Other
             users' bookmarks are not affected.
         """
-        return self._get_json(self._make_url('deleteBookmark'), id=id)
+        return self._get_json(self._make_url("deleteBookmark"), id=id)
 
     def get_play_queue(self) -> Optional[PlayQueue]:
         """
@@ -1345,13 +1274,10 @@ class Server:
         retaining the same play queue (for instance when listening to an audio
         book).
         """
-        return self._get_json(self._make_url('getPlayQueue')).playQueue
+        return self._get_json(self._make_url("getPlayQueue")).playQueue
 
     def save_play_queue(
-            self,
-            id: Union[int, List[int]],
-            current: int = None,
-            position: int = None,
+        self, id: Union[int, List[int]], current: int = None, position: int = None,
     ) -> Response:
         """
         Saves the state of the play queue for this user. This includes the
@@ -1367,10 +1293,7 @@ class Server:
             playing song.
         """
         return self._get_json(
-            self._make_url('savePlayQueue'),
-            id=id,
-            current=current,
-            position=position,
+            self._make_url("savePlayQueue"), id=id, current=current, position=position,
         )
 
     def get_scan_status(self) -> ScanStatus:
@@ -1378,10 +1301,10 @@ class Server:
         Returns the current status for media library scanning. Takes no extra
         parameters.
         """
-        return self._get_json(self._make_url('getScanStatus')).scanStatus
+        return self._get_json(self._make_url("getScanStatus")).scanStatus
 
     def start_scan(self) -> ScanStatus:
         """
         Initiates a rescan of the media libraries. Takes no extra parameters.
         """
-        return self._get_json(self._make_url('startScan')).scanStatus
+        return self._get_json(self._make_url("startScan")).scanStatus

@@ -8,6 +8,7 @@ from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
 from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
 
+from sublime.adapters import AdapterManager
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.players import Player
@@ -15,9 +16,8 @@ from sublime.ui.state import RepeatType
 
 
 def dbus_propagate(param_self: Any = None) -> Callable:
-    """
-    Wraps a function which causes changes to DBus properties.
-    """
+    """Wraps a function which causes changes to DBus properties."""
+
     def decorator(function: Callable) -> Callable:
         @functools.wraps(function)
         def wrapper(*args):
@@ -38,19 +38,22 @@ class DBusManager:
     def __init__(
         self,
         connection: Gio.DBusConnection,
-        do_on_method_call: Callable[[
-            Gio.DBusConnection,
-            str,
-            str,
-            str,
-            str,
-            GLib.Variant,
-            Gio.DBusMethodInvocation,
-        ], None],
+        do_on_method_call: Callable[
+            [
+                Gio.DBusConnection,
+                str,
+                str,
+                str,
+                str,
+                GLib.Variant,
+                Gio.DBusMethodInvocation,
+            ],
+            None,
+        ],
         on_set_property: Callable[
-            [Gio.DBusConnection, str, str, str, str, GLib.Variant], None],
-        get_config_and_player: Callable[[], Tuple[AppConfiguration,
-                                                  Optional[Player]]],
+            [Gio.DBusConnection, str, str, str, str, GLib.Variant], None
+        ],
+        get_config_and_player: Callable[[], Tuple[AppConfiguration, Optional[Player]]],
     ):
         self.get_config_and_player = get_config_and_player
         self.do_on_method_call = do_on_method_call
@@ -59,21 +62,20 @@ class DBusManager:
 
         def dbus_name_acquired(connection: Gio.DBusConnection, name: str):
             specs = [
-                'org.mpris.MediaPlayer2.xml',
-                'org.mpris.MediaPlayer2.Player.xml',
-                'org.mpris.MediaPlayer2.Playlists.xml',
-                'org.mpris.MediaPlayer2.TrackList.xml',
+                "org.mpris.MediaPlayer2.xml",
+                "org.mpris.MediaPlayer2.Player.xml",
+                "org.mpris.MediaPlayer2.Playlists.xml",
+                "org.mpris.MediaPlayer2.TrackList.xml",
             ]
             for spec in specs:
                 spec_path = os.path.join(
-                    os.path.dirname(__file__),
-                    f'mpris_specs/{spec}',
+                    os.path.dirname(__file__), f"mpris_specs/{spec}",
                 )
                 with open(spec_path) as f:
                     node_info = Gio.DBusNodeInfo.new_for_xml(f.read())
 
                 connection.register_object(
-                    '/org/mpris/MediaPlayer2',
+                    "/org/mpris/MediaPlayer2",
                     node_info.interfaces[0],
                     self.on_method_call,
                     self.on_get_property,
@@ -86,7 +88,7 @@ class DBusManager:
 
         self.bus_number = Gio.bus_own_name_on_connection(
             connection,
-            'org.mpris.MediaPlayer2.sublimemusic',
+            "org.mpris.MediaPlayer2.sublimemusic",
             Gio.BusNameOwnerFlags.NONE,
             dbus_name_acquired,
             dbus_name_lost,
@@ -96,12 +98,12 @@ class DBusManager:
         Gio.bus_unown_name(self.bus_number)
 
     def on_get_property(
-            self,
-            connection: Gio.DBusConnection,
-            sender: str,
-            path: str,
-            interface: str,
-            property_name: str,
+        self,
+        connection: Gio.DBusConnection,
+        sender: str,
+        path: str,
+        interface: str,
+        property_name: str,
     ) -> GLib.Variant:
         value = self.property_dict().get(interface, {}).get(property_name)
         return DBusManager.to_variant(value)
@@ -120,31 +122,23 @@ class DBusManager:
             return
 
         # TODO (#127): I don't even know if this works.
-        if interface == 'org.freedesktop.DBus.Properties':
-            if method == 'Get':
+        if interface == "org.freedesktop.DBus.Properties":
+            if method == "Get":
                 invocation.return_value(
-                    self.on_get_property(
-                        connection, sender, path, interface, *params))
-            elif method == 'Set':
-                self.on_set_property(
-                    connection, sender, path, interface, *params)
-            elif method == 'GetAll':
+                    self.on_get_property(connection, sender, path, interface, *params)
+                )
+            elif method == "Set":
+                self.on_set_property(connection, sender, path, interface, *params)
+            elif method == "GetAll":
                 all_properties = {
                     k: DBusManager.to_variant(v)
                     for k, v in self.property_dict()[interface].items()
                 }
-                invocation.return_value(
-                    GLib.Variant('(a{sv})', (all_properties, )))
+                invocation.return_value(GLib.Variant("(a{sv})", (all_properties,)))
 
             return
         self.do_on_method_call(
-            connection,
-            sender,
-            path,
-            interface,
-            method,
-            params,
-            invocation,
+            connection, sender, path, interface, method, params, invocation,
         )
 
     @staticmethod
@@ -160,18 +154,12 @@ class DBusManager:
 
         if type(value) == dict:
             return GLib.Variant(
-                'a{sv}',
-                {k: DBusManager.to_variant(v)
-                 for k, v in value.items()},
+                "a{sv}", {k: DBusManager.to_variant(v) for k, v in value.items()},
             )
 
-        variant_type = {
-            list: 'as',
-            str: 's',
-            int: 'i',
-            float: 'd',
-            bool: 'b',
-        }.get(type(value))
+        variant_type = {list: "as", str: "s", int: "i", float: "d", bool: "b"}.get(
+            type(value)
+        )
         if not variant_type:
             return value
         return GLib.Variant(variant_type, value)
@@ -183,113 +171,97 @@ class DBusManager:
         state = config.state
         has_current_song = state.current_song is not None
         has_next_song = False
-        if state.repeat_type in (RepeatType.REPEAT_QUEUE,
-                                 RepeatType.REPEAT_SONG):
+        if state.repeat_type in (RepeatType.REPEAT_QUEUE, RepeatType.REPEAT_SONG):
             has_next_song = True
         elif has_current_song:
-            has_next_song = (
-                state.current_song_index < len(state.play_queue) - 1)
+            has_next_song = state.current_song_index < len(state.play_queue) - 1
 
         if state.active_playlist_id is None:
-            active_playlist = (False, GLib.Variant('(oss)', ('/', '', '')))
+            active_playlist = (False, GLib.Variant("(oss)", ("/", "", "")))
         else:
-            playlist_result = CacheManager.get_playlist(
-                state.active_playlist_id)
+            playlist_result = AdapterManager.get_playlist_details(
+                state.active_playlist_id
+            )
 
-            if playlist_result.is_future:
-                # If we have to wait for the playlist result, just return
-                # no playlist.
-                active_playlist = (False, GLib.Variant('(oss)', ('/', '', '')))
-            else:
+            if playlist_result.data_is_available:
                 playlist = playlist_result.result()
 
                 active_playlist = (
                     True,
                     GLib.Variant(
-                        '(oss)',
+                        "(oss)",
                         (
-                            '/playlist/' + playlist.id,
+                            "/playlist/" + playlist.id,
                             playlist.name,
-                            CacheManager.get_cover_art_url(playlist.coverArt),
+                            CacheManager.get_cover_art_url(playlist.cover_art),
                         ),
                     ),
                 )
+            else:
+                # If we have to wait for the playlist result, just return
+                # no playlist.
+                active_playlist = (False, GLib.Variant("(oss)", ("/", "", "")))
 
-        get_playlists_result = CacheManager.get_playlists()
-        if get_playlists_result.is_future:
-            playlist_count = 0
-        else:
+        get_playlists_result = AdapterManager.get_playlists()
+        if get_playlists_result.data_is_available:
             playlist_count = len(get_playlists_result.result())
+        else:
+            playlist_count = 0
 
         return {
-            'org.mpris.MediaPlayer2': {
-                'CanQuit': True,
-                'CanRaise': True,
-                'HasTrackList': True,
-                'Identity': 'Sublime Music',
-                'DesktopEntry': 'sublime-music',
-                'SupportedUriSchemes': [],
-                'SupportedMimeTypes': [],
+            "org.mpris.MediaPlayer2": {
+                "CanQuit": True,
+                "CanRaise": True,
+                "HasTrackList": True,
+                "Identity": "Sublime Music",
+                "DesktopEntry": "sublime-music",
+                "SupportedUriSchemes": [],
+                "SupportedMimeTypes": [],
             },
-            'org.mpris.MediaPlayer2.Player': {
-                'PlaybackStatus': {
-                    (False, False): 'Stopped',
-                    (False, True): 'Stopped',
-                    (True, False): 'Paused',
-                    (True, True): 'Playing',
+            "org.mpris.MediaPlayer2.Player": {
+                "PlaybackStatus": {
+                    (False, False): "Stopped",
+                    (False, True): "Stopped",
+                    (True, False): "Paused",
+                    (True, True): "Playing",
                 }[player is not None and player.song_loaded, state.playing],
-                'LoopStatus':
-                state.repeat_type.as_mpris_loop_status(),
-                'Rate':
-                1.0,
-                'Shuffle':
-                state.shuffle_on,
-                'Metadata':
-                self.get_mpris_metadata(
-                    state.current_song_index,
-                    state.play_queue,
-                ) if state.current_song else {},
-                'Volume':
-                0.0 if state.is_muted else state.volume / 100,
-                'Position': (
-                    'x',
+                "LoopStatus": state.repeat_type.as_mpris_loop_status(),
+                "Rate": 1.0,
+                "Shuffle": state.shuffle_on,
+                "Metadata": self.get_mpris_metadata(
+                    state.current_song_index, state.play_queue,
+                )
+                if state.current_song
+                else {},
+                "Volume": 0.0 if state.is_muted else state.volume / 100,
+                "Position": (
+                    "x",
                     int(
                         max(state.song_progress or 0, 0)
-                        * self.second_microsecond_conversion),
+                        * self.second_microsecond_conversion
+                    ),
                 ),
-                'MinimumRate':
-                1.0,
-                'MaximumRate':
-                1.0,
-                'CanGoNext':
-                has_current_song and has_next_song,
-                'CanGoPrevious':
-                has_current_song,
-                'CanPlay':
-                True,
-                'CanPause':
-                True,
-                'CanSeek':
-                True,
-                'CanControl':
-                True,
+                "MinimumRate": 1.0,
+                "MaximumRate": 1.0,
+                "CanGoNext": has_current_song and has_next_song,
+                "CanGoPrevious": has_current_song,
+                "CanPlay": True,
+                "CanPause": True,
+                "CanSeek": True,
+                "CanControl": True,
             },
-            'org.mpris.MediaPlayer2.TrackList': {
-                'Tracks': self.get_dbus_playlist(state.play_queue),
-                'CanEditTracks': False,
+            "org.mpris.MediaPlayer2.TrackList": {
+                "Tracks": self.get_dbus_playlist(state.play_queue),
+                "CanEditTracks": False,
             },
-            'org.mpris.MediaPlayer2.Playlists': {
-                'PlaylistCount': playlist_count,
-                'Orderings': ['Alphabetical', 'Created', 'Modified'],
-                'ActivePlaylist': ('(b(oss))', active_playlist),
+            "org.mpris.MediaPlayer2.Playlists": {
+                "PlaylistCount": playlist_count,
+                "Orderings": ["Alphabetical", "Created", "Modified"],
+                "ActivePlaylist": ("(b(oss))", active_playlist),
             },
         }
 
-    def get_mpris_metadata(
-            self,
-            idx: int,
-            play_queue: List[str],
-    ) -> Dict[str, Any]:
+    def get_mpris_metadata(self, idx: int, play_queue: List[str],) -> Dict[str, Any]:
         song_result = CacheManager.get_song_details(play_queue[idx])
         if song_result.is_future:
             return {}
@@ -297,18 +269,18 @@ class DBusManager:
 
         trackid = self.get_dbus_playlist(play_queue)[idx]
         duration = (
-            'x',
+            "x",
             (song.duration or 0) * self.second_microsecond_conversion,
         )
 
         return {
-            'mpris:trackid': trackid,
-            'mpris:length': duration,
-            'mpris:artUrl': CacheManager.get_cover_art_url(song.coverArt),
-            'xesam:album': song.album or '',
-            'xesam:albumArtist': [song.artist or ''],
-            'xesam:artist': [song.artist or ''],
-            'xesam:title': song.title,
+            "mpris:trackid": trackid,
+            "mpris:length": duration,
+            "mpris:artUrl": CacheManager.get_cover_art_url(song.coverArt),
+            "xesam:album": song.album or "",
+            "xesam:albumArtist": [song.artist or ""],
+            "xesam:artist": [song.artist or ""],
+            "xesam:title": song.title,
         }
 
     def get_dbus_playlist(self, play_queue: List[str]) -> List[str]:
@@ -316,7 +288,7 @@ class DBusManager:
         tracks = []
         for song_id in play_queue:
             id_ = seen_counts[song_id]
-            tracks.append(f'/song/{song_id}/{id_}')
+            tracks.append(f"/song/{song_id}/{id_}")
             seen_counts[song_id] += 1
 
         return tracks
@@ -329,35 +301,36 @@ class DBusManager:
 
         changes = defaultdict(dict)
 
-        for path, change in diff.get('values_changed', {}).items():
+        for path, change in diff.get("values_changed", {}).items():
             interface, property_name = self.diff_parse_re.match(path).groups()
-            changes[interface][property_name] = change['new_value']
+            changes[interface][property_name] = change["new_value"]
 
-        if diff.get('dictionary_item_added'):
+        if diff.get("dictionary_item_added"):
             changes = new_property_dict
 
         for interface, changed_props in changes.items():
             # If the metadata has changed, just make the entire Metadata object
             # part of the update.
-            if 'Metadata' in changed_props.keys():
-                changed_props['Metadata'] = new_property_dict[interface][
-                    'Metadata']
+            if "Metadata" in changed_props.keys():
+                changed_props["Metadata"] = new_property_dict[interface]["Metadata"]
 
             # Special handling for when the position changes (a seek).
             # Technically, I'm sending this signal too often, but I don't think
             # it really matters.
-            if (interface == 'org.mpris.MediaPlayer2.Player'
-                    and 'Position' in changed_props):
+            if (
+                interface == "org.mpris.MediaPlayer2.Player"
+                and "Position" in changed_props
+            ):
                 self.connection.emit_signal(
                     None,
-                    '/org/mpris/MediaPlayer2',
+                    "/org/mpris/MediaPlayer2",
                     interface,
-                    'Seeked',
-                    GLib.Variant('(x)', (changed_props['Position'][1], )),
+                    "Seeked",
+                    GLib.Variant("(x)", (changed_props["Position"][1],)),
                 )
 
                 # Do not emit the property change.
-                del changed_props['Position']
+                del changed_props["Position"]
 
             # Special handling for when the track list changes.
             # Technically, I'm supposed to use `TrackAdded` and `TrackRemoved`
@@ -370,35 +343,39 @@ class DBusManager:
             #
             # So I think that any change is invasive enough that I should use
             # this signal.
-            if (interface == 'org.mpris.MediaPlayer2.TrackList'
-                    and 'Tracks' in changed_props):
-                track_list = changed_props['Tracks']
+            if (
+                interface == "org.mpris.MediaPlayer2.TrackList"
+                and "Tracks" in changed_props
+            ):
+                track_list = changed_props["Tracks"]
                 if len(track_list) > 0:
-                    current_track = (
-                        new_property_dict['org.mpris.MediaPlayer2.Player']
-                        ['Metadata'].get('mpris:trackid', track_list[0]))
+                    current_track = new_property_dict["org.mpris.MediaPlayer2.Player"][
+                        "Metadata"
+                    ].get("mpris:trackid", track_list[0])
                     self.connection.emit_signal(
                         None,
-                        '/org/mpris/MediaPlayer2',
+                        "/org/mpris/MediaPlayer2",
                         interface,
-                        'TrackListReplaced',
-                        GLib.Variant('(aoo)', (track_list, current_track)),
+                        "TrackListReplaced",
+                        GLib.Variant("(aoo)", (track_list, current_track)),
                     )
 
             self.connection.emit_signal(
                 None,
-                '/org/mpris/MediaPlayer2',
-                'org.freedesktop.DBus.Properties',
-                'PropertiesChanged',
+                "/org/mpris/MediaPlayer2",
+                "org.freedesktop.DBus.Properties",
+                "PropertiesChanged",
                 GLib.Variant(
-                    '(sa{sv}as)', (
+                    "(sa{sv}as)",
+                    (
                         interface,
                         {
                             k: DBusManager.to_variant(v)
                             for k, v in changed_props.items()
                         },
                         [],
-                    )),
+                    ),
+                ),
             )
 
         # Update state for next diff.

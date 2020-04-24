@@ -1,7 +1,8 @@
 from typing import Any, List, Optional, Tuple, Type, Union
 
 import gi
-gi.require_version('Gtk', '3.0')
+
+gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from sublime.cache_manager import CacheManager
@@ -15,12 +16,12 @@ class BrowsePanel(Gtk.Overlay):
     """Defines the arist panel."""
 
     __gsignals__ = {
-        'song-clicked': (
+        "song-clicked": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (int, object, object),
         ),
-        'refresh-window': (
+        "refresh-window": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (object, bool),
@@ -36,19 +37,17 @@ class BrowsePanel(Gtk.Overlay):
 
         self.root_directory_listing = ListAndDrilldown(IndexList)
         self.root_directory_listing.connect(
-            'song-clicked',
-            lambda _, *args: self.emit('song-clicked', *args),
+            "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
         )
         self.root_directory_listing.connect(
-            'refresh-window',
-            lambda _, *args: self.emit('refresh-window', *args),
+            "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
         )
         scrolled_window.add(self.root_directory_listing)
 
         self.add(scrolled_window)
 
         self.spinner = Gtk.Spinner(
-            name='browse-spinner',
+            name="browse-spinner",
             active=True,
             halign=Gtk.Align.CENTER,
             valign=Gtk.Align.CENTER,
@@ -66,9 +65,7 @@ class BrowsePanel(Gtk.Overlay):
                 return
 
             self.root_directory_listing.update(
-                id_stack,
-                app_config=app_config,
-                force=force,
+                id_stack, app_config=app_config, force=force,
             )
             self.spinner.hide()
 
@@ -81,30 +78,25 @@ class BrowsePanel(Gtk.Overlay):
             current_dir_id = app_config.state.selected_browse_element_id
             while directory is None or directory.parent is not None:
                 directory = CacheManager.get_music_directory(
-                    current_dir_id,
-                    before_download=self.spinner.show,
+                    current_dir_id, before_download=self.spinner.show,
                 ).result()
                 id_stack.append(directory.id)
                 current_dir_id = directory.parent
 
             return id_stack, update_order_token
 
-        path_fut = CacheManager.create_future(
-            calculate_path,
-            self.update_order_token,
-        )
-        path_fut.add_done_callback(
-            lambda f: GLib.idle_add(do_update, *f.result()))
+        path_fut = CacheManager.create_future(calculate_path, self.update_order_token,)
+        path_fut.add_done_callback(lambda f: GLib.idle_add(do_update, *f.result()))
 
 
 class ListAndDrilldown(Gtk.Paned):
     __gsignals__ = {
-        'song-clicked': (
+        "song-clicked": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (int, object, object),
         ),
-        'refresh-window': (
+        "refresh-window": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (object, bool),
@@ -118,12 +110,10 @@ class ListAndDrilldown(Gtk.Paned):
 
         self.list = list_type()
         self.list.connect(
-            'song-clicked',
-            lambda _, *args: self.emit('song-clicked', *args),
+            "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
         )
         self.list.connect(
-            'refresh-window',
-            lambda _, *args: self.emit('refresh-window', *args),
+            "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
         )
         self.pack1(self.list, False, False)
 
@@ -149,10 +139,7 @@ class ListAndDrilldown(Gtk.Paned):
             # away the drilldown.
             if isinstance(self.drilldown, ListAndDrilldown):
                 self.drilldown.update(
-                    id_stack[:-1],
-                    app_config,
-                    force=force,
-                    directory_id=id_stack[-1],
+                    id_stack[:-1], app_config, force=force, directory_id=id_stack[-1],
                 )
             return
         self.id_stack = id_stack
@@ -161,18 +148,13 @@ class ListAndDrilldown(Gtk.Paned):
             self.remove(self.drilldown)
             self.drilldown = ListAndDrilldown(MusicDirectoryList)
             self.drilldown.connect(
-                'song-clicked',
-                lambda _, *args: self.emit('song-clicked', *args),
+                "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
             )
             self.drilldown.connect(
-                'refresh-window',
-                lambda _, *args: self.emit('refresh-window', *args),
+                "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
             )
             self.drilldown.update(
-                id_stack[:-1],
-                app_config,
-                force=force,
-                directory_id=id_stack[-1],
+                id_stack[:-1], app_config, force=force, directory_id=id_stack[-1],
             )
             self.drilldown.show_all()
             self.pack2(self.drilldown, True, False)
@@ -180,12 +162,12 @@ class ListAndDrilldown(Gtk.Paned):
 
 class DrilldownList(Gtk.Box):
     __gsignals__ = {
-        'song-clicked': (
+        "song-clicked": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (int, object, object),
         ),
-        'refresh-window': (
+        "refresh-window": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (object, bool),
@@ -200,24 +182,23 @@ class DrilldownList(Gtk.Box):
         def __init__(self, element: Union[Child, Artist]):
             GObject.GObject.__init__(self)
             self.id = element.id
-            self.name = (
-                element.name if isinstance(element, Artist) else element.title)
-            self.is_dir = element.get('isDir', True)
+            self.name = element.name if isinstance(element, Artist) else element.title
+            self.is_dir = element.get("isDir", True)
 
     def __init__(self):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
 
         list_actions = Gtk.ActionBar()
 
-        refresh = IconButton('view-refresh-symbolic', 'Refresh folder')
-        refresh.connect('clicked', self.on_refresh_clicked)
+        refresh = IconButton("view-refresh-symbolic", "Refresh folder")
+        refresh.connect("clicked", self.on_refresh_clicked)
         list_actions.pack_end(refresh)
 
         self.add(list_actions)
 
         self.loading_indicator = Gtk.ListBox()
         spinner_row = Gtk.ListBoxRow(activatable=False, selectable=False)
-        spinner = Gtk.Spinner(name='drilldown-list-spinner', active=True)
+        spinner = Gtk.Spinner(name="drilldown-list-spinner", active=True)
         spinner_row.add(spinner)
         self.loading_indicator.add(spinner_row)
         self.pack_start(self.loading_indicator, False, False, 0)
@@ -231,36 +212,32 @@ class DrilldownList(Gtk.Box):
         scrollbox.add(self.list)
 
         self.directory_song_store = Gtk.ListStore(
-            str,  # cache status
-            str,  # title
-            str,  # duration
-            str,  # song ID
+            str, str, str, str,  # cache status  # title  # duration  # song ID
         )
 
         self.directory_song_list = Gtk.TreeView(
             model=self.directory_song_store,
-            name='album-songs-list',
+            name="album-songs-list",
             headers_visible=False,
         )
-        self.directory_song_list.get_selection().set_mode(
-            Gtk.SelectionMode.MULTIPLE)
+        self.directory_song_list.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
 
         # Song status column.
         renderer = Gtk.CellRendererPixbuf()
         renderer.set_fixed_size(30, 35)
-        column = Gtk.TreeViewColumn('', renderer, icon_name=0)
+        column = Gtk.TreeViewColumn("", renderer, icon_name=0)
         column.set_resizable(True)
         self.directory_song_list.append_column(column)
 
+        self.directory_song_list.append_column(SongListColumn("TITLE", 1, bold=True))
         self.directory_song_list.append_column(
-            SongListColumn('TITLE', 1, bold=True))
-        self.directory_song_list.append_column(
-            SongListColumn('DURATION', 2, align=1, width=40))
+            SongListColumn("DURATION", 2, align=1, width=40)
+        )
 
+        self.directory_song_list.connect("row-activated", self.on_song_activated)
         self.directory_song_list.connect(
-            'row-activated', self.on_song_activated)
-        self.directory_song_list.connect(
-            'button-press-event', self.on_song_button_press)
+            "button-press-event", self.on_song_button_press
+        )
         scrollbox.add(self.directory_song_list)
 
         self.scroll_window.add(scrollbox)
@@ -269,17 +246,13 @@ class DrilldownList(Gtk.Box):
     def on_song_activated(self, treeview: Any, idx: Gtk.TreePath, column: Any):
         # The song ID is in the last column of the model.
         self.emit(
-            'song-clicked',
+            "song-clicked",
             idx.get_indices()[0],
             [m[-1] for m in self.directory_song_store],
             {},
         )
 
-    def on_song_button_press(
-            self,
-            tree: Gtk.TreeView,
-            event: Gdk.EventButton,
-    ) -> bool:
+    def on_song_button_press(self, tree: Gtk.TreeView, event: Gdk.EventButton,) -> bool:
         if event.button == 3:  # Right click
             clicked_path = tree.get_path_at_pos(event.x, event.y)
             if not clicked_path:
@@ -297,10 +270,8 @@ class DrilldownList(Gtk.Box):
             song_ids = [self.directory_song_store[p][-1] for p in paths]
 
             # Used to adjust for the header row.
-            bin_coords = tree.convert_tree_to_bin_window_coords(
-                event.x, event.y)
-            widget_coords = tree.convert_tree_to_widget_coords(
-                event.x, event.y)
+            bin_coords = tree.convert_tree_to_bin_window_coords(event.x, event.y)
+            widget_coords = tree.convert_tree_to_widget_coords(event.x, event.y)
 
             util.show_song_popover(
                 song_ids,
@@ -322,23 +293,21 @@ class DrilldownList(Gtk.Box):
         selected_dir_idx = None
 
         for idx, el in enumerate(elements or []):
-            if el.get('isDir', True):
-                new_directories_store.append(
-                    DrilldownList.DrilldownElement(el))
+            if el.get("isDir", True):
+                new_directories_store.append(DrilldownList.DrilldownElement(el))
                 if el.id == self.selected_id:
                     selected_dir_idx = idx
             else:
                 new_songs_store.append(
                     [
-                        util.get_cached_status_icon(
-                            CacheManager.get_cached_status(el)),
+                        util.get_cached_status_icon(CacheManager.get_cached_status(el)),
                         util.esc(el.title),
                         util.format_song_duration(el.duration),
                         el.id,
-                    ])
+                    ]
+                )
 
-        util.diff_model_store(
-            self.drilldown_directories_store, new_directories_store)
+        util.diff_model_store(self.drilldown_directories_store, new_directories_store)
 
         util.diff_song_store(self.directory_song_store, new_songs_store)
 
@@ -361,23 +330,22 @@ class DrilldownList(Gtk.Box):
 
         self.loading_indicator.hide()
 
-    def create_row(
-            self, model: 'DrilldownList.DrilldownElement') -> Gtk.ListBoxRow:
+    def create_row(self, model: "DrilldownList.DrilldownElement") -> Gtk.ListBoxRow:
         row = Gtk.ListBoxRow(
-            action_name='app.browse-to',
-            action_target=GLib.Variant('s', model.id),
+            action_name="app.browse-to", action_target=GLib.Variant("s", model.id),
         )
         rowbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         rowbox.add(
             Gtk.Label(
-                label=f'<b>{util.esc(model.name)}</b>',
+                label=f"<b>{util.esc(model.name)}</b>",
                 use_markup=True,
                 margin=8,
                 halign=Gtk.Align.START,
                 ellipsize=Pango.EllipsizeMode.END,
-            ))
+            )
+        )
 
-        icon = Gio.ThemedIcon(name='go-next-symbolic')
+        icon = Gio.ThemedIcon(name="go-next-symbolic")
         image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
         rowbox.pack_end(image, False, False, 5)
         row.add(rowbox)
@@ -398,9 +366,7 @@ class IndexList(DrilldownList):
         self.update_order_token += 1
         self.selected_id = selected_id
         self.update_store(
-            force=force,
-            app_config=app_config,
-            order_token=self.update_order_token,
+            force=force, app_config=app_config, order_token=self.update_order_token,
         )
 
     def on_refresh_clicked(self, _: Any):
@@ -447,8 +413,7 @@ class MusicDirectoryList(DrilldownList):
         )
 
     def on_refresh_clicked(self, _: Any):
-        self.update(
-            self.selected_id, force=True, directory_id=self.directory_id)
+        self.update(self.selected_id, force=True, directory_id=self.directory_id)
 
     @util.async_callback(
         lambda *a, **k: CacheManager.get_music_directory(*a, **k),

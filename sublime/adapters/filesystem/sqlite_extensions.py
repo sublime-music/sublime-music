@@ -53,7 +53,7 @@ class SortedManyToManyQuery(ManyToManyQuery):
         accessor = self._accessor
         src_id = getattr(self._instance, self._src_attr)
         if isinstance(value, SelectQuery):
-            print('TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT')
+            print("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT")
             raise NotImplementedError()
             # query = value.columns(Value(src_id), accessor.dest_fk.rel_field)
             # accessor.through_model.insert_from(
@@ -68,13 +68,14 @@ class SortedManyToManyQuery(ManyToManyQuery):
                 {
                     accessor.src_fk.name: src_id,
                     accessor.dest_fk.name: rel_id,
-                    'position': i,
-                } for i, rel_id in enumerate(self._id_list(value))
+                    "position": i,
+                }
+                for i, rel_id in enumerate(self._id_list(value))
             ]
             accessor.through_model.insert_many(inserts).execute()
 
     def remove(self, value: Any) -> Any:
-        print('RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR')
+        print("RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
         raise NotImplementedError()
         # src_id = getattr(self._instance, self._src_attr)
         # if isinstance(value, SelectQuery):
@@ -102,23 +103,22 @@ class SortedManyToManyQuery(ManyToManyQuery):
 
 class SortedManyToManyFieldAccessor(ManyToManyFieldAccessor):
     def __get__(
-        self,
-        instance: Model,
-        instance_type: Any = None,
-        force_query: bool = False,
+        self, instance: Model, instance_type: Any = None, force_query: bool = False,
     ):
         if instance is not None:
-            if not force_query and self.src_fk.backref != '+':
+            if not force_query and self.src_fk.backref != "+":
                 backref = getattr(instance, self.src_fk.backref)
                 if isinstance(backref, list):
                     return [getattr(obj, self.dest_fk.name) for obj in backref]
 
             src_id = getattr(instance, self.src_fk.rel_field.name)
-            return SortedManyToManyQuery(instance, self, self.rel_model) \
-                .join(self.through_model) \
-                .join(self.model) \
-                .where(self.src_fk == src_id) \
+            return (
+                SortedManyToManyQuery(instance, self, self.rel_model)
+                .join(self.through_model)
+                .join(self.model)
+                .where(self.src_fk == src_id)
                 .order_by(self.through_model.position)
+            )
 
         return self.field
 
@@ -137,16 +137,16 @@ class SortedManyToManyField(ManyToManyField):
         class Meta:
             database = self.model._meta.database
             schema = self.model._meta.schema
-            table_name = '{}_{}_through'.format(*tables)
-            indexes = (((lhs._meta.name, rhs._meta.name, 'position'), True), )
+            table_name = "{}_{}_through".format(*tables)
+            indexes = (((lhs._meta.name, rhs._meta.name, "position"), True),)
 
-        params = {'on_delete': self._on_delete, 'on_update': self._on_update}
+        params = {"on_delete": self._on_delete, "on_update": self._on_update}
         attrs = {
             lhs._meta.name: ForeignKeyField(lhs, **params),
             rhs._meta.name: ForeignKeyField(rhs, **params),
-            'position': IntegerField(),
-            'Meta': Meta
+            "position": IntegerField(),
+            "Meta": Meta,
         }
 
-        klass_name = '{}{}Through'.format(lhs.__name__, rhs.__name__)
-        return type(klass_name, (Model, ), attrs)
+        klass_name = "{}{}Through".format(lhs.__name__, rhs.__name__)
+        return type(klass_name, (Model,), attrs)

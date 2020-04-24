@@ -18,15 +18,13 @@ from .. import api_objects as SublimeAPI
 
 # Translation map
 extra_translation_map = {
-    datetime:
-    (lambda s: datetime.strptime(s, '%Y-%m-%dT%H:%M:%S.%f%z') if s else None),
+    datetime: (lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%f%z") if s else None),
     timedelta: (lambda s: timedelta(seconds=s) if s else None),
 }
 
 for type_, translation_function in extra_translation_map.items():
     dataclasses_json.cfg.global_config.decoders[type_] = translation_function
-    dataclasses_json.cfg.global_config.decoders[
-        Optional[type_]] = translation_function
+    dataclasses_json.cfg.global_config.decoders[Optional[type_]] = translation_function
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -81,8 +79,7 @@ class Playlist(SublimeAPI.Playlist):
 class PlaylistWithSongs(SublimeAPI.PlaylistDetails):
     id: str
     name: str
-    songs: List[Song] = field(
-        default_factory=list, metadata=config(field_name='entry'))
+    songs: List[Song] = field(default_factory=list, metadata=config(field_name="entry"))
     song_count: int = field(default=0)
     duration: timedelta = field(default=timedelta())
     created: Optional[datetime] = None
@@ -96,8 +93,9 @@ class PlaylistWithSongs(SublimeAPI.PlaylistDetails):
         self.song_count = self.song_count or len(self.songs)
         self.duration = self.duration or timedelta(
             seconds=sum(
-                s.duration.total_seconds() if s.duration else 0
-                for s in self.songs))
+                s.duration.total_seconds() if s.duration else 0 for s in self.songs
+            )
+        )
 
 
 @dataclass
@@ -107,9 +105,8 @@ class Playlists(DataClassJsonMixin):
 
 @dataclass
 class Response(DataClassJsonMixin):
-    """
-    The base Subsonic response object.
-    """
+    """The base Subsonic response object."""
+
     song: Optional[Song] = None
     playlists: Optional[Playlists] = None
     playlist: Optional[PlaylistWithSongs] = None

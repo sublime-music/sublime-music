@@ -8,13 +8,11 @@ from dateutil import parser
 
 def from_json(template_type: Any, data: Any) -> Any:
     """
-    Converts data from a JSON parse into an instantiation of the Python object
-    specified by template_type.
+    Converts data from a JSON parse into an instantiation of the Python object specified
+    by template_type.
 
-    Arguments:
-
-    template_type: the template type to deserialize into
-    data: the data to deserialize to the class
+    :param template_type: the template type to deserialize into
+    :param data: the data to deserialize to the class
     """
     # Approach for deserialization here:
     # https://stackoverflow.com/a/40639688/2319844
@@ -24,8 +22,7 @@ def from_json(template_type: Any, data: Any) -> Any:
     if isinstance(template_type, typing.ForwardRef):  # type: ignore
         template_type = template_type._evaluate(globals(), locals())
 
-    annotations: Dict[str,
-                      Type] = getattr(template_type, '__annotations__', {})
+    annotations: Dict[str, Type] = getattr(template_type, "__annotations__", {})
 
     # Handle primitive of objects
     instance: Any = None
@@ -33,7 +30,7 @@ def from_json(template_type: Any, data: Any) -> Any:
         instance = None
     # Handle generics. List[*], Dict[*, *] in particular.
     elif type(template_type) == typing._GenericAlias:  # type: ignore
-        if getattr(template_type, '__origin__') == typing.Union:
+        if getattr(template_type, "__origin__") == typing.Union:
             template_type = template_type.__args__[0]
             instance = from_json(template_type, data)
         else:
@@ -42,11 +39,11 @@ def from_json(template_type: Any, data: Any) -> Any:
 
             # This is not very elegant since it doesn't allow things which
             # sublass from List or Dict. For my purposes, this doesn't matter.
-            if class_name == 'List':
+            if class_name == "List":
                 inner_type = template_type.__args__[0]
                 instance = [from_json(inner_type, value) for value in data]
 
-            elif class_name == 'Dict':
+            elif class_name == "Dict":
                 key_type, val_type = template_type.__args__
                 instance = {
                     from_json(key_type, key): from_json(val_type, value)
@@ -54,8 +51,10 @@ def from_json(template_type: Any, data: Any) -> Any:
                 }
             else:
                 raise Exception(
-                    'Trying to deserialize an unsupported type: {}'.format(
-                        template_type._name))
+                    "Trying to deserialize an unsupported type: {}".format(
+                        template_type._name
+                    )
+                )
     elif template_type == str or issubclass(template_type, str):
         instance = data
     elif template_type == int or issubclass(template_type, int):
@@ -64,7 +63,7 @@ def from_json(template_type: Any, data: Any) -> Any:
         instance = bool(data)
     elif type(template_type) == EnumMeta:
         if type(data) == dict:
-            instance = template_type(data.get('_value_'))
+            instance = template_type(data.get("_value_"))
         else:
             instance = template_type(data)
     elif template_type == datetime:
@@ -83,6 +82,7 @@ def from_json(template_type: Any, data: Any) -> Any:
             **{
                 field: from_json(field_type, data.get(field))
                 for field, field_type in annotations.items()
-            })
+            }
+        )
 
     return instance

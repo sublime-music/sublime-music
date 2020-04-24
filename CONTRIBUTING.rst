@@ -78,12 +78,41 @@ Building the flatpak
 Code Style
 ----------
 
-* `PEP-8`_ is to be followed **strictly**.
-* `mypy`_ is used for type checking.
-* ``print`` statements are not to be used except for when you actually want to
-  print to the terminal (which should be rare). In all other cases, the more
-  powerful and useful ``logging`` library should be used.
+This project follows `PEP-8`_ **strictly**. The *only* exception is maximum line
+length, which is 88 for this project (in accordance with ``black``'s defaults).
+Additionally, lines that contain a single string literal are allowed to extend
+past that.
+Additionally, this project uses ``black`` to enforce consistent, deterministic
+code style.
 
+Although you can technically do all of the formatting yourself, it is
+recommended that you use the following tools (they are automatically installed
+if you are using pipenv). The CI process uses these to check all commits, so you
+will probably want these so you don't have to wait for results of the build
+before knowing if your code is the correct style.
+
+* `flake8`_ is used for linting. The following additional plugins are also used:
+
+  * ``flake8-annotations``: enforce type annotations on function definitions.
+  * ``flake8-comprehensions``: enforce usage of comprehensions wherever
+    possible.
+  * ``flake8-importorder`` (with the ``edited`` import style): enforce ordering
+    of import statements.
+  * ``flake8-pep3101``: no ``%`` string formatting.
+  * ``flake8-print`` no print statements. Use the more powerful and useful
+    ``logging`` library instead. In the rare case that you actually want to
+    print to the terminal (the ``--version`` flag for example), then just
+    disable this check with a ``# noqa: T001`` comment.
+
+* `mypy`_ is used for type checking. All type errors must be resolved.
+* `black`_ is used for auto-formatting. The CI process runs ``black --check`` to
+  make sure that you've run ``black`` on all files (or are just good at manually
+  formatting).
+* ``TODO`` statements must include an associated issue number (in other words,
+  if you want to check in a change with outstanding TODOs, there must be an
+  issue associated with it to fix it).
+
+.. _black: https://github.com/psf/black
 .. _`PEP-8`: https://www.python.org/dev/peps/pep-0008/
 .. _mypy: http://mypy-lang.org/
 

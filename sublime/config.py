@@ -26,26 +26,26 @@ class ReplayGainType(Enum):
     ALBUM = 2
 
     def as_string(self) -> str:
-        return ['no', 'track', 'album'][self.value]
+        return ["no", "track", "album"][self.value]
 
     @staticmethod
-    def from_string(replay_gain_type: str) -> 'ReplayGainType':
+    def from_string(replay_gain_type: str) -> "ReplayGainType":
         return {
-            'no': ReplayGainType.NO,
-            'disabled': ReplayGainType.NO,
-            'track': ReplayGainType.TRACK,
-            'album': ReplayGainType.ALBUM,
+            "no": ReplayGainType.NO,
+            "disabled": ReplayGainType.NO,
+            "track": ReplayGainType.TRACK,
+            "album": ReplayGainType.ALBUM,
         }[replay_gain_type.lower()]
 
 
 @dataclass(unsafe_hash=True)
 class ServerConfiguration:
-    name: str = 'Default'
-    server_address: str = 'http://yourhost'
-    local_network_address: str = ''
-    local_network_ssid: str = ''
-    username: str = ''
-    password: str = ''
+    name: str = "Default"
+    server_address: str = "http://yourhost"
+    local_network_address: str = ""
+    local_network_ssid: str = ""
+    username: str = ""
+    password: str = ""
     sync_enabled: bool = True
     disable_cert_verify: bool = False
     version: int = 0
@@ -70,14 +70,14 @@ class ServerConfiguration:
         '6df23dc03f9b54cc38a0fc1483df6e21'
         """
         server_info = self.name + self.server_address + self.username
-        return hashlib.md5(server_info.encode('utf-8')).hexdigest()
+        return hashlib.md5(server_info.encode("utf-8")).hexdigest()
 
 
 @dataclass
 class AppConfiguration:
     servers: List[ServerConfiguration] = field(default_factory=list)
     current_server_index: int = -1
-    cache_location: str = ''
+    cache_location: str = ""
     max_cache_size_mb: int = -1  # -1 means unlimited
     always_stream: bool = False  # always stream instead of downloading songs
     download_on_stream: bool = True  # also download when streaming a song
@@ -91,10 +91,10 @@ class AppConfiguration:
     filename: Optional[Path] = None
 
     @staticmethod
-    def load_from_file(filename: Path) -> 'AppConfiguration':
+    def load_from_file(filename: Path) -> "AppConfiguration":
         args = {}
         if filename.exists():
-            with open(filename, 'r') as f:
+            with open(filename, "r") as f:
                 field_names = {f.name for f in fields(AppConfiguration)}
                 args = yaml.load(f, Loader=yaml.CLoader).items()
                 args = dict(filter(lambda kv: kv[0] in field_names, args))
@@ -107,13 +107,12 @@ class AppConfiguration:
     def __post_init__(self):
         # Default the cache_location to ~/.local/share/sublime-music
         if not self.cache_location:
-            path = Path(os.environ.get('XDG_DATA_HOME') or '~/.local/share')
-            path = path.expanduser().joinpath('sublime-music').resolve()
+            path = Path(os.environ.get("XDG_DATA_HOME") or "~/.local/share")
+            path = path.expanduser().joinpath("sublime-music").resolve()
             self.cache_location = path.as_posix()
 
         # Deserialize the YAML into the ServerConfiguration object.
-        if (len(self.servers) > 0
-                and type(self.servers[0]) != ServerConfiguration):
+        if len(self.servers) > 0 and type(self.servers[0]) != ServerConfiguration:
             self.servers = [ServerConfiguration(**sc) for sc in self.servers]
 
         self._state = None
@@ -152,17 +151,17 @@ class AppConfiguration:
         self._current_server_hash = self.server.strhash()
         if self.state_file_location.exists():
             try:
-                with open(self.state_file_location, 'rb') as f:
+                with open(self.state_file_location, "rb") as f:
                     self._state = UIState(**pickle.load(f))
             except Exception:
-                logging.warning(
-                    f"Couldn't load state from {self.state_file_location}")
+                logging.warning(f"Couldn't load state from {self.state_file_location}")
                 # Just ignore any errors, it is only UI state.
                 self._state = UIState()
 
         # Do the import in the function to avoid circular imports.
         from sublime.cache_manager import CacheManager
         from sublime.adapters import AdapterManager
+
         CacheManager.reset(self)
         AdapterManager.reset(self)
 
@@ -171,18 +170,18 @@ class AppConfiguration:
         assert self.server is not None
         server_hash = self.server.strhash()
 
-        state_file_location = Path(
-            os.environ.get('XDG_DATA_HOME') or '~/.local/share')
+        state_file_location = Path(os.environ.get("XDG_DATA_HOME") or "~/.local/share")
         return state_file_location.expanduser().joinpath(
-            'sublime-music', server_hash, 'state.pickle')
+            "sublime-music", server_hash, "state.pickle"
+        )
 
     def save(self):
         # Save the config as YAML.
         self.filename.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.filename, 'w+') as f:
+        with open(self.filename, "w+") as f:
             f.write(yaml.dump(asdict(self)))
 
         # Save the state for the current server.
         self.state_file_location.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.state_file_location, 'wb+') as f:
+        with open(self.state_file_location, "wb+") as f:
             pickle.dump(asdict(self.state), f)

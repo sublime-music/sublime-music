@@ -21,15 +21,16 @@ from .api_objects import Playlist, PlaylistDetails
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class Result(Generic[T]):
     """
-    A result from a :class:`AdapterManager` function. This is effectively a
-    wrapper around a :class:`concurrent.futures.Future`, but it can also
-    resolve immediately if the data already exists.
+    A result from a :class:`AdapterManager` function. This is effectively a wrapper
+    around a :class:`concurrent.futures.Future`, but it can also resolve immediately if
+    the data already exists.
     """
+
     _data: Optional[T] = None
     _future: Optional[Future] = None
     on_cancel: Optional[Callable[[], None]] = None
@@ -51,8 +52,7 @@ class Result(Generic[T]):
         if self._future is not None:
             return self._future.result()
 
-        raise Exception(
-            'AdapterManager.Result had neither _data nor _future member!')
+        raise Exception("AdapterManager.Result had neither _data nor _future member!")
 
     def add_done_callback(self, fn: Callable, *args):
         if self._future is not None:
@@ -91,28 +91,28 @@ class AdapterManager:
     @staticmethod
     def register_adapter(adapter_class: Type):
         if not issubclass(adapter_class, Adapter):
-            raise TypeError(
-                'Attempting to register a class that is not an adapter.')
+            raise TypeError("Attempting to register a class that is not an adapter.")
         AdapterManager.available_adapters.add(adapter_class)
 
     def __init__(self):
         """
-        This should not ever be called. You should only ever use the static
-        methods on this class.
+        This should not ever be called. You should only ever use the static methods on
+        this class.
         """
         raise Exception(
-            "Cannot instantiate AdapterManager. Only use the static methods "
-            "on the class.")
+            "Do not instantiate the AdapterManager. "
+            "Only use the static methods on the class."
+        )
 
     @staticmethod
     def shutdown():
-        logging.info('AdapterManager shutdown start')
+        logging.info("AdapterManager shutdown start")
         AdapterManager.is_shutting_down = True
         AdapterManager.executor.shutdown()
         if AdapterManager._instance:
             AdapterManager._instance.shutdown()
 
-        logging.info('CacheManager shutdown complete')
+        logging.info("CacheManager shutdown complete")
 
     @staticmethod
     def reset(config: AppConfiguration):
@@ -124,8 +124,8 @@ class AdapterManager:
         # to create, etc.
         assert config.server is not None
         source_data_dir = Path(config.cache_location, config.server.strhash())
-        source_data_dir.joinpath('g').mkdir(parents=True, exist_ok=True)
-        source_data_dir.joinpath('c').mkdir(parents=True, exist_ok=True)
+        source_data_dir.joinpath("g").mkdir(parents=True, exist_ok=True)
+        source_data_dir.joinpath("c").mkdir(parents=True, exist_ok=True)
 
         ground_truth_adapter_type = SubsonicAdapter
         ground_truth_adapter = ground_truth_adapter_type(
@@ -133,7 +133,7 @@ class AdapterManager:
                 key: getattr(config.server, key)
                 for key in ground_truth_adapter_type.get_config_parameters()
             },
-            source_data_dir.joinpath('g'),
+            source_data_dir.joinpath("g"),
         )
 
         caching_adapter_type = FilesystemAdapter
@@ -144,23 +144,22 @@ class AdapterManager:
                     key: getattr(config.server, key)
                     for key in caching_adapter_type.get_config_parameters()
                 },
-                source_data_dir.joinpath('c'),
+                source_data_dir.joinpath("c"),
                 is_cache=True,
             )
 
         AdapterManager._instance = AdapterManager._AdapterManagerInternal(
-            ground_truth_adapter,
-            caching_adapter=caching_adapter,
+            ground_truth_adapter, caching_adapter=caching_adapter,
         )
 
     @staticmethod
     def can_get_playlists() -> bool:
         # It only matters that the ground truth one can service the request.
         return (
-            AdapterManager._instance is not None and
-            AdapterManager._instance.ground_truth_adapter.can_service_requests
-            and
-            AdapterManager._instance.ground_truth_adapter.can_get_playlists)
+            AdapterManager._instance is not None
+            and AdapterManager._instance.ground_truth_adapter.can_service_requests
+            and AdapterManager._instance.ground_truth_adapter.can_get_playlists
+        )
 
     @staticmethod
     def get_playlists(
@@ -168,32 +167,31 @@ class AdapterManager:
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
     ) -> Result[Sequence[Playlist]]:
         assert AdapterManager._instance
-        if (not force and AdapterManager._instance.caching_adapter and
-                AdapterManager._instance.caching_adapter.can_service_requests
-                and
-                AdapterManager._instance.caching_adapter.can_get_playlists):
+        if (
+            not force
+            and AdapterManager._instance.caching_adapter
+            and AdapterManager._instance.caching_adapter.can_service_requests
+            and AdapterManager._instance.caching_adapter.can_get_playlists
+        ):
             try:
-                return Result(
-                    AdapterManager._instance.caching_adapter.get_playlists())
+                return Result(AdapterManager._instance.caching_adapter.get_playlists())
             except CacheMissError:
                 logging.debug(f'Cache Miss on {"get_playlists"}.')
             except Exception:
-                logging.exception(
-                    f'Error on {"get_playlists"} retrieving from cache.')
+                logging.exception(f'Error on {"get_playlists"} retrieving from cache.')
 
-        if (AdapterManager._instance.ground_truth_adapter
-                and not AdapterManager._instance.ground_truth_adapter
-                .can_service_requests and not AdapterManager._instance
-                .ground_truth_adapter.can_get_playlists):
-            raise Exception(
-                f'No adapters can service {"get_playlists"} at the moment.')
+        if (
+            AdapterManager._instance.ground_truth_adapter
+            and not AdapterManager._instance.ground_truth_adapter.can_service_requests
+            and not AdapterManager._instance.ground_truth_adapter.can_get_playlists
+        ):
+            raise Exception(f'No adapters can service {"get_playlists"} at the moment.')
 
         def future_fn() -> Sequence[Playlist]:
             assert AdapterManager._instance
             if before_download:
                 before_download()
-            return (
-                AdapterManager._instance.ground_truth_adapter.get_playlists())
+            return AdapterManager._instance.ground_truth_adapter.get_playlists()
 
         future: Result[Sequence[Playlist]] = Result(future_fn)
 
@@ -203,9 +201,7 @@ class AdapterManager:
                 assert AdapterManager._instance
                 assert AdapterManager._instance.caching_adapter
                 AdapterManager._instance.caching_adapter.ingest_new_data(
-                    CachingAdapter.FunctionNames.GET_PLAYLISTS,
-                    (),
-                    f.result(),
+                    CachingAdapter.FunctionNames.GET_PLAYLISTS, (), f.result(),
                 )
 
             future.add_done_callback(future_finished)
@@ -216,9 +212,10 @@ class AdapterManager:
     def can_get_playlist_details() -> bool:
         # It only matters that the ground truth one can service the request.
         return (
-            AdapterManager._instance.ground_truth_adapter.can_service_requests
-            and AdapterManager._instance.ground_truth_adapter
-            .can_get_playlist_details)
+            AdapterManager._instance is not None
+            and AdapterManager._instance.ground_truth_adapter.can_service_requests
+            and AdapterManager._instance.ground_truth_adapter.can_get_playlist_details
+        )
 
     @staticmethod
     def get_playlist_details(
@@ -228,14 +225,18 @@ class AdapterManager:
     ) -> Result[PlaylistDetails]:
         assert AdapterManager._instance
         partial_playlist_data = None
-        if (not force and AdapterManager._instance.caching_adapter and
-                AdapterManager._instance.caching_adapter.can_service_requests
-                and AdapterManager._instance.caching_adapter
-                .can_get_playlist_details):
+        if (
+            not force
+            and AdapterManager._instance.caching_adapter
+            and AdapterManager._instance.caching_adapter.can_service_requests
+            and AdapterManager._instance.caching_adapter.can_get_playlist_details
+        ):
             try:
                 return Result(
-                    AdapterManager._instance.caching_adapter
-                    .get_playlist_details(playlist_id))
+                    AdapterManager._instance.caching_adapter.get_playlist_details(
+                        playlist_id
+                    )
+                )
             except CacheMissError as e:
                 partial_playlist_data = e.partial_data
                 logging.debug(f'Cache Miss on {"get_playlist_details"}.')
@@ -244,10 +245,13 @@ class AdapterManager:
                     f'Error on {"get_playlist_details"} retrieving from cache.'
                 )
 
-        if (AdapterManager._instance.ground_truth_adapter
-                and not AdapterManager._instance.ground_truth_adapter
-                .can_service_requests and not AdapterManager._instance
-                .ground_truth_adapter.can_get_playlist_details):
+        if (
+            AdapterManager._instance.ground_truth_adapter
+            and not AdapterManager._instance.ground_truth_adapter.can_service_requests
+            and not (
+                AdapterManager._instance.ground_truth_adapter.can_get_playlist_details
+            )
+        ):
             if partial_playlist_data:
                 # TODO do something here
                 pass
@@ -259,9 +263,9 @@ class AdapterManager:
             assert AdapterManager._instance
             if before_download:
                 before_download()
-            return (
-                AdapterManager._instance.ground_truth_adapter
-                .get_playlist_details(playlist_id))
+            return AdapterManager._instance.ground_truth_adapter.get_playlist_details(
+                playlist_id
+            )
 
         future: Result[PlaylistDetails] = Result(future_fn)
 
@@ -272,7 +276,7 @@ class AdapterManager:
                 assert AdapterManager._instance.caching_adapter
                 AdapterManager._instance.caching_adapter.ingest_new_data(
                     CachingAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
-                    (playlist_id, ),
+                    (playlist_id,),
                     f.result(),
                 )
 

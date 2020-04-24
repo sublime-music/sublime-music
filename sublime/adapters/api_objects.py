@@ -8,10 +8,10 @@ from typing import Optional, Sequence
 
 
 class MediaType(Enum):
-    MUSIC = 'music'
-    PODCAST = 'podcast'
-    AUDIOBOOK = 'audiobook'
-    VIDEO = 'video'
+    MUSIC = "music"
+    PODCAST = "podcast"
+    AUDIOBOOK = "audiobook"
+    VIDEO = "video"
 
 
 class Song(abc.ABC):

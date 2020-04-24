@@ -16,12 +16,14 @@ from typing import (
 
 import gi
 from deepdiff import DeepDiff
-gi.require_version('Gtk', '3.0')
+
+gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
+from sublime.adapters import AdapterManager
+from sublime.adapters.api_objects import Playlist
 from sublime.cache_manager import CacheManager, SongCacheStatus
 from sublime.config import AppConfiguration
-from sublime.server.api_objects import Playlist
 
 
 def format_song_duration(duration_secs: Union[int, timedelta, None]) -> str:
@@ -37,16 +39,12 @@ def format_song_duration(duration_secs: Union[int, timedelta, None]) -> str:
     if isinstance(duration_secs, timedelta):
         duration_secs = round(duration_secs.total_seconds())
     if not duration_secs:
-        return '-:--'
+        return "-:--"
 
-    return f'{duration_secs // 60}:{duration_secs % 60:02}'
+    return f"{duration_secs // 60}:{duration_secs % 60:02}"
 
 
-def pluralize(
-        string: str,
-        number: int,
-        pluralized_form: str = None,
-) -> str:
+def pluralize(string: str, number: int, pluralized_form: str = None,) -> str:
     """
     Pluralize the given string given the count as a number.
 
@@ -58,7 +56,7 @@ def pluralize(
     'foos'
     """
     if number != 1:
-        return pluralized_form or f'{string}s'
+        return pluralized_form or f"{string}s"
     return string
 
 
@@ -82,48 +80,46 @@ def format_sequence_duration(duration_secs: Union[int, timedelta]) -> str:
 
     format_components = []
     if duration_hrs > 0:
-        hrs = '{} {}'.format(duration_hrs, pluralize('hour', duration_hrs))
+        hrs = "{} {}".format(duration_hrs, pluralize("hour", duration_hrs))
         format_components.append(hrs)
 
     if duration_mins > 0:
-        mins = '{} {}'.format(
-            duration_mins, pluralize('minute', duration_mins))
+        mins = "{} {}".format(duration_mins, pluralize("minute", duration_mins))
         format_components.append(mins)
 
     # Show seconds if there are no hours.
     if duration_hrs == 0:
-        secs = '{} {}'.format(
-            duration_secs, pluralize('second', duration_secs))
+        secs = "{} {}".format(duration_secs, pluralize("second", duration_secs))
         format_components.append(secs)
 
-    return ', '.join(format_components)
+    return ", ".join(format_components)
 
 
 def esc(string: Optional[str]) -> str:
     if string is None:
-        return ''
-    return string.replace('&', '&amp;').replace(" target='_blank'", '')
+        return ""
+    return string.replace("&", "&amp;").replace(" target='_blank'", "")
 
 
 def dot_join(*items: Any) -> str:
     """
     Joins the given strings with a dot character. Filters out None values.
     """
-    return '  •  '.join(map(str, filter(lambda x: x is not None, items)))
+    return "  •  ".join(map(str, filter(lambda x: x is not None, items)))
 
 
 def get_cached_status_icon(cache_status: SongCacheStatus) -> str:
     cache_icon = {
-        SongCacheStatus.NOT_CACHED: '',
-        SongCacheStatus.CACHED: 'folder-download-symbolic',
-        SongCacheStatus.PERMANENTLY_CACHED: 'view-pin-symbolic',
-        SongCacheStatus.DOWNLOADING: 'emblem-synchronizing-symbolic',
+        SongCacheStatus.NOT_CACHED: "",
+        SongCacheStatus.CACHED: "folder-download-symbolic",
+        SongCacheStatus.PERMANENTLY_CACHED: "view-pin-symbolic",
+        SongCacheStatus.DOWNLOADING: "emblem-synchronizing-symbolic",
     }
     return cache_icon[cache_status]
 
 
 def _parse_diff_location(location: str) -> Tuple:
-    match = re.match(r'root\[(\d*)\](?:\[(\d*)\]|\.(.*))?', location)
+    match = re.match(r"root\[(\d*)\](?:\[(\d*)\]|\.(.*))?", location)
     return tuple(g for g in cast(Match, match).groups() if g is not None)
 
 
@@ -136,18 +132,18 @@ def diff_song_store(store_to_edit: Any, new_store: Iterable[Any]):
 
     # Diff the lists to determine what needs to be changed.
     diff = DeepDiff(old_store, new_store)
-    changed = diff.get('values_changed', {})
-    added = diff.get('iterable_item_added', {})
-    removed = diff.get('iterable_item_removed', {})
+    changed = diff.get("values_changed", {})
+    added = diff.get("iterable_item_added", {})
+    removed = diff.get("iterable_item_removed", {})
 
     for edit_location, diff in changed.items():
         idx, field = _parse_diff_location(edit_location)
-        store_to_edit[int(idx)][int(field)] = diff['new_value']
+        store_to_edit[int(idx)][int(field)] = diff["new_value"]
 
-    for add_location, value in added.items():
+    for _, value in added.items():
         store_to_edit.append(value)
 
-    for remove_location, value in reversed(list(removed.items())):
+    for remove_location, _ in reversed(list(removed.items())):
         remove_at = int(_parse_diff_location(remove_location)[0])
         del store_to_edit[remove_at]
 
@@ -176,7 +172,7 @@ def show_song_popover(
     position: Gtk.PositionType = Gtk.PositionType.BOTTOM,
     on_download_state_change: Callable[[], None] = lambda: None,
     show_remove_from_playlist_button: bool = False,
-    extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = [],
+    extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = None,
 ):
     def on_download_songs_click(_: Any):
         CacheManager.batch_download_songs(
@@ -187,8 +183,7 @@ def show_song_popover(
 
     def on_remove_downloads_click(_: Any):
         CacheManager.batch_delete_cached_songs(
-            song_ids,
-            on_song_delete=on_download_state_change,
+            song_ids, on_song_delete=on_download_state_change,
         )
 
     def on_add_to_playlist_click(_: Any, playlist: Playlist):
@@ -217,41 +212,43 @@ def show_song_popover(
         if download_sensitive or status == SongCacheStatus.NOT_CACHED:
             download_sensitive = True
 
-        if (remove_download_sensitive
-                or status in (SongCacheStatus.CACHED,
-                              SongCacheStatus.PERMANENTLY_CACHED)):
+        if remove_download_sensitive or status in (
+            SongCacheStatus.CACHED,
+            SongCacheStatus.PERMANENTLY_CACHED,
+        ):
             remove_download_sensitive = True
 
     go_to_album_button = Gtk.ModelButton(
-        text='Go to album', action_name='app.go-to-album')
+        text="Go to album", action_name="app.go-to-album"
+    )
     if len(albums) == 1 and list(albums)[0] is not None:
-        album_value = GLib.Variant('s', list(albums)[0])
+        album_value = GLib.Variant("s", list(albums)[0])
         go_to_album_button.set_action_target_value(album_value)
 
     go_to_artist_button = Gtk.ModelButton(
-        text='Go to artist', action_name='app.go-to-artist')
+        text="Go to artist", action_name="app.go-to-artist"
+    )
     if len(artists) == 1 and list(artists)[0] is not None:
-        artist_value = GLib.Variant('s', list(artists)[0])
+        artist_value = GLib.Variant("s", list(artists)[0])
         go_to_artist_button.set_action_target_value(artist_value)
 
     browse_to_song = Gtk.ModelButton(
-        text=f"Browse to {pluralize('song', song_count)}",
-        action_name='app.browse-to',
+        text=f"Browse to {pluralize('song', song_count)}", action_name="app.browse-to",
     )
     if len(parents) == 1 and list(parents)[0] is not None:
-        parent_value = GLib.Variant('s', list(parents)[0])
+        parent_value = GLib.Variant("s", list(parents)[0])
         browse_to_song.set_action_target_value(parent_value)
 
     menu_items = [
         Gtk.ModelButton(
-            text='Play next',
-            action_name='app.play-next',
-            action_target=GLib.Variant('as', song_ids),
+            text="Play next",
+            action_name="app.play-next",
+            action_target=GLib.Variant("as", song_ids),
         ),
         Gtk.ModelButton(
-            text='Add to queue',
-            action_name='app.add-to-queue',
-            action_target=GLib.Variant('as', song_ids),
+            text="Add to queue",
+            action_name="app.add-to-queue",
+            action_target=GLib.Variant("as", song_ids),
         ),
         Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
         go_to_album_button,
@@ -275,19 +272,19 @@ def show_song_popover(
         Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
         Gtk.ModelButton(
             text=f"Add {pluralize('song', song_count)} to playlist",
-            menu_name='add-to-playlist',
+            menu_name="add-to-playlist",
         ),
-        *extra_menu_items,
+        *(extra_menu_items or []),
     ]
 
     for item in menu_items:
         if type(item) == tuple:
             el, fn = item
-            el.connect('clicked', fn)
-            el.get_style_context().add_class('menu-button')
+            el.connect("clicked", fn)
+            el.get_style_context().add_class("menu-button")
             vbox.pack_start(item[0], False, True, 0)
         else:
-            item.get_style_context().add_class('menu-button')
+            item.get_style_context().add_class("menu-button")
             vbox.pack_start(item, False, True, 0)
 
     popover.add(vbox)
@@ -296,22 +293,18 @@ def show_song_popover(
     playlists_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
     # Back button
-    playlists_vbox.add(
-        Gtk.ModelButton(
-            inverted=True,
-            centered=True,
-            menu_name='main',
-        ))
+    playlists_vbox.add(Gtk.ModelButton(inverted=True, centered=True, menu_name="main",))
 
     # The playlist buttons
-    for playlist in CacheManager.get_playlists().result():
+    # TODO lazy load
+    for playlist in AdapterManager.get_playlists().result():
         button = Gtk.ModelButton(text=playlist.name)
-        button.get_style_context().add_class('menu-button')
-        button.connect('clicked', on_add_to_playlist_click, playlist)
+        button.get_style_context().add_class("menu-button")
+        button.connect("clicked", on_add_to_playlist_click, playlist)
         playlists_vbox.pack_start(button, False, True, 0)
 
     popover.add(playlists_vbox)
-    popover.child_set_property(playlists_vbox, 'submenu', 'add-to-playlist')
+    popover.child_set_property(playlists_vbox, "submenu", "add-to-playlist")
 
     # Positioning of the popover.
     rect = Gdk.Rectangle()
@@ -340,6 +333,7 @@ def async_callback(
     :param future_fn: a function which generates a
         :class:`concurrent.futures.Future` or :class:`CacheManager.Result`.
     """
+
     def decorator(callback_fn: Callable) -> Callable:
         @functools.wraps(callback_fn)
         def wrapper(
@@ -351,10 +345,9 @@ def async_callback(
             **kwargs,
         ):
             if before_download:
-                on_before_download = (
-                    lambda: GLib.idle_add(before_download, self))
+                on_before_download = lambda: GLib.idle_add(before_download, self)
             else:
-                on_before_download = (lambda: None)
+                on_before_download = lambda: None
 
             def future_callback(f: Union[Future, CacheManager.Result]):
                 try:
@@ -371,13 +364,11 @@ def async_callback(
                         app_config=app_config,
                         force=force,
                         order_token=order_token,
-                    ))
+                    )
+                )
 
             future: Union[Future, CacheManager.Result] = future_fn(
-                *args,
-                before_download=on_before_download,
-                force=force,
-                **kwargs,
+                *args, before_download=on_before_download, force=force, **kwargs,
             )
             future.add_done_callback(future_callback)
 

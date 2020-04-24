@@ -4,10 +4,12 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-dataclasses-json = {git = "https://github.com/sumnerevans/dataclasses-json",ref = "cc2eaeb"}
+black = "*"
+dataclasses-json = {git = "https://github.com/lidatong/dataclasses-json",ref = "master"}
 docutils = "*"
-flake8 = "*"
+flake8 = {git = "https://gitlab.com/pycqa/flake8",ref = "master"}
 flake8-annotations = "*"
+flake8-bugbear = "*"
 flake8-comprehensions = "*"
 flake8-import-order = "*"
 flake8-pep3101 = "*"
@@ -15,6 +17,7 @@ flake8-print = "*"
 graphviz = "*"
 lxml = "*"
 mypy = "*"
+pycodestyle = "==2.6.0a1"
 pytest = "*"
 pytest-cov = "*"
 rope = "*"
@@ -22,10 +25,12 @@ rst2html5 = "*"
 sphinx = "*"
 sphinx-rtd-theme = "*"
 termcolor = "*"
-yapf = "*"
 
 [packages]
 sublime-music = {editable = true,extras = ["keyring"],path = "."}
 
 [requires]
 python_version = "3.8"
+
+[pipenv]
+allow_prereleases = true

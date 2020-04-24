@@ -33,10 +33,10 @@ class AverageRating(APIObject, float):
 
 
 class MediaType(APIObject, Enum):
-    MUSIC = 'music'
-    PODCAST = 'podcast'
-    AUDIOBOOK = 'audiobook'
-    VIDEO = 'video'
+    MUSIC = "music"
+    PODCAST = "podcast"
+    AUDIOBOOK = "audiobook"
+    VIDEO = "video"
 
     def get(self, key: str, default: Any = None) -> Any:
         return getattr(self, key, default)
@@ -451,12 +451,12 @@ class MusicFolders(APIObject):
 
 
 class PodcastStatus(APIObject, Enum):
-    NEW = 'new'
-    DOWNLOADING = 'downloading'
-    COMPLETED = 'completed'
-    ERROR = 'error'
-    DELETED = 'deleted'
-    SKIPPED = 'skipped'
+    NEW = "new"
+    DOWNLOADING = "downloading"
+    COMPLETED = "completed"
+    ERROR = "error"
+    DELETED = "deleted"
+    SKIPPED = "skipped"
 
     def get(self, key: str, default: Any = None) -> Any:
         return getattr(self, key, default)
@@ -656,8 +656,8 @@ class Podcasts(APIObject):
 
 
 class ResponseStatus(APIObject, Enum):
-    OK = 'ok'
-    FAILED = 'failed'
+    OK = "ok"
+    FAILED = "failed"
 
     def get(self, key: str, default: Any = None) -> Any:
         return getattr(self, key, default)

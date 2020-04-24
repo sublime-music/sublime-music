@@ -5,10 +5,10 @@ from .song_list_column import SongListColumn
 from .spinner_image import SpinnerImage
 
 __all__ = (
-    'AlbumWithSongs',
-    'EditFormDialog',
-    'IconButton',
-    'IconToggleButton',
-    'SongListColumn',
-    'SpinnerImage',
+    "AlbumWithSongs",
+    "EditFormDialog",
+    "IconButton",
+    "IconToggleButton",
+    "SongListColumn",
+    "SpinnerImage",
 )
