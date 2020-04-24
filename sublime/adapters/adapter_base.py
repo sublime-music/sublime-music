@@ -90,7 +90,7 @@ class Adapter(abc.ABC):
     # Configuration and Initialization Properties
     # These properties determine how the adapter can be configured and how to
     # initialize the adapter given those configuration values.
-    # =========================================================================
+    # ==================================================================================
     @staticmethod
     @abc.abstractmethod
     def get_config_parameters() -> Dict[str, ConfigParamDescriptor]:
@@ -149,7 +149,7 @@ class Adapter(abc.ABC):
     # Usage Properties
     # These properties determine how the adapter can be used and how quickly
     # data can be expected from this adapter.
-    # =========================================================================
+    # ==================================================================================
     @property
     def can_be_cached(self) -> bool:
         """
@@ -164,7 +164,7 @@ class Adapter(abc.ABC):
     # Availability Properties
     # These properties determine if what things the adapter can be used to do
     # at the current moment.
-    # =========================================================================
+    # ==================================================================================
     @property
     @abc.abstractmethod
     def can_service_requests(self) -> bool:
@@ -197,7 +197,7 @@ class Adapter(abc.ABC):
     # Data Retrieval Methods
     # These properties determine if what things the adapter can be used to do
     # at the current moment.
-    # =========================================================================
+    # ==================================================================================
     def get_playlists(self) -> Sequence[Playlist]:
         """
         Gets a list of all of the :class:`sublime.adapter.api_objects.Playlist` objects
@@ -251,7 +251,7 @@ class CachingAdapter(Adapter):
         """
 
     # Data Ingestion Methods
-    # =========================================================================
+    # ==================================================================================
     class FunctionNames(Enum):
         GET_PLAYLISTS = "get_playlists"
         GET_PLAYLIST_DETAILS = "get_playlist_details"

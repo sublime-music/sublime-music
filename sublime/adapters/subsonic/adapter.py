@@ -18,7 +18,7 @@ class SubsonicAdapter(Adapter):
     """
 
     # Configuration and Initialization Properties
-    # =========================================================================
+    # ==================================================================================
     @staticmethod
     def get_config_parameters() -> Dict[str, ConfigParamDescriptor]:
         return {
@@ -44,7 +44,7 @@ class SubsonicAdapter(Adapter):
         # TODO support XML | JSON
 
     # Availability Properties
-    # =========================================================================
+    # ==================================================================================
     @property
     def can_service_requests(self) -> bool:
         try:
@@ -56,7 +56,7 @@ class SubsonicAdapter(Adapter):
             return False
 
     # Helper mothods for making requests
-    # =========================================================================
+    # ==================================================================================
     def _get_params(self) -> Dict[str, str]:
         """
         Gets the parameters that are needed for all requests to the Subsonic API. See
@@ -82,12 +82,13 @@ class SubsonicAdapter(Adapter):
         params = {**self._get_params(), **params}
         logging.info(f"[START] get: {url}")
 
-        if os.environ.get("SUBLIME_MUSIC_DEBUG_DELAY"):
+        if os.environ.get("SUBSONIC_ADAPTER_DEBUG_DELAY"):
             logging.info(
-                "SUBLIME_MUSIC_DEBUG_DELAY enabled. Pausing for "
-                f"{os.environ['SUBLIME_MUSIC_DEBUG_DELAY']} seconds."
+                "SUBSONIC_ADAPTER_DEBUG_DELAY enabled. Pausing for {} seconds".format(
+                    os.environ["SUBSONIC_ADAPTER_DEBUG_DELAY"]
+                )
             )
-            sleep(float(os.environ["SUBLIME_MUSIC_DEBUG_DELAY"]))
+            sleep(float(os.environ["SUBSONIC_ADAPTER_DEBUG_DELAY"]))
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():
@@ -162,14 +163,13 @@ class SubsonicAdapter(Adapter):
         self._get_mock_data = get_mock_data
 
     # Data Retrieval Methods
-    # =========================================================================
+    # ==================================================================================
     can_get_playlists = True
 
     def get_playlists(self) -> Sequence[API.Playlist]:
-        response = self._get_json(self._make_url("getPlaylists")).playlists
-        if not response:
-            return []
-        return response.playlist
+        if playlists := self._get_json(self._make_url("getPlaylists")).playlists:
+            return playlists.playlist
+        return []
 
     can_get_playlist_details = True
 

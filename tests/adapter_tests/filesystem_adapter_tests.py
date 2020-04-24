@@ -68,6 +68,26 @@ def test_caching_get_playlists(cache_adapter: FilesystemAdapter):
     )
     assert (playlists[1].id, playlists[1].name) == ("2", "test2")
 
+    # Ingest a new playlist list with one of them deleted.
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.FunctionNames.GET_PLAYLISTS,
+        (),
+        [
+            SubsonicAPI.Playlist("1", "test1", comment="comment"),
+            SubsonicAPI.Playlist("3", "test3"),
+        ],
+    )
+
+    # Now, Playlist 2 should be gone.
+    playlists = cache_adapter.get_playlists()
+    assert len(playlists) == 2
+    assert (playlists[0].id, playlists[0].name, playlists[0].comment) == (
+        "1",
+        "test1",
+        "comment",
+    )
+    assert (playlists[1].id, playlists[1].name) == ("3", "test3")
+
 
 def test_no_caching_get_playlists(adapter: FilesystemAdapter):
     adapter.get_playlists()

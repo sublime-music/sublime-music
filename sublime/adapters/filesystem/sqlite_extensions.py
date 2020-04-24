@@ -53,8 +53,7 @@ class SortedManyToManyQuery(ManyToManyQuery):
         accessor = self._accessor
         src_id = getattr(self._instance, self._src_attr)
         if isinstance(value, SelectQuery):
-            print("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT")
-            raise NotImplementedError()
+            raise NotImplementedError("Can't use a select query here")
             # query = value.columns(Value(src_id), accessor.dest_fk.rel_field)
             # accessor.through_model.insert_from(
             #     fields=[accessor.src_fk, accessor.dest_fk],
@@ -74,25 +73,23 @@ class SortedManyToManyQuery(ManyToManyQuery):
             ]
             accessor.through_model.insert_many(inserts).execute()
 
-    def remove(self, value: Any) -> Any:
-        print("RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
-        raise NotImplementedError()
-        # src_id = getattr(self._instance, self._src_attr)
-        # if isinstance(value, SelectQuery):
-        #     column = getattr(value.model, self._dest_attr)
-        #     subquery = value.columns(column)
-        #     return (
-        #         self._accessor.through_model.delete().where(
-        #             (self._accessor.dest_fk << subquery)
-        #             & (self._accessor.src_fk == src_id)).execute())
-        # else:
-        #     value = ensure_tuple(value)
-        #     if not value:
-        #         return
-        #     return (
-        #         self._accessor.through_model.delete().where(
-        #             (self._accessor.dest_fk << self._id_list(value))
-        #             & (self._accessor.src_fk == src_id)).execute())
+    # def remove(self, value: Any) -> Any:
+    #     # src_id = getattr(self._instance, self._src_attr)
+    #     # if isinstance(value, SelectQuery):
+    #     #     column = getattr(value.model, self._dest_attr)
+    #     #     subquery = value.columns(column)
+    #     #     return (
+    #     #         self._accessor.through_model.delete().where(
+    #     #             (self._accessor.dest_fk << subquery)
+    #     #             & (self._accessor.src_fk == src_id)).execute())
+    #     # else:
+    #     #     value = ensure_tuple(value)
+    #     #     if not value:
+    #     #         return
+    #     #     return (
+    #     #         self._accessor.through_model.delete().where(
+    #     #             (self._accessor.dest_fk << self._id_list(value))
+    #     #             & (self._accessor.src_fk == src_id)).execute())
 
     # def clear(self) -> Any:
     #     src_id = getattr(self._instance, self._src_attr)

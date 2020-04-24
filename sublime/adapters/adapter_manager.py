@@ -27,8 +27,8 @@ T = TypeVar("T")
 class Result(Generic[T]):
     """
     A result from a :class:`AdapterManager` function. This is effectively a wrapper
-    around a :class:`concurrent.futures.Future`, but it can also resolve immediately if
-    the data already exists.
+    around a :class:`concurrent.futures.Future`, but it resolves immediately if the data
+    already exists.
     """
 
     _data: Optional[T] = None
@@ -36,17 +36,26 @@ class Result(Generic[T]):
     on_cancel: Optional[Callable[[], None]] = None
 
     def __init__(self, data_resolver: Union[T, Callable[[], T]]):
+        """
+        Creates a :class:`Result` object.
+
+        :param data_resolver: the actual data, or a function that will return the actual
+            data. If the latter, the function will be executed by the thread pool.
+        """
         if callable(data_resolver):
-
-            def future_complete(f: Future):
-                self._data = f.result()
-
             self._future = AdapterManager.executor.submit(data_resolver)
-            self._future.add_done_callback(future_complete)
+            self._future.add_done_callback(self._on_future_complete)
         else:
             self._data = data_resolver
 
+    def _on_future_complete(self, future: Future):
+        self._data = future.result()
+
     def result(self) -> T:
+        """
+        Retrieve the actual data. If the data exists already, then return it, otherwise,
+        blocking-wait on the future's result.
+        """
         if self._data is not None:
             return self._data
         if self._future is not None:
@@ -55,6 +64,7 @@ class Result(Generic[T]):
         raise Exception("AdapterManager.Result had neither _data nor _future member!")
 
     def add_done_callback(self, fn: Callable, *args):
+        """Attaches the callable ``fn`` to the future."""
         if self._future is not None:
             self._future.add_done_callback(fn, *args)
         else:
@@ -62,18 +72,24 @@ class Result(Generic[T]):
             fn(self, *args)
 
     def cancel(self) -> bool:
+        """Cancel the future, or do nothing if the data already exists."""
         if self._future is not None:
             return self._future.cancel()
         return True
 
     @property
     def data_is_available(self) -> bool:
+        """
+        Whether or not the data is available at the current moment. This can be used to
+        determine whether or not the UI needs to put the callback into a
+        :class:`GLib.idle_add` call.
+        """
         return self._data is not None
 
 
 class AdapterManager:
     available_adapters: Set[Any] = {FilesystemAdapter, SubsonicAdapter}
-    executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=50)
+    executor: ThreadPoolExecutor = ThreadPoolExecutor()
     is_shutting_down: bool = False
 
     @dataclass
@@ -112,7 +128,7 @@ class AdapterManager:
         if AdapterManager._instance:
             AdapterManager._instance.shutdown()
 
-        logging.info("CacheManager shutdown complete")
+        logging.info("AdapterManager shutdown complete")
 
     @staticmethod
     def reset(config: AppConfiguration):
@@ -153,13 +169,19 @@ class AdapterManager:
         )
 
     @staticmethod
-    def can_get_playlists() -> bool:
+    def can_do(action_name: str):
         # It only matters that the ground truth one can service the request.
         return (
             AdapterManager._instance is not None
             and AdapterManager._instance.ground_truth_adapter.can_service_requests
-            and AdapterManager._instance.ground_truth_adapter.can_get_playlists
+            and getattr(
+                AdapterManager._instance.ground_truth_adapter, f"can_{action_name}"
+            )
         )
+
+    @staticmethod
+    def can_get_playlists() -> bool:
+        return AdapterManager.can_do("get_playlists")
 
     @staticmethod
     def get_playlists(
@@ -210,12 +232,7 @@ class AdapterManager:
 
     @staticmethod
     def can_get_playlist_details() -> bool:
-        # It only matters that the ground truth one can service the request.
-        return (
-            AdapterManager._instance is not None
-            and AdapterManager._instance.ground_truth_adapter.can_service_requests
-            and AdapterManager._instance.ground_truth_adapter.can_get_playlist_details
-        )
+        return AdapterManager.can_do("get_playlist_details")
 
     @staticmethod
     def get_playlist_details(
