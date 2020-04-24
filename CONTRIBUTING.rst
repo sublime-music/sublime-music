@@ -94,6 +94,7 @@ before knowing if your code is the correct style.
 * `flake8`_ is used for linting. The following additional plugins are also used:
 
   * ``flake8-annotations``: enforce type annotations on function definitions.
+  * ``flake8-bugbear``: enforce a bunch of fairly opinionated styles.
   * ``flake8-comprehensions``: enforce usage of comprehensions wherever
     possible.
   * ``flake8-importorder`` (with the ``edited`` import style): enforce ordering

@@ -609,7 +609,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             "song-clicked",
             0,
             [m[-1] for m in self.playlist_song_store],
-            {"force_shuffle_state": False, "active_playlist_id": self.playlist_id,},
+            {"force_shuffle_state": False, "active_playlist_id": self.playlist_id},
         )
 
     def on_shuffle_all_button(self, _: Any):
@@ -617,7 +617,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             "song-clicked",
             randint(0, len(self.playlist_song_store) - 1),
             [m[-1] for m in self.playlist_song_store],
-            {"force_shuffle_state": True, "active_playlist_id": self.playlist_id,},
+            {"force_shuffle_state": True, "active_playlist_id": self.playlist_id},
         )
 
     def on_song_activated(self, _: Any, idx: Gtk.TreePath, col: Any):
@@ -626,10 +626,10 @@ class PlaylistDetailPanel(Gtk.Overlay):
             "song-clicked",
             idx.get_indices()[0],
             [m[-1] for m in self.playlist_song_store],
-            {"active_playlist_id": self.playlist_id,},
+            {"active_playlist_id": self.playlist_id},
         )
 
-    def on_song_button_press(self, tree: Gtk.TreeView, event: Gdk.EventButton,) -> bool:
+    def on_song_button_press(self, tree: Gtk.TreeView, event: Gdk.EventButton) -> bool:
         if event.button == 3:  # Right click
             clicked_path = tree.get_path_at_pos(event.x, event.y)
             if not clicked_path:
@@ -712,7 +712,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
     def make_label(self, text: str = None, name: str = None, **params,) -> Gtk.Label:
         return Gtk.Label(label=text, name=name, halign=Gtk.Align.START, **params,)
 
-    @util.async_callback(lambda *a, **k: AdapterManager.get_playlist_details(*a, **k),)
+    @util.async_callback(lambda *a, **k: AdapterManager.get_playlist_details(*a, **k))
     def _update_playlist_order(
         self, playlist: PlaylistDetails, app_config: AppConfiguration, **kwargs,
     ):

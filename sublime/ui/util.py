@@ -344,10 +344,9 @@ def async_callback(
             order_token: int = None,
             **kwargs,
         ):
-            if before_download:
-                on_before_download = lambda: GLib.idle_add(before_download, self)
-            else:
-                on_before_download = lambda: None
+            def on_before_download():
+                if before_download:
+                    GLib.idle_add(before_download, self)
 
             def future_callback(f: Union[Future, CacheManager.Result]):
                 try:

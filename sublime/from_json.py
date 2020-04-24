@@ -30,7 +30,7 @@ def from_json(template_type: Any, data: Any) -> Any:
         instance = None
     # Handle generics. List[*], Dict[*, *] in particular.
     elif type(template_type) == typing._GenericAlias:  # type: ignore
-        if getattr(template_type, "__origin__") == typing.Union:
+        if template_type.__origin__ == typing.Union:
             template_type = template_type.__args__[0]
             instance = from_json(template_type, data)
         else:

@@ -560,12 +560,11 @@ class SublimeMusicApp(Gtk.Application):
     def on_shuffle_press(self, *args):
         if self.app_config.state.shuffle_on:
             # Revert to the old play queue.
-            self.app_config.state.current_song_index = self.app_config.state.old_play_queue.index(
+            old_play_queue_copy = self.app_config.state.old_play_queue.copy()
+            self.app_config.state.current_song_index = old_play_queue_copy.index(
                 self.app_config.state.current_song.id
             )
-            self.app_config.state.play_queue = (
-                self.app_config.state.old_play_queue.copy()
-            )
+            self.app_config.state.play_queue = old_play_queue_copy
         else:
             self.app_config.state.old_play_queue = (
                 self.app_config.state.play_queue.copy()
@@ -934,7 +933,7 @@ class SublimeMusicApp(Gtk.Application):
             self.app_config.state.play_queue = new_play_queue
             self.app_config.state.song_progress = play_queue.position / 1000
 
-            self.app_config.state.current_song_index = self.app_config.state.play_queue.index(
+            self.app_config.state.current_song_index = new_play_queue.index(
                 new_current_song_id
             )
 
