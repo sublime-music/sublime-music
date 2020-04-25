@@ -169,7 +169,7 @@ class AdapterManager:
         )
 
     @staticmethod
-    def can_do(action_name: str):
+    def _can_do(action_name: str):
         # It only matters that the ground truth one can service the request.
         return (
             AdapterManager._instance is not None
@@ -181,7 +181,7 @@ class AdapterManager:
 
     @staticmethod
     def can_get_playlists() -> bool:
-        return AdapterManager.can_do("get_playlists")
+        return AdapterManager._can_do("get_playlists")
 
     @staticmethod
     def get_playlists(
@@ -232,7 +232,7 @@ class AdapterManager:
 
     @staticmethod
     def can_get_playlist_details() -> bool:
-        return AdapterManager.can_do("get_playlist_details")
+        return AdapterManager._can_do("get_playlist_details")
 
     @staticmethod
     def get_playlist_details(

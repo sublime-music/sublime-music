@@ -73,6 +73,7 @@ class SortedManyToManyQuery(ManyToManyQuery):
             ]
             accessor.through_model.insert_many(inserts).execute()
 
+    # TODO probably don't need
     # def remove(self, value: Any) -> Any:
     #     # src_id = getattr(self._instance, self._src_attr)
     #     # if isinstance(value, SelectQuery):
