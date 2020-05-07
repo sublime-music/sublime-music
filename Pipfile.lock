@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "dfed6ede3c95b6007e782cdce8117157f9d5e02aed39af78acf6055bb6dd9d75"
+            "sha256": "92aec5b90e093ac3ed0327fcaa3b903140cf23a49eb3b4cd77c486cffa18bb93"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -454,8 +454,12 @@
             "version": "==0.16"
         },
         "flake8": {
-            "git": "https://gitlab.com/pycqa/flake8",
-            "ref": "0c3b8045a7b51aec7abf19dea94d5292cebeeea0"
+            "hashes": [
+                "sha256:c09e7e4ea0d91fa36f7b8439ca158e592be56524f0b67c39ab0ea2b85ed8f9a4",
+                "sha256:f33c5320eaa459cdee6367016a4bf4ba2a9b81499ce56e6a32abbf0b8d3a2eb4"
+            ],
+            "index": "pypi",
+            "version": "==3.8.0a2"
         },
         "flake8-annotations": {
             "hashes": [

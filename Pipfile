@@ -7,7 +7,7 @@ verify_ssl = true
 black = "*"
 dataclasses-json = {git = "https://github.com/lidatong/dataclasses-json",ref = "master"}
 docutils = "*"
-flake8 = {git = "https://gitlab.com/pycqa/flake8",ref = "master"}
+flake8 = "==3.8.0a2"
 flake8-annotations = "*"
 flake8-bugbear = "*"
 flake8-comprehensions = "*"
