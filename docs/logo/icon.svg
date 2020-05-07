@@ -7,17 +7,17 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   id="Layer_1"
-   data-name="Layer 1"
-   viewBox="0 0 190.5 177.28"
-   version="1.1"
-   sodipodi:docname="icon.svg"
-   inkscape:version="0.92.4 5da689c313, 2019-01-14"
-   width="190.5"
-   height="177.28"
-   inkscape:export-filename="/home/sumner/projects/sublime-music/docs/logo/icon.png"
+   inkscape:export-ydpi="287.20221"
    inkscape:export-xdpi="287.20221"
-   inkscape:export-ydpi="287.20221">
+   inkscape:export-filename="/home/sumner/projects/sublime-music/docs/logo/icon.png"
+   height="190.5"
+   width="190.5"
+   inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
+   sodipodi:docname="icon.svg"
+   version="1.1"
+   viewBox="0 0 190.5 190.49999"
+   data-name="Layer 1"
+   id="Layer_1">
   <metadata
      id="metadata37">
     <rdf:RDF>
@@ -31,29 +31,30 @@
     </rdf:RDF>
   </metadata>
   <sodipodi:namedview
-     pagecolor="#ffffff"
-     bordercolor="#666666"
-     borderopacity="1"
-     objecttolerance="10"
-     gridtolerance="10"
-     guidetolerance="10"
-     inkscape:pageopacity="0"
-     inkscape:pageshadow="2"
-     inkscape:window-width="844"
-     inkscape:window-height="1404"
-     id="namedview35"
-     showgrid="false"
-     inkscape:zoom="0.6675088"
-     inkscape:cx="117.32803"
-     inkscape:cy="-40.615259"
-     inkscape:window-x="1710"
-     inkscape:window-y="30"
-     inkscape:window-maximized="0"
-     inkscape:current-layer="Layer_1"
-     fit-margin-top="5"
-     fit-margin-left="5"
+     inkscape:document-rotation="0"
+     fit-margin-bottom="11.61"
      fit-margin-right="5"
-     fit-margin-bottom="5" />
+     fit-margin-left="5"
+     fit-margin-top="11.61"
+     inkscape:current-layer="Layer_1"
+     inkscape:window-maximized="0"
+     inkscape:window-y="0"
+     inkscape:window-x="0"
+     inkscape:cy="52.632917"
+     inkscape:cx="29.754442"
+     inkscape:zoom="3.776"
+     showgrid="false"
+     id="namedview35"
+     inkscape:window-height="1440"
+     inkscape:window-width="2560"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0"
+     guidetolerance="10"
+     gridtolerance="10"
+     objecttolerance="10"
+     borderopacity="1"
+     bordercolor="#666666"
+     pagecolor="#ffffff" />
   <defs
      id="defs4">
     <style
@@ -62,11 +63,11 @@
   <title
      id="title6">Logo 1</title>
   <path
-     class="cls-1"
-     d="M 124.85,5 H 65 A 53.74,53.74 0 0 0 11.26,58.73 v 59.81 A 53.74,53.74 0 0 0 65,172.28 h 59.85 a 53.73,53.73 0 0 0 53.73,-53.74 V 58.73 A 53.73,53.73 0 0 0 124.85,5 Z M 73.76,63.75 a 11.75,11.75 0 0 0 1,4.92 c 7.59,16.61 62.77,8.37 61.8,45.33 -1.1,39.94 -59,40.88 -80.65,23 C 51.26,138.56 5,161.64 5,161.64 c 0,0 62.85,-41.44 62.7,-41.15 12.89,8.8 46.06,15.41 48.42,-6.92 C 114.33,93.2 63.99,101.37 54.76,73.76 q -0.15,-0.42 -0.27,-0.84 l -0.09,-0.3 q -0.19,-0.69 -0.36,-1.41 v 0 a 31.34,31.34 0 0 1 -0.72,-7.86 c 1.1,-39.94 59,-40.88 80.65,-23 4.65,-1.57 51.53,-24.13 51.53,-24.13 0,0 -63.47,40.93 -63.32,40.64 C 109.25,48.02 74.9,41.33 73.72,63.75 Z m 46.47,5.78 a 5.09,5.09 0 1 1 -5.31,-4.87 5.11,5.11 0 0 1 5.27,4.87 z M 107.68,65.7 a 5.1,5.1 0 1 1 -5.32,-4.87 5.1,5.1 0 0 1 5.28,4.87 z M 95.12,61.87 A 5.1,5.1 0 1 1 89.81,57 a 5.1,5.1 0 0 1 5.27,4.87 z m -24.16,47.46 a 5.1,5.1 0 1 1 5.36,4.83 5.1,5.1 0 0 1 -5.4,-4.83 z m 12.59,3.71 a 5.1,5.1 0 1 1 5.36,4.83 5.1,5.1 0 0 1 -5.4,-4.83 z m 12.59,3.71 a 5.1,5.1 0 1 1 5.36,4.83 5.11,5.11 0 0 1 -5.4,-4.83 z"
-     id="path8"
-     style="fill:#ff6801;fill-opacity:1"
-     inkscape:export-xdpi="160"
+     inkscape:connector-curvature="0"
      inkscape:export-ydpi="160"
-     inkscape:connector-curvature="0" />
+     inkscape:export-xdpi="160"
+     style="fill:#ff6801;fill-opacity:1"
+     id="path8"
+     d="M 124.85,11.61 H 65 A 53.74,53.74 0 0 0 11.26,65.34 v 59.81 A 53.74,53.74 0 0 0 65,178.89 h 59.85 a 53.73,53.73 0 0 0 53.73,-53.74 V 65.34 A 53.73,53.73 0 0 0 124.85,11.61 Z M 73.76,70.36 a 11.75,11.75 0 0 0 1,4.92 c 7.59,16.61 62.77,8.37 61.8,45.33 -1.1,39.94 -59,40.88 -80.65,23 C 51.26,145.17 5,168.25 5,168.25 c 0,0 62.85,-41.44 62.7,-41.15 12.89,8.8 46.06,15.41 48.42,-6.92 -1.79,-20.37 -52.13,-12.2 -61.36,-39.81 q -0.15,-0.42 -0.27,-0.84 l -0.09,-0.3 q -0.19,-0.69 -0.36,-1.41 v 0 a 31.34,31.34 0 0 1 -0.72,-7.86 c 1.1,-39.94 59,-40.88 80.65,-23 4.65,-1.57 51.53,-24.13 51.53,-24.13 0,0 -63.47,40.93 -63.32,40.64 C 109.25,54.63 74.9,47.94 73.72,70.36 Z m 46.47,5.78 a 5.09,5.09 0 1 1 -5.31,-4.87 5.11,5.11 0 0 1 5.27,4.87 z m -12.55,-3.83 a 5.1,5.1 0 1 1 -5.32,-4.87 5.1,5.1 0 0 1 5.28,4.87 z M 95.12,68.48 a 5.1,5.1 0 1 1 -5.31,-4.87 5.1,5.1 0 0 1 5.27,4.87 z m -24.16,47.46 a 5.1,5.1 0 1 1 5.36,4.83 5.1,5.1 0 0 1 -5.4,-4.83 z m 12.59,3.71 a 5.1,5.1 0 1 1 5.36,4.83 5.1,5.1 0 0 1 -5.4,-4.83 z m 12.59,3.71 a 5.1,5.1 0 1 1 5.36,4.83 5.11,5.11 0 0 1 -5.4,-4.83 z"
+     class="cls-1" />
 </svg>

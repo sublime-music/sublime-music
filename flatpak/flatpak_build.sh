@@ -7,7 +7,9 @@ REPO=${REPO:-/repo}
 rm -rf flatpak-builder-tools
 git clone https://github.com/flatpak/flatpak-builder-tools.git
 
-python3 ./flatpak-builder-tools/pip/flatpak-pip-generator --requirements-file=flatpak-requirements.txt --output pypi-dependencies
+python3 ./flatpak-builder-tools/pip/flatpak-pip-generator \
+    --requirements-file=flatpak-requirements.txt \
+    --output pypi-dependencies
 
 mkdir -p $REPO
 

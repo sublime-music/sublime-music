@@ -1,3 +1,9 @@
+v0.9.2
+======
+
+* **Flatpak support is back!** After resolving a build error that's been
+  plaguing us since **v0.8.9**, we once again have a Flatpak build!
+
 v0.9.1
 ======
 
