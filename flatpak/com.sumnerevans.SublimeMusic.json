@@ -6,6 +6,7 @@
   "command": "sublime-music",
   "rename-icon": "sublime-music",
   "rename-desktop-file": "sublime-music.desktop",
+  "rename-appdata-file": "sublime-music.metainfo.xml",
   "add-extentions": {
     "org.freedesktop.Platform.ffmpeg-full": {
       "directory": "lib/ffmpeg",
@@ -20,26 +21,14 @@
     "--share=network",
     "--socket=pulseaudio",
     "--socket=session-bus",
+    "--own-name=org.mpris.MediaPlayer2.SublimeMusic",
     "--filesystem=xdg-config/sublime-music",
     "--filesystem=xdg-cache/sublime-music",
     "--filesystem=xdg-data/sublime-music"
   ],
   "modules": [
     {
-      "name": "desktop",
-      "buildsystem": "simple",
-      "build-commands": [
-        "install -Dm644 sublime-music.desktop /app/share/applications/sublime-music.desktop"
-      ],
-      "sources": [
-        {
-          "type": "file",
-          "path": "../sublime-music.desktop"
-        }
-      ]
-    },
-    {
-      "name": "icons",
+      "name": "icons-and-metadata",
       "buildsystem": "simple",
       "build-commands": [
         "install -Dm644 16.png /app/share/icons/hicolor/16x16/apps/sublime-music.png",
@@ -52,12 +41,22 @@
         "install -Dm644 96.png /app/share/icons/hicolor/96x96/apps/sublime-music.png",
         "install -Dm644 128.png /app/share/icons/hicolor/128x128/apps/sublime-music.png",
         "install -Dm644 192.png /app/share/icons/hicolor/192x192/apps/sublime-music.png",
-        "install -Dm644 512.png /app/share/icons/hicolor/512x512/apps/sublime-music.png"
+        "install -Dm644 512.png /app/share/icons/hicolor/512x512/apps/sublime-music.png",
+        "install -Dm644 sublime-music.desktop /app/share/applications/sublime-music.desktop",
+        "install -Dm644 sublime-music.metainfo.xml /app/share/metainfo/sublime-music.metainfo.xml"
       ],
       "sources": [
         {
           "type": "dir",
           "path": "../logo/rendered"
+        },
+        {
+          "type": "file",
+          "path": "../sublime-music.desktop"
+        },
+        {
+          "type": "file",
+          "path": "../sublime-music.metainfo.xml"
         }
       ]
     },

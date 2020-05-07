@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2020 Sumner Evans -->
+<component type="desktop-application">
+    <id>com.sumnerevans.SublimeMusic</id>
+    <metadata_license>FSFAP</metadata_license>
+    <project_license>GPL-3.0+</project_license>
+    <name>Sublime Music</name>
+    <summary>Native Subsonic client for Linux</summary>
+
+    <description>
+        <p>
+            Sublime Music is a GTK3
+            Subsonic/Airsonic/Revel/Gonic/Navidrome/*sonic client for the Linux
+            Desktop.
+        </p>
+        <p>Features:</p>
+        <ul>
+            <li>Switch between multiple Subsonic-API-compliant servers.</li>
+            <li>Play music through Chromecast devices on the same LAN.</li>
+            <li>
+                DBus MPRIS interface integration for controlling Sublime Music
+                via DBus MPRIS clients such as playerctl, i3status-rust, KDE
+                Connect, and many commonly used desktop environments.
+            </li>
+            <li>
+                Browse songs by the sever-reported filesystem structure, or
+                view them organized by ID3 tags in the Albums, Artists, and
+                Playlists views.
+            </li>
+            <li>Intuitive play queue.</li>
+            <li>Create/delete/edit playlists.</li>
+            <li>Cache songs for offline listening.</li>
+        </ul>
+    </description>
+
+    <launchable type="desktop-id">sublime-music.desktop</launchable>
+
+    <screenshots>
+        <screenshot type="default">
+            <caption>Album cover tab</caption>
+            <image>https://sumner.gitlab.io/sublime-music/_images/albums.png</image>
+        </screenshot>
+        <screenshot type="default">
+            <caption>Artists uab</caption>
+            <image>https://sumner.gitlab.io/sublime-music/_images/artists.png</image>
+        </screenshot>
+        <screenshot type="default">
+            <caption>Browse uab</caption>
+            <image>https://sumner.gitlab.io/sublime-music/_images/browse.png</image>
+        </screenshot>
+        <screenshot type="default">
+            <caption>Playlists tab</caption>
+            <image>https://sumner.gitlab.io/sublime-music/_images/playlists.png</image>
+        </screenshot>
+        <screenshot type="default">
+            <caption>Play queue</caption>
+            <image>https://sumner.gitlab.io/sublime-music/_images/play-queue.png</image>
+        </screenshot>
+        <screenshot type="default">
+            <caption>Play on other devices</caption>
+            <image>https://sumner.gitlab.io/sublime-music/_images/chromecasts.png</image>
+        </screenshot>
+        <screenshot type="default">
+            <caption>Search for artists, albums, songs, and playlists</caption>
+            <image>https://sumner.gitlab.io/sublime-music/_images/search.png</image>
+        </screenshot>
+    </screenshots>
+
+    <url type="homepage">https://sublimemusic.app</url>
+    <url type="bugtracker">https://gitlab.com/sumner/sublime-music/issues</url>
+
+    <provides>
+        <id>sublime-music.desktop</id>
+    </provides>
+
+    <content_rating type="oars-1.0" />
+    <update_contact>me_AT_sumnerevans.com</update_contact>
+
+    <releases>
+        <release version="0.9.2" date="2020-05-07">
+        </release>
+    </releases>
+</component>
