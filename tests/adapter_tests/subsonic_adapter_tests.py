@@ -167,3 +167,48 @@ def test_get_playlist_details(adapter: SubsonicAdapter):
             artist_id="38",
             type=SubsonicAPI.SublimeAPI.MediaType.MUSIC,
         )
+
+
+def test_create_playlist(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files("create_playlist"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        adapter.create_playlist(
+            name="Foo",
+            songs=[
+                SubsonicAPI.Song(
+                    id="202",
+                    parent="318",
+                    title="What a Beautiful Name",
+                    album="What a Beautiful Name - Single",
+                    artist="Hillsong Worship",
+                    track=1,
+                    year=2016,
+                    genre="Christian & Gospel",
+                    cover_art="318",
+                    size=8381640,
+                    content_type="audio/mp4",
+                    suffix="m4a",
+                    transcoded_content_type="audio/mpeg",
+                    transcoded_suffix="mp3",
+                    duration=timedelta(seconds=238),
+                    bit_rate=256,
+                    path="/".join(
+                        (
+                            "Hillsong Worship",
+                            "What a Beautiful Name - Single",
+                            "01 What a Beautiful Name.m4a",
+                        )
+                    ),
+                    is_video=False,
+                    play_count=20,
+                    disc_number=1,
+                    created=datetime(2020, 3, 27, 5, 17, 7, tzinfo=timezone.utc),
+                    album_id="48",
+                    artist_id="38",
+                    type=SubsonicAPI.SublimeAPI.MediaType.MUSIC,
+                )
+            ],
+        )

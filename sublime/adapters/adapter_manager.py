@@ -6,6 +6,7 @@ from typing import (
     Any,
     Callable,
     Generic,
+    List,
     Optional,
     Sequence,
     Set,
@@ -17,7 +18,7 @@ from typing import (
 from sublime.config import AppConfiguration
 
 from .adapter_base import Adapter, CacheMissError, CachingAdapter
-from .api_objects import Playlist, PlaylistDetails
+from .api_objects import Playlist, PlaylistDetails, Song
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter
 
@@ -198,6 +199,7 @@ class AdapterManager:
             try:
                 return Result(AdapterManager._instance.caching_adapter.get_playlists())
             except CacheMissError:
+                # TODO this could have partial data as well
                 logging.debug(f'Cache Miss on {"get_playlists"}.')
             except Exception:
                 logging.exception(f'Error on {"get_playlists"} retrieving from cache.')
@@ -223,7 +225,7 @@ class AdapterManager:
                 assert AdapterManager._instance
                 assert AdapterManager._instance.caching_adapter
                 AdapterManager._instance.caching_adapter.ingest_new_data(
-                    CachingAdapter.FunctionNames.GET_PLAYLISTS, (), f.result(),
+                    CachingAdapter.CachedDataKey.PLAYLISTS, (), f.result(),
                 )
 
             future.add_done_callback(future_finished)
@@ -262,6 +264,8 @@ class AdapterManager:
                     f'Error on {"get_playlist_details"} retrieving from cache.'
                 )
 
+        # TODO: if force, then invalidate the cached cover art
+
         if (
             AdapterManager._instance.ground_truth_adapter
             and not AdapterManager._instance.ground_truth_adapter.can_service_requests
@@ -292,7 +296,7 @@ class AdapterManager:
                 assert AdapterManager._instance
                 assert AdapterManager._instance.caching_adapter
                 AdapterManager._instance.caching_adapter.ingest_new_data(
-                    CachingAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
+                    CachingAdapter.CachedDataKey.PLAYLIST_DETAILS,
                     (playlist_id,),
                     f.result(),
                 )
@@ -300,3 +304,103 @@ class AdapterManager:
             future.add_done_callback(future_finished)
 
         return future
+
+    @staticmethod
+    def can_create_playlist() -> bool:
+        return AdapterManager._can_do("create_playlist")
+
+    @staticmethod
+    def create_playlist(
+        name: str,
+        songs: List[Song] = None,
+        before_download: Callable[[], None] = lambda: None,
+        force: bool = False,  # TODO: rename to use_ground_truth_adapter?
+    ) -> Result[None]:
+        assert AdapterManager._instance
+
+        def future_fn():
+            assert AdapterManager._instance
+            if before_download:
+                before_download()
+            AdapterManager._instance.ground_truth_adapter.create_playlist(
+                name, songs=songs
+            )
+
+        future: Result[None] = Result(future_fn)
+
+        if AdapterManager._instance.caching_adapter:
+
+            def future_finished(f: Future):
+                assert AdapterManager._instance
+                assert AdapterManager._instance.caching_adapter
+                playlist: Optional[PlaylistDetails] = f.result()
+                if playlist:
+                    AdapterManager._instance.caching_adapter.ingest_new_data(
+                        CachingAdapter.CachedDataKey.PLAYLIST_DETAILS,
+                        (playlist.id,),
+                        playlist,
+                    )
+                else:
+                    AdapterManager._instance.caching_adapter.invalidate_data(
+                        CachingAdapter.CachedDataKey.PLAYLISTS, ()
+                    )
+
+            future.add_done_callback(future_finished)
+
+        return future
+
+    @staticmethod
+    def can_update_playlist() -> bool:
+        return AdapterManager._can_do("update_playlist")
+
+    @staticmethod
+    def update_playlist(
+        playlist_id: str,
+        name: str,
+        comment: str = "",
+        public: bool = False,
+        songs: List[Song] = None,
+        before_download: Callable[[], None] = lambda: None,
+        force: bool = False,  # TODO: rename to use_ground_truth_adapter?
+    ) -> Result[PlaylistDetails]:
+        assert AdapterManager._instance
+
+        def future_fn() -> PlaylistDetails:
+            assert AdapterManager._instance
+            if before_download:
+                before_download()
+            return AdapterManager._instance.ground_truth_adapter.update_playlist(
+                playlist_id, name=name, comment=comment, public=public, songs=songs
+            )
+
+        future: Result[PlaylistDetails] = Result(future_fn)
+
+        if AdapterManager._instance.caching_adapter:
+
+            def future_finished(f: Future):
+                assert AdapterManager._instance
+                assert AdapterManager._instance.caching_adapter
+                playlist: PlaylistDetails = f.result()
+                AdapterManager._instance.caching_adapter.ingest_new_data(
+                    CachingAdapter.CachedDataKey.PLAYLIST_DETAILS,
+                    (playlist.id,),
+                    playlist,
+                )
+
+            future.add_done_callback(future_finished)
+
+        return future
+
+    @staticmethod
+    def can_delete_playlist() -> bool:
+        return AdapterManager._can_do("delete_playlist")
+
+    @staticmethod
+    def delete_playlist(playlist_id: str):
+        assert AdapterManager._instance
+        AdapterManager._instance.ground_truth_adapter.delete_playlist(playlist_id)
+
+        if AdapterManager._instance.caching_adapter:
+            AdapterManager._instance.caching_adapter.delete_data(
+                CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, (playlist_id,)
+            )

@@ -65,12 +65,12 @@ class Song(BaseModel):
 
 
 class CacheInfo(BaseModel):
-    query_name = CacheConstantsField()
+    cache_key = CacheConstantsField()
     params_hash = TextField()
     last_ingestion_time = TzDateTimeField(null=False)
 
     class Meta:
-        primary_key = CompositeKey("query_name", "params_hash")
+        primary_key = CompositeKey("cache_key", "params_hash")
 
 
 class Playlist(BaseModel):

@@ -228,7 +228,6 @@ class PlaylistList(Gtk.Box):
 
     def create_playlist(self, playlist_name: str):
         def on_playlist_created(_: Any):
-            CacheManager.invalidate_playlists_cache()
             self.update(force=True)
 
         self.loading_indicator.show()
@@ -576,7 +575,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
             # Invalidate the caches and force a re-fresh of the view
             CacheManager.delete_cached_cover_art(self.playlist_id)
-            CacheManager.invalidate_playlists_cache()
             self.emit(
                 "refresh-window",
                 {

@@ -20,11 +20,11 @@ from sublime.adapters.adapter_base import CachingAdapter
 # Custom Fields
 # =============================================================================
 class CacheConstantsField(TextField):
-    def db_value(self, value: CachingAdapter.FunctionNames) -> str:
+    def db_value(self, value: CachingAdapter.CachedDataKey) -> str:
         return value.value
 
-    def python_value(self, value: str) -> CachingAdapter.FunctionNames:
-        return CachingAdapter.FunctionNames(value)
+    def python_value(self, value: str) -> CachingAdapter.CachedDataKey:
+        return CachingAdapter.CachedDataKey(value)
 
 
 class DurationField(DoubleField):

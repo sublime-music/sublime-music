@@ -6,6 +6,7 @@ from typing import (
     Any,
     Dict,
     Iterable,
+    List,
     Optional,
     Sequence,
     Tuple,
@@ -14,6 +15,7 @@ from typing import (
 )
 
 from .api_objects import (
+    Song,
     Playlist,
     PlaylistDetails,
 )
@@ -191,6 +193,27 @@ class Adapter(abc.ABC):
         """
         return False
 
+    @property
+    def can_create_playlist(self) -> bool:
+        """
+        Whether :class:`create_playlist` can be called on the adapter right now.
+        """
+        return False
+
+    @property
+    def can_update_playlist(self) -> bool:
+        """
+        Whether :class:`update_playlist` can be called on the adapter right now.
+        """
+        return False
+
+    @property
+    def can_delete_playlist(self) -> bool:
+        """
+        Whether :class:`delete_playlist` can be called on the adapter right now.
+        """
+        return False
+
     # TODO some way of specifying what types of schemas can be provided (for
     # example, http, https, file)
 
@@ -213,6 +236,47 @@ class Adapter(abc.ABC):
         :param playlist_id: The ID of the playlist to retrieve.
         """
         raise self._check_can_error("get_playlist_details")
+
+    def create_playlist(
+        self, name: str, songs: List[Song] = None,
+    ) -> Optional[PlaylistDetails]:
+        """
+        Creates a playlist of the given name with the given songs.
+
+        :param name: The human-readable name of the playlist.
+        :param songs: A list of songs that should be included in the playlist.
+        """
+        raise self._check_can_error("create_playlist")
+
+    def update_playlist(
+        self,
+        playlist_id: str,
+        name: str = None,
+        comment: str = None,
+        public: bool = None,
+        songs: List[Song] = None,
+    ) -> PlaylistDetails:
+        """
+        Updates a given playlist. If a parameter is ``None``, then it will be ignored
+        and no updates will occur to that field.
+
+        :param playlist_id: The human-readable name of the playlist.
+        :param name: The human-readable name of the playlist.
+        :param comment: The playlist comment.
+        :param public: This is very dependent on the adapter, but if the adapter has a
+            shared/public vs. not shared/private playlists concept, setting this to
+            ``True`` will make the playlist shared/public.
+        :param songs: A list of songs that should be included in the playlist.
+        """
+        raise self._check_can_error("update_playlist")
+
+    def delete_playlist(self, playlist_id: str):
+        """
+        Deletes the given playlist.
+
+        :param playlist_id: The human-readable name of the playlist.
+        """
+        raise self._check_can_error("delete_playlist")
 
     @staticmethod
     def _check_can_error(method_name: str) -> NotImplementedError:
@@ -252,14 +316,14 @@ class CachingAdapter(Adapter):
 
     # Data Ingestion Methods
     # ==================================================================================
-    class FunctionNames(Enum):
-        GET_PLAYLISTS = "get_playlists"
-        GET_PLAYLIST_DETAILS = "get_playlist_details"
+    class CachedDataKey(Enum):
+        PLAYLISTS = "get_playlists"
+        PLAYLIST_DETAILS = "get_playlist_details"
 
     @abc.abstractmethod
     def ingest_new_data(
         self,
-        function: "CachingAdapter.FunctionNames",
+        data_key: "CachingAdapter.CachedDataKey",
         params: Tuple[Any, ...],
         data: Any,
     ):
@@ -268,9 +332,42 @@ class CachingAdapter(Adapter):
         new data. This normally will happen if this adapter has a cache miss or if the
         UI forces retrieval from the ground-truth adapter.
 
-        :param function_name: the name of the function that was called on the ground
-            truth adapter.
-        :param params: the parameters that were passed to the function on the ground
-            truth adapter.
+        :param data_key: the type of data to be ingested.
+        :param params: the parameters that uniquely identify the data to be ingested.
+            For example, with playlist details, this will be a tuple containing a single
+            element: the playlist ID. If that playlist ID is requested again, the
+            adapter should service that request, but it should not service a request for
+            a different playlist ID.
         :param data: the data that was returned by the ground truth adapter.
+        """
+
+    @abc.abstractmethod
+    def invalidate_data(
+        self, data_key: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...]
+    ):
+        """
+        This function will be called if the adapter should invalidate some of its data.
+        This should not destroy the invalidated data. If invalid data is requested, a
+        ``CacheMissError`` should be thrown, but the old data should be included in the
+        ``partial_data`` field of the error.
+
+        :param data_key: the type of data to be invalidated.
+        :param params: the parameters that uniquely identify the data to be invalidated.
+            For example, with playlist details, this will be a tuple containing a single
+            element: the playlist ID.
+        """
+
+    @abc.abstractmethod
+    def delete_data(
+        self, data_key: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...]
+    ):
+        """
+        This function will be called if the adapter should delete some of its data.
+        This should destroy the data. If the deleted data is requested, a
+        ``CacheMissError`` should be thrown with no data in the ``partial_data`` field.
+
+        :param data_key: the type of data to be deleted.
+        :param params: the parameters that uniquely identify the data to be invalidated.
+            For example, with playlist details, this will be a tuple containing a single
+            element: the playlist ID.
         """

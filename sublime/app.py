@@ -14,6 +14,14 @@ try:
 except Exception:
     tap_imported = False
 
+try:
+    import keyring
+
+    has_keyring = True
+except ImportError:
+    has_keyring = False
+
+
 import gi
 
 gi.require_version("Gtk", "3.0")

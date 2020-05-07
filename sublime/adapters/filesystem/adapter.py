@@ -62,20 +62,19 @@ class FilesystemAdapter(CachingAdapter):
 
     def get_playlists(self) -> Sequence[Playlist]:
         playlists = list(models.Playlist.select())
-        if self.is_cache and len(playlists) == 0:
-            # This does not necessary mean that we have a cache miss. It could just mean
-            # that the list of playlists is actually empty. Determine if the adapter has
-            # ingested data for get_playlists before, and if not, cache miss.
-            function_name = CachingAdapter.FunctionNames.GET_PLAYLISTS
+        if self.is_cache:
+            # Determine if the adapter has ingested data for get_playlists before, and
+            # if not, cache miss.
+            cache_key = CachingAdapter.CachedDataKey.PLAYLISTS
             if not models.CacheInfo.get_or_none(
-                models.CacheInfo.query_name == function_name
+                models.CacheInfo.cache_key == cache_key
             ):
-                raise CacheMissError()
+                raise CacheMissError(partial_data=playlists)
         return playlists
 
     can_get_playlist_details: bool = True
 
-    def get_playlist_details(self, playlist_id: str,) -> PlaylistDetails:
+    def get_playlist_details(self, playlist_id: str) -> PlaylistDetails:
         playlist = models.Playlist.get_or_none(models.Playlist.id == playlist_id)
 
         # Handle the case that this is the ground truth adapter.
@@ -86,9 +85,9 @@ class FilesystemAdapter(CachingAdapter):
 
         # If we haven't ingested data for this playlist before, raise a CacheMissError
         # with the partial playlist data.
-        function_name = CachingAdapter.FunctionNames.GET_PLAYLIST_DETAILS
+        cache_key = CachingAdapter.CachedDataKey.PLAYLIST_DETAILS
         cache_info = models.CacheInfo.get_or_none(
-            models.CacheInfo.query_name == function_name,
+            models.CacheInfo.cache_key == cache_key,
             params_hash=self._params_hash(playlist_id),
         )
         if not cache_info:
@@ -100,7 +99,7 @@ class FilesystemAdapter(CachingAdapter):
     # ==================================================================================
     def ingest_new_data(
         self,
-        function: "CachingAdapter.FunctionNames",
+        data_key: "CachingAdapter.CachedDataKey",
         params: Tuple[Any, ...],
         data: Any,
     ):
@@ -109,28 +108,48 @@ class FilesystemAdapter(CachingAdapter):
         # Wrap the actual ingestion function in a database lock, and an atomic
         # transaction.
         with self.db_write_lock, models.database.atomic():
-            self._do_ingest_new_data(function, params, data)
+            self._do_ingest_new_data(data_key, params, data)
+
+    def invalidate_data(
+        self, function: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...]
+    ):
+        assert self.is_cache, "FilesystemAdapter is not in cache mode!"
+
+        # Wrap the actual ingestion function in a database lock, and an atomic
+        # transaction.
+        with self.db_write_lock, models.database.atomic():
+            self._do_invalidate_data(function, params)
+
+    def delete_data(
+        self, function: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...]
+    ):
+        assert self.is_cache, "FilesystemAdapter is not in cache mode!"
+
+        # Wrap the actual ingestion function in a database lock, and an atomic
+        # transaction.
+        with self.db_write_lock, models.database.atomic():
+            self._do_delete_data(function, params)
 
     def _do_ingest_new_data(
         self,
-        function: "CachingAdapter.FunctionNames",
+        data_key: "CachingAdapter.CachedDataKey",
         params: Tuple[Any, ...],
         data: Any,
     ):
         models.CacheInfo.insert(
-            query_name=function,
+            cache_key=data_key,
             params_hash=self._params_hash(*params),
             last_ingestion_time=datetime.now(),
         ).on_conflict_replace().execute()
 
-        if function == CachingAdapter.FunctionNames.GET_PLAYLISTS:
+        if data_key == CachingAdapter.CachedDataKey.PLAYLISTS:
             models.Playlist.insert_many(
                 map(asdict, data)
             ).on_conflict_replace().execute()
             models.Playlist.delete().where(
                 models.Playlist.id.not_in([p.id for p in data])
             ).execute()
-        elif function == CachingAdapter.FunctionNames.GET_PLAYLIST_DETAILS:
+        elif data_key == CachingAdapter.CachedDataKey.PLAYLIST_DETAILS:
             playlist_data = asdict(data)
             playlist, playlist_created = models.Playlist.get_or_create(
                 id=playlist_data["id"], defaults=playlist_data
@@ -160,3 +179,21 @@ class FilesystemAdapter(CachingAdapter):
                     setattr(playlist, k, v)
 
             playlist.save()
+
+    def _do_invalidate_data(
+        self, data_key: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...],
+    ):
+        if data_key == CachingAdapter.CachedDataKey.PLAYLISTS:
+            models.CacheInfo.delete().where(
+                models.CacheInfo.cache_key == data_key
+            ).execute()
+
+    def _do_delete_data(
+        self, data_key: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...],
+    ):
+        if data_key == CachingAdapter.CachedDataKey.PLAYLIST_DETAILS:
+            models.Playlist.delete().where(models.Playlist.id == params[0]).execute()
+            models.CacheInfo.delete().where(
+                models.CacheInfo.cache_key == data_key,
+                models.CacheInfo.params_hash == self._params_hash(params),
+            ).execute()

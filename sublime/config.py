@@ -7,16 +7,8 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 
-try:
-    import keyring
-
-    has_keyring = True
-except ImportError:
-    has_keyring = False
-
 import yaml
 
-from sublime.state_manager import ApplicationState
 from sublime.ui.state import UIState
 
 

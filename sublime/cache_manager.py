@@ -61,7 +61,6 @@ from .server.api_objects import (
     Directory,
     Genre,
     Playlist,
-    PlaylistWithSongs,
 )
 
 
@@ -394,9 +393,6 @@ class CacheManager(metaclass=Singleton):
             self.cache["version"] = 1
 
             cache_configs = [
-                # Playlists
-                ("playlists", Playlist, list),
-                ("playlist_details", PlaylistWithSongs, dict),
                 ("genres", Genre, list),
                 ("song_details", Child, dict),
                 # Non-ID3 caches
@@ -530,64 +526,6 @@ class CacheManager(metaclass=Singleton):
 
             for path in glob.glob(str(abs_path)):
                 Path(path).unlink()
-
-        def get_playlists(
-            self,
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-        ) -> "CacheManager.Result[List[Playlist]]":
-            if self.cache.get("playlists") and not force:
-                return CacheManager.Result.from_data(self.cache["playlists"] or [])
-
-            def after_download(playlists: List[Playlist]):
-                with self.cache_lock:
-                    self.cache["playlists"] = playlists
-                self.save_cache_info()
-
-            return CacheManager.Result.from_server(
-                lambda: self.server.get_playlists().playlist or [],
-                before_download=before_download,
-                after_download=after_download,
-            )
-
-        def invalidate_playlists_cache(self):
-            if not self.cache.get("playlists"):
-                return
-
-            with self.cache_lock:
-                self.cache["playlists"] = []
-            self.save_cache_info()
-
-        def get_playlist(
-            self,
-            playlist_id: int,
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-        ) -> "CacheManager.Result[PlaylistWithSongs]":
-            playlist_details = self.cache.get("playlist_details", {})
-            if playlist_id in playlist_details and not force:
-                return CacheManager.Result.from_data(playlist_details[playlist_id])
-
-            def after_download(playlist: PlaylistWithSongs):
-                with self.cache_lock:
-                    self.cache["playlist_details"][playlist_id] = playlist
-
-                    # Playlists have the song details, so save those too.
-                    for song in playlist.entry or []:
-                        self.cache["song_details"][song.id] = song
-
-                self.save_cache_info()
-
-            # Invalidate the cached photo if we are forcing a retrieval
-            # from the server.
-            if force:
-                self.delete_cached_cover_art(playlist_id)
-
-            return CacheManager.Result.from_server(
-                lambda: self.server.get_playlist(playlist_id),
-                before_download=before_download,
-                after_download=after_download,
-            )
 
         def create_playlist(self, name: str) -> Future:
             def do_create_playlist():

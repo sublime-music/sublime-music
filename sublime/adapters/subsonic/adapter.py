@@ -4,11 +4,11 @@ import os
 from datetime import datetime
 from pathlib import Path
 from time import sleep
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import requests
 
-from .api_objects import Response
+from .api_objects import Response, Song
 from .. import Adapter, api_objects as API, ConfigParamDescriptor
 
 
@@ -33,6 +33,7 @@ class SubsonicAdapter(Adapter):
         errors: Dict[str, Optional[str]] = {}
 
         # TODO: verify the URL
+        # TODO figure out how to prevent usage of Subsonic API before 1.8.0
         return errors
 
     def __init__(self, config: dict, data_directory: Path):
@@ -77,6 +78,7 @@ class SubsonicAdapter(Adapter):
         self,
         url: str,
         timeout: Union[float, Tuple[float, float], None] = None,
+        # TODO: retry count
         **params,
     ) -> Any:
         params = {**self._get_params(), **params}
@@ -114,7 +116,7 @@ class SubsonicAdapter(Adapter):
         self,
         url: str,
         timeout: Union[float, Tuple[float, float], None] = None,
-        **params: Union[None, str, datetime, int, Sequence[int]],
+        **params: Union[None, str, datetime, int, Sequence[int], Sequence[str]],
     ) -> Response:
         """
         Make a get request to a *Sonic REST API. Handle all types of errors including
@@ -173,8 +175,55 @@ class SubsonicAdapter(Adapter):
 
     can_get_playlist_details = True
 
-    def get_playlist_details(self, playlist_id: str,) -> API.PlaylistDetails:
-        result = self._get_json(self._make_url("getPlaylist"), id=playlist_id,).playlist
+    def get_playlist_details(self, playlist_id: str) -> API.PlaylistDetails:
+        result = self._get_json(self._make_url("getPlaylist"), id=playlist_id).playlist
         # TODO better error
         assert result, f"Error getting playlist {playlist_id}"
         return result
+
+    can_create_playlist = True
+
+    def create_playlist(
+        self, name: str, songs: List[API.Song] = None,
+    ) -> Optional[API.PlaylistDetails]:
+        return self._get_json(
+            self._make_url("createPlaylist"),
+            name=name,
+            songId=[s.id for s in songs or []],
+        ).playlist
+
+    can_update_playlist = True
+
+    def update_playlist(
+        self,
+        playlist_id: str,
+        name: str = None,
+        comment: str = None,
+        public: bool = None,
+        songs: List[API.Song] = None,
+    ) -> API.PlaylistDetails:
+        if name is not None or comment is not None or public is not None:
+            self._get_json(
+                self._make_url("updatePlaylist"),
+                playlistId=playlist_id,
+                name=name,
+                comment=comment,
+                public=public,
+            )
+
+        playlist = None
+        if songs is not None:
+            playlist = self._get_json(
+                self._make_url("createPlaylist"),
+                playlistId=playlist_id,
+                songId=[s.id for s in songs or []],
+            ).playlist
+
+        # If the call to createPlaylist to update the song IDs returned the playlist,
+        # return it.
+        return playlist or self.get_playlist_details(playlist_id)
+
+    can_delete_playlist = True
+
+    def delete_playlist(self, playlist_id: str):
+        self._get_json(self._make_url("deletePlaylist"), id=playlist_id)

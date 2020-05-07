@@ -43,7 +43,7 @@ def test_caching_get_playlists(cache_adapter: FilesystemAdapter):
         cache_adapter.get_playlists()
 
     # Ingest an empty list (for example, no playlists added yet to server).
-    cache_adapter.ingest_new_data(FilesystemAdapter.FunctionNames.GET_PLAYLISTS, (), [])
+    cache_adapter.ingest_new_data(FilesystemAdapter.CachedDataKey.PLAYLISTS, (), [])
 
     # After the first cache miss of get_playlists, even if an empty list is
     # returned, the next one should not be a cache miss.
@@ -51,7 +51,7 @@ def test_caching_get_playlists(cache_adapter: FilesystemAdapter):
 
     # Ingest two playlists.
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.FunctionNames.GET_PLAYLISTS,
+        FilesystemAdapter.CachedDataKey.PLAYLISTS,
         (),
         [
             SubsonicAPI.Playlist("1", "test1", comment="comment"),
@@ -70,7 +70,7 @@ def test_caching_get_playlists(cache_adapter: FilesystemAdapter):
 
     # Ingest a new playlist list with one of them deleted.
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.FunctionNames.GET_PLAYLISTS,
+        FilesystemAdapter.CachedDataKey.PLAYLISTS,
         (),
         [
             SubsonicAPI.Playlist("1", "test1", comment="comment"),
@@ -126,7 +126,7 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
         ),
     ]
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
+        FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS,
         ("1",),
         SubsonicAPI.PlaylistWithSongs("1", "test1", songs=songs),
     )
@@ -171,7 +171,7 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
         ),
     ]
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
+        FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS,
         ("1",),
         SubsonicAPI.PlaylistWithSongs("1", "foo", songs=songs),
     )
@@ -204,7 +204,7 @@ def test_no_caching_get_playlist_details(adapter: FilesystemAdapter):
 def test_caching_get_playlist_then_details(cache_adapter: FilesystemAdapter):
     # Ingest a list of playlists (like the sidebar, without songs)
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.FunctionNames.GET_PLAYLISTS,
+        FilesystemAdapter.CachedDataKey.PLAYLISTS,
         (),
         [SubsonicAPI.Playlist("1", "test1"), SubsonicAPI.Playlist("2", "test2")],
     )
@@ -232,13 +232,13 @@ def test_caching_get_playlist_then_details(cache_adapter: FilesystemAdapter):
         ),
     ]
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
+        FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS,
         ("1",),
         SubsonicAPI.PlaylistWithSongs("1", "test1", songs=songs),
     )
 
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.FunctionNames.GET_PLAYLIST_DETAILS,
+        FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS,
         ("2",),
         SubsonicAPI.PlaylistWithSongs("2", "test2", songs=songs),
     )
