@@ -45,23 +45,6 @@ build:
       - dist/*
     expire_in: 7 days
 
-build_logo:
-  image: ubuntu:20.04
-  stage: test
-  before_script:
-    - export DEBIAN_FRONTEND=noninteractive
-    - apt update && apt install -y inkscape make wget unzip
-    - wget 'https://github.com/be5invis/Iosevka/releases/download/v2.3.3/01-iosevka-2.3.3.zip'
-    - unzip -d iosevka 01-iosevka-2.3.3.zip
-    - mkdir -p ~/.fonts && cp -r iosevka/* ~/.fonts && fc-cache -f
-  script:
-    - cd docs/logo
-    - make
-  artifacts:
-    paths:
-      - docs/logo
-      - sublime-music.desktop
-
 build_flatpak:
   image: registry.gitlab.com/sumner/sublime-music/flatpak-build:latest
   stage: build

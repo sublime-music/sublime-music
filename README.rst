@@ -1,4 +1,4 @@
-.. image:: https://gitlab.com/sumner/sublime-music/-/raw/master/docs/logo/logo.png
+.. image:: https://gitlab.com/sumner/sublime-music/-/raw/master/logo/logo.png
    :alt: Sublime Music Logo
 
 Sublime Music is a GTK3

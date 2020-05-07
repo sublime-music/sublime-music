@@ -1,4 +1,4 @@
-.. image:: ./logo/logo.png
+.. image:: ../logo/logo.png
    :width: 800px
    :alt: Sublime Music logo
 

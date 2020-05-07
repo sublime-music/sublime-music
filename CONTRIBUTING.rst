@@ -112,7 +112,6 @@ application to PyPi. A brief description of each of the stages is as follows:
 
 ``build``
     * Builds the Python dist tar file
-    * Compiles the logo to multiple different sizes
     * Builds the flatpak.
 
 ``deploy``
