@@ -486,7 +486,7 @@ class CacheManager(metaclass=Singleton):
                     # Move the file to its cache download location.
                     os.makedirs(abs_path.parent, exist_ok=True)
                     if download_path.exists():
-                        shutil.move(download_path, abs_path)
+                        shutil.move(str(download_path), abs_path)
 
                 logging.info(f'{abs_path} downloaded. Returning.')
                 return abs_path_str
