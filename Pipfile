@@ -25,7 +25,7 @@ termcolor = "*"
 yapf = "*"
 
 [packages]
-sublime-music = {editable = true,path = "."}
+sublime-music = {editable = true,extras = ["keyring"],path = "."}
 
 [requires]
 python_version = "3.8"

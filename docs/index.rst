@@ -70,6 +70,11 @@ Install the |AUR Package|_. Example using ``yay``::
 
     pip install sublime-music
 
+Or if you want to store your passwords in the system keyring instead of in
+plain-text::
+
+    pip install sublime-music[keyring]
+
 .. toctree::
    :numbered:
    :maxdepth: 1
