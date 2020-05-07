@@ -59,7 +59,6 @@ setup(
         'deepdiff',
         'Deprecated',
         'fuzzywuzzy',
-        'keyring',
         'osxmmkeys ; sys_platform=="darwin"',
         'pychromecast',
         'PyGObject',
@@ -69,6 +68,10 @@ setup(
         'pyyaml',
         'requests',
     ],
+    extras_require={
+        "keyring": ["keyring"],
+    },
+
 
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and

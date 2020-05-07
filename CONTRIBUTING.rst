@@ -66,14 +66,14 @@ environment, you can use::
 Building the flatpak
 --------------------
 
-*(currently broken)*
-
 - A flatpak-builder environment must be setup on the build machine to do a
   flatpak build. This includes ``org.gnome.SDK//3.34`` and
   ``org.gnome.Platform//3.34``.
 - The ``flatpak`` folder contains the required files to build a flatpak package.
 - The script ``flatpak_build.sh`` will run the required commands to grab the
   remaining dependencies and build the flatpak.
+- You can install the Flatpak using: ``flatpak install sublime-music.flatpak``
+  and run it using ``flatpak run com.sumnerevans.SublimeMusic``.
 
 Code Style
 ----------
