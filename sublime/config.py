@@ -3,7 +3,12 @@ import os
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-import keyring
+try:
+    import keyring
+
+    has_keyring = True
+except ImportError:
+    has_keyring = False
 
 
 class ReplayGainType(Enum):
@@ -56,19 +61,22 @@ class ServerConfiguration:
 
         # Try to save the password in the keyring, but if we can't, then save
         # it in the config JSON.
-        try:
-            keyring.set_password(
-                'com.sumnerevans.SublimeMusic',
-                f'{self.username}@{self.server_address}',
-                password,
-            )
-        except Exception:
+        if not has_keyring:
             self._password = password
+        else:
+            try:
+                keyring.set_password(
+                    'com.sumnerevans.SublimeMusic',
+                    f'{self.username}@{self.server_address}',
+                    password,
+                )
+            except Exception:
+                self._password = password
 
     def migrate(self):
         # Try and migrate to use the system keyring, but if it fails, then we
         # don't care.
-        if self._password:
+        if self._password and has_keyring:
             try:
                 keyring.set_password(
                     'com.sumnerevans.SublimeMusic',
@@ -81,6 +89,9 @@ class ServerConfiguration:
 
     @property
     def password(self) -> str:
+        if not has_keyring:
+            return self._password
+
         try:
             return keyring.get_password(
                 'com.sumnerevans.SublimeMusic',
