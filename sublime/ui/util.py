@@ -35,7 +35,12 @@ def format_song_duration(duration_secs: Union[int, timedelta, None]) -> str:
     '1:20'
     >>> format_song_duration(62)
     '1:02'
+    >>> format_song_duration(timedelta(seconds=68.2))
+    '1:08'
+    >>> format_song_duration(None)
+    '-:--'
     """
+    # TODO remove int compatibility eventually?
     if isinstance(duration_secs, timedelta):
         duration_secs = round(duration_secs.total_seconds())
     if not duration_secs:
@@ -66,14 +71,16 @@ def format_sequence_duration(duration_secs: Union[int, timedelta]) -> str:
 
     >>> format_sequence_duration(30)
     '30 seconds'
-    >>> format_sequence_duration(90)
+    >>> format_sequence_duration(timedelta(seconds=90))
     '1 minute, 30 seconds'
     >>> format_sequence_duration(60 * 60 + 120)
     '1 hour, 2 minutes'
+    >>> format_sequence_duration(None)
+    '0 seconds'
     """
     # TODO remove int compatibility eventually
     if isinstance(duration_secs, timedelta):
-        duration_secs = int(duration_secs.total_seconds())
+        duration_secs = round(duration_secs.total_seconds())
     if not duration_secs:
         duration_secs = 0
     duration_mins = (duration_secs // 60) % 60
@@ -105,7 +112,7 @@ def esc(string: Optional[str]) -> str:
 
 def dot_join(*items: Any) -> str:
     """
-    Joins the given strings with a dot character. Filters out None values.
+    Joins the given strings with a dot character. Filters out ``None`` values.
     """
     return "  •  ".join(map(str, filter(lambda x: x is not None, items)))
 

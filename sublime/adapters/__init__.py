@@ -1,5 +1,5 @@
 from .adapter_base import Adapter, CacheMissError, CachingAdapter, ConfigParamDescriptor
-from .adapter_manager import AdapterManager
+from .adapter_manager import AdapterManager, Result
 
 __all__ = (
     "Adapter",
@@ -7,4 +7,5 @@ __all__ = (
     "CacheMissError",
     "CachingAdapter",
     "ConfigParamDescriptor",
+    "Result",
 )

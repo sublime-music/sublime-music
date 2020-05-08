@@ -715,10 +715,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self, playlist: PlaylistDetails, app_config: AppConfiguration, **kwargs,
     ):
         self.playlist_view_loading_box.show_all()
-        update_playlist_future = CacheManager.update_playlist(
-            playlist_id=playlist.id,
-            song_index_to_remove=list(range(playlist.song_count)),
-            song_id_to_add=[s[-1] for s in self.playlist_song_store],
+        update_playlist_future = AdapterManager.update_playlist(
+            playlist.id, song_ids=[s[-1] for s in self.playlist_song_store]
         )
 
         update_playlist_future.add_done_callback(
