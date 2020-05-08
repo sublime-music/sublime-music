@@ -15,7 +15,7 @@ except Exception:
     tap_imported = False
 
 try:
-    import keyring
+    # import keyring
 
     has_keyring = True
 except ImportError:

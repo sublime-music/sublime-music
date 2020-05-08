@@ -80,10 +80,11 @@ Code Style
 
 This project follows `PEP-8`_ **strictly**. The *only* exception is maximum line
 length, which is 88 for this project (in accordance with ``black``'s defaults).
-Additionally, lines that contain a single string literal are allowed to extend
-past that.
-Additionally, this project uses ``black`` to enforce consistent, deterministic
-code style.
+Lines that contain a single string literal are allowed to extend past the
+maximum line length limit.
+
+This project uses flake8, mypy, and black to do static analysis of the code and
+to enforce a consistent (and as deterministic as possible) code style.
 
 Although you can technically do all of the formatting yourself, it is
 recommended that you use the following tools (they are automatically installed
@@ -100,18 +101,21 @@ before knowing if your code is the correct style.
   * ``flake8-importorder`` (with the ``edited`` import style): enforce ordering
     of import statements.
   * ``flake8-pep3101``: no ``%`` string formatting.
-  * ``flake8-print`` no print statements. Use the more powerful and useful
-    ``logging`` library instead. In the rare case that you actually want to
-    print to the terminal (the ``--version`` flag for example), then just
-    disable this check with a ``# noqa: T001`` comment.
 
 * `mypy`_ is used for type checking. All type errors must be resolved.
+
 * `black`_ is used for auto-formatting. The CI process runs ``black --check`` to
   make sure that you've run ``black`` on all files (or are just good at manually
   formatting).
+
 * ``TODO`` statements must include an associated issue number (in other words,
   if you want to check in a change with outstanding TODOs, there must be an
   issue associated with it to fix it).
+
+* ``print`` statements are not allowed. Use the more powerful and useful
+  ``logging`` library instead. In the rare case that you actually want to print
+  to the terminal (the ``--version`` flag for example), then just disable this
+  check with a ``# noqa`` or a ``# noqa: T001`` comment.
 
 .. _black: https://github.com/psf/black
 .. _`PEP-8`: https://www.python.org/dev/peps/pep-0008/
@@ -122,7 +126,8 @@ checks for uses of ``print``. You can run the same checks that the lint job runs
 yourself with the following commands::
 
     $ flake8
-    $ mypy sublime
+    $ mypy sublime tests/**/*.py
+    $ black --check .
     $ ./cicd/custom_style_check.py
 
 Testing

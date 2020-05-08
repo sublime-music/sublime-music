@@ -132,9 +132,7 @@ class SearchResult:
         if getattr(self, member) is None:
             setattr(self, member, set())
 
-        setattr(
-            self, member, getattr(getattr(self, member, set()), "union")(set(results)),
-        )
+        setattr(self, member, getattr(self, member, set()).union(set(results)))
 
     def _to_result(self, it: Iterable[S], transform: Callable[[S], str],) -> List[S]:
         all_results = sorted(

@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import types
 from datetime import datetime
 from pathlib import Path
 from time import sleep
@@ -9,7 +8,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import requests
 
-from .api_objects import Response, Song
+from .api_objects import Response
 from .. import Adapter, api_objects as API, ConfigParamDescriptor
 
 
