@@ -527,20 +527,6 @@ class CacheManager(metaclass=Singleton):
             for path in glob.glob(str(abs_path)):
                 Path(path).unlink()
 
-        def create_playlist(self, name: str) -> Future:
-            def do_create_playlist():
-                self.server.create_playlist(name=name)
-
-            return CacheManager.create_future(do_create_playlist)
-
-        def update_playlist(self, playlist_id: int, *args, **kwargs) -> Future:
-            def do_update_playlist():
-                self.server.update_playlist(playlist_id, *args, **kwargs)
-                with self.cache_lock:
-                    del self.cache["playlist_details"][playlist_id]
-
-            return CacheManager.create_future(do_update_playlist)
-
         def get_artists(
             self,
             before_download: Callable[[], None] = lambda: None,

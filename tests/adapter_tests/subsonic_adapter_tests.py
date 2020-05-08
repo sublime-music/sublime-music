@@ -3,7 +3,7 @@ import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Generator, Tuple
+from typing import Any, Generator, List, Tuple
 
 import pytest
 
@@ -33,12 +33,40 @@ def mock_data_files(
     request_name: str, mode: str = "r"
 ) -> Generator[Tuple[Path, Any], None, None]:
     """
-    Yields all of the files in the mock_data directory that start with ``request_name``.
+    Yields all of the files and the corresponding text in the mock_data directory for
+    all files that start with ``request_name``.
     """
     for file in MOCK_DATA_FILES.iterdir():
         if file.name.split("-")[0] in request_name:
             with open(file, mode) as f:
                 yield file, f.read()
+
+
+def mock_data_files_multi_part(
+    request_name: str, mode: str = "r"
+) -> Generator[Tuple[Path, Any], None, None]:
+    """
+    Yields all of the files, and each of the elements of in the file (separated by a
+    line of ='s), for all files in the mock_data directory that start with
+    ``request_name``. This only works for text such as JSON.
+    """
+    sep_re = re.compile(r"=+\n")
+
+    for file in MOCK_DATA_FILES.iterdir():
+        if file.name.split("-")[0] in request_name:
+            with open(file, mode) as f:
+                parts: List[str] = []
+                aggregate: List[str] = []
+                for line in f:
+                    if sep_re.match(line):
+                        parts.append("\n".join(aggregate))
+                        aggregate = []
+                        continue
+                    aggregate.append(line)
+
+                parts.append("\n".join(aggregate))
+                print(parts)
+                yield file, iter(parts)
 
 
 def mock_json(**obj: Any) -> str:
@@ -212,3 +240,17 @@ def test_create_playlist(adapter: SubsonicAdapter):
                 )
             ],
         )
+
+
+def test_update_playlist(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files_multi_part("update_playlist"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        result_playlist = adapter.update_playlist(
+            "1", name="Foo", comment="Bar", public=True, song_ids=["202"]
+        )
+
+        assert result_playlist.comment == "Bar"
+        assert result_playlist.public is False

@@ -74,6 +74,8 @@ def format_sequence_duration(duration_secs: Union[int, timedelta]) -> str:
     # TODO remove int compatibility eventually
     if isinstance(duration_secs, timedelta):
         duration_secs = int(duration_secs.total_seconds())
+    if not duration_secs:
+        duration_secs = 0
     duration_mins = (duration_secs // 60) % 60
     duration_hrs = duration_secs // 60 // 60
     duration_secs = duration_secs % 60

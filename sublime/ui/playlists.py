@@ -231,7 +231,7 @@ class PlaylistList(Gtk.Box):
             self.update(force=True)
 
         self.loading_indicator.show()
-        playlist_ceate_future = CacheManager.create_playlist(name=playlist_name)
+        playlist_ceate_future = AdapterManager.create_playlist(name=playlist_name)
         playlist_ceate_future.add_done_callback(
             lambda f: GLib.idle_add(on_playlist_created, f)
         )
@@ -538,7 +538,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         # Using ResponseType.NO as the delete event.
         if result in (Gtk.ResponseType.OK, Gtk.ResponseType.NO):
             if result == Gtk.ResponseType.OK:
-                CacheManager.update_playlist(
+                AdapterManager.update_playlist(
                     self.playlist_id,
                     name=dialog.data["name"].get_text(),
                     comment=dialog.data["comment"].get_text(),
@@ -565,7 +565,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 result = confirm_dialog.run()
                 confirm_dialog.destroy()
                 if result == Gtk.ResponseType.YES:
-                    CacheManager.delete_playlist(self.playlist_id)
+                    AdapterManager.delete_playlist(self.playlist_id)
                     playlist_deleted = True
                 else:
                     # In this case, we don't want to do any invalidation of
@@ -657,9 +657,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
             widget_coords = tree.convert_tree_to_widget_coords(event.x, event.y)
 
             def on_remove_songs_click(_: Any):
-                CacheManager.update_playlist(
-                    playlist_id=self.playlist_id,
-                    song_index_to_remove=[p.get_indices()[0] for p in paths],
+                assert self.playlist_id
+                AdapterManager.update_playlist(
+                    playlist_id=self.playlist_id, song_ids=song_ids
                 )
                 self.update_playlist_view(
                     self.playlist_id,

@@ -356,10 +356,10 @@ class AdapterManager:
     @staticmethod
     def update_playlist(
         playlist_id: str,
-        name: str,
-        comment: str = "",
+        name: str = None,
+        comment: str = None,
         public: bool = False,
-        songs: List[Song] = None,
+        song_ids: List[str] = None,
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
     ) -> Result[PlaylistDetails]:
@@ -370,7 +370,11 @@ class AdapterManager:
             if before_download:
                 before_download()
             return AdapterManager._instance.ground_truth_adapter.update_playlist(
-                playlist_id, name=name, comment=comment, public=public, songs=songs
+                playlist_id,
+                name=name,
+                comment=comment,
+                public=public,
+                song_ids=song_ids,
             )
 
         future: Result[PlaylistDetails] = Result(future_fn)

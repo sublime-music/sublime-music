@@ -254,7 +254,7 @@ class Adapter(abc.ABC):
         name: str = None,
         comment: str = None,
         public: bool = None,
-        songs: List[Song] = None,
+        song_ids: List[str] = None,
     ) -> PlaylistDetails:
         """
         Updates a given playlist. If a parameter is ``None``, then it will be ignored
@@ -266,7 +266,7 @@ class Adapter(abc.ABC):
         :param public: This is very dependent on the adapter, but if the adapter has a
             shared/public vs. not shared/private playlists concept, setting this to
             ``True`` will make the playlist shared/public.
-        :param songs: A list of songs that should be included in the playlist.
+        :param song_ids: A list of song IDs that should be included in the playlist.
         """
         raise self._check_can_error("update_playlist")
 

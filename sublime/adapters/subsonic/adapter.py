@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import types
 from datetime import datetime
 from pathlib import Path
 from time import sleep
@@ -160,6 +161,9 @@ class SubsonicAdapter(Adapter):
         def get_mock_data() -> Any:
             if type(data) == Exception:
                 raise data
+            if hasattr(data, "__next__"):
+                return MockResult(next(data))
+
             return MockResult(data)
 
         self._get_mock_data = get_mock_data
@@ -200,7 +204,7 @@ class SubsonicAdapter(Adapter):
         name: str = None,
         comment: str = None,
         public: bool = None,
-        songs: List[API.Song] = None,
+        song_ids: List[str] = None,
     ) -> API.PlaylistDetails:
         if name is not None or comment is not None or public is not None:
             self._get_json(
@@ -212,11 +216,11 @@ class SubsonicAdapter(Adapter):
             )
 
         playlist = None
-        if songs is not None:
+        if song_ids is not None:
             playlist = self._get_json(
                 self._make_url("createPlaylist"),
                 playlistId=playlist_id,
-                songId=[s.id for s in songs or []],
+                songId=song_ids,
             ).playlist
 
         # If the call to createPlaylist to update the song IDs returned the playlist,
