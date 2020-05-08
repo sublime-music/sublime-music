@@ -5,7 +5,6 @@ verify_ssl = true
 
 [dev-packages]
 black = "*"
-dataclasses-json = {git = "https://github.com/lidatong/dataclasses-json",ref = "master"}
 docutils = "*"
 flake8 = "==3.8.0a2"
 flake8-annotations = "*"
@@ -28,6 +27,7 @@ termcolor = "*"
 
 [packages]
 sublime-music = {editable = true,extras = ["keyring"],path = "."}
+dataclasses-json = {editable = true,git = "https://github.com/lidatong/dataclasses-json",ref = "master"}
 
 [requires]
 python_version = "3.8"
