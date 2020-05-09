@@ -615,6 +615,15 @@ class AdapterManager:
             assert AdapterManager._instance.caching_adapter
 
             try:
+                # If the song is already cached, return
+                try:
+                    AdapterManager._instance.caching_adapter.get_song_uri(
+                        song_id, "file"
+                    )
+                    return
+                except CacheMissError:
+                    pass
+
                 if AdapterManager.is_shutting_down:
                     return
 
