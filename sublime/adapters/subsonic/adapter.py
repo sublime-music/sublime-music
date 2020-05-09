@@ -51,7 +51,7 @@ class SubsonicAdapter(Adapter):
         self.ping_process.start()
 
         # Wait for the first ping.
-        # TODO this is kinda dumb. Should probably fix it somehow
+        # TODO this is kinda dumb. Should probably fix it somehow.
         while not self._first_ping_happened.value:
             sleep(0.1)
 
@@ -67,16 +67,18 @@ class SubsonicAdapter(Adapter):
 
     def _check_ping_thread(self):
         while True:
-            try:
-                # Try to ping the server with a timeout of 2 seconds.
-                self._get_json(self._make_url("ping"), timeout=2)
-                self._server_available.value = True
-            except Exception:
-                logging.exception(f"Could not connect to {self.hostname}")
-                self._server_available.value = False
-
+            self._set_ping_status()
             self._first_ping_happened.value = True
             sleep(15)
+
+    def _set_ping_status(self):
+        try:
+            # Try to ping the server with a timeout of 2 seconds.
+            self._get_json(self._make_url("ping"), timeout=2)
+            self._server_available.value = True
+        except Exception:
+            logging.exception(f"Could not connect to {self.hostname}")
+            self._server_available.value = False
 
     @property
     def can_service_requests(self) -> bool:

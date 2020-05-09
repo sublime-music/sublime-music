@@ -27,6 +27,7 @@ def adapter(tmp_path: Path):
     )
     adapter._is_mock = True
     yield adapter
+    adapter.shutdown()
 
 
 def mock_data_files(
@@ -96,18 +97,19 @@ def test_request_making_methods(adapter: SubsonicAdapter):
 def test_can_service_requests(adapter: SubsonicAdapter):
     # Mock a connection error
     adapter._set_mock_data(Exception())
-    assert adapter.can_service_requests is False
+    assert not adapter.can_service_requests
 
     # Simulate some sort of ping error
     for filename, data in mock_data_files("ping_failed"):
         logging.info(filename)
         logging.debug(data)
         adapter._set_mock_data(data)
-        assert adapter.can_service_requests is False
+        assert not adapter.can_service_requests
 
     # Simulate valid ping
     adapter._set_mock_data(mock_json())
-    assert adapter.can_service_requests is True
+    adapter._set_ping_status()
+    assert adapter.can_service_requests
 
 
 def test_get_playlists(adapter: SubsonicAdapter):
