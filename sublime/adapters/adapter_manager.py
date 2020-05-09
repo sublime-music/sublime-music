@@ -1,8 +1,10 @@
 import logging
 import tempfile
+import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+from time import sleep
 from typing import (
     Any,
     Callable,
@@ -11,6 +13,7 @@ from typing import (
     Optional,
     Sequence,
     Set,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -18,6 +21,7 @@ from typing import (
 
 import requests
 
+from sublime import util
 from sublime.config import AppConfiguration
 
 from .adapter_base import Adapter, CacheMissError, CachingAdapter, SongCacheStatus
@@ -95,6 +99,8 @@ class Result(Generic[T]):
 
 class AdapterManager:
     available_adapters: Set[Any] = {FilesystemAdapter, SubsonicAdapter}
+    current_download_hashes: Set[str] = set()
+    download_set_lock = threading.Lock()
     executor: ThreadPoolExecutor = ThreadPoolExecutor()
     is_shutting_down: bool = False
 
@@ -102,10 +108,14 @@ class AdapterManager:
     class _AdapterManagerInternal:
         ground_truth_adapter: Adapter
         caching_adapter: Optional[CachingAdapter] = None
+        concurrent_download_limit: int = 5
 
         def __post_init__(self):
             self._download_dir = tempfile.TemporaryDirectory()
             self.download_path = Path(self._download_dir.name)
+            self.download_limiter_semaphore = threading.Semaphore(
+                self.concurrent_download_limit
+            )
 
         def shutdown(self):
             self.ground_truth_adapter.shutdown()
@@ -176,7 +186,9 @@ class AdapterManager:
             )
 
         AdapterManager._instance = AdapterManager._AdapterManagerInternal(
-            ground_truth_adapter, caching_adapter=caching_adapter,
+            ground_truth_adapter,
+            caching_adapter=caching_adapter,
+            concurrent_download_limit=config.concurrent_download_limit,
         )
 
     # Data Helper Methods
@@ -218,6 +230,86 @@ class AdapterManager:
             action_name
         ) or AdapterManager._cache_can_do(action_name)
 
+    @staticmethod
+    def _create_future_fn(
+        function_name: str,
+        before_download: Callable[[], None] = lambda: None,
+        *args,
+        **kwargs,
+    ) -> Result:
+        def future_fn() -> Any:
+            assert AdapterManager._instance
+            if before_download:
+                before_download()
+            return getattr(
+                AdapterManager._instance.ground_truth_adapter, function_name
+            )(*args, **kwargs)
+
+        return Result(future_fn)
+
+    @staticmethod
+    def _create_download_fn(
+        uri: str, params_hash: str, before_download: Callable[[], None] = lambda: None,
+    ) -> Callable:
+        def download_fn() -> str:
+            assert AdapterManager._instance
+            download_tmp_filename = AdapterManager._instance.download_path.joinpath(
+                params_hash
+            )
+
+            resource_downloading = False
+            with AdapterManager.download_set_lock:
+                if params_hash in AdapterManager.current_download_hashes:
+                    resource_downloading = True
+                AdapterManager.current_download_hashes.add(params_hash)
+
+            # TODO figure out how to retry
+            if resource_downloading:
+                logging.info(f"{uri} already being downloaded.")
+
+                # The resource is already being downloaded. Busy loop until
+                # it has completed. Then, just return the path to the
+                # resource.
+                t = 0.0
+                while params_hash in AdapterManager.current_download_hashes and t < 20:
+                    sleep(0.2)
+                    t += 0.2
+                    # TODO handle the timeout
+            else:
+                logging.info(f"{uri} not found. Downloading...")
+                if before_download:
+                    before_download()
+
+                try:
+                    data = requests.get(uri)
+
+                    # TODO (#122): make better
+                    if not data:
+                        raise Exception("Download failed!")
+                    if "json" in data.headers.get("Content-Type", ""):
+                        raise Exception("Didn't expect JSON!")
+
+                    with open(download_tmp_filename, "wb+") as f:
+                        f.write(data.content)
+                finally:
+                    # Always release the download set lock, even if there's an error.
+                    with AdapterManager.download_set_lock:
+                        AdapterManager.current_download_hashes.discard(params_hash)
+
+            logging.info(f"{uri} downloaded. Returning.")
+            return str(download_tmp_filename)
+
+        return download_fn
+
+    @staticmethod
+    def _get_scheme():
+        scheme_priority = ("https", "http")
+        schemes = sorted(
+            AdapterManager._instance.ground_truth_adapter.supported_schemes,
+            key=scheme_priority.index,
+        )
+        return list(schemes)[0]
+
     # TODO abstract more stuff
 
     # Usage and Availability Properties
@@ -247,8 +339,13 @@ class AdapterManager:
         return AdapterManager._any_adapter_can_do("get_cover_art_uri")
 
     @staticmethod
-    def can_get_song_uri() -> bool:
+    def can_get_song_filename_or_stream() -> bool:
         return AdapterManager._any_adapter_can_do("get_song_uri")
+
+    @staticmethod
+    def can_batch_download_songs() -> bool:
+        # We can only download from the ground truth adapter.
+        return AdapterManager._ground_truth_can_do("get_song_uri")
 
     # Data Retrieval Methods
     # ==================================================================================
@@ -279,13 +376,9 @@ class AdapterManager:
                 return partial_playlists_data
             raise Exception(f'No adapters can service {"get_playlists"} at the moment.')
 
-        def future_fn() -> Sequence[Playlist]:
-            assert AdapterManager._instance
-            if before_download:
-                before_download()
-            return AdapterManager._instance.ground_truth_adapter.get_playlists()
-
-        future: Result[Sequence[Playlist]] = Result(future_fn)
+        future: Result[Sequence[Playlist]] = AdapterManager._create_future_fn(
+            "get_playlists", before_download
+        )
 
         if AdapterManager._instance.caching_adapter:
 
@@ -336,15 +429,9 @@ class AdapterManager:
                 f'No adapters can service {"get_playlist_details"} at the moment.'
             )
 
-        def future_fn() -> PlaylistDetails:
-            assert AdapterManager._instance
-            if before_download:
-                before_download()
-            return AdapterManager._instance.ground_truth_adapter.get_playlist_details(
-                playlist_id
-            )
-
-        future: Result[PlaylistDetails] = Result(future_fn)
+        future: Result[PlaylistDetails] = AdapterManager._create_future_fn(
+            "get_playlist_details", before_download, playlist_id
+        )
 
         if AdapterManager._instance.caching_adapter:
 
@@ -370,15 +457,9 @@ class AdapterManager:
     ) -> Result[None]:
         assert AdapterManager._instance
 
-        def future_fn():
-            assert AdapterManager._instance
-            if before_download:
-                before_download()
-            AdapterManager._instance.ground_truth_adapter.create_playlist(
-                name, songs=songs
-            )
-
-        future: Result[None] = Result(future_fn)
+        future: Result[None] = AdapterManager._create_future_fn(
+            "get_playlist_details", before_download, name, songs=songs
+        )
 
         if AdapterManager._instance.caching_adapter:
 
@@ -412,20 +493,15 @@ class AdapterManager:
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
     ) -> Result[PlaylistDetails]:
         assert AdapterManager._instance
-
-        def future_fn() -> PlaylistDetails:
-            assert AdapterManager._instance
-            if before_download:
-                before_download()
-            return AdapterManager._instance.ground_truth_adapter.update_playlist(
-                playlist_id,
-                name=name,
-                comment=comment,
-                public=public,
-                song_ids=song_ids,
-            )
-
-        future: Result[PlaylistDetails] = Result(future_fn)
+        future: Result[PlaylistDetails] = AdapterManager._create_future_fn(
+            "update_playlist",
+            before_download,
+            playlist_id,
+            name=name,
+            comment=comment,
+            public=public,
+            song_ids=song_ids,
+        )
 
         if AdapterManager._instance.caching_adapter:
 
@@ -493,37 +569,15 @@ class AdapterManager:
                 f'No adapters can service {"get_cover_art_uri"} at the moment.'
             )
 
-        def future_fn() -> str:
-            assert AdapterManager._instance
-            if before_download:
-                before_download()
-
-            scheme_priority = ("https", "http")
-            schemes = sorted(
-                AdapterManager._instance.ground_truth_adapter.supported_schemes,
-                key=scheme_priority.index,
-            )
-
-            # TODO guard for already being downloaded
-            data = requests.get(
+        future: Result[str] = Result(
+            AdapterManager._create_download_fn(
                 AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
-                    cover_art_id, list(schemes)[0]
-                )
+                    cover_art_id, AdapterManager._get_scheme()
+                ),
+                util.params_hash("cover_art", cover_art_id),
+                before_download=before_download,
             )
-
-            # TODO (#122): make better
-            if "json" in data.headers.get("Content-Type", ""):
-                raise Exception("Didn't expect JSON.")
-
-            download_dir = AdapterManager._instance.download_path.joinpath("cover_art")
-            download_dir.mkdir(parents=True, exist_ok=True)
-            cover_art_filename = download_dir.joinpath(cover_art_id)
-            with open(cover_art_filename, "wb+") as f:
-                f.write(data.content)
-
-            return str(cover_art_filename)
-
-        future: Result[str] = Result(future_fn)
+        )
 
         if AdapterManager._instance.caching_adapter:
 
@@ -539,6 +593,65 @@ class AdapterManager:
             future.add_done_callback(future_finished)
 
         return future
+
+    @staticmethod
+    def get_song_filename_or_stream() -> Tuple[str, bool]:
+        raise NotImplementedError()
+
+    @staticmethod
+    def batch_download_songs(
+        song_ids: List[str],
+        before_download: Callable[[], None],
+        on_song_download_complete: Callable[[], None],
+    ):
+        assert AdapterManager._instance
+
+        # This only really makes sense if we have a caching_adapter.
+        if not AdapterManager._instance.caching_adapter:
+            return
+
+        def do_download_song(song_id: str):
+            assert AdapterManager._instance
+            assert AdapterManager._instance.caching_adapter
+
+            try:
+                if AdapterManager.is_shutting_down:
+                    return
+
+                song_tmp_filename = AdapterManager._create_download_fn(
+                    AdapterManager._instance.ground_truth_adapter.get_song_uri(
+                        song_id, AdapterManager._get_scheme()
+                    ),
+                    util.params_hash("song", song_id),
+                    before_download=before_download,
+                )()
+
+                AdapterManager._instance.caching_adapter.ingest_new_data(
+                    CachingAdapter.CachedDataKey.SONG_FILE,
+                    (song_id,),
+                    song_tmp_filename,
+                )
+
+                on_song_download_complete()
+            finally:
+                # Release the semaphore lock. This will allow the next song in the queue
+                # to be downloaded. I'm doing this in the finally block so that it
+                # always runs, regardless of whether an exception is thrown or the
+                # function returns.
+                AdapterManager._instance.download_limiter_semaphore.release()
+
+        def do_batch_download_songs():
+            for song_id in song_ids:
+                # Only allow a certain number of songs to be downloaded
+                # simultaneously.
+                AdapterManager._instance.download_limiter_semaphore.acquire()
+
+                # Prevents further songs from being downloaded.
+                if AdapterManager.is_shutting_down:
+                    break
+                Result(lambda: do_download_song(song_id))
+
+        Result(do_batch_download_songs)
 
     @staticmethod
     def get_song_uri(
@@ -557,5 +670,8 @@ class AdapterManager:
         assert AdapterManager._instance
         if not AdapterManager._instance.caching_adapter:
             return SongCacheStatus.NOT_CACHED
+
+        if util.params_hash("song", song.id) in AdapterManager.current_download_hashes:
+            return SongCacheStatus.DOWNLOADING
 
         return AdapterManager._instance.caching_adapter.get_cached_status(song)

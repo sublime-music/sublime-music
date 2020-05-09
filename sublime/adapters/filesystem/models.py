@@ -1,7 +1,7 @@
 from peewee import (
     BooleanField,
     CompositeKey,
-    ForeignKeyField,
+    # ForeignKeyField,
     IntegerField,
     Model,
     SqliteDatabase,

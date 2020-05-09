@@ -10,7 +10,6 @@ from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from sublime.adapters import AdapterManager
 from sublime.adapters.api_objects import Playlist, PlaylistDetails
-from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.ui import util
 from sublime.ui.common import (
@@ -595,7 +594,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             )
 
         song_ids = [s[-1] for s in self.playlist_song_store]
-        CacheManager.batch_download_songs(
+        AdapterManager.batch_download_songs(
             song_ids,
             before_download=download_state_change,
             on_song_download_complete=download_state_change,
