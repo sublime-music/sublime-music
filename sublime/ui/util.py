@@ -20,7 +20,7 @@ from deepdiff import DeepDiff
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
-from sublime.adapters import AdapterManager
+from sublime.adapters import AdapterManager, SongCacheStatus as NewSongCacheStatus
 from sublime.adapters.api_objects import Playlist
 from sublime.cache_manager import CacheManager, SongCacheStatus
 from sublime.config import AppConfiguration
@@ -123,6 +123,11 @@ def get_cached_status_icon(cache_status: SongCacheStatus) -> str:
         SongCacheStatus.CACHED: "folder-download-symbolic",
         SongCacheStatus.PERMANENTLY_CACHED: "view-pin-symbolic",
         SongCacheStatus.DOWNLOADING: "emblem-synchronizing-symbolic",
+        # TODO remove the old one eventually
+        NewSongCacheStatus.NOT_CACHED: "",
+        NewSongCacheStatus.CACHED: "folder-download-symbolic",
+        NewSongCacheStatus.PERMANENTLY_CACHED: "view-pin-symbolic",
+        NewSongCacheStatus.DOWNLOADING: "emblem-synchronizing-symbolic",
     }
     return cache_icon[cache_status]
 

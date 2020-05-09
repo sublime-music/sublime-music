@@ -483,7 +483,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         new_store = [
             [
-                util.get_cached_status_icon(CacheManager.get_cached_status(song)),
+                util.get_cached_status_icon(AdapterManager.get_cached_status(song)),
                 song.title,
                 song.album,
                 song.artist,
@@ -502,7 +502,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.play_shuffle_buttons.show_all()
 
     @util.async_callback(
-        lambda *a, **k: CacheManager.get_cover_art_filename(*a, **k),
+        lambda *a, **k: AdapterManager.get_cover_art_filename(*a, **k),
         before_download=lambda self: self.playlist_artwork.set_loading(True),
         on_failure=lambda self, e: self.playlist_artwork.set_loading(False),
     )

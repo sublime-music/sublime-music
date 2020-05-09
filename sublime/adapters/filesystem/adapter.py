@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import shutil
 import threading
 from dataclasses import asdict
 from datetime import datetime
@@ -10,7 +11,7 @@ from typing import Any, Dict, Optional, Sequence, Tuple
 from sublime.adapters.api_objects import Playlist, PlaylistDetails
 
 from . import models
-from .. import CacheMissError, CachingAdapter, ConfigParamDescriptor
+from .. import CacheMissError, CachingAdapter, ConfigParamDescriptor, SongCacheStatus
 
 
 class FilesystemAdapter(CachingAdapter):
@@ -34,7 +35,11 @@ class FilesystemAdapter(CachingAdapter):
         self, config: dict, data_directory: Path, is_cache: bool = False,
     ):
         self.data_directory = data_directory
+        self.cover_art_dir = self.data_directory.joinpath("cover_art")
+        self.cover_art_dir.mkdir(parents=True, exist_ok=True)
+
         self.is_cache = is_cache
+
         self.db_write_lock: threading.Lock = threading.Lock()
         database_filename = data_directory.joinpath("cache.db")
         models.database.init(database_filename)
@@ -48,8 +53,14 @@ class FilesystemAdapter(CachingAdapter):
 
     # Usage and Availability Properties
     # ==================================================================================
-    can_be_cached: bool = False  # Can't be cached (there's no need).
-    can_service_requests: bool = True  # Can always be used to service requests.
+    can_be_cached = False  # Can't be cached (there's no need).
+    can_service_requests = True  # Can always be used to service requests.
+    can_get_playlists = True
+    can_get_playlist_details = True
+    can_get_cover_art_uri = True
+    can_get_song_uri = True
+
+    supported_schemes = ("file",)
 
     # Data Helper Methods
     # ==================================================================================
@@ -58,7 +69,9 @@ class FilesystemAdapter(CachingAdapter):
 
     # Data Retrieval Methods
     # ==================================================================================
-    can_get_playlists: bool = True
+    def get_cached_status(self, song_id: str) -> SongCacheStatus:
+        # TODO
+        return SongCacheStatus.NOT_CACHED
 
     def get_playlists(self) -> Sequence[Playlist]:
         playlists = list(models.Playlist.select())
@@ -71,8 +84,6 @@ class FilesystemAdapter(CachingAdapter):
             ):
                 raise CacheMissError(partial_data=playlists)
         return playlists
-
-    can_get_playlist_details: bool = True
 
     def get_playlist_details(self, playlist_id: str) -> PlaylistDetails:
         playlist = models.Playlist.get_or_none(models.Playlist.id == playlist_id)
@@ -94,6 +105,32 @@ class FilesystemAdapter(CachingAdapter):
             raise CacheMissError(partial_data=playlist)
 
         return playlist
+
+    def get_cover_art_uri(self, cover_art_id: str, scheme: str) -> str:
+        params_hash = self._params_hash(cover_art_id)
+        cover_art_filename = self.cover_art_dir.joinpath(params_hash)
+
+        # Handle the case that this is the ground truth adapter.
+        if not self.is_cache:
+            if not cover_art_filename.exists:
+                raise Exception(f"Cover Art {cover_art_id} does not exist.")
+            return str(cover_art_filename)
+
+        if not cover_art_filename.exists:
+            raise CacheMissError()
+
+        cache_key = CachingAdapter.CachedDataKey.COVER_ART_FILE
+        cache_info = models.CacheInfo.get_or_none(
+            models.CacheInfo.cache_key == cache_key, params_hash=params_hash
+        )
+        if not cache_info:
+            raise CacheMissError(partial_data=str(cover_art_filename))
+
+        print(cover_art_filename)
+        return str(cover_art_filename)
+
+    def get_song_uri(self, song_id: str, scheme: str, stream=False) -> str:
+        raise CacheMissError()
 
     # Data Ingestion Methods
     # ==================================================================================
@@ -136,9 +173,10 @@ class FilesystemAdapter(CachingAdapter):
         params: Tuple[Any, ...],
         data: Any,
     ):
+        params_hash = self._params_hash(*params)
         models.CacheInfo.insert(
             cache_key=data_key,
-            params_hash=self._params_hash(*params),
+            params_hash=params_hash,
             last_ingestion_time=datetime.now(),
         ).on_conflict_replace().execute()
 
@@ -179,6 +217,9 @@ class FilesystemAdapter(CachingAdapter):
                     setattr(playlist, k, v)
 
             playlist.save()
+        elif data_key == CachingAdapter.CachedDataKey.COVER_ART_FILE:
+            # ``data`` is the filename of the tempfile in this case
+            shutil.copy(str(data), str(self.cover_art_dir.joinpath(params_hash)))
 
     def _do_invalidate_data(
         self, data_key: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...],

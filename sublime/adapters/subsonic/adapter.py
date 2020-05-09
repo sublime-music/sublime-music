@@ -4,7 +4,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 from time import sleep
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from urllib.parse import urlencode, urlparse
 
 import requests
 
@@ -21,6 +22,8 @@ class SubsonicAdapter(Adapter):
     # ==================================================================================
     @staticmethod
     def get_config_parameters() -> Dict[str, ConfigParamDescriptor]:
+        # TODO some way to test the connection to the server and a way to open the
+        # server URL in a browser
         return {
             "server_address": ConfigParamDescriptor(str, "Server address"),
             "username": ConfigParamDescriptor(str, "Username"),
@@ -33,7 +36,6 @@ class SubsonicAdapter(Adapter):
         errors: Dict[str, Optional[str]] = {}
 
         # TODO: verify the URL
-        # TODO figure out how to prevent usage of Subsonic API before 1.8.0
         return errors
 
     def __init__(self, config: dict, data_directory: Path):
@@ -55,6 +57,23 @@ class SubsonicAdapter(Adapter):
         except Exception:
             logging.exception(f"Could not connect to {self.hostname}")
             return False
+
+    can_get_playlists = True
+    can_get_playlist_details = True
+    can_create_playlist = True
+    can_update_playlist = True
+    can_delete_playlist = True
+    can_get_cover_art_uri = True
+    can_get_song_uri = True
+    supports_streaming = True
+
+    _schemas = None
+
+    @property
+    def supported_schemes(self) -> Iterable[str]:
+        if not self._schemas:
+            self._schemas = (urlparse(self.hostname)[0],)
+        return self._schemas
 
     # Helper mothods for making requests
     # ==================================================================================
@@ -94,7 +113,7 @@ class SubsonicAdapter(Adapter):
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():
-            if type(v) == datetime:
+            if isinstance(v, datetime):
                 params[k] = int(v.timestamp() * 1000)
 
         if self._is_mock:
@@ -169,22 +188,16 @@ class SubsonicAdapter(Adapter):
 
     # Data Retrieval Methods
     # ==================================================================================
-    can_get_playlists = True
-
     def get_playlists(self) -> Sequence[API.Playlist]:
         if playlists := self._get_json(self._make_url("getPlaylists")).playlists:
             return playlists.playlist
         return []
-
-    can_get_playlist_details = True
 
     def get_playlist_details(self, playlist_id: str) -> API.PlaylistDetails:
         result = self._get_json(self._make_url("getPlaylist"), id=playlist_id).playlist
         # TODO better error
         assert result, f"Error getting playlist {playlist_id}"
         return result
-
-    can_create_playlist = True
 
     def create_playlist(
         self, name: str, songs: List[API.Song] = None,
@@ -194,8 +207,6 @@ class SubsonicAdapter(Adapter):
             name=name,
             songId=[s.id for s in songs or []],
         ).playlist
-
-    can_update_playlist = True
 
     def update_playlist(
         self,
@@ -226,7 +237,14 @@ class SubsonicAdapter(Adapter):
         # return it.
         return playlist or self.get_playlist_details(playlist_id)
 
-    can_delete_playlist = True
-
     def delete_playlist(self, playlist_id: str):
         self._get_json(self._make_url("deletePlaylist"), id=playlist_id)
+
+    def get_cover_art_uri(self, cover_art_id: str, scheme: str) -> str:
+        params = {"id": cover_art_id, "size": 2000, **self._get_params()}
+        return self._make_url("getCoverArt") + "?" + urlencode(params)
+
+    def get_song_uri(self, song_id: str, scheme: str, stream=False) -> str:
+        params = {"id": song_id, **self._get_params()}
+        endpoint = "stream" if stream else "download"
+        return self._make_url(endpoint) + "?" + urlencode(params)

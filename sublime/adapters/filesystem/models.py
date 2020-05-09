@@ -1,6 +1,7 @@
 from peewee import (
     BooleanField,
     CompositeKey,
+    ForeignKeyField,
     IntegerField,
     Model,
     SqliteDatabase,
@@ -24,23 +25,22 @@ class BaseModel(Model):
         database = database
 
 
-class CoverArt(BaseModel):
-    id = TextField(unique=True, primary_key=True)
-    url = TextField()
-    filename = TextField(null=True)
+# class CachedFile(BaseModel):
+#     id = TextField(unique=True, primary_key=True)
+#     filename = TextField(null=True)
 
 
 class Song(BaseModel):
     id = TextField(unique=True, primary_key=True)
     title = TextField()
     duration = DurationField()
-    parent = TextField()
-    album = TextField()
-    artist = TextField()
+    parent = TextField()  # TODO: fk
+    album = TextField()  # TODO: fk
+    artist = TextField()  # TODO: fk
     track = IntegerField(null=True)
     year = IntegerField(null=True)
-    genre = TextField(null=True)
-    cover_art = TextField(null=True)
+    genre = TextField(null=True)  # TODO: fk
+    cover_art = TextField(null=True)  # TODO: fk
     # size: Optional[int] = None
     # content_type: Optional[str] = None
     # suffix: Optional[str] = None
@@ -69,6 +69,8 @@ class CacheInfo(BaseModel):
     params_hash = TextField()
     last_ingestion_time = TzDateTimeField(null=False)
 
+    # TODO some sort of expiry?
+
     class Meta:
         primary_key = CompositeKey("cache_key", "params_hash")
 
@@ -83,14 +85,16 @@ class Playlist(BaseModel):
     created = TzDateTimeField(null=True)
     changed = TzDateTimeField(null=True)
     public = BooleanField(null=True)
-    cover_art = TextField(null=True)
+    cover_art = TextField(null=True)  # The cover art ID
+
+    # cover_art_file = ForeignKeyField(CachedFile, null=True)
 
     songs = SortedManyToManyField(Song, backref="playlists")
 
 
 ALL_TABLES = (
     CacheInfo,
-    CoverArt,
+    # CachedFile,
     Playlist,
     Playlist.songs.get_through_model(),
     Song,

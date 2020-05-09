@@ -21,6 +21,22 @@ from .api_objects import (
 )
 
 
+class SongCacheStatus(Enum):
+    """
+    Represents the cache state of a given song.
+
+    * :class:`SongCacheStatus.NOT_CACHED` -- indicates
+    * :class:`SongCacheStatus.CACHED` -- indicates
+    * :class:`SongCacheStatus.PERMANENTLY_CACHED` -- indicates
+    * :class:`SongCacheStatus.DOWNLOADING` -- indicates
+    """
+
+    NOT_CACHED = 0
+    CACHED = 1
+    PERMANENTLY_CACHED = 2
+    DOWNLOADING = 3
+
+
 class CacheMissError(Exception):
     """
     This exception should be thrown by caching adapters when the request data is not
@@ -214,8 +230,36 @@ class Adapter(abc.ABC):
         """
         return False
 
-    # TODO some way of specifying what types of schemas can be provided (for
-    # example, http, https, file)
+    @property
+    def supported_schemes(self) -> Iterable[str]:
+        """
+        Specifies a collection of scheme names that can be provided by the adapter for a
+        given resource (song or cover art) right now.
+
+        Examples of values that could be provided include ``http``, ``https``, ``file``,
+        or ``ftp``.
+        """
+        return ()
+
+    @property
+    def can_get_cover_art_uri(self) -> bool:
+        """
+        Whether :class:`get_cover_art_uri` can be called on the adapter right now.
+        """
+
+    @property
+    def supports_streaming(self) -> bool:
+        """
+        Whether or not the adapter supports providing a stream URI right now.
+        """
+        return False
+
+    @property
+    def can_get_song_uri(self) -> bool:
+        """
+        Whether :class:`get_song_uri` can be called on the adapter right now.
+        """
+        return False
 
     # Data Retrieval Methods
     # These properties determine if what things the adapter can be used to do
@@ -278,6 +322,30 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("delete_playlist")
 
+    def get_cover_art_uri(self, cover_art_id: str, scheme: str) -> str:
+        """
+        Get a URI for a given song, album, or artist.
+
+        :param cover_art_id: The song, album, or artist ID.
+        :param scheme: The URI scheme that should be returned. It is guaranteed that
+            ``scheme`` will be one of the schemes returned by
+            :class:`supported_schemes`.
+        """
+        raise self._check_can_error("get_cover_art_uri")
+
+    def get_song_uri(self, song_id: str, scheme: str, stream=False) -> str:
+        """
+        Get a URI for a given song.
+
+        :param song_id: The ID of the song to get a URI for.
+        :param scheme: The URI scheme that should be returned. It is guaranteed that
+            ``scheme`` will be one of the schemes returned by
+            :class:`supported_schemes`.
+        :param stream: Whether or not the URI returned should be a stream URI. This will
+            only be ``True`` if :class:`supports_streaming` returns ``True``.
+        """
+        raise self._check_can_error("get_song_uri")
+
     @staticmethod
     def _check_can_error(method_name: str) -> NotImplementedError:
         return NotImplementedError(
@@ -296,7 +364,8 @@ class CachingAdapter(Adapter):
     directly from the ground truth adapter, in which case the cache will be bypassed.)
 
     Caching adapters *must* be able to service requests instantly, or nearly instantly
-    (in most cases, this meanst the data must come directly from the local filesystem).
+    (in most cases, this means that the data must come directly from the local
+    filesystem).
     """
 
     @abc.abstractmethod
@@ -319,6 +388,9 @@ class CachingAdapter(Adapter):
     class CachedDataKey(Enum):
         PLAYLISTS = "get_playlists"
         PLAYLIST_DETAILS = "get_playlist_details"
+        COVER_ART_FILE = "cover_art_file"
+        SONG_FILE = "song_file"
+        SONG_FILE_PERMANENT = "song_file_permanent"
 
     @abc.abstractmethod
     def ingest_new_data(
@@ -370,4 +442,13 @@ class CachingAdapter(Adapter):
         :param params: the parameters that uniquely identify the data to be invalidated.
             For example, with playlist details, this will be a tuple containing a single
             element: the playlist ID.
+        """
+
+    # Cache-Specific Methods
+    # ==================================================================================
+    @abc.abstractmethod
+    def get_cached_status(self, song_id: str) -> SongCacheStatus:
+        """
+        Returns the cache status of a given song ID. See the :class:`SongCacheStatus`
+        documentation for more details about what each status means.
         """

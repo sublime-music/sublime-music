@@ -1,4 +1,5 @@
 import logging
+import tempfile
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,9 +16,11 @@ from typing import (
     Union,
 )
 
+import requests
+
 from sublime.config import AppConfiguration
 
-from .adapter_base import Adapter, CacheMissError, CachingAdapter
+from .adapter_base import Adapter, CacheMissError, CachingAdapter, SongCacheStatus
 from .api_objects import Playlist, PlaylistDetails, Song
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter
@@ -98,10 +101,15 @@ class AdapterManager:
         ground_truth_adapter: Adapter
         caching_adapter: Optional[CachingAdapter] = None
 
+        def __post_init__(self):
+            self._download_dir = tempfile.TemporaryDirectory()
+            self.download_path = Path(self._download_dir.name)
+
         def shutdown(self):
             self.ground_truth_adapter.shutdown()
             if self.caching_adapter:
                 self.caching_adapter.shutdown()
+            self._download_dir.cleanup()
 
     _instance: Optional[_AdapterManagerInternal] = None
 
@@ -169,6 +177,8 @@ class AdapterManager:
             ground_truth_adapter, caching_adapter=caching_adapter,
         )
 
+    # Usage and Availability Properties
+    # ==================================================================================
     @staticmethod
     def _can_do(action_name: str):
         # It only matters that the ground truth one can service the request.
@@ -185,30 +195,68 @@ class AdapterManager:
         return AdapterManager._can_do("get_playlists")
 
     @staticmethod
+    def can_get_playlist_details() -> bool:
+        return AdapterManager._can_do("get_playlist_details")
+
+    @staticmethod
+    def can_create_playlist() -> bool:
+        return AdapterManager._can_do("create_playlist")
+
+    @staticmethod
+    def can_update_playlist() -> bool:
+        return AdapterManager._can_do("update_playlist")
+
+    @staticmethod
+    def can_delete_playlist() -> bool:
+        return AdapterManager._can_do("delete_playlist")
+
+    @staticmethod
+    def can_get_cover_art_uri() -> bool:
+        return AdapterManager._can_do("get_cover_art_uri")
+
+    @staticmethod
+    def can_get_song_uri() -> bool:
+        return AdapterManager._can_do("get_song_uri")
+
+    # Data Helper Methods
+    # ==================================================================================
+    @staticmethod
+    def _can_use_cache(force: bool, action_name: str) -> bool:
+        if force:
+            return False
+        return (
+            AdapterManager._instance is not None
+            and AdapterManager._instance.caching_adapter is not None
+            and AdapterManager._instance.caching_adapter.can_service_requests
+            and getattr(
+                AdapterManager._instance.caching_adapter, f"can_{action_name}", False
+            )
+        )
+
+    # TODO abstract more stuff
+
+    # Data Retrieval Methods
+    # ==================================================================================
+    @staticmethod
     def get_playlists(
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
     ) -> Result[Sequence[Playlist]]:
         assert AdapterManager._instance
-        if (
-            not force
-            and AdapterManager._instance.caching_adapter
-            and AdapterManager._instance.caching_adapter.can_service_requests
-            and AdapterManager._instance.caching_adapter.can_get_playlists
-        ):
+        partial_playlists_data = None
+        if AdapterManager._can_use_cache(force, "get_playlists"):
+            assert AdapterManager._instance.caching_adapter
             try:
                 return Result(AdapterManager._instance.caching_adapter.get_playlists())
-            except CacheMissError:
-                # TODO this could have partial data as well
+            except CacheMissError as e:
+                partial_playlists_data = e.partial_data
                 logging.debug(f'Cache Miss on {"get_playlists"}.')
             except Exception:
                 logging.exception(f'Error on {"get_playlists"} retrieving from cache.')
 
-        if (
-            AdapterManager._instance.ground_truth_adapter
-            and not AdapterManager._instance.ground_truth_adapter.can_service_requests
-            and not AdapterManager._instance.ground_truth_adapter.can_get_playlists
-        ):
+        if not AdapterManager._can_do("get_playlists"):
+            if partial_playlists_data:
+                return partial_playlists_data
             raise Exception(f'No adapters can service {"get_playlists"} at the moment.')
 
         def future_fn() -> Sequence[Playlist]:
@@ -233,10 +281,6 @@ class AdapterManager:
         return future
 
     @staticmethod
-    def can_get_playlist_details() -> bool:
-        return AdapterManager._can_do("get_playlist_details")
-
-    @staticmethod
     def get_playlist_details(
         playlist_id: str,
         before_download: Callable[[], None] = lambda: None,
@@ -244,12 +288,8 @@ class AdapterManager:
     ) -> Result[PlaylistDetails]:
         assert AdapterManager._instance
         partial_playlist_data = None
-        if (
-            not force
-            and AdapterManager._instance.caching_adapter
-            and AdapterManager._instance.caching_adapter.can_service_requests
-            and AdapterManager._instance.caching_adapter.can_get_playlist_details
-        ):
+        if AdapterManager._can_use_cache(force, "get_playlist_details"):
+            assert AdapterManager._instance.caching_adapter
             try:
                 return Result(
                     AdapterManager._instance.caching_adapter.get_playlist_details(
@@ -266,16 +306,9 @@ class AdapterManager:
 
         # TODO: if force, then invalidate the cached cover art
 
-        if (
-            AdapterManager._instance.ground_truth_adapter
-            and not AdapterManager._instance.ground_truth_adapter.can_service_requests
-            and not (
-                AdapterManager._instance.ground_truth_adapter.can_get_playlist_details
-            )
-        ):
+        if not AdapterManager._can_do("get_playlist_details"):
             if partial_playlist_data:
-                # TODO do something here
-                pass
+                return partial_playlist_data
             raise Exception(
                 f'No adapters can service {"get_playlist_details"} at the moment.'
             )
@@ -304,10 +337,6 @@ class AdapterManager:
             future.add_done_callback(future_finished)
 
         return future
-
-    @staticmethod
-    def can_create_playlist() -> bool:
-        return AdapterManager._can_do("create_playlist")
 
     @staticmethod
     def create_playlist(
@@ -348,10 +377,6 @@ class AdapterManager:
             future.add_done_callback(future_finished)
 
         return future
-
-    @staticmethod
-    def can_update_playlist() -> bool:
-        return AdapterManager._can_do("update_playlist")
 
     @staticmethod
     def update_playlist(
@@ -396,11 +421,8 @@ class AdapterManager:
         return future
 
     @staticmethod
-    def can_delete_playlist() -> bool:
-        return AdapterManager._can_do("delete_playlist")
-
-    @staticmethod
     def delete_playlist(playlist_id: str):
+        # TODO: make non-blocking?
         assert AdapterManager._instance
         AdapterManager._instance.ground_truth_adapter.delete_playlist(playlist_id)
 
@@ -408,3 +430,104 @@ class AdapterManager:
             AdapterManager._instance.caching_adapter.delete_data(
                 CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, (playlist_id,)
             )
+
+    @staticmethod
+    def get_cover_art_filename(
+        cover_art_id: str,
+        before_download: Callable[[], None] = lambda: None,
+        force: bool = False,  # TODO: rename to use_ground_truth_adapter?
+    ) -> Result[str]:  # TODO: convert to return bytes?
+        assert AdapterManager._instance
+
+        # There could be partial data if the cover art exists, but for some reason was
+        # marked out-of-date.
+        existing_cover_art_filename = None
+        if AdapterManager._can_use_cache(force, "get_cover_art_uri"):
+            assert AdapterManager._instance.caching_adapter
+            try:
+                return Result(
+                    AdapterManager._instance.caching_adapter.get_cover_art_uri(
+                        cover_art_id, "file"
+                    )
+                )
+            except CacheMissError as e:
+                existing_cover_art_filename = e.partial_data
+                logging.debug(f'Cache Miss on {"get_cover_art_uri"}.')
+            except Exception:
+                logging.exception(
+                    f'Error on {"get_cover_art_uri"} retrieving from cache.'
+                )
+
+        if not AdapterManager._can_do("get_cover_art_uri"):
+            if existing_cover_art_filename:
+                return existing_cover_art_filename
+            raise Exception(
+                f'No adapters can service {"get_cover_art_uri"} at the moment.'
+            )
+
+        def future_fn() -> str:
+            assert AdapterManager._instance
+            if before_download:
+                before_download()
+
+            scheme_priority = ("https", "http")
+            schemes = sorted(
+                AdapterManager._instance.ground_truth_adapter.supported_schemes,
+                key=scheme_priority.index,
+            )
+
+            # TODO guard for already being downloaded
+            data = requests.get(
+                AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
+                    cover_art_id, list(schemes)[0]
+                )
+            )
+
+            # TODO (#122): make better
+            if "json" in data.headers.get("Content-Type", ""):
+                raise Exception("Didn't expect JSON.")
+
+            download_dir = AdapterManager._instance.download_path.joinpath("cover_art")
+            download_dir.mkdir(parents=True, exist_ok=True)
+            cover_art_filename = download_dir.joinpath(cover_art_id)
+            with open(cover_art_filename, "wb+") as f:
+                f.write(data.content)
+
+            return str(cover_art_filename)
+
+        future: Result[str] = Result(future_fn)
+
+        if AdapterManager._instance.caching_adapter:
+
+            def future_finished(f: Future):
+                assert AdapterManager._instance
+                assert AdapterManager._instance.caching_adapter
+                AdapterManager._instance.caching_adapter.ingest_new_data(
+                    CachingAdapter.CachedDataKey.COVER_ART_FILE,
+                    (cover_art_id,),
+                    f.result(),
+                )
+
+            future.add_done_callback(future_finished)
+
+        return future
+
+    @staticmethod
+    def get_song_uri(
+        song_id: str,
+        scheme: str,
+        stream=False,
+        before_download: Callable[[], None] = lambda: None,
+        force: bool = False,  # TODO: rename to use_ground_truth_adapter?
+    ) -> Result[str]:
+        raise NotImplementedError()
+
+    # Cache Status Methods
+    # ==================================================================================
+    @staticmethod
+    def get_cached_status(song: Song) -> SongCacheStatus:
+        assert AdapterManager._instance
+        if not AdapterManager._instance.caching_adapter:
+            return SongCacheStatus.NOT_CACHED
+
+        return AdapterManager._instance.caching_adapter.get_cached_status(song.id)
