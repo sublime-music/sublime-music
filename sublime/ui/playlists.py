@@ -573,8 +573,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                     dialog.destroy()
                     return
 
-            # Invalidate the caches and force a re-fresh of the view
-            CacheManager.delete_cached_cover_art(self.playlist_id)
+            # Force a re-fresh of the view
             self.emit(
                 "refresh-window",
                 {

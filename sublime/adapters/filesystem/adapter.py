@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Tuple
 
-from sublime.adapters.api_objects import Playlist, PlaylistDetails
+from sublime.adapters import api_objects as API
 
 from . import models
 from .. import CacheMissError, CachingAdapter, ConfigParamDescriptor, SongCacheStatus
@@ -69,11 +69,19 @@ class FilesystemAdapter(CachingAdapter):
 
     # Data Retrieval Methods
     # ==================================================================================
-    def get_cached_status(self, song_id: str) -> SongCacheStatus:
-        # TODO
+    def get_cached_status(self, song: API.Song) -> SongCacheStatus:
+        # TODO: check if being downloaded
+
+        # TODO: change this path to be the correct dir
+        relative_path = models.Song.get_by_id(song.id).path
+        cache_path = self.data_directory.parent.joinpath(relative_path)
+        if cache_path.exists():
+            # TODO check if path is permanently cached
+            return SongCacheStatus.CACHED
+
         return SongCacheStatus.NOT_CACHED
 
-    def get_playlists(self) -> Sequence[Playlist]:
+    def get_playlists(self) -> Sequence[API.Playlist]:
         playlists = list(models.Playlist.select())
         if self.is_cache:
             # Determine if the adapter has ingested data for get_playlists before, and
@@ -85,7 +93,7 @@ class FilesystemAdapter(CachingAdapter):
                 raise CacheMissError(partial_data=playlists)
         return playlists
 
-    def get_playlist_details(self, playlist_id: str) -> PlaylistDetails:
+    def get_playlist_details(self, playlist_id: str) -> API.PlaylistDetails:
         playlist = models.Playlist.get_or_none(models.Playlist.id == playlist_id)
 
         # Handle the case that this is the ground truth adapter.
@@ -99,7 +107,7 @@ class FilesystemAdapter(CachingAdapter):
         cache_key = CachingAdapter.CachedDataKey.PLAYLIST_DETAILS
         cache_info = models.CacheInfo.get_or_none(
             models.CacheInfo.cache_key == cache_key,
-            params_hash=self._params_hash(playlist_id),
+            models.CacheInfo.params_hash == self._params_hash(playlist_id),
         )
         if not cache_info:
             raise CacheMissError(partial_data=playlist)
@@ -116,17 +124,16 @@ class FilesystemAdapter(CachingAdapter):
                 raise Exception(f"Cover Art {cover_art_id} does not exist.")
             return str(cover_art_filename)
 
-        if not cover_art_filename.exists:
+        if not cover_art_filename.exists():
             raise CacheMissError()
 
         cache_key = CachingAdapter.CachedDataKey.COVER_ART_FILE
         cache_info = models.CacheInfo.get_or_none(
-            models.CacheInfo.cache_key == cache_key, params_hash=params_hash
+            models.CacheInfo.cache_key == cache_key, params_hash == params_hash
         )
         if not cache_info:
             raise CacheMissError(partial_data=str(cover_art_filename))
 
-        print(cover_art_filename)
         return str(cover_art_filename)
 
     def get_song_uri(self, song_id: str, scheme: str, stream=False) -> str:
@@ -224,17 +231,48 @@ class FilesystemAdapter(CachingAdapter):
     def _do_invalidate_data(
         self, data_key: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...],
     ):
-        if data_key == CachingAdapter.CachedDataKey.PLAYLISTS:
-            models.CacheInfo.delete().where(
-                models.CacheInfo.cache_key == data_key
-            ).execute()
+        models.CacheInfo.delete().where(
+            models.CacheInfo.cache_key == data_key,
+            models.CacheInfo.params_hash == self._params_hash(*params),
+        ).execute()
+
+        if data_key == CachingAdapter.CachedDataKey.PLAYLIST_DETAILS:
+            # Invalidate the corresponding cover art.
+            playlist = models.Playlist.get_or_none(models.Playlist.id == params[0])
+            if not playlist:
+                return
+
+            if playlist.cover_art:
+                cover_art_key = CachingAdapter.CachedDataKey.COVER_ART_FILE
+                cover_art_params_hash = self._params_hash(playlist.cover_art)
+                models.CacheInfo.delete().where(
+                    models.CacheInfo.cache_key == cover_art_key,
+                    models.CacheInfo.params_hash == cover_art_params_hash,
+                ).execute()
 
     def _do_delete_data(
         self, data_key: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...],
     ):
+        # Delete it from the cache info.
+        models.CacheInfo.delete().where(
+            models.CacheInfo.cache_key == data_key,
+            models.CacheInfo.params_hash == self._params_hash(*params),
+        ).execute()
+
         if data_key == CachingAdapter.CachedDataKey.PLAYLIST_DETAILS:
-            models.Playlist.delete().where(models.Playlist.id == params[0]).execute()
-            models.CacheInfo.delete().where(
-                models.CacheInfo.cache_key == data_key,
-                models.CacheInfo.params_hash == self._params_hash(params),
-            ).execute()
+            # Delete the playlist and corresponding cover art.
+            playlist = models.Playlist.get_or_none(models.Playlist.id == params[0])
+            if not playlist:
+                return
+
+            if playlist.cover_art:
+                cover_art_params_hash = self._params_hash(playlist.cover_art)
+                if cover_art_file := self.cover_art_dir.joinpath(cover_art_params_hash):
+                    cover_art_file.unlink(missing_ok=True)
+                cover_art_key = CachingAdapter.CachedDataKey.COVER_ART_FILE
+                models.CacheInfo.delete().where(
+                    models.CacheInfo.cache_key == cover_art_key,
+                    models.CacheInfo.params_hash == cover_art_params_hash,
+                ).execute()
+
+            playlist.delete_instance()

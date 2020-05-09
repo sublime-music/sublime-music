@@ -85,7 +85,7 @@ class Playlist(BaseModel):
     created = TzDateTimeField(null=True)
     changed = TzDateTimeField(null=True)
     public = BooleanField(null=True)
-    cover_art = TextField(null=True)  # The cover art ID
+    cover_art = TextField(null=True)  # TODO: fk
 
     # cover_art_file = ForeignKeyField(CachedFile, null=True)
 

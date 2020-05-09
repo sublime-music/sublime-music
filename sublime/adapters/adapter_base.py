@@ -447,7 +447,7 @@ class CachingAdapter(Adapter):
     # Cache-Specific Methods
     # ==================================================================================
     @abc.abstractmethod
-    def get_cached_status(self, song_id: str) -> SongCacheStatus:
+    def get_cached_status(self, song: Song) -> SongCacheStatus:
         """
         Returns the cache status of a given song ID. See the :class:`SongCacheStatus`
         documentation for more details about what each status means.

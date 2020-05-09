@@ -1,3 +1,4 @@
+import shutil
 from dataclasses import asdict
 from datetime import timedelta
 from pathlib import Path
@@ -10,6 +11,7 @@ from sublime.adapters.filesystem import FilesystemAdapter
 from sublime.adapters.subsonic import api_objects as SubsonicAPI
 
 MOCK_DATA_FILES = Path(__file__).parent.joinpath("mock_data")
+MOCK_ALBUM_ART = MOCK_DATA_FILES.joinpath("album-art.png")
 
 
 @pytest.fixture
@@ -248,3 +250,124 @@ def test_caching_get_playlist_then_details(cache_adapter: FilesystemAdapter):
     playlist = cache_adapter.get_playlist_details("1")
     assert playlist.id == "1"
     assert playlist.name == "test1"
+
+
+def test_cache_cover_art(cache_adapter: FilesystemAdapter):
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_cover_art_uri("pl_test1", "file")
+
+    sample_file_path = MOCK_DATA_FILES.joinpath(MOCK_ALBUM_ART)
+
+    # After ingesting the data, reading from the cache should give the exact same file.
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("pl_test1",), sample_file_path,
+    )
+    with open(cache_adapter.get_cover_art_uri("pl_test1", "file"), "wb+") as cached:
+        with open(sample_file_path, "wb+") as expected:
+            assert cached.read() == expected.read()
+
+
+def test_invalidate_data(cache_adapter: FilesystemAdapter):
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.PLAYLISTS,
+        (),
+        [SubsonicAPI.Playlist("1", "test1"), SubsonicAPI.Playlist("2", "test2")],
+    )
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.COVER_ART_FILE,
+        ("pl_test1",),
+        MOCK_DATA_FILES.joinpath(MOCK_ALBUM_ART),
+    )
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS,
+        ("2",),
+        SubsonicAPI.PlaylistWithSongs("2", "test2", cover_art="pl_2", songs=[]),
+    )
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.COVER_ART_FILE,
+        ("pl_2",),
+        MOCK_DATA_FILES.joinpath(MOCK_ALBUM_ART),
+    )
+    stale_uri_1 = cache_adapter.get_cover_art_uri("pl_test1", "file")
+    stale_uri_2 = cache_adapter.get_cover_art_uri("pl_2", "file")
+
+    cache_adapter.invalidate_data(FilesystemAdapter.CachedDataKey.PLAYLISTS, ())
+    cache_adapter.invalidate_data(
+        FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS, ("2",)
+    )
+    cache_adapter.invalidate_data(
+        FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("pl_test1",)
+    )
+
+    # After invalidating the data, it should cache miss, but still have the old, stale,
+    # data.
+    try:
+        cache_adapter.get_playlists()
+        assert 0, "DID NOT raise CacheMissError"
+    except CacheMissError as e:
+        assert e.partial_data
+        assert len(e.partial_data) == 2
+
+    try:
+        cache_adapter.get_cover_art_uri("pl_test1", "file")
+        assert 0, "DID NOT raise CacheMissError"
+    except CacheMissError as e:
+        assert e.partial_data
+        assert e.partial_data == stale_uri_1
+
+    try:
+        cache_adapter.get_playlist_details("2")
+        assert 0, "DID NOT raise CacheMissError"
+    except CacheMissError as e:
+        assert e.partial_data
+
+    # Even though the pl_2 cover art file wasn't explicitly invalidated, it should have
+    # been invalidated with the playlist details invalidation.
+    try:
+        cache_adapter.get_cover_art_uri("pl_2", "file")
+        assert 0, "DID NOT raise CacheMissError"
+    except CacheMissError as e:
+        assert e.partial_data
+        assert e.partial_data == stale_uri_2
+
+
+def test_delete_data(cache_adapter: FilesystemAdapter):
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS,
+        ("1",),
+        SubsonicAPI.PlaylistWithSongs("1", "test1", cover_art="pl_1", songs=[]),
+    )
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS,
+        ("2",),
+        SubsonicAPI.PlaylistWithSongs("2", "test1", cover_art="pl_2", songs=[]),
+    )
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.COVER_ART_FILE,
+        ("pl_1",),
+        MOCK_DATA_FILES.joinpath(MOCK_ALBUM_ART),
+    )
+
+    # Deleting a playlist should get rid of it entirely.
+    cache_adapter.delete_data(FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS, ("2",))
+    try:
+        cache_adapter.get_playlist_details("2")
+        assert 0, "DID NOT raise CacheMissError"
+    except CacheMissError as e:
+        assert e.partial_data is None
+
+    # Deleting a playlist with associated cover art should get rid the cover art too.
+    cache_adapter.delete_data(FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS, ("1",))
+    try:
+        cache_adapter.get_cover_art_uri("pl_1", "file")
+        assert 0, "DID NOT raise CacheMissError"
+    except CacheMissError as e:
+        assert e.partial_data is None
+
+    # Even if the cover art failed to be deleted, it should cache miss.
+    shutil.copy(
+        MOCK_DATA_FILES.joinpath(MOCK_ALBUM_ART),
+        str(cache_adapter.cover_art_dir.joinpath(cache_adapter._params_hash("pl_1"))),
+    )
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_cover_art_uri("pl_1", "file")

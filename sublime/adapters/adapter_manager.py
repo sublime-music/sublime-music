@@ -40,6 +40,8 @@ class Result(Generic[T]):
     on_cancel: Optional[Callable[[], None]] = None
 
     def __init__(self, data_resolver: Union[T, Callable[[], T]]):
+        # TODO take in the partial_data in this constructor so that it can be used if
+        # getting the result fails.
         """
         Creates a :class:`Result` object.
 
@@ -177,63 +179,76 @@ class AdapterManager:
             ground_truth_adapter, caching_adapter=caching_adapter,
         )
 
-    # Usage and Availability Properties
+    # Data Helper Methods
     # ==================================================================================
+    TAdapter = TypeVar("TAdapter", bound=Adapter)
+
     @staticmethod
-    def _can_do(action_name: str):
-        # It only matters that the ground truth one can service the request.
+    def _adapter_can_do(adapter: Optional[TAdapter], action_name: str):
         return (
-            AdapterManager._instance is not None
-            and AdapterManager._instance.ground_truth_adapter.can_service_requests
-            and getattr(
-                AdapterManager._instance.ground_truth_adapter, f"can_{action_name}"
-            )
+            adapter is not None
+            and adapter.can_service_requests
+            and getattr(adapter, f"can_{action_name}", False)
         )
 
     @staticmethod
-    def can_get_playlists() -> bool:
-        return AdapterManager._can_do("get_playlists")
+    def _cache_can_do(action_name: str):
+        return AdapterManager._instance is not None and AdapterManager._adapter_can_do(
+            AdapterManager._instance.caching_adapter, action_name
+        )
 
     @staticmethod
-    def can_get_playlist_details() -> bool:
-        return AdapterManager._can_do("get_playlist_details")
+    def _ground_truth_can_do(action_name: str):
+        return AdapterManager._instance is not None and AdapterManager._adapter_can_do(
+            AdapterManager._instance.ground_truth_adapter, action_name
+        )
 
-    @staticmethod
-    def can_create_playlist() -> bool:
-        return AdapterManager._can_do("create_playlist")
-
-    @staticmethod
-    def can_update_playlist() -> bool:
-        return AdapterManager._can_do("update_playlist")
-
-    @staticmethod
-    def can_delete_playlist() -> bool:
-        return AdapterManager._can_do("delete_playlist")
-
-    @staticmethod
-    def can_get_cover_art_uri() -> bool:
-        return AdapterManager._can_do("get_cover_art_uri")
-
-    @staticmethod
-    def can_get_song_uri() -> bool:
-        return AdapterManager._can_do("get_song_uri")
-
-    # Data Helper Methods
-    # ==================================================================================
     @staticmethod
     def _can_use_cache(force: bool, action_name: str) -> bool:
         if force:
             return False
-        return (
-            AdapterManager._instance is not None
-            and AdapterManager._instance.caching_adapter is not None
-            and AdapterManager._instance.caching_adapter.can_service_requests
-            and getattr(
-                AdapterManager._instance.caching_adapter, f"can_{action_name}", False
-            )
-        )
+        return AdapterManager._cache_can_do(action_name)
+
+    @staticmethod
+    def _any_adapter_can_do(action_name: str):
+        if AdapterManager._instance is None:
+            return False
+
+        return AdapterManager._ground_truth_can_do(
+            action_name
+        ) or AdapterManager._cache_can_do(action_name)
 
     # TODO abstract more stuff
+
+    # Usage and Availability Properties
+    # ==================================================================================
+    @staticmethod
+    def can_get_playlists() -> bool:
+        return AdapterManager._any_adapter_can_do("get_playlists")
+
+    @staticmethod
+    def can_get_playlist_details() -> bool:
+        return AdapterManager._any_adapter_can_do("get_playlist_details")
+
+    @staticmethod
+    def can_create_playlist() -> bool:
+        return AdapterManager._any_adapter_can_do("create_playlist")
+
+    @staticmethod
+    def can_update_playlist() -> bool:
+        return AdapterManager._any_adapter_can_do("update_playlist")
+
+    @staticmethod
+    def can_delete_playlist() -> bool:
+        return AdapterManager._any_adapter_can_do("delete_playlist")
+
+    @staticmethod
+    def can_get_cover_art_uri() -> bool:
+        return AdapterManager._any_adapter_can_do("get_cover_art_uri")
+
+    @staticmethod
+    def can_get_song_uri() -> bool:
+        return AdapterManager._any_adapter_can_do("get_song_uri")
 
     # Data Retrieval Methods
     # ==================================================================================
@@ -254,7 +269,12 @@ class AdapterManager:
             except Exception:
                 logging.exception(f'Error on {"get_playlists"} retrieving from cache.')
 
-        if not AdapterManager._can_do("get_playlists"):
+        if AdapterManager._instance.caching_adapter and force:
+            AdapterManager._instance.caching_adapter.invalidate_data(
+                CachingAdapter.CachedDataKey.PLAYLISTS, ()
+            )
+
+        if not AdapterManager._ground_truth_can_do("get_playlists"):
             if partial_playlists_data:
                 return partial_playlists_data
             raise Exception(f'No adapters can service {"get_playlists"} at the moment.')
@@ -304,9 +324,12 @@ class AdapterManager:
                     f'Error on {"get_playlist_details"} retrieving from cache.'
                 )
 
-        # TODO: if force, then invalidate the cached cover art
+        if AdapterManager._instance.caching_adapter and force:
+            AdapterManager._instance.caching_adapter.invalidate_data(
+                CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, (playlist_id,)
+            )
 
-        if not AdapterManager._can_do("get_playlist_details"):
+        if not AdapterManager._ground_truth_can_do("get_playlist_details"):
             if partial_playlist_data:
                 return partial_playlist_data
             raise Exception(
@@ -458,7 +481,12 @@ class AdapterManager:
                     f'Error on {"get_cover_art_uri"} retrieving from cache.'
                 )
 
-        if not AdapterManager._can_do("get_cover_art_uri"):
+        if AdapterManager._instance.caching_adapter and force:
+            AdapterManager._instance.caching_adapter.invalidate_data(
+                CachingAdapter.CachedDataKey.COVER_ART_FILE, (cover_art_id,)
+            )
+
+        if not AdapterManager._ground_truth_can_do("get_cover_art_uri"):
             if existing_cover_art_filename:
                 return existing_cover_art_filename
             raise Exception(
@@ -530,4 +558,4 @@ class AdapterManager:
         if not AdapterManager._instance.caching_adapter:
             return SongCacheStatus.NOT_CACHED
 
-        return AdapterManager._instance.caching_adapter.get_cached_status(song.id)
+        return AdapterManager._instance.caching_adapter.get_cached_status(song)
