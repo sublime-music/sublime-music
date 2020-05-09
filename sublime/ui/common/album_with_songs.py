@@ -6,6 +6,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
+from sublime.adapters import AdapterManager
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.server.api_objects import AlbumWithSongsID3, Child, Directory
@@ -51,7 +52,7 @@ class AlbumWithSongs(Gtk.Box):
             artist_artwork.set_from_file(f.result())
             artist_artwork.set_loading(False)
 
-        cover_art_filename_future = CacheManager.get_cover_art_filename(
+        cover_art_filename_future = AdapterManager.get_cover_art_filename(
             album.coverArt, before_download=lambda: artist_artwork.set_loading(True),
         )
         cover_art_filename_future.add_done_callback(

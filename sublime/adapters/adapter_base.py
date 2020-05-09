@@ -190,9 +190,12 @@ class Adapter(abc.ABC):
         Specifies whether or not the adapter can currently service requests. If this is
         ``False``, none of the other data retrieval functions are expected to work.
 
-        For example, if your adapter requires access to an external service, use this
-        function to determine if it is currently possible to connect to that external
-        service.
+        This property must be server *instantly*. This function is called *very* often,
+        and even a few milliseconds delay stacks up quickly and can block the UI thread.
+
+        For example, if your adapter requires access to an external service, on option
+        is to ping the server every few seconds and cache the result of the ping and use
+        that as the return value of this function.
         """
 
     @property

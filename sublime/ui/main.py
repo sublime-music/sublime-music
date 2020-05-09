@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Set
 
 import gi
@@ -6,6 +7,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
+from sublime.adapters import AdapterManager, CacheMissError, Result
 from sublime.cache_manager import CacheManager, SearchResult
 from sublime.config import AppConfiguration
 from sublime.ui import albums, artists, browse, player_controls, playlists, util
@@ -328,11 +330,7 @@ class MainWindow(Gtk.ApplicationWindow):
             widget.remove(c)
 
     def _create_search_result_row(
-        self,
-        text: str,
-        action_name: str,
-        value: Any,
-        artwork_future: CacheManager.Result,
+        self, text: str, action_name: str, value: Any, artwork_future: Result
     ) -> Gtk.Button:
         def on_search_row_button_press(*args):
             if action_name == "song":
@@ -351,7 +349,7 @@ class MainWindow(Gtk.ApplicationWindow):
         box.add(self._create_label(text))
         row.add(box)
 
-        def image_callback(f: CacheManager.Result):
+        def image_callback(f: Result):
             image.set_loading(False)
             image.set_from_file(f.result())
 
@@ -367,7 +365,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 label_text = util.dot_join(
                     f"<b>{util.esc(song.title)}</b>", util.esc(song.artist),
                 )
-                cover_art_future = CacheManager.get_cover_art_filename(song.coverArt)
+                cover_art_future = AdapterManager.get_cover_art_filename(song.coverArt)
                 self.song_results.add(
                     self._create_search_result_row(
                         label_text, "song", song, cover_art_future
@@ -383,7 +381,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 label_text = util.dot_join(
                     f"<b>{util.esc(album.name)}</b>", util.esc(album.artist),
                 )
-                cover_art_future = CacheManager.get_cover_art_filename(album.coverArt)
+                cover_art_future = AdapterManager.get_cover_art_filename(album.coverArt)
                 self.album_results.add(
                     self._create_search_result_row(
                         label_text, "album", album, cover_art_future
@@ -411,7 +409,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self._remove_all_from_widget(self.playlist_results)
             for playlist in search_results.playlist or []:
                 label_text = util.esc(playlist.name)
-                cover_art_future = CacheManager.get_cover_art_filename(
+                cover_art_future = AdapterManager.get_cover_art_filename(
                     playlist.coverArt
                 )
                 self.playlist_results.add(

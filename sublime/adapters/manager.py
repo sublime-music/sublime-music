@@ -4,10 +4,11 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from time import sleep
+from time import sleep, time
 from typing import (
     Any,
     Callable,
+    cast,
     Generic,
     List,
     Optional,
@@ -41,22 +42,33 @@ class Result(Generic[T]):
 
     _data: Optional[T] = None
     _future: Optional[Future] = None
-    on_cancel: Optional[Callable[[], None]] = None
+    _default_value: Optional[T] = None
+    # on_cancel: Optional[Callable[[], None]] = None
 
-    def __init__(self, data_resolver: Union[T, Callable[[], T]]):
-        # TODO take in the partial_data in this constructor so that it can be used if
-        # getting the result fails.
+    def __init__(
+        self,
+        data_resolver: Union[T, Callable[[], T]],
+        is_download=False,
+        default_value: T = None,
+    ):
         """
         Creates a :class:`Result` object.
 
         :param data_resolver: the actual data, or a function that will return the actual
             data. If the latter, the function will be executed by the thread pool.
+        :param is_download: whether or not this result requires a file download. If it
+            does, then it uses a separate executor.
         """
         if callable(data_resolver):
-            self._future = AdapterManager.executor.submit(data_resolver)
+            if is_download:
+                self._future = AdapterManager.download_executor.submit(data_resolver)
+            else:
+                self._future = AdapterManager.executor.submit(data_resolver)
             self._future.add_done_callback(self._on_future_complete)
         else:
             self._data = data_resolver
+
+        self._default_value = default_value
 
     def _on_future_complete(self, future: Future):
         self._data = future.result()
@@ -66,12 +78,17 @@ class Result(Generic[T]):
         Retrieve the actual data. If the data exists already, then return it, otherwise,
         blocking-wait on the future's result.
         """
-        if self._data is not None:
-            return self._data
-        if self._future is not None:
-            return self._future.result()
+        try:
+            if self._data is not None:
+                return self._data
+            if self._future is not None:
+                return self._future.result()
 
-        raise Exception("AdapterManager.Result had neither _data nor _future member!")
+            assert 0, "AdapterManager.Result had neither _data nor _future member!"
+        except Exception as e:
+            if self._default_value:
+                return self._default_value
+            raise e
 
     def add_done_callback(self, fn: Callable, *args):
         """Attaches the callable ``fn`` to the future."""
@@ -102,6 +119,7 @@ class AdapterManager:
     current_download_hashes: Set[str] = set()
     download_set_lock = threading.Lock()
     executor: ThreadPoolExecutor = ThreadPoolExecutor()
+    download_executor: ThreadPoolExecutor = ThreadPoolExecutor()
     is_shutting_down: bool = False
 
     @dataclass
@@ -146,6 +164,7 @@ class AdapterManager:
         logging.info("AdapterManager shutdown start")
         AdapterManager.is_shutting_down = True
         AdapterManager.executor.shutdown()
+        AdapterManager.download_executor.shutdown()
         if AdapterManager._instance:
             AdapterManager._instance.shutdown()
 
@@ -248,9 +267,7 @@ class AdapterManager:
         return Result(future_fn)
 
     @staticmethod
-    def _create_download_fn(
-        uri: str, params_hash: str, before_download: Callable[[], None] = lambda: None,
-    ) -> Callable:
+    def _create_download_fn(uri: str, params_hash: str) -> Callable[[], str]:
         def download_fn() -> str:
             assert AdapterManager._instance
             download_tmp_filename = AdapterManager._instance.download_path.joinpath(
@@ -277,9 +294,6 @@ class AdapterManager:
                     # TODO handle the timeout
             else:
                 logging.info(f"{uri} not found. Downloading...")
-                if before_download:
-                    before_download()
-
                 try:
                     data = requests.get(uri)
 
@@ -333,10 +347,6 @@ class AdapterManager:
     @staticmethod
     def can_delete_playlist() -> bool:
         return AdapterManager._any_adapter_can_do("delete_playlist")
-
-    @staticmethod
-    def can_get_cover_art_uri() -> bool:
-        return AdapterManager._any_adapter_can_do("get_cover_art_uri")
 
     @staticmethod
     def can_get_song_filename_or_stream() -> bool:
@@ -398,6 +408,7 @@ class AdapterManager:
         playlist_id: str,
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
+        allow_download: bool = True,
     ) -> Result[PlaylistDetails]:
         assert AdapterManager._instance
         partial_playlist_data = None
@@ -416,6 +427,9 @@ class AdapterManager:
                 logging.exception(
                     f'Error on {"get_playlist_details"} retrieving from cache.'
                 )
+
+        if not allow_download:
+            raise CacheMissError(partial_data=partial_playlist_data)
 
         if AdapterManager._instance.caching_adapter and force:
             AdapterManager._instance.caching_adapter.invalidate_data(
@@ -532,15 +546,21 @@ class AdapterManager:
 
     @staticmethod
     def get_cover_art_filename(
-        cover_art_id: str,
+        cover_art_id: str = None,
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
+        allow_download: bool = True,
     ) -> Result[str]:  # TODO: convert to return bytes?
+        existing_cover_art_filename = str(
+            Path(__file__).parent.joinpath("images/default-album-art.png")
+        )
+        if cover_art_id is None:
+            return Result(existing_cover_art_filename)
+
         assert AdapterManager._instance
 
         # There could be partial data if the cover art exists, but for some reason was
         # marked out-of-date.
-        existing_cover_art_filename = None
         if AdapterManager._can_use_cache(force, "get_cover_art_uri"):
             assert AdapterManager._instance.caching_adapter
             try:
@@ -550,12 +570,16 @@ class AdapterManager:
                     )
                 )
             except CacheMissError as e:
-                existing_cover_art_filename = e.partial_data
+                if e.partial_data is not None:
+                    existing_cover_art_filename = cast(str, e.partial_data)
                 logging.debug(f'Cache Miss on {"get_cover_art_uri"}.')
             except Exception:
                 logging.exception(
                     f'Error on {"get_cover_art_uri"} retrieving from cache.'
                 )
+
+        if not allow_download:
+            return Result(existing_cover_art_filename)
 
         if AdapterManager._instance.caching_adapter and force:
             AdapterManager._instance.caching_adapter.invalidate_data(
@@ -563,11 +587,10 @@ class AdapterManager:
             )
 
         if not AdapterManager._ground_truth_can_do("get_cover_art_uri"):
-            if existing_cover_art_filename:
-                return existing_cover_art_filename
-            raise Exception(
-                f'No adapters can service {"get_cover_art_uri"} at the moment.'
-            )
+            return Result(existing_cover_art_filename)
+
+        if before_download:
+            before_download()
 
         future: Result[str] = Result(
             AdapterManager._create_download_fn(
@@ -575,8 +598,9 @@ class AdapterManager:
                     cover_art_id, AdapterManager._get_scheme()
                 ),
                 util.params_hash("cover_art", cover_art_id),
-                before_download=before_download,
-            )
+            ),
+            is_download=True,
+            default_value=existing_cover_art_filename,
         )
 
         if AdapterManager._instance.caching_adapter:
@@ -627,12 +651,14 @@ class AdapterManager:
                 if AdapterManager.is_shutting_down:
                     return
 
+                if before_download:
+                    before_download()
+
                 song_tmp_filename = AdapterManager._create_download_fn(
                     AdapterManager._instance.ground_truth_adapter.get_song_uri(
                         song_id, AdapterManager._get_scheme()
                     ),
                     util.params_hash("song", song_id),
-                    before_download=before_download,
                 )()
 
                 AdapterManager._instance.caching_adapter.ingest_new_data(
@@ -658,9 +684,9 @@ class AdapterManager:
                 # Prevents further songs from being downloaded.
                 if AdapterManager.is_shutting_down:
                     break
-                Result(lambda: do_download_song(song_id))
+                Result(lambda: do_download_song(song_id), is_download=True)
 
-        Result(do_batch_download_songs)
+        Result(do_batch_download_songs, is_download=True)
 
     @staticmethod
     def get_song_uri(

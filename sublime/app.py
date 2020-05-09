@@ -368,7 +368,7 @@ class SublimeMusicApp(Gtk.Application):
             )
 
             def make_playlist_tuple(p: Playlist) -> GLib.Variant:
-                cover_art_filename = CacheManager.get_cover_art_filename(
+                cover_art_filename = AdapterManager.get_cover_art_filename(
                     p.cover_art, allow_download=False,
                 ).result()
                 return (f"/playlist/{p.id}", p.name, cover_art_filename or "")
@@ -1013,7 +1013,7 @@ class SublimeMusicApp(Gtk.Application):
 
                         def get_cover_art_filename(order_token: int) -> Tuple[str, int]:
                             return (
-                                CacheManager.get_cover_art_filename(
+                                AdapterManager.get_cover_art_filename(
                                     song.coverArt
                                 ).result(),
                                 order_token,

@@ -43,7 +43,7 @@ def format_song_duration(duration_secs: Union[int, timedelta, None]) -> str:
     # TODO remove int compatibility eventually?
     if isinstance(duration_secs, timedelta):
         duration_secs = round(duration_secs.total_seconds())
-    if not duration_secs:
+    if duration_secs is None:
         return "-:--"
 
     return f"{duration_secs // 60}:{duration_secs % 60:02}"

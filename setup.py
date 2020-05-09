@@ -44,7 +44,7 @@ setup(
         "sublime": [
             "ui/app_styles.css",
             "ui/images/play-queue-play.png",
-            "ui/images/default-album-art.png",
+            "adapters/images/default-album-art.png",
             "dbus/mpris_specs/org.mpris.MediaPlayer2.xml",
             "dbus/mpris_specs/org.mpris.MediaPlayer2.Player.xml",
             "dbus/mpris_specs/org.mpris.MediaPlayer2.Playlists.xml",

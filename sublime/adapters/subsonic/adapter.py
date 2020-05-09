@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+import random
+import multiprocessing
 from datetime import datetime
 from pathlib import Path
 from time import sleep
@@ -44,19 +46,41 @@ class SubsonicAdapter(Adapter):
         self.password = config["password"]
         self.disable_cert_verify = config.get("disable_cert_verify")
 
+        self.is_shutting_down = False
+        self.ping_process = multiprocessing.Process(target=self._check_ping_thread)
+        self.ping_process.start()
+
+        # Wait for the first ping.
+        # TODO this is kinda dumb. Should probably fix it somehow
+        while not self._first_ping_happened.value:
+            sleep(0.1)
+
         # TODO support XML | JSON
+
+    def shutdown(self):
+        self.ping_process.terminate()
 
     # Availability Properties
     # ==================================================================================
+    _first_ping_happened = multiprocessing.Value("b", False)
+    _server_available = multiprocessing.Value("b", False)
+
+    def _check_ping_thread(self):
+        while True:
+            try:
+                # Try to ping the server with a timeout of 2 seconds.
+                self._get_json(self._make_url("ping"), timeout=2)
+                self._server_available.value = True
+            except Exception:
+                logging.exception(f"Could not connect to {self.hostname}")
+                self._server_available.value = False
+
+            self._first_ping_happened.value = True
+            sleep(15)
+
     @property
     def can_service_requests(self) -> bool:
-        try:
-            # Try to ping the server with a timeout of 2 seconds.
-            self._get_json(self._make_url("ping"), timeout=2)
-            return True
-        except Exception:
-            logging.exception(f"Could not connect to {self.hostname}")
-            return False
+        return self._server_available.value
 
     can_get_playlists = True
     can_get_playlist_details = True
@@ -93,6 +117,7 @@ class SubsonicAdapter(Adapter):
     def _make_url(self, endpoint: str) -> str:
         return f"{self.hostname}/rest/{endpoint}.view"
 
+    # TODO figure out some way of rate limiting requests. They often come in too fast.
     def _get(
         self,
         url: str,
@@ -103,13 +128,17 @@ class SubsonicAdapter(Adapter):
         params = {**self._get_params(), **params}
         logging.info(f"[START] get: {url}")
 
-        if os.environ.get("SUBSONIC_ADAPTER_DEBUG_DELAY"):
-            logging.info(
-                "SUBSONIC_ADAPTER_DEBUG_DELAY enabled. Pausing for {} seconds".format(
-                    os.environ["SUBSONIC_ADAPTER_DEBUG_DELAY"]
-                )
+        if delay_str := os.environ.get("SUBSONIC_ADAPTER_DEBUG_DELAY"):
+            delay = (
+                random.uniform(*map(float, delay_str.split(",")))
+                if "," in delay_str
+                else float(delay_str)
             )
-            sleep(float(os.environ["SUBSONIC_ADAPTER_DEBUG_DELAY"]))
+
+            logging.info(
+                "SUBSONIC_ADAPTER_DEBUG_DELAY enabled. Pausing for {delay} seconds"
+            )
+            sleep(delay)
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():

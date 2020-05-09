@@ -6,6 +6,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
+from sublime.adapters import AdapterManager
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.server.api_objects import AlbumWithSongsID3, Child
@@ -523,7 +524,7 @@ class AlbumsGrid(Gtk.Overlay):
         def start_loading():
             artwork.set_loading(True)
 
-        cover_art_filename_future = CacheManager.get_cover_art_filename(
+        cover_art_filename_future = AdapterManager.get_cover_art_filename(
             item.album.coverArt, before_download=lambda: GLib.idle_add(start_loading),
         )
         cover_art_filename_future.add_done_callback(

@@ -47,6 +47,7 @@ except Exception:
     )
     networkmanager_imported = False
 
+from .adapters import AdapterManager, Result as AdapterResult
 from .config import AppConfiguration
 from .server import Server
 from .server.api_object import APIObject
@@ -653,10 +654,8 @@ class CacheManager(metaclass=Singleton):
             artist: Union[Artist, ArtistID3],
             before_download: Callable[[], None] = lambda: None,
             force: bool = False,
-        ) -> "CacheManager.Result[str]":
-            def do_get_artist_artwork(
-                artist_info: ArtistInfo2,
-            ) -> "CacheManager.Result[str]":
+        ) -> AdapterResult[str]:
+            def do_get_artist_artwork(artist_info: ArtistInfo2,) -> AdapterResult[str]:
                 lastfm_url = "".join(artist_info.largeImageUrl or [])
 
                 is_placeholder = lastfm_url == ""
@@ -672,19 +671,21 @@ class CacheManager(metaclass=Singleton):
                 if is_placeholder:
                     if isinstance(artist, (ArtistWithAlbumsID3, ArtistID3)):
                         if artist.coverArt:
-                            return CacheManager.get_cover_art_filename(artist.coverArt)
+                            return AdapterManager.get_cover_art_filename(
+                                artist.coverArt
+                            )
                         elif (
                             isinstance(artist, ArtistWithAlbumsID3)
                             and artist.album
                             and len(artist.album) > 0
                         ):
-                            return CacheManager.get_cover_art_filename(
+                            return AdapterManager.get_cover_art_filename(
                                 artist.album[0].coverArt
                             )
 
                     elif isinstance(artist, Directory) and len(artist.child) > 0:
                         # Retrieve the first album's cover art
-                        return CacheManager.get_cover_art_filename(
+                        return AdapterManager.get_cover_art_filename(
                             artist.child[0].coverArt
                         )
 
@@ -844,26 +845,6 @@ class CacheManager(metaclass=Singleton):
                     CacheManager.create_future(do_download_song, song_id)
 
             return CacheManager.create_future(do_batch_download_songs)
-
-        def get_cover_art_filename(
-            self,
-            id: str,
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-            allow_download: bool = True,
-        ) -> "CacheManager.Result[str]":
-            if id is None:
-                default_art_path = "ui/images/default-album-art.png"
-                return CacheManager.Result.from_data(
-                    str(Path(__file__).parent.joinpath(default_art_path))
-                )
-            return self.return_cached_or_download(
-                f"cover_art/{id}",
-                lambda: self.server.get_cover_art(id),
-                before_download=before_download,
-                force=force,
-                allow_download=allow_download,
-            )
 
         def get_song_details(
             self,

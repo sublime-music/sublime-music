@@ -8,8 +8,8 @@ from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
 from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
 
-from sublime.adapters import AdapterManager
 from sublime.cache_manager import CacheManager
+from sublime.adapters import AdapterManager, CacheMissError
 from sublime.config import AppConfiguration
 from sublime.players import Player
 from sublime.ui.state import RepeatType
@@ -118,10 +118,7 @@ class DBusManager:
         params: GLib.Variant,
         invocation: Gio.DBusMethodInvocation,
     ):
-        if not CacheManager.ready():
-            return
-
-        # TODO (#127): I don't even know if this works.
+        # TODO (#127): I don't really know if this works.
         if interface == "org.freedesktop.DBus.Properties":
             if method == "Get":
                 invocation.return_value(
@@ -165,8 +162,6 @@ class DBusManager:
         return GLib.Variant(variant_type, value)
 
     def property_dict(self) -> Dict[str, Any]:
-        if not CacheManager.ready():
-            return {}
         config, player = self.get_config_and_player()
         state = config.state
         has_current_song = state.current_song is not None
@@ -176,31 +171,25 @@ class DBusManager:
         elif has_current_song:
             has_next_song = state.current_song_index < len(state.play_queue) - 1
 
-        if state.active_playlist_id is None:
-            active_playlist = (False, GLib.Variant("(oss)", ("/", "", "")))
-        else:
-            playlist_result = AdapterManager.get_playlist_details(
-                state.active_playlist_id
-            )
+        active_playlist = (False, GLib.Variant("(oss)", ("/", "", "")))
+        if state.active_playlist_id and AdapterManager.can_get_playlist_details:
+            try:
+                playlist = AdapterManager.get_playlist_details(
+                    state.active_playlist_id, allow_download=False
+                ).result()
 
-            if playlist_result.data_is_available:
-                playlist = playlist_result.result()
+                cover_art = AdapterManager.get_cover_art_filename(
+                    playlist.cover_art, allow_download=False
+                ).result()
 
                 active_playlist = (
                     True,
                     GLib.Variant(
-                        "(oss)",
-                        (
-                            "/playlist/" + playlist.id,
-                            playlist.name,
-                            CacheManager.get_cover_art_url(playlist.cover_art),
-                        ),
+                        "(oss)", ("/playlist/" + playlist.id, playlist.name, cover_art)
                     ),
                 )
-            else:
-                # If we have to wait for the playlist result, just return
-                # no playlist.
-                active_playlist = (False, GLib.Variant("(oss)", ("/", "", "")))
+            except CacheMissError:
+                pass
 
         get_playlists_result = AdapterManager.get_playlists()
         if get_playlists_result.data_is_available:
@@ -273,10 +262,14 @@ class DBusManager:
             (song.duration or 0) * self.second_microsecond_conversion,
         )
 
+        cover_art = AdapterManager.get_cover_art_filename(
+            song.coverArt, allow_download=False
+        ).result()
+
         return {
             "mpris:trackid": trackid,
             "mpris:length": duration,
-            "mpris:artUrl": CacheManager.get_cover_art_url(song.coverArt),
+            "mpris:artUrl": cover_art,
             "xesam:album": song.album or "",
             "xesam:albumArtist": [song.artist or ""],
             "xesam:artist": [song.artist or ""],

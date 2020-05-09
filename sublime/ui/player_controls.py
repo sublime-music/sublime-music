@@ -10,6 +10,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
 from pychromecast import Chromecast
 
+from sublime.adapters import AdapterManager
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.players import ChromecastPlayer
@@ -184,6 +185,21 @@ class PlayerControls(Gtk.ActionBar):
 
             self.play_queue_store[idx][0] = cover_art_filename
 
+        def get_cover_art_filename_or_create_future(
+            cover_art_id: Optional[str], idx: int, order_token: int
+        ) -> Optional[str]:
+            cover_art_result = AdapterManager.get_cover_art_filename(cover_art_id)
+            if not cover_art_result.data_is_available:
+                cover_art_result.add_done_callback(
+                    make_idle_index_capturing_function(
+                        idx, order_token, on_cover_art_future_done
+                    )
+                )
+                return None
+
+            # The cover art is already cached.
+            return cover_art_result.result()
+
         def on_song_details_future_done(
             idx: int, order_token: int, song_details: Child,
         ):
@@ -193,19 +209,10 @@ class PlayerControls(Gtk.ActionBar):
             self.play_queue_store[idx][1] = calculate_label(song_details)
 
             # Cover Art
-            cover_art_result = CacheManager.get_cover_art_filename(
-                song_details.coverArt
-            )
-            if cover_art_result.is_future:
-                # We don't have the cover art already cached.
-                cover_art_result.add_done_callback(
-                    make_idle_index_capturing_function(
-                        idx, order_token, on_cover_art_future_done,
-                    )
-                )
-            else:
-                # We have the cover art already cached.
-                self.play_queue_store[idx][0] = cover_art_result.result()
+            if filename := get_cover_art_filename_or_create_future(
+                song_details.coverArt, idx, order_token
+            ):
+                self.play_queue_store[idx][0] = filename
 
         current_play_queue = [x[-1] for x in self.play_queue_store]
         if app_config.state.play_queue != current_play_queue:
@@ -225,21 +232,10 @@ class PlayerControls(Gtk.ActionBar):
                 song_details = song_details_result.result()
                 label = calculate_label(song_details)
 
-                cover_art_result = CacheManager.get_cover_art_filename(
-                    song_details.coverArt
-                )
-                if cover_art_result.is_future:
-                    # We don't have the cover art already cached.
-                    cover_art_result.add_done_callback(
-                        make_idle_index_capturing_function(
-                            i,
-                            self.play_queue_update_order_token,
-                            on_cover_art_future_done,
-                        )
-                    )
-                else:
-                    # We have the cover art already cached.
-                    cover_art_filename = cover_art_result.result()
+                if filename := get_cover_art_filename_or_create_future(
+                    song_details.coverArt, i, self.play_queue_update_order_token
+                ):
+                    cover_art_filename = filename
 
             new_store.append(
                 [
@@ -265,7 +261,7 @@ class PlayerControls(Gtk.ActionBar):
         self.editing_play_queue_song_list = False
 
     @util.async_callback(
-        lambda *k, **v: CacheManager.get_cover_art_filename(*k, **v),
+        lambda *k, **v: AdapterManager.get_cover_art_filename(*k, **v),
         before_download=lambda self: self.album_art.set_loading(True),
         on_failure=lambda self, e: self.album_art.set_loading(False),
     )
