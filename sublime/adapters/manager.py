@@ -48,6 +48,7 @@ class Result(Generic[T]):
     def __init__(
         self,
         data_resolver: Union[T, Callable[[], T]],
+        *args,
         is_download=False,
         default_value: T = None,
     ):
@@ -61,9 +62,11 @@ class Result(Generic[T]):
         """
         if callable(data_resolver):
             if is_download:
-                self._future = AdapterManager.download_executor.submit(data_resolver)
+                self._future = AdapterManager.download_executor.submit(
+                    data_resolver, *args
+                )
             else:
-                self._future = AdapterManager.executor.submit(data_resolver)
+                self._future = AdapterManager.executor.submit(data_resolver, *args)
             self._future.add_done_callback(self._on_future_complete)
         else:
             self._data = data_resolver
@@ -481,7 +484,7 @@ class AdapterManager:
         assert AdapterManager._instance
 
         future: Result[None] = AdapterManager._create_ground_truth_future_fn(
-            "get_playlist_details", before_download, name, songs=songs
+            "create_playlist", before_download, name, songs=songs
         )
 
         if AdapterManager._instance.caching_adapter:
@@ -512,6 +515,7 @@ class AdapterManager:
         comment: str = None,
         public: bool = False,
         song_ids: List[str] = None,
+        append_song_ids: List[str] = None,
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
     ) -> Result[PlaylistDetails]:
@@ -524,6 +528,7 @@ class AdapterManager:
             comment=comment,
             public=public,
             song_ids=song_ids,
+            append_song_ids=append_song_ids,
         )
 
         if AdapterManager._instance.caching_adapter:
@@ -545,6 +550,20 @@ class AdapterManager:
             AdapterManager._instance.caching_adapter.delete_data(
                 CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, (playlist_id,)
             )
+
+    # TODO allow this to take a set of schemes and unify with get_cover_art_filename
+    @staticmethod
+    def get_cover_art_uri(cover_art_id: str = None) -> str:
+        assert AdapterManager._instance
+        if (
+            not AdapterManager._ground_truth_can_do("get_cover_art_uri")
+            or not cover_art_id
+        ):
+            return ""
+
+        return AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
+            cover_art_id, AdapterManager._get_scheme()
+        )
 
     @staticmethod
     def get_cover_art_filename(
@@ -614,6 +633,7 @@ class AdapterManager:
 
         return future
 
+    # TODO allow this to take a set of schemes
     @staticmethod
     def get_song_filename_or_stream(
         song: Song, format: str = None, force_stream: bool = False,
@@ -715,7 +735,8 @@ class AdapterManager:
                 # Prevents further songs from being downloaded.
                 if AdapterManager.is_shutting_down:
                     break
-                Result(lambda: do_download_song(song_id), is_download=True)
+
+                Result(do_download_song, song_id, is_download=True)
 
         Result(do_batch_download_songs, is_download=True)
 

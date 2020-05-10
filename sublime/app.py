@@ -972,11 +972,9 @@ class SublimeMusicApp(Gtk.Application):
         # in the callback.
         @dbus_propagate(self)
         def do_play_song(song: Song):
-            print(song)
             uri, stream = AdapterManager.get_song_filename_or_stream(
                 song, force_stream=self.app_config.always_stream,
             )
-            print(uri, stream)
 
             # Prevent it from doing the thing where it continually loads
             # songs when it has to download.

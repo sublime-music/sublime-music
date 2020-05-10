@@ -1,3 +1,5 @@
+from typing import Optional
+
 from peewee import (
     BooleanField,
     CompositeKey,
@@ -36,38 +38,59 @@ class Genre(BaseModel):
     album_count = IntegerField(null=True)
 
 
+class Album(BaseModel):
+    id = TextField(unique=True, primary_key=True)
+
+
 class Song(BaseModel):
     id = TextField(unique=True, primary_key=True)
     title = TextField()
     duration = DurationField()
-    parent = TextField()  # TODO: fk
-    album = TextField()  # TODO: fk
-    artist = TextField()  # TODO: fk
     track = IntegerField(null=True)
     year = IntegerField(null=True)
-    genre = ForeignKeyField(Genre, null=True)
-    cover_art = TextField(null=True)  # TODO: fk
+    cover_art = TextField(null=True)  # TODO: fk?
+    path = TextField()
+    play_count = TextField(null=True)
+    created = TzDateTimeField(null=True)
+    starred = TzDateTimeField(null=True)
+
     # size: Optional[int] = None
     # content_type: Optional[str] = None
     # suffix: Optional[str] = None
     # transcoded_content_type: Optional[str] = None
     # transcoded_suffix: Optional[str] = None
-    # duration= DurationField ()
     # bit_rate: Optional[int] = None
-    path = TextField()
     # is_video: Optional[bool] = None
     # user_rating: Optional[int] = None
     # average_rating: Optional[float] = None
-    # play_count: Optional[int] = None
     # disc_number: Optional[int] = None
-    # created: Optional[datetime] = None
-    # starred: Optional[datetime] = None
-    # album_id: Optional[str] = None
-    # artist_id: Optional[str] = None
     # - type_: Optional[SublimeAPI.MediaType] = None
     # bookmark_position: Optional[int] = None
     # original_width: Optional[int] = None
     # original_height: Optional[int] = None
+
+    # TODO make these fks
+    album = TextField(null=True)
+    album_id = TextField(null=True)
+    artist = TextField(null=True)
+    artist_id = TextField(null=True)
+    parent = TextField(null=True)
+
+    _genre = ForeignKeyField(Genre, null=True)
+
+    @property
+    def genre(self) -> Optional[str]:
+        return self._genre.name if self._genre else None
+
+    @genre.setter
+    def genre(self, genre_name):
+        if not genre_name:
+            return
+        genre, genre_created = Genre.get_or_create(
+            name=genre_name, defaults={"name": genre_name},
+        )
+        self._genre = genre
+        self.save()
 
 
 class CacheInfo(BaseModel):
@@ -99,6 +122,7 @@ class Playlist(BaseModel):
 
 
 ALL_TABLES = (
+    Album,
     CacheInfo,
     # CachedFile,
     Genre,

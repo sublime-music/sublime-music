@@ -250,6 +250,18 @@ class FilesystemAdapter(CachingAdapter):
             last_ingestion_time=datetime.now(),
         ).on_conflict_replace().execute()
 
+        def ingest_song_data(song_data: Dict[str, Any]):
+            song, created = models.Song.get_or_create(
+                id=song_data["id"], defaults=song_data
+            )
+
+            if not created:
+                for k, v in song_data.items():
+                    setattr(song, k, v)
+                song.save()
+
+            return song
+
         if data_key == CachingAdapter.CachedDataKey.PLAYLISTS:
             models.Playlist.insert_many(
                 map(asdict, data)
@@ -265,28 +277,7 @@ class FilesystemAdapter(CachingAdapter):
             )
 
             # Handle the songs.
-            songs = []
-            for song_data in playlist_data["songs"]:
-                song, song_created = models.Song.get_or_create(
-                    id=song_data["id"], defaults=song_data
-                )
-
-                keys = ("title", "duration", "path")
-                if not song_created:
-                    for key in keys:
-                        setattr(song, key, song_data[key])
-                    song.save()
-
-                # FKs
-                if song_data.get("genre"):
-                    genre, genre_created = models.Genre.get_or_create(
-                        name=song_data["genre"], defaults={"name": song_data["genre"]},
-                    )
-                    song.genre = genre
-
-                songs.append(song)
-
-            playlist.songs = songs
+            playlist.songs = [ingest_song_data(d) for d in playlist_data["songs"]]
             del playlist_data["songs"]
 
             # Update the values if the playlist already existed.
@@ -294,6 +285,7 @@ class FilesystemAdapter(CachingAdapter):
                 for k, v in playlist_data.items():
                     setattr(playlist, k, v)
 
+            # Always save because we always add the songs.
             playlist.save()
 
         elif data_key == CachingAdapter.CachedDataKey.COVER_ART_FILE:
@@ -307,23 +299,7 @@ class FilesystemAdapter(CachingAdapter):
             shutil.copy(str(data), str(absolute_path))
 
         elif data_key == CachingAdapter.CachedDataKey.SONG_DETAILS:
-            song_data = asdict(data)
-            song, song_created = models.Song.get_or_create(
-                id=song_data["id"], defaults=song_data
-            )
-
-            keys = ("title", "duration", "path")
-            if not song_created:
-                for key in keys:
-                    setattr(song, key, song_data[key])
-
-            # FKs
-            if song_data.get("genre"):
-                genre, genre_created = models.Genre.get_or_create(
-                    name=song_data["genre"], defaults={"name": song_data["genre"]},
-                )
-                song.genre = genre
-
+            song = ingest_song_data(asdict(data))
             song.save()
 
         elif data_key == CachingAdapter.CachedDataKey.GENRES:

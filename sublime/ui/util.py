@@ -196,10 +196,8 @@ def show_song_popover(
         )
 
     def on_add_to_playlist_click(_: Any, playlist: Playlist):
-        CacheManager.executor.submit(
-            CacheManager.update_playlist,
-            playlist_id=playlist.id,
-            song_id_to_add=song_ids,
+        AdapterManager.update_playlist(
+            playlist_id=playlist.id, append_song_ids=song_ids
         )
 
     popover = Gtk.PopoverMenu()

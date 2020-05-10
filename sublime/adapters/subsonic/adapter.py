@@ -249,6 +249,7 @@ class SubsonicAdapter(Adapter):
         comment: str = None,
         public: bool = None,
         song_ids: List[str] = None,
+        append_song_ids: List[str] = None,
     ) -> API.PlaylistDetails:
         if name is not None or comment is not None or public is not None:
             self._get_json(
@@ -257,6 +258,7 @@ class SubsonicAdapter(Adapter):
                 name=name,
                 comment=comment,
                 public=public,
+                songIdToAdd=append_song_ids,
             )
 
         playlist = None
