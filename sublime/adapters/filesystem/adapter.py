@@ -140,7 +140,7 @@ class FilesystemAdapter(CachingAdapter):
 
         return str(cover_art_filename)
 
-    def get_song_uri(self, song_id: str, scheme: str, stream=False) -> str:
+    def get_song_uri(self, song_id: str, scheme: str, stream: bool = False) -> str:
         song = models.Song.get_or_none(models.Song.id == song_id)
         if not song:
             if self.is_cache:
@@ -250,7 +250,7 @@ class FilesystemAdapter(CachingAdapter):
             last_ingestion_time=datetime.now(),
         ).on_conflict_replace().execute()
 
-        def ingest_song_data(song_data: Dict[str, Any]):
+        def ingest_song_data(song_data: Dict[str, Any]) -> models.Song:
             song, created = models.Song.get_or_create(
                 id=song_data["id"], defaults=song_data
             )
@@ -349,7 +349,7 @@ class FilesystemAdapter(CachingAdapter):
             models.CacheInfo.params_hash == util.params_hash(*params),
         ).execute()
 
-        def delete_cover_art(cover_art_id):
+        def delete_cover_art(cover_art_id: str):
             cover_art_params_hash = util.params_hash(cover_art_id)
             if cover_art_file := self.cover_art_dir.joinpath(cover_art_params_hash):
                 cover_art_file.unlink(missing_ok=True)

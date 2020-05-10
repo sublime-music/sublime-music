@@ -16,9 +16,9 @@ from typing import (
 
 from .api_objects import (
     Genre,
-    Song,
     Playlist,
     PlaylistDetails,
+    Song,
 )
 
 
@@ -355,7 +355,7 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("get_cover_art_uri")
 
-    def get_song_uri(self, song_id: str, scheme: str, stream=False) -> str:
+    def get_song_uri(self, song_id: str, scheme: str, stream: bool = False) -> str:
         """
         Get a URI for a given song.
 

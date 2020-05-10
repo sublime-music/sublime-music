@@ -1,4 +1,5 @@
 from time import sleep
+
 from sublime.adapters import Result
 
 
@@ -11,7 +12,7 @@ def test_result_immediate():
 def test_result_immediate_callback():
     callback_called = True
 
-    def check_done_callback(f):
+    def check_done_callback(f: Result):
         nonlocal callback_called
         assert f.result() == 42
         callback_called = True
@@ -22,7 +23,7 @@ def test_result_immediate_callback():
 
 
 def test_result_future():
-    def resolve_later():
+    def resolve_later() -> int:
         sleep(1)
         return 42
 
@@ -33,13 +34,13 @@ def test_result_future():
 
 
 def test_result_future_callback():
-    def resolve_later():
+    def resolve_later() -> int:
         sleep(1)
         return 42
 
     check_done = False
 
-    def check_done_callback(f):
+    def check_done_callback(f: Result):
         nonlocal check_done
         assert result.data_is_available
         assert f.result() == 42

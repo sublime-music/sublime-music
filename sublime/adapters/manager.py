@@ -49,7 +49,7 @@ class Result(Generic[T]):
         self,
         data_resolver: Union[T, Callable[[], T]],
         *args,
-        is_download=False,
+        is_download: bool = False,
         default_value: T = None,
     ):
         """
@@ -218,7 +218,7 @@ class AdapterManager:
     TAdapter = TypeVar("TAdapter", bound=Adapter)
 
     @staticmethod
-    def _adapter_can_do(adapter: Optional[TAdapter], action_name: str):
+    def _adapter_can_do(adapter: Optional[TAdapter], action_name: str) -> bool:
         return (
             adapter is not None
             and adapter.can_service_requests
@@ -226,13 +226,13 @@ class AdapterManager:
         )
 
     @staticmethod
-    def _cache_can_do(action_name: str):
+    def _cache_can_do(action_name: str) -> bool:
         return AdapterManager._instance is not None and AdapterManager._adapter_can_do(
             AdapterManager._instance.caching_adapter, action_name
         )
 
     @staticmethod
-    def _ground_truth_can_do(action_name: str):
+    def _ground_truth_can_do(action_name: str) -> bool:
         return AdapterManager._instance is not None and AdapterManager._adapter_can_do(
             AdapterManager._instance.ground_truth_adapter, action_name
         )
@@ -244,7 +244,7 @@ class AdapterManager:
         return AdapterManager._cache_can_do(action_name)
 
     @staticmethod
-    def _any_adapter_can_do(action_name: str):
+    def _any_adapter_can_do(action_name: str) -> bool:
         if AdapterManager._instance is None:
             return False
 
@@ -332,7 +332,8 @@ class AdapterManager:
         return future_finished
 
     @staticmethod
-    def _get_scheme():
+    def _get_scheme() -> str:
+        assert AdapterManager._instance
         scheme_priority = ("https", "http")
         schemes = sorted(
             AdapterManager._instance.ground_truth_adapter.supported_schemes,
@@ -398,7 +399,7 @@ class AdapterManager:
                 logging.exception(f'Error on {"get_playlists"} retrieving from cache.')
 
         if not allow_download:
-            raise CacheMissError(partial_data=partial_playlist_data)
+            raise CacheMissError(partial_data=partial_playlists_data)
 
         if AdapterManager._instance.caching_adapter and force:
             AdapterManager._instance.caching_adapter.invalidate_data(

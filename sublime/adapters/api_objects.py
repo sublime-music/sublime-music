@@ -21,6 +21,7 @@ class Genre(abc.ABC):
 
 
 class Song(abc.ABC):
+    # TODO make these cross-reference the corresponding Album / Artist / Directory
     id: str
     title: str
     parent: str

@@ -66,7 +66,7 @@ def mock_data_files_multi_part(
                     aggregate.append(line)
 
                 parts.append("\n".join(aggregate))
-                print(parts)
+                print(parts)  # noqa: T001
                 yield file, iter(parts)
 
 

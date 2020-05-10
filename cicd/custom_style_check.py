@@ -3,6 +3,7 @@
 import re
 import sys
 from pathlib import Path
+from typing import Pattern
 
 from termcolor import cprint
 
@@ -10,7 +11,7 @@ todo_re = re.compile(r"\s*#\s*TODO:?\s*")
 accounted_for_todo = re.compile(r"\s*#\s*TODO:?\s*\((#\d+)\)")
 
 
-def noqa_re(error_id: str = ""):
+def noqa_re(error_id: str = "") -> Pattern:
     return re.compile(rf"#\s*noqa(:\s*{error_id})?\s*\n$")
 
 

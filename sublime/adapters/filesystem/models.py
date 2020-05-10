@@ -74,6 +74,7 @@ class Song(BaseModel):
     album_id = TextField(null=True)
     artist = TextField(null=True)
     artist_id = TextField(null=True)
+
     parent = TextField(null=True)
 
     _genre = ForeignKeyField(Genre, null=True)
@@ -83,7 +84,7 @@ class Song(BaseModel):
         return self._genre.name if self._genre else None
 
     @genre.setter
-    def genre(self, genre_name):
+    def genre(self, genre_name: str):
         if not genre_name:
             return
         genre, genre_created = Genre.get_or_create(

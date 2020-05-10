@@ -1,8 +1,8 @@
 import json
 import logging
+import multiprocessing
 import os
 import random
-import multiprocessing
 from datetime import datetime
 from pathlib import Path
 from time import sleep
@@ -284,7 +284,7 @@ class SubsonicAdapter(Adapter):
         params = {"id": cover_art_id, "size": 2000, **self._get_params()}
         return self._make_url("getCoverArt") + "?" + urlencode(params)
 
-    def get_song_uri(self, song_id: str, scheme: str, stream=False) -> str:
+    def get_song_uri(self, song_id: str, scheme: str, stream: bool = False) -> str:
         params = {"id": song_id, **self._get_params()}
         endpoint = "stream" if stream else "download"
         return self._make_url(endpoint) + "?" + urlencode(params)

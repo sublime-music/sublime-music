@@ -598,7 +598,8 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     @dbus_propagate()
-    def on_play_next(self, action: Any, song_ids: Tuple[str, ...]):
+    def on_play_next(self, action: Any, song_ids: GLib.Variant):
+        song_ids = tuple(song_ids)
         if self.app_config.state.current_song is None:
             insert_at = 0
         else:
@@ -614,8 +615,7 @@ class SublimeMusicApp(Gtk.Application):
 
     @dbus_propagate()
     def on_add_to_queue(self, action: Any, song_ids: GLib.Variant):
-        print(song_ids)
-        print(type(song_ids))
+        song_ids = tuple(song_ids)
         self.app_config.state.play_queue += tuple(song_ids)
         self.app_config.state.old_play_queue += tuple(song_ids)
         self.update_window()
@@ -719,7 +719,6 @@ class SublimeMusicApp(Gtk.Application):
         song_queue: Tuple[str, ...],
         metadata: Dict[str, Any],
     ):
-        print(type(song_queue), song_queue)
         song_queue = tuple(song_queue)
         # Reset the play queue so that we don't ever revert back to the
         # previous one.
@@ -1114,8 +1113,8 @@ class SublimeMusicApp(Gtk.Application):
                     play_queue_len: int = len(self.app_config.state.play_queue)
                     if is_repeat_queue or prefetch_idx < play_queue_len:
                         prefetch_idxs.append(
-                            prefetch_idx % play_queue_len
-                        )  # noqa: S001
+                            prefetch_idx % play_queue_len  # noqa: S001
+                        )
                 AdapterManager.batch_download_songs(
                     [self.app_config.state.play_queue[i] for i in prefetch_idxs],
                     before_download=lambda: self.update_window(),
