@@ -187,8 +187,12 @@ class SublimeMusicApp(Gtk.Application):
             if self.last_play_queue_update + 15 <= value:
                 self.save_play_queue()
 
-            if value > 5 and self.should_scrobble_song:
-                CacheManager.scrobble(self.app_config.state.current_song.id)
+            if (
+                value > 5
+                and self.should_scrobble_song
+                and AdapterManager.can_scrobble_song()
+            ):
+                AdapterManager.scrobble_song(self.app_config.state.current_song)
                 self.should_scrobble_song = False
 
         def on_track_end():

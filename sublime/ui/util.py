@@ -16,12 +16,12 @@ from typing import (
 
 import gi
 from deepdiff import DeepDiff
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from sublime.adapters import AdapterManager, Result, SongCacheStatus
 from sublime.adapters.api_objects import Playlist
-from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 
 
@@ -336,8 +336,7 @@ def async_callback(
     annotated function will be called with the result of the future generated
     by said lambda function.
 
-    :param future_fn: a function which generates a
-        :class:`concurrent.futures.Future` or :class:`CacheManager.Result`.
+    :param future_fn: a function which generates an :class:`AdapterManager.Result`.
     """
 
     def decorator(callback_fn: Callable) -> Callable:
@@ -354,7 +353,7 @@ def async_callback(
                 if before_download:
                     GLib.idle_add(before_download, self)
 
-            def future_callback(f: Union[Future, CacheManager.Result]):
+            def future_callback(f: Result):
                 try:
                     result = f.result()
                 except Exception as e:

@@ -896,35 +896,6 @@ class Server:
         """
         return self._get_json(self._make_url("setRating"), id=id, rating=rating,)
 
-    def scrobble(
-        self, id: int, time: datetime = None, submission: bool = True,
-    ) -> Response:
-        """
-        Registers the local playback of one or more media files. Typically used
-        when playing media that is cached on the client. This operation
-        includes the following:
-
-            * "Scrobbles" the media files on last.fm if the user has configured
-              his/her last.fm credentials on the Subsonic server (Settings >
-              Personal).
-            * Updates the play count and last played timestamp for the media
-              files. (Since 1.11.0)
-            * Makes the media files appear in the "Now playing" page in the web
-              app, and appear in the list of songs returned by
-              ``getNowPlaying`` (Since 1.11.0)
-
-        Since 1.8.0 you may specify multiple id (and optionally time)
-        parameters to scrobble multiple files.
-
-        :param id: The ID of the file to scrobble.
-        :param time: (Since 1.8.0) The time at which the song was listened to.
-        :param submission: Whether this is a "submission" or a "now playing"
-            notification.
-        """
-        return self._get_json(
-            self._make_url("scrobble"), id=id, time=time, submission=submission,
-        )
-
     def get_shares(self) -> Shares:
         """
         Returns information about shared media this user is allowed to manage.

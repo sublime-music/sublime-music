@@ -254,10 +254,7 @@ class AdapterManager:
 
     @staticmethod
     def _create_ground_truth_future_fn(
-        function_name: str,
-        before_download: Callable[[], None] = lambda: None,
-        *args,
-        **kwargs,
+        function_name: str, *args, before_download: Callable[[], None] = None, **kwargs
     ) -> Result:
         def future_fn() -> Any:
             assert AdapterManager._instance
@@ -377,6 +374,10 @@ class AdapterManager:
     @staticmethod
     def can_get_genres() -> bool:
         return AdapterManager._any_adapter_can_do("get_genres")
+
+    @staticmethod
+    def can_scrobble_song() -> bool:
+        return AdapterManager._any_adapter_can_do("scrobble_song")
 
     # Data Retrieval Methods
     # ==================================================================================
@@ -847,6 +848,11 @@ class AdapterManager:
             )
 
         return future
+
+    @staticmethod
+    def scrobble_song(song: Song):
+        assert AdapterManager._instance
+        AdapterManager._create_ground_truth_future_fn("scrobble_song", song)
 
     # Cache Status Methods
     # ==================================================================================

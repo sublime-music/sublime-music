@@ -97,6 +97,7 @@ class SubsonicAdapter(Adapter):
     can_get_cover_art_uri = True
     can_get_song_uri = True
     can_get_song_details = True
+    can_scrobble_song = True
     can_get_genres = True
     supports_streaming = True
 
@@ -293,6 +294,9 @@ class SubsonicAdapter(Adapter):
         song = self._get_json(self._make_url("getSong"), id=song_id).song
         assert song, f"Error getting song {song_id}"
         return song
+
+    def scrobble_song(self, song: API.Song):
+        self._get(self._make_url("scrobble"), id=song.id)
 
     def get_genres(self) -> Sequence[API.Genre]:
         if genres := self._get_json(self._make_url("getGenres")).genres:

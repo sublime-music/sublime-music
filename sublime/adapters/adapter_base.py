@@ -275,6 +275,13 @@ class Adapter(abc.ABC):
         """
         return False
 
+    @property
+    def can_scrobble_song(self) -> bool:
+        """
+        Wheter :class:`scrobble_song` can be called on the adapter right now.
+        """
+        return False
+
     # Misc
     @property
     def can_get_genres(self) -> bool:
@@ -375,6 +382,12 @@ class Adapter(abc.ABC):
         :param song_id: The ID of the song to get the details for.
         """
         raise self._check_can_error("get_song_details")
+
+    def scrobble_song(self, song: Song):
+        """
+        Scrobble the given song.
+        """
+        raise self._check_can_error("scrobble_song")
 
     def get_genres(self) -> Sequence[Genre]:
         """

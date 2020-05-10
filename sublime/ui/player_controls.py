@@ -10,9 +10,8 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
 from pychromecast import Chromecast
 
-from sublime.adapters import AdapterManager
+from sublime.adapters import AdapterManager, Result
 from sublime.adapters.api_objects import Song
-from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.players import ChromecastPlayer
 from sublime.ui import util
@@ -180,7 +179,7 @@ class PlayerControls(Gtk.ActionBar):
 
         def make_idle_index_capturing_function(
             idx: int, order_tok: int, fn: Callable[[int, int, Any], None],
-        ) -> Callable[[CacheManager.Result], None]:
+        ) -> Callable[[Result], None]:
             return lambda f: GLib.idle_add(fn, idx, order_tok, f.result())
 
         def on_cover_art_future_done(

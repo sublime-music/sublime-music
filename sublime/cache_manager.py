@@ -796,12 +796,6 @@ class CacheManager(metaclass=Singleton):
                 self.server.save_play_queue, play_queue, current, position
             )
 
-        def scrobble(self, song_id: int) -> Future:
-            def do_scrobble():
-                self.server.scrobble(song_id)
-
-            return CacheManager.create_future(do_scrobble)
-
         def search(
             self,
             query: str,
