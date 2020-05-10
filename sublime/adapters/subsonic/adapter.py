@@ -92,6 +92,7 @@ class SubsonicAdapter(Adapter):
     can_delete_playlist = True
     can_get_cover_art_uri = True
     can_get_song_uri = True
+    can_get_genres = True
     supports_streaming = True
 
     _schemas = None
@@ -280,3 +281,8 @@ class SubsonicAdapter(Adapter):
         params = {"id": song_id, **self._get_params()}
         endpoint = "stream" if stream else "download"
         return self._make_url(endpoint) + "?" + urlencode(params)
+
+    def get_genres(self) -> Sequence[API.Genre]:
+        if genres := self._get_json(self._make_url("getGenres")).genres:
+            return genres.genre
+        return []

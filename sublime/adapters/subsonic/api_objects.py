@@ -29,6 +29,14 @@ for type_, translation_function in extra_translation_map.items():
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
+class Genre(SublimeAPI.Genre):
+    name: str = field(metadata=config(field_name="value"))
+    song_count: int
+    album_count: int
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
 class Song(SublimeAPI.Song):
     id: str
     title: str
@@ -99,6 +107,11 @@ class PlaylistWithSongs(SublimeAPI.PlaylistDetails):
 
 
 @dataclass
+class Genres(DataClassJsonMixin):
+    genre: List[Genre] = field(default_factory=list)
+
+
+@dataclass
 class Playlists(DataClassJsonMixin):
     playlist: List[Playlist] = field(default_factory=list)
 
@@ -107,6 +120,7 @@ class Playlists(DataClassJsonMixin):
 class Response(DataClassJsonMixin):
     """The base Subsonic response object."""
 
+    genres: Optional[Genres] = None
     song: Optional[Song] = None
     playlists: Optional[Playlists] = None
     playlist: Optional[PlaylistWithSongs] = None

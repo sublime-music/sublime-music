@@ -1,7 +1,7 @@
 from peewee import (
     BooleanField,
     CompositeKey,
-    # ForeignKeyField,
+    ForeignKeyField,
     IntegerField,
     Model,
     SqliteDatabase,
@@ -30,6 +30,12 @@ class BaseModel(Model):
 #     filename = TextField(null=True)
 
 
+class Genre(BaseModel):
+    name = TextField(unique=True, primary_key=True)
+    song_count = IntegerField(null=True)
+    album_count = IntegerField(null=True)
+
+
 class Song(BaseModel):
     id = TextField(unique=True, primary_key=True)
     title = TextField()
@@ -39,7 +45,7 @@ class Song(BaseModel):
     artist = TextField()  # TODO: fk
     track = IntegerField(null=True)
     year = IntegerField(null=True)
-    genre = TextField(null=True)  # TODO: fk
+    genre = ForeignKeyField(Genre, null=True)
     cover_art = TextField(null=True)  # TODO: fk
     # size: Optional[int] = None
     # content_type: Optional[str] = None
@@ -95,6 +101,7 @@ class Playlist(BaseModel):
 ALL_TABLES = (
     CacheInfo,
     # CachedFile,
+    Genre,
     Playlist,
     Playlist.songs.get_through_model(),
     Song,

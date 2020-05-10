@@ -15,6 +15,7 @@ from typing import (
 )
 
 from .api_objects import (
+    Genre,
     Song,
     Playlist,
     PlaylistDetails,
@@ -198,6 +199,7 @@ class Adapter(abc.ABC):
         that as the return value of this function.
         """
 
+    # Playlists
     @property
     def can_get_playlists(self) -> bool:
         """
@@ -233,6 +235,7 @@ class Adapter(abc.ABC):
         """
         return False
 
+    # Downloading/streaming cover art and songs
     @property
     def supported_schemes(self) -> Iterable[str]:
         """
@@ -261,6 +264,14 @@ class Adapter(abc.ABC):
     def can_get_song_uri(self) -> bool:
         """
         Whether :class:`get_song_uri` can be called on the adapter right now.
+        """
+        return False
+
+    # Misc
+    @property
+    def can_get_genres(self) -> bool:
+        """
+        Whether :class:`get_genres` can be called on the adapter right now.
         """
         return False
 
@@ -349,6 +360,12 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("get_song_uri")
 
+    def get_genres(self) -> Sequence[Genre]:
+        """
+        Get all of the genres.
+        """
+        raise self._check_can_error("get_genres")
+
     @staticmethod
     def _check_can_error(method_name: str) -> NotImplementedError:
         return NotImplementedError(
@@ -389,18 +406,16 @@ class CachingAdapter(Adapter):
     # Data Ingestion Methods
     # ==================================================================================
     class CachedDataKey(Enum):
+        COVER_ART_FILE = "cover_art_file"
+        GENRES = "genres"
         PLAYLISTS = "get_playlists"
         PLAYLIST_DETAILS = "get_playlist_details"
-        COVER_ART_FILE = "cover_art_file"
         SONG_FILE = "song_file"
         SONG_FILE_PERMANENT = "song_file_permanent"
 
     @abc.abstractmethod
     def ingest_new_data(
-        self,
-        data_key: "CachingAdapter.CachedDataKey",
-        params: Tuple[Any, ...],
-        data: Any,
+        self, data_key: CachedDataKey, params: Tuple[Any, ...], data: Any
     ):
         """
         This function will be called after the fallback, ground-truth adapter returns
@@ -417,9 +432,7 @@ class CachingAdapter(Adapter):
         """
 
     @abc.abstractmethod
-    def invalidate_data(
-        self, data_key: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...]
-    ):
+    def invalidate_data(self, data_key: CachedDataKey, params: Tuple[Any, ...]):
         """
         This function will be called if the adapter should invalidate some of its data.
         This should not destroy the invalidated data. If invalid data is requested, a
@@ -433,9 +446,7 @@ class CachingAdapter(Adapter):
         """
 
     @abc.abstractmethod
-    def delete_data(
-        self, data_key: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...]
-    ):
+    def delete_data(self, data_key: CachedDataKey, params: Tuple[Any, ...]):
         """
         This function will be called if the adapter should delete some of its data.
         This should destroy the data. If the deleted data is requested, a

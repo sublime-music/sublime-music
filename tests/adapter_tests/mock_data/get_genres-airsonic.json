@@ -1,0 +1,20 @@
+{
+  "subsonic-response": {
+    "status": "ok",
+    "version": "1.15.0",
+    "genres": {
+      "genre": [
+        {
+          "songCount": 124,
+          "albumCount": 77,
+          "value": "Country"
+        },
+        {
+          "songCount": 31,
+          "albumCount": 25,
+          "value": "Pop"
+        }
+      ]
+    }
+  }
+}

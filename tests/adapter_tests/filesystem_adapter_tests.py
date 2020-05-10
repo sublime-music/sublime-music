@@ -2,7 +2,7 @@ import shutil
 from dataclasses import asdict
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Generator, Tuple
+from typing import Any, cast, Generator, Iterable, Tuple
 
 import pytest
 
@@ -452,3 +452,57 @@ def test_delete_song_data(cache_adapter: FilesystemAdapter):
         assert 0, "DID NOT raise CacheMissError"
     except CacheMissError as e:
         assert e.partial_data is None
+
+
+def test_caching_get_genres(cache_adapter: FilesystemAdapter):
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_genres()
+
+    # TODO ingest song details instead of playlist details here
+    songs = [
+        SubsonicAPI.Song(
+            "2",
+            "Song 2",
+            parent="foo",
+            album="foo",
+            artist="foo",
+            duration=timedelta(seconds=20.8),
+            path="foo/song2.mp3",
+            genre="Foo",
+        ),
+        SubsonicAPI.Song(
+            "1",
+            "Song 1",
+            parent="foo",
+            album="foo",
+            artist="foo",
+            duration=timedelta(seconds=10.2),
+            path="foo/song1.mp3",
+            genre="Bar",
+        ),
+    ]
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS,
+        ("1",),
+        SubsonicAPI.PlaylistWithSongs("1", "test1", songs=songs),
+    )
+
+    # Getting genres now should look at what's on the songs. This sould cache miss, but
+    # still give some data.
+    try:
+        cache_adapter.get_genres()
+        assert 0, "DID NOT raise CacheMissError"
+    except CacheMissError as e:
+        assert [g.name for g in cast(Iterable, e.partial_data)] == ["Bar", "Foo"]
+
+    # After we actually ingest the actual list, it should be returned instead.
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.GENRES,
+        (),
+        [
+            SubsonicAPI.Genre("Bar", 10, 20),
+            SubsonicAPI.Genre("Baz", 10, 20),
+            SubsonicAPI.Genre("Foo", 10, 20),
+        ],
+    )
+    assert [g.name for g in cache_adapter.get_genres()] == ["Bar", "Baz", "Foo"]

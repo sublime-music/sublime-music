@@ -14,6 +14,12 @@ class MediaType(Enum):
     VIDEO = "video"
 
 
+class Genre(abc.ABC):
+    name: str
+    song_count: Optional[int] = None
+    album_count: Optional[int] = None
+
+
 class Song(abc.ABC):
     id: str
     title: str

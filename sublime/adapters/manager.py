@@ -26,7 +26,7 @@ from sublime import util
 from sublime.config import AppConfiguration
 
 from .adapter_base import Adapter, CacheMissError, CachingAdapter, SongCacheStatus
-from .api_objects import Playlist, PlaylistDetails, Song
+from .api_objects import Genre, Playlist, PlaylistDetails, Song
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter
 
@@ -250,7 +250,7 @@ class AdapterManager:
         ) or AdapterManager._cache_can_do(action_name)
 
     @staticmethod
-    def _create_future_fn(
+    def _create_ground_truth_future_fn(
         function_name: str,
         before_download: Callable[[], None] = lambda: None,
         *args,
@@ -314,6 +314,19 @@ class AdapterManager:
             return str(download_tmp_filename)
 
         return download_fn
+
+    @staticmethod
+    def _create_caching_done_callback(
+        cache_key: CachingAdapter.CachedDataKey, params: Tuple[Any, ...]
+    ) -> Callable[[Result], None]:
+        def future_finished(f: Result):
+            assert AdapterManager._instance
+            assert AdapterManager._instance.caching_adapter
+            AdapterManager._instance.caching_adapter.ingest_new_data(
+                cache_key, params, f.result(),
+            )
+
+        return future_finished
 
     @staticmethod
     def _get_scheme():
@@ -386,20 +399,18 @@ class AdapterManager:
                 return partial_playlists_data
             raise Exception(f'No adapters can service {"get_playlists"} at the moment.')
 
-        future: Result[Sequence[Playlist]] = AdapterManager._create_future_fn(
+        future: Result[
+            Sequence[Playlist]
+        ] = AdapterManager._create_ground_truth_future_fn(
             "get_playlists", before_download
         )
 
         if AdapterManager._instance.caching_adapter:
-
-            def future_finished(f: Future):
-                assert AdapterManager._instance
-                assert AdapterManager._instance.caching_adapter
-                AdapterManager._instance.caching_adapter.ingest_new_data(
-                    CachingAdapter.CachedDataKey.PLAYLISTS, (), f.result(),
+            future.add_done_callback(
+                AdapterManager._create_caching_done_callback(
+                    CachingAdapter.CachedDataKey.PLAYLISTS, (),
                 )
-
-            future.add_done_callback(future_finished)
+            )
 
         return future
 
@@ -443,22 +454,16 @@ class AdapterManager:
                 f'No adapters can service {"get_playlist_details"} at the moment.'
             )
 
-        future: Result[PlaylistDetails] = AdapterManager._create_future_fn(
+        future: Result[PlaylistDetails] = AdapterManager._create_ground_truth_future_fn(
             "get_playlist_details", before_download, playlist_id
         )
 
         if AdapterManager._instance.caching_adapter:
-
-            def future_finished(f: Future):
-                assert AdapterManager._instance
-                assert AdapterManager._instance.caching_adapter
-                AdapterManager._instance.caching_adapter.ingest_new_data(
-                    CachingAdapter.CachedDataKey.PLAYLIST_DETAILS,
-                    (playlist_id,),
-                    f.result(),
+            future.add_done_callback(
+                AdapterManager._create_caching_done_callback(
+                    CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, (playlist_id,),
                 )
-
-            future.add_done_callback(future_finished)
+            )
 
         return future
 
@@ -471,13 +476,13 @@ class AdapterManager:
     ) -> Result[None]:
         assert AdapterManager._instance
 
-        future: Result[None] = AdapterManager._create_future_fn(
+        future: Result[None] = AdapterManager._create_ground_truth_future_fn(
             "get_playlist_details", before_download, name, songs=songs
         )
 
         if AdapterManager._instance.caching_adapter:
 
-            def future_finished(f: Future):
+            def future_finished(f: Result[None]):
                 assert AdapterManager._instance
                 assert AdapterManager._instance.caching_adapter
                 playlist: Optional[PlaylistDetails] = f.result()
@@ -507,7 +512,7 @@ class AdapterManager:
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
     ) -> Result[PlaylistDetails]:
         assert AdapterManager._instance
-        future: Result[PlaylistDetails] = AdapterManager._create_future_fn(
+        future: Result[PlaylistDetails] = AdapterManager._create_ground_truth_future_fn(
             "update_playlist",
             before_download,
             playlist_id,
@@ -518,18 +523,11 @@ class AdapterManager:
         )
 
         if AdapterManager._instance.caching_adapter:
-
-            def future_finished(f: Future):
-                assert AdapterManager._instance
-                assert AdapterManager._instance.caching_adapter
-                playlist: PlaylistDetails = f.result()
-                AdapterManager._instance.caching_adapter.ingest_new_data(
-                    CachingAdapter.CachedDataKey.PLAYLIST_DETAILS,
-                    (playlist.id,),
-                    playlist,
+            future.add_done_callback(
+                AdapterManager._create_caching_done_callback(
+                    CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, (playlist_id,),
                 )
-
-            future.add_done_callback(future_finished)
+            )
 
         return future
 
@@ -604,22 +602,17 @@ class AdapterManager:
         )
 
         if AdapterManager._instance.caching_adapter:
-
-            def future_finished(f: Future):
-                assert AdapterManager._instance
-                assert AdapterManager._instance.caching_adapter
-                AdapterManager._instance.caching_adapter.ingest_new_data(
-                    CachingAdapter.CachedDataKey.COVER_ART_FILE,
-                    (cover_art_id,),
-                    f.result(),
+            future.add_done_callback(
+                AdapterManager._create_caching_done_callback(
+                    CachingAdapter.CachedDataKey.COVER_ART_FILE, (cover_art_id,),
                 )
-
-            future.add_done_callback(future_finished)
+            )
 
         return future
 
     @staticmethod
     def get_song_filename_or_stream() -> Tuple[str, bool]:
+        # TODO
         raise NotImplementedError()
 
     @staticmethod
@@ -696,7 +689,51 @@ class AdapterManager:
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
     ) -> Result[str]:
+        # TODO
         raise NotImplementedError()
+
+    @staticmethod
+    def get_genres(
+        self, before_download: Callable[[], None] = lambda: None, force: bool = False,
+    ) -> Result[Sequence[Genre]]:
+        assert AdapterManager._instance
+        partial_genre_list = None
+        if AdapterManager._can_use_cache(force, "get_genres"):
+            assert AdapterManager._instance.caching_adapter
+            try:
+                return Result(AdapterManager._instance.caching_adapter.get_genres())
+            except CacheMissError as e:
+                partial_genre_list = e.partial_data
+                logging.debug(f'Cache Miss on {"get_genres"}.')
+            except Exception:
+                logging.exception(f'Error on {"get_genres"} retrieving from cache.')
+
+        if AdapterManager._instance.caching_adapter and force:
+            AdapterManager._instance.caching_adapter.invalidate_data(
+                CachingAdapter.CachedDataKey.GENRES, ()
+            )
+
+        if not AdapterManager._ground_truth_can_do("get_genres"):
+            if partial_genre_list:
+                return partial_genre_list
+            raise Exception(f'No adapters can service {"get_genres"} at the moment.')
+
+        future: Result[Sequence[Genre]] = AdapterManager._create_ground_truth_future_fn(
+            "get_genres", before_download
+        )
+
+        if AdapterManager._instance.caching_adapter:
+            future.add_done_callback(
+                AdapterManager._create_caching_done_callback(
+                    CachingAdapter.CachedDataKey.GENRES, (),
+                )
+            )
+
+        return future
+
+        if genres := self._get_json(self._make_url("getGenres")).genres:
+            return genres.genre
+        return []
 
     # Cache Status Methods
     # ==================================================================================

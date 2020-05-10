@@ -256,3 +256,15 @@ def test_update_playlist(adapter: SubsonicAdapter):
 
         assert result_playlist.comment == "Bar"
         assert result_playlist.public is False
+
+
+def test_get_genres(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files_multi_part("get_genres"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        genres = adapter.get_genres()
+
+        assert len(genres) == 2
+        assert [g.name for g in genres] == ["Country", "Pop"]

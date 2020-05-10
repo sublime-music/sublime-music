@@ -165,6 +165,18 @@ class FilesystemAdapter(CachingAdapter):
 
         return str(music_filename)
 
+    def get_genres(self) -> Sequence[API.Genre]:
+        genres = list(models.Genre.select().order_by(models.Genre.name))
+        if self.is_cache:
+            # Determine if the adapter has ingested data for get_playlists before, and
+            # if not, cache miss.
+            cache_key = CachingAdapter.CachedDataKey.GENRES
+            if not models.CacheInfo.get_or_none(
+                models.CacheInfo.cache_key == cache_key
+            ):
+                raise CacheMissError(partial_data=genres)
+        return genres
+
     # Data Ingestion Methods
     # ==================================================================================
     def ingest_new_data(
@@ -239,6 +251,13 @@ class FilesystemAdapter(CachingAdapter):
                         setattr(song, key, song_data[key])
                     song.save()
 
+                # FKs
+                if song_data.get("genre"):
+                    genre, genre_created = models.Genre.get_or_create(
+                        name=song_data["genre"], defaults={"name": song_data["genre"]},
+                    )
+                    song.genre = genre
+
                 songs.append(song)
 
             playlist.songs = songs
@@ -258,6 +277,11 @@ class FilesystemAdapter(CachingAdapter):
             absolute_path = self.music_dir.joinpath(relative_path)
             absolute_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(str(data), str(absolute_path))
+        elif data_key == CachingAdapter.CachedDataKey.GENRES:
+            models.Genre.insert_many(map(asdict, data)).on_conflict_replace().execute()
+            models.Genre.delete().where(
+                models.Genre.name.not_in([g.name for g in data])
+            ).execute()
 
     def _invalidate_cover_art(self, cover_art_id: str):
         models.CacheInfo.delete().where(
