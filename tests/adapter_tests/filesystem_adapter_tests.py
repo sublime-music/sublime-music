@@ -9,7 +9,6 @@ import pytest
 from sublime import util
 from sublime.adapters import CacheMissError
 from sublime.adapters.filesystem import FilesystemAdapter
-from sublime.adapters.filesystem import models
 from sublime.adapters.subsonic import api_objects as SubsonicAPI
 
 MOCK_DATA_FILES = Path(__file__).parent.joinpath("mock_data")

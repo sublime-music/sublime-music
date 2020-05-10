@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Callable, cast, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Iterable, Optional, Tuple, Union
 
 import gi
 
@@ -43,6 +43,7 @@ class AlbumsPanel(Gtk.Box):
         self.sort_type_combo = self.make_combobox(
             (
                 ("random", "randomly", True),
+                # TODO this needs to be updated after the ping
                 ("byGenre", "by genre", AdapterManager.can_get_genres()),
                 ("newest", "by most recently added", True),
                 ("highest", "by highest rated", True),

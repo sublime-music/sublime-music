@@ -728,10 +728,14 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
     def _format_stats(self, playlist: PlaylistDetails) -> str:
-        created_date = playlist.created.strftime("%B %d, %Y")
+        created_date_text = ""
+        if playlist.created:
+            created_date_text = " on {playlist.created.strftime('%B %d, %Y')}"
+        created_text = f"Created by {playlist.owner}{created_date_text}"
+
         lines = [
             util.dot_join(
-                f"Created by {playlist.owner} on {created_date}",
+                created_text,
                 f"{'Not v' if not playlist.public else 'V'}isible to others",
             ),
             util.dot_join(

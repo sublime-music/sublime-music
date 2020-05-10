@@ -1113,8 +1113,8 @@ class SublimeMusicApp(Gtk.Application):
                         )  # noqa: S001
                 AdapterManager.batch_download_songs(
                     [self.app_config.state.play_queue[i] for i in prefetch_idxs],
-                    before_download=lambda: self.update_window,
-                    on_song_download_complete=lambda: self.update_window,
+                    before_download=lambda: self.update_window(),
+                    on_song_download_complete=lambda: self.update_window(),
                 )
 
         if old_play_queue:

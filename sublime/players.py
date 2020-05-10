@@ -17,7 +17,6 @@ import pychromecast
 
 from sublime.adapters import AdapterManager
 from sublime.adapters.api_objects import Song
-from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 
 
