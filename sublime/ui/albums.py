@@ -101,10 +101,9 @@ class AlbumsPanel(Gtk.Box):
         items: Iterable[Tuple[str, str, bool]],
         on_change: Callable[["AlbumsPanel", Gtk.ComboBox], None],
     ) -> Gtk.ComboBox:
-        store = Gtk.ListStore(str, str)
-        for *item, include in items:
-            if include:
-                store.append(item)
+        store = Gtk.ListStore(str, str, bool)
+        for item in items:
+            store.append(item)
 
         combo = Gtk.ComboBox.new_with_model(store)
         combo.set_id_column(0)
@@ -113,6 +112,7 @@ class AlbumsPanel(Gtk.Box):
         renderer_text = Gtk.CellRendererText()
         combo.pack_start(renderer_text, True)
         combo.add_attribute(renderer_text, "text", 1)
+        combo.add_attribute(renderer_text, "sensitive", 2)
 
         return combo
 
@@ -124,7 +124,9 @@ class AlbumsPanel(Gtk.Box):
 
         def get_genres_done(f: Result):
             try:
-                new_store = [(genre.name, genre.name) for genre in (f.result() or [])]
+                new_store = [
+                    (genre.name, genre.name, True) for genre in (f.result() or [])
+                ]
 
                 util.diff_song_store(self.genre_combo.get_model(), new_store)
 
