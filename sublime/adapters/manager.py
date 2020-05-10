@@ -392,7 +392,7 @@ class AdapterManager:
                 return Result(AdapterManager._instance.caching_adapter.get_playlists())
             except CacheMissError as e:
                 partial_playlists_data = e.partial_data
-                logging.debug(f'Cache Miss on {"get_playlists"}.')
+                logging.info(f'Cache Miss on {"get_playlists"}.')
             except Exception:
                 logging.exception(f'Error on {"get_playlists"} retrieving from cache.')
 
@@ -440,7 +440,7 @@ class AdapterManager:
                 )
             except CacheMissError as e:
                 partial_playlist_data = e.partial_data
-                logging.debug(f'Cache Miss on {"get_playlist_details"}.')
+                logging.info(f'Cache Miss on {"get_playlist_details"}.')
             except Exception:
                 logging.exception(
                     f'Error on {"get_playlist_details"} retrieving from cache.'
@@ -593,7 +593,7 @@ class AdapterManager:
             except CacheMissError as e:
                 if e.partial_data is not None:
                     existing_cover_art_filename = cast(str, e.partial_data)
-                logging.debug(f'Cache Miss on {"get_cover_art_uri"}.')
+                logging.info(f'Cache Miss on {"get_cover_art_uri"}.')
             except Exception:
                 logging.exception(
                     f'Error on {"get_cover_art_uri"} retrieving from cache.'
@@ -652,7 +652,7 @@ class AdapterManager:
             except CacheMissError as e:
                 if e.partial_data is not None:
                     cached_song_filename = cast(str, e.partial_data)
-                logging.debug(f'Cache Miss on {"get_song_filename_or_stream"}.')
+                logging.info(f'Cache Miss on {"get_song_filename_or_stream"}.')
             except Exception:
                 logging.exception(
                     f'Error on {"get_song_filename_or_stream"} retrieving from cache.'
@@ -772,7 +772,7 @@ class AdapterManager:
                 )
             except CacheMissError as e:
                 partial_song_details = e.partial_data
-                logging.debug(f'Cache Miss on {"get_song_details"}.')
+                logging.info(f'Cache Miss on {"get_song_details"}.')
             except Exception:
                 logging.exception(
                     f'Error on {"get_song_details"} retrieving from cache.'
@@ -816,7 +816,7 @@ class AdapterManager:
                 return Result(AdapterManager._instance.caching_adapter.get_genres())
             except CacheMissError as e:
                 partial_genre_list = e.partial_data
-                logging.debug(f'Cache Miss on {"get_genres"}.')
+                logging.info(f'Cache Miss on {"get_genres"}.')
             except Exception:
                 logging.exception(f'Error on {"get_genres"} retrieving from cache.')
 

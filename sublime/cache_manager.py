@@ -382,10 +382,10 @@ class CacheManager(metaclass=Singleton):
                         art_id, dimensions = map(int, match.groups())
                         if dimensions == 1000:
                             no_dimens = cover_art_file.parent.joinpath("{art_id}")
-                            logging.debug(f"Moving {cover_art_file} to {no_dimens}")
+                            logging.info(f"Moving {cover_art_file} to {no_dimens}")
                             shutil.move(cover_art_file, no_dimens)
                         else:
-                            logging.debug(f"Deleting {cover_art_file}")
+                            logging.info(f"Deleting {cover_art_file}")
                             cover_art_file.unlink()
 
             self.cache["version"] = 1

@@ -62,6 +62,8 @@ class UIState:
     def migrate(self):
         pass
 
+    _current_song: Optional[Song] = None
+
     @property
     def current_song(self) -> Optional[Song]:
         from sublime.adapters import AdapterManager
@@ -70,7 +72,13 @@ class UIState:
             return None
 
         current_song_id = self.play_queue[self.current_song_index]
-        return AdapterManager.get_song_details(current_song_id).result()
+
+        if not self._current_song or self._current_song.id != current_song_id:
+            self._current_song = AdapterManager.get_song_details(
+                current_song_id
+            ).result()
+
+        return self._current_song
 
     @property
     def volume(self) -> float:

@@ -66,6 +66,10 @@ class SubsonicAdapter(Adapter):
     _server_available = multiprocessing.Value("b", False)
 
     def _check_ping_thread(self):
+        # TODO: also use other requests in place of ping if they come in. If the time
+        # since the last successful request is high, then do another ping.
+        # TODO: also use NM to detect when the connection changes and update
+        # accordingly.
         while True:
             self._set_ping_status()
             self._first_ping_happened.value = True
@@ -151,7 +155,7 @@ class SubsonicAdapter(Adapter):
                 params[k] = int(v.timestamp() * 1000)
 
         if self._is_mock:
-            logging.debug("Using mock data")
+            logging.info("Using mock data")
             return self._get_mock_data()
 
         result = requests.get(
