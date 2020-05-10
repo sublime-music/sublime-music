@@ -31,8 +31,8 @@ for type_, translation_function in extra_translation_map.items():
 @dataclass
 class Genre(SublimeAPI.Genre):
     name: str = field(metadata=config(field_name="value"))
-    song_count: int
-    album_count: int
+    song_count: Optional[int] = None
+    album_count: Optional[int] = None
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -46,7 +46,8 @@ class Song(SublimeAPI.Song):
     path: str
     track: Optional[int] = None
     year: Optional[int] = None
-    genre: Optional[str] = None
+    genre: Optional[Genre] = field(init=False)
+    _genre: Optional[str] = field(default=None, metadata=config(field_name="genre"))
     cover_art: Optional[str] = None
     size: Optional[int] = None
     content_type: Optional[str] = None
@@ -65,6 +66,10 @@ class Song(SublimeAPI.Song):
     album_id: Optional[str] = None
     artist_id: Optional[str] = None
     type: Optional[SublimeAPI.MediaType] = None
+
+    def __post_init__(self):
+        # Convert genre to the correct object.
+        self.genre = None if not self._genre else Genre(self._genre)
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)

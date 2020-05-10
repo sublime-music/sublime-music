@@ -29,7 +29,7 @@ class Song(abc.ABC):
     artist: str
     track: Optional[int]
     year: Optional[int]
-    genre: Optional[str]
+    genre: Optional[Genre]
     cover_art: Optional[str]
     size: Optional[int]
     content_type: Optional[str]

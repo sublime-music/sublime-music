@@ -10,6 +10,8 @@ from peewee import (
     TextField,
 )
 
+from sublime.adapters import api_objects as API
+
 from .sqlite_extensions import (
     CacheConstantsField,
     DurationField,
@@ -80,15 +82,15 @@ class Song(BaseModel):
     _genre = ForeignKeyField(Genre, null=True)
 
     @property
-    def genre(self) -> Optional[str]:
-        return self._genre.name if self._genre else None
+    def genre(self) -> Optional[Genre]:
+        return self._genre
 
     @genre.setter
-    def genre(self, genre_name: str):
-        if not genre_name:
+    def genre(self, genre: API.Genre):
+        if not genre or not genre.name:
             return
         genre, genre_created = Genre.get_or_create(
-            name=genre_name, defaults={"name": genre_name},
+            name=genre.name, defaults={"name": genre.name},
         )
         self._genre = genre
         self.save()

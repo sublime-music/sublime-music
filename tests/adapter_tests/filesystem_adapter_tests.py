@@ -430,8 +430,9 @@ def test_delete_playlists(cache_adapter: FilesystemAdapter):
 
 
 def test_delete_song_data(cache_adapter: FilesystemAdapter):
-    # TODO change to ingest song details?
-    songs = [
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.SONG_DETAILS,
+        ("1",),
         SubsonicAPI.Song(
             "1",
             "Song 1",
@@ -442,11 +443,6 @@ def test_delete_song_data(cache_adapter: FilesystemAdapter):
             path="foo/song1.mp3",
             cover_art="1",
         ),
-    ]
-    cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS,
-        ("1",),
-        SubsonicAPI.PlaylistWithSongs("1", "test1", songs=songs),
     )
     cache_adapter.ingest_new_data(
         FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("1",), MOCK_ALBUM_ART,
@@ -480,18 +476,23 @@ def test_caching_get_genres(cache_adapter: FilesystemAdapter):
     with pytest.raises(CacheMissError):
         cache_adapter.get_genres()
 
-    # TODO ingest song details instead of playlist details here
-    songs = [
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.SONG_DETAILS,
+        ("2",),
         SubsonicAPI.Song(
             "2",
             "Song 2",
             parent="foo",
             album="foo",
             artist="foo",
-            duration=timedelta(seconds=20.8),
+            duration=timedelta(seconds=10.2),
             path="foo/song2.mp3",
-            genre="Foo",
+            _genre="Foo",
         ),
+    )
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.SONG_DETAILS,
+        ("1",),
         SubsonicAPI.Song(
             "1",
             "Song 1",
@@ -500,13 +501,8 @@ def test_caching_get_genres(cache_adapter: FilesystemAdapter):
             artist="foo",
             duration=timedelta(seconds=10.2),
             path="foo/song1.mp3",
-            genre="Bar",
+            _genre="Bar",
         ),
-    ]
-    cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS,
-        ("1",),
-        SubsonicAPI.PlaylistWithSongs("1", "test1", songs=songs),
     )
 
     # Getting genres now should look at what's on the songs. This sould cache miss, but
@@ -528,3 +524,63 @@ def test_caching_get_genres(cache_adapter: FilesystemAdapter):
         ],
     )
     assert [g.name for g in cache_adapter.get_genres()] == ["Bar", "Baz", "Foo"]
+
+
+def test_caching_get_song_details(cache_adapter: FilesystemAdapter):
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_song_details("1")
+
+    # Simulate the song details being retrieved from Subsonic.
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.SONG_DETAILS,
+        ("1",),
+        SubsonicAPI.Song(
+            "1",
+            "Song 1",
+            parent="foo",
+            album="foo",
+            artist="foo",
+            duration=timedelta(seconds=10.2),
+            path="foo/song1.mp3",
+            _genre="Bar",
+        ),
+    )
+
+    song = cache_adapter.get_song_details("1")
+    assert song.id == "1"
+    assert song.title == "Song 1"
+    assert song.album == "foo"
+    assert song.artist == "foo"
+    assert song.parent == "foo"
+    assert song.duration == timedelta(seconds=10.2)
+    assert song.path == "foo/song1.mp3"
+    assert song.genre and song.genre.name == "Bar"
+
+    # "Force refresh" the song details
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.SONG_DETAILS,
+        ("1",),
+        SubsonicAPI.Song(
+            "1",
+            "Song 1",
+            parent="bar",
+            album="bar",
+            artist="bar",
+            duration=timedelta(seconds=10.2),
+            path="bar/song1.mp3",
+            _genre="Bar",
+        ),
+    )
+
+    song = cache_adapter.get_song_details("1")
+    assert song.id == "1"
+    assert song.title == "Song 1"
+    assert song.album == "bar"
+    assert song.artist == "bar"
+    assert song.parent == "bar"
+    assert song.duration == timedelta(seconds=10.2)
+    assert song.path == "bar/song1.mp3"
+    assert song.genre and song.genre.name == "Bar"
+
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_playlist_details("2")

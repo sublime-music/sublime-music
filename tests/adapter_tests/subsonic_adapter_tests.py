@@ -34,19 +34,6 @@ def mock_data_files(
     request_name: str, mode: str = "r"
 ) -> Generator[Tuple[Path, Any], None, None]:
     """
-    Yields all of the files and the corresponding text in the mock_data directory for
-    all files that start with ``request_name``.
-    """
-    for file in MOCK_DATA_FILES.iterdir():
-        if file.name.split("-")[0] in request_name:
-            with open(file, mode) as f:
-                yield file, f.read()
-
-
-def mock_data_files_multi_part(
-    request_name: str, mode: str = "r"
-) -> Generator[Tuple[Path, Any], None, None]:
-    """
     Yields all of the files, and each of the elements of in the file (separated by a
     line of ='s), for all files in the mock_data directory that start with
     ``request_name``. This only works for text such as JSON.
@@ -66,7 +53,7 @@ def mock_data_files_multi_part(
                     aggregate.append(line)
 
                 parts.append("\n".join(aggregate))
-                print(parts)  # noqa: T001
+                print(file)  # noqa: T001
                 yield file, iter(parts)
 
 
@@ -173,7 +160,7 @@ def test_get_playlist_details(adapter: SubsonicAdapter):
             artist="Hillsong Worship",
             track=1,
             year=2016,
-            genre="Christian & Gospel",
+            _genre="Christian & Gospel",
             cover_art="318",
             size=8381640,
             content_type="audio/mp4",
@@ -216,7 +203,7 @@ def test_create_playlist(adapter: SubsonicAdapter):
                     artist="Hillsong Worship",
                     track=1,
                     year=2016,
-                    genre="Christian & Gospel",
+                    _genre="Christian & Gospel",
                     cover_art="318",
                     size=8381640,
                     content_type="audio/mp4",
@@ -245,7 +232,7 @@ def test_create_playlist(adapter: SubsonicAdapter):
 
 
 def test_update_playlist(adapter: SubsonicAdapter):
-    for filename, data in mock_data_files_multi_part("update_playlist"):
+    for filename, data in mock_data_files("update_playlist"):
         logging.info(filename)
         logging.debug(data)
         adapter._set_mock_data(data)
@@ -259,7 +246,7 @@ def test_update_playlist(adapter: SubsonicAdapter):
 
 
 def test_get_song_details(adapter: SubsonicAdapter):
-    for filename, data in mock_data_files_multi_part("get_song_details"):
+    for filename, data in mock_data_files("get_song_details"):
         logging.info(filename)
         logging.debug(data)
         adapter._set_mock_data(data)
@@ -269,7 +256,7 @@ def test_get_song_details(adapter: SubsonicAdapter):
 
 
 def test_get_genres(adapter: SubsonicAdapter):
-    for filename, data in mock_data_files_multi_part("get_genres"):
+    for filename, data in mock_data_files("get_genres"):
         logging.info(filename)
         logging.debug(data)
         adapter._set_mock_data(data)

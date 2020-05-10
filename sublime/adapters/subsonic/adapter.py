@@ -219,8 +219,11 @@ class SubsonicAdapter(Adapter):
             if type(data) == Exception:
                 raise data
             if hasattr(data, "__next__"):
-                return MockResult(next(data))
+                if d := next(data):
+                    logging.info("MOCK DATA", d)
+                    return MockResult(d)
 
+            logging.info("MOCK DATA", data)
             return MockResult(data)
 
         self._get_mock_data = get_mock_data
