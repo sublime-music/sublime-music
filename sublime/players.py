@@ -256,9 +256,12 @@ class ChromecastPlayer(Player):
                 if token != self.token:
                     raise bottle.HTTPError(status=401, body="Invalid token.")
 
-                # TODO remove this
+                # TODO refactor this so that the players can specify what types of URIs
+                # they can play. Set it to just ("http", "https") when streaming from
+                # the local filesystem is disabled and set it to ("file", "http",
+                # "https") in the other case.
                 song = AdapterManager.get_song_details(self.song_id).result()
-                filename, _ = CacheManager.get_song_filename_or_stream(song)
+                filename, _ = AdapterManager.get_song_filename_or_stream(song)
                 with open(filename, "rb") as fin:
                     song_buffer = io.BytesIO(fin.read())
 
@@ -433,7 +436,7 @@ class ChromecastPlayer(Player):
                 self.server_thread.set_song_and_token(song.id, token)
                 file_or_url = f"http://{self.host_ip}:{self.port}/s/{token}"
             else:
-                file_or_url, _ = CacheManager.get_song_filename_or_stream(
+                file_or_url, _ = AdapterManager.get_song_filename_or_stream(
                     song, force_stream=True,
                 )
 

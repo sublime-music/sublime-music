@@ -9,6 +9,7 @@ import pytest
 from sublime import util
 from sublime.adapters import CacheMissError
 from sublime.adapters.filesystem import FilesystemAdapter
+from sublime.adapters.filesystem import models
 from sublime.adapters.subsonic import api_objects as SubsonicAPI
 
 MOCK_DATA_FILES = Path(__file__).parent.joinpath("mock_data")
@@ -329,8 +330,23 @@ def test_invalidate_playlist(cache_adapter: FilesystemAdapter):
 
 
 def test_invalidate_song_data(cache_adapter: FilesystemAdapter):
-    # TODO change to ingest song details?
-    songs = [
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.SONG_DETAILS,
+        ("2",),
+        SubsonicAPI.Song(
+            "2",
+            "Song 2",
+            parent="foo",
+            album="foo",
+            artist="foo",
+            duration=timedelta(seconds=10.2),
+            path="foo/song2.mp3",
+            cover_art="3",
+        ),
+    )
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.SONG_DETAILS,
+        ("1",),
         SubsonicAPI.Song(
             "1",
             "Song 1",
@@ -341,17 +357,15 @@ def test_invalidate_song_data(cache_adapter: FilesystemAdapter):
             path="foo/song1.mp3",
             cover_art="1",
         ),
-    ]
-    cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS,
-        ("1",),
-        SubsonicAPI.PlaylistWithSongs("1", "test1", songs=songs),
     )
     cache_adapter.ingest_new_data(
         FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("1",), MOCK_ALBUM_ART,
     )
     cache_adapter.ingest_new_data(
         FilesystemAdapter.CachedDataKey.SONG_FILE, ("1",), MOCK_SONG_FILE
+    )
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.SONG_FILE, ("2",), MOCK_SONG_FILE
     )
 
     stale_song_file = cache_adapter.get_song_uri("1", "file")
@@ -371,6 +385,9 @@ def test_invalidate_song_data(cache_adapter: FilesystemAdapter):
     except CacheMissError as e:
         assert e.partial_data
         assert e.partial_data == stale_cover_art_file
+
+    # Make sure it didn't delete the other ones.
+    assert cache_adapter.get_song_uri("2", "file").endswith("song2.mp3")
 
 
 def test_delete_playlists(cache_adapter: FilesystemAdapter):

@@ -972,9 +972,12 @@ class SublimeMusicApp(Gtk.Application):
         # in the callback.
         @dbus_propagate(self)
         def do_play_song(song: Song):
-            uri, stream = CacheManager.get_song_filename_or_stream(
+            print(song)
+            uri, stream = AdapterManager.get_song_filename_or_stream(
                 song, force_stream=self.app_config.always_stream,
             )
+            print(uri, stream)
+
             # Prevent it from doing the thing where it continually loads
             # songs when it has to download.
             if reset:
@@ -1066,7 +1069,7 @@ class SublimeMusicApp(Gtk.Application):
                 # Chromecast.
                 if self.player.can_hotswap_source:
                     self.player.play_media(
-                        CacheManager.get_song_filename_or_stream(song)[0],
+                        AdapterManager.get_song_filename_or_stream(song)[0],
                         self.app_config.state.song_progress,
                         song,
                     )

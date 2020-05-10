@@ -615,6 +615,45 @@ class AdapterManager:
         return future
 
     @staticmethod
+    def get_song_filename_or_stream(
+        song: Song, format: str = None, force_stream: bool = False,
+    ) -> Tuple[str, bool]:
+        assert AdapterManager._instance
+        cached_song_filename = None
+        if AdapterManager._can_use_cache(force_stream, "get_song_uri"):
+            assert AdapterManager._instance.caching_adapter
+            try:
+                return (
+                    AdapterManager._instance.caching_adapter.get_song_uri(
+                        song.id, "file"
+                    ),
+                    False,
+                )
+            except CacheMissError as e:
+                if e.partial_data is not None:
+                    cached_song_filename = cast(str, e.partial_data)
+                logging.debug(f'Cache Miss on {"get_song_filename_or_stream"}.')
+            except Exception:
+                logging.exception(
+                    f'Error on {"get_song_filename_or_stream"} retrieving from cache.'
+                )
+
+        if not AdapterManager._ground_truth_can_do("get_song_uri"):
+            if force_stream or cached_song_filename is None:
+                raise Exception("Can't stream the song.")
+            return (cached_song_filename, False)
+
+        if force_stream and not AdapterManager._ground_truth_can_do("stream"):
+            raise Exception("Can't stream the song.")
+
+        return (
+            AdapterManager._instance.ground_truth_adapter.get_song_uri(
+                song.id, AdapterManager._get_scheme(), stream=True,
+            ),
+            True,
+        )
+
+    @staticmethod
     def batch_download_songs(
         song_ids: List[str],
         before_download: Callable[[], None],

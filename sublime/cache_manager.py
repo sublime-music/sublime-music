@@ -803,14 +803,6 @@ class CacheManager(metaclass=Singleton):
 
             return CacheManager.create_future(do_scrobble)
 
-        def get_song_filename_or_stream(
-            self, song: Child, format: str = None, force_stream: bool = False,
-        ) -> Tuple[str, bool]:
-            abs_path = self.calculate_abs_path(song.path)
-            if abs_path.exists() and not force_stream:
-                return (str(abs_path), False)
-            return (self.server.get_stream_url(song.id, format=format), True)
-
         def search(
             self,
             query: str,

@@ -254,9 +254,9 @@ class Adapter(abc.ABC):
         """
 
     @property
-    def supports_streaming(self) -> bool:
+    def can_stream(self) -> bool:
         """
-        Whether or not the adapter supports providing a stream URI right now.
+        Whether or not the adapter can provide a stream URI right now.
         """
         return False
 

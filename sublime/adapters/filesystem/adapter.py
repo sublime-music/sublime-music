@@ -141,7 +141,7 @@ class FilesystemAdapter(CachingAdapter):
         return str(cover_art_filename)
 
     def get_song_uri(self, song_id: str, scheme: str, stream=False) -> str:
-        song = models.Song.get_or_none(song_id)
+        song = models.Song.get_or_none(models.Song.id == song_id)
         if not song:
             if self.is_cache:
                 raise CacheMissError()
