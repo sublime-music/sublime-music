@@ -209,9 +209,10 @@ class PlayerControls(Gtk.ActionBar):
             self.play_queue_store[idx][1] = calculate_label(song_details)
 
             # Cover Art
-            if filename := get_cover_art_filename_or_create_future(
+            filename = get_cover_art_filename_or_create_future(
                 song_details.coverArt, idx, order_token
-            ):
+            )
+            if filename:
                 self.play_queue_store[idx][0] = filename
 
         current_play_queue = [x[-1] for x in self.play_queue_store]
@@ -232,9 +233,10 @@ class PlayerControls(Gtk.ActionBar):
                 song_details = song_details_result.result()
                 label = calculate_label(song_details)
 
-                if filename := get_cover_art_filename_or_create_future(
+                filename = get_cover_art_filename_or_create_future(
                     song_details.coverArt, i, self.play_queue_update_order_token
-                ):
+                )
+                if filename:
                     cover_art_filename = filename
 
             new_store.append(

@@ -70,7 +70,6 @@ class FilesystemAdapter(CachingAdapter):
     # Data Retrieval Methods
     # ==================================================================================
     def get_cached_status(self, song: API.Song) -> SongCacheStatus:
-        # TODO: change this path to be the correct dir
         relative_path = models.Song.get_by_id(song.id).path
         cache_path = self.music_dir.joinpath(relative_path)
         if cache_path.exists():
@@ -113,6 +112,8 @@ class FilesystemAdapter(CachingAdapter):
         return playlist
 
     def get_cover_art_uri(self, cover_art_id: str, scheme: str) -> str:
+        # TODO cache by the content of the file (need to see if cover art ID is
+        # duplicated a lot)?
         params_hash = util.params_hash(cover_art_id)
         cover_art_filename = self.cover_art_dir.joinpath(params_hash)
 
@@ -168,7 +169,7 @@ class FilesystemAdapter(CachingAdapter):
     # ==================================================================================
     def ingest_new_data(
         self,
-        data_key: "CachingAdapter.CachedDataKey",
+        data_key: CachingAdapter.CachedDataKey,
         params: Tuple[Any, ...],
         data: Any,
     ):
@@ -180,7 +181,7 @@ class FilesystemAdapter(CachingAdapter):
             self._do_ingest_new_data(data_key, params, data)
 
     def invalidate_data(
-        self, function: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...]
+        self, function: CachingAdapter.CachedDataKey, params: Tuple[Any, ...]
     ):
         assert self.is_cache, "FilesystemAdapter is not in cache mode!"
 
@@ -190,7 +191,7 @@ class FilesystemAdapter(CachingAdapter):
             self._do_invalidate_data(function, params)
 
     def delete_data(
-        self, function: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...]
+        self, function: CachingAdapter.CachedDataKey, params: Tuple[Any, ...]
     ):
         assert self.is_cache, "FilesystemAdapter is not in cache mode!"
 
@@ -201,7 +202,7 @@ class FilesystemAdapter(CachingAdapter):
 
     def _do_ingest_new_data(
         self,
-        data_key: "CachingAdapter.CachedDataKey",
+        data_key: CachingAdapter.CachedDataKey,
         params: Tuple[Any, ...],
         data: Any,
     ):
@@ -265,7 +266,7 @@ class FilesystemAdapter(CachingAdapter):
         ).execute()
 
     def _do_invalidate_data(
-        self, data_key: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...],
+        self, data_key: CachingAdapter.CachedDataKey, params: Tuple[Any, ...],
     ):
         models.CacheInfo.delete().where(
             models.CacheInfo.cache_key == data_key,
@@ -291,7 +292,7 @@ class FilesystemAdapter(CachingAdapter):
                 self._invalidate_cover_art(song.cover_art)
 
     def _do_delete_data(
-        self, data_key: "CachingAdapter.CachedDataKey", params: Tuple[Any, ...],
+        self, data_key: CachingAdapter.CachedDataKey, params: Tuple[Any, ...],
     ):
         # Delete it from the cache info.
         models.CacheInfo.delete().where(
@@ -299,11 +300,11 @@ class FilesystemAdapter(CachingAdapter):
             models.CacheInfo.params_hash == util.params_hash(*params),
         ).execute()
 
-        def delete_cover_art(cover_art_filename):
-            cover_art_params_hash = util.params_hash(playlist.cover_art)
+        def delete_cover_art(cover_art_id):
+            cover_art_params_hash = util.params_hash(cover_art_id)
             if cover_art_file := self.cover_art_dir.joinpath(cover_art_params_hash):
                 cover_art_file.unlink(missing_ok=True)
-            self._invalidate_cover_art(playlist.cover_art)
+            self._invalidate_cover_art(cover_art_id)
 
         if data_key == CachingAdapter.CachedDataKey.PLAYLIST_DETAILS:
             # Delete the playlist and corresponding cover art.

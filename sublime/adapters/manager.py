@@ -4,7 +4,7 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from time import sleep, time
+from time import sleep
 from typing import (
     Any,
     Callable,

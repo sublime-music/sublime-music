@@ -20,7 +20,7 @@ from deepdiff import DeepDiff
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
-from sublime.adapters import AdapterManager, SongCacheStatus
+from sublime.adapters import AdapterManager, Result, SongCacheStatus
 from sublime.adapters.api_objects import Playlist
 from sublime.cache_manager import CacheManager, SongCacheStatus as OldSongCacheStatus
 from sublime.config import AppConfiguration
@@ -334,7 +334,7 @@ def show_song_popover(
 
 
 def async_callback(
-    future_fn: Callable[..., Future],
+    future_fn: Callable[..., Result],
     before_download: Callable[[Any], None] = None,
     on_failure: Callable[[Any, Exception], None] = None,
 ) -> Callable[[Callable], Callable]:
@@ -382,7 +382,7 @@ def async_callback(
                     )
                 )
 
-            future: Union[Future, CacheManager.Result] = future_fn(
+            future: Result = future_fn(
                 *args, before_download=on_before_download, force=force, **kwargs,
             )
             future.add_done_callback(future_callback)

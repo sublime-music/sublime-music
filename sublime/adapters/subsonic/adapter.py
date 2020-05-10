@@ -71,6 +71,7 @@ class SubsonicAdapter(Adapter):
             self._first_ping_happened.value = True
             sleep(15)
 
+    # TODO maybe expose something like this on the API?
     def _set_ping_status(self):
         try:
             # Try to ping the server with a timeout of 2 seconds.

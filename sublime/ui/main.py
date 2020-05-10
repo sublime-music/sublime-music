@@ -1,5 +1,4 @@
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Callable, Set
 
 import gi
@@ -7,7 +6,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, CacheMissError, Result
+from sublime.adapters import AdapterManager, Result
 from sublime.cache_manager import CacheManager, SearchResult
 from sublime.config import AppConfiguration
 from sublime.ui import albums, artists, browse, player_controls, playlists, util

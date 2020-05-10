@@ -655,7 +655,7 @@ class CacheManager(metaclass=Singleton):
             before_download: Callable[[], None] = lambda: None,
             force: bool = False,
         ) -> AdapterResult[str]:
-            def do_get_artist_artwork(artist_info: ArtistInfo2,) -> AdapterResult[str]:
+            def do_get_artist_artwork(artist_info: ArtistInfo2) -> AdapterResult[str]:
                 lastfm_url = "".join(artist_info.largeImageUrl or [])
 
                 is_placeholder = lastfm_url == ""
