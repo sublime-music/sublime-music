@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, Optional, Tuple
 
 from sublime.adapters.api_objects import Song
 
@@ -36,8 +36,8 @@ class UIState:
     version: int = 1
     playing: bool = False
     current_song_index: int = -1
-    play_queue: List[str] = field(default_factory=list)
-    old_play_queue: List[str] = field(default_factory=list)
+    play_queue: Tuple[str, ...] = field(default_factory=tuple)
+    old_play_queue: Tuple[str, ...] = field(default_factory=tuple)
     _volume: Dict[str, float] = field(default_factory=lambda: {"this device": 100.0})
     is_muted: bool = False
     repeat_type: RepeatType = RepeatType.NO_REPEAT

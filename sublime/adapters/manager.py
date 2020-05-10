@@ -383,6 +383,7 @@ class AdapterManager:
     def get_playlists(
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
+        allow_download: bool = True,
     ) -> Result[Sequence[Playlist]]:
         assert AdapterManager._instance
         partial_playlists_data = None
@@ -395,6 +396,9 @@ class AdapterManager:
                 logging.info(f'Cache Miss on {"get_playlists"}.')
             except Exception:
                 logging.exception(f'Error on {"get_playlists"} retrieving from cache.')
+
+        if not allow_download:
+            raise CacheMissError(partial_data=partial_playlist_data)
 
         if AdapterManager._instance.caching_adapter and force:
             AdapterManager._instance.caching_adapter.invalidate_data(

@@ -2,7 +2,7 @@ import math
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List, Optional, Tuple
 
 import gi
 
@@ -46,7 +46,7 @@ class PlayerControls(Gtk.ActionBar):
     reordering_play_queue_song_list: bool = False
     current_song = None
     current_device = None
-    current_play_queue: List[str] = []
+    current_play_queue: Tuple[str, ...] = ()
     chromecasts: List[ChromecastPlayer] = []
     cover_art_update_order_token = 0
     play_queue_update_order_token = 0
@@ -154,7 +154,6 @@ class PlayerControls(Gtk.ActionBar):
             self.update_device_list()
 
         # Short circuit if no changes to the play queue
-        print(self.current_play_queue, app_config.state.play_queue)
         if self.current_play_queue == app_config.state.play_queue:
             return
         self.current_play_queue = app_config.state.play_queue

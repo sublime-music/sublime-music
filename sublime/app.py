@@ -348,7 +348,7 @@ class SublimeMusicApp(Gtk.Application):
             self.on_song_clicked(
                 None,
                 song_idx,
-                [s.id for s in playlist.songs],
+                tuple(s.id for s in playlist.songs),
                 {"active_playlist_id": playlist_id},
             )
 
@@ -598,7 +598,7 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     @dbus_propagate()
-    def on_play_next(self, action: Any, song_ids: List[str]):
+    def on_play_next(self, action: Any, song_ids: Tuple[str, ...]):
         if self.app_config.state.current_song is None:
             insert_at = 0
         else:
@@ -606,16 +606,18 @@ class SublimeMusicApp(Gtk.Application):
 
         self.app_config.state.play_queue = (
             self.app_config.state.play_queue[:insert_at]
-            + list(song_ids)
+            + song_ids
             + self.app_config.state.play_queue[insert_at:]
         )
-        self.app_config.state.old_play_queue.extend(song_ids)
+        self.app_config.state.old_play_queue += song_ids
         self.update_window()
 
     @dbus_propagate()
     def on_add_to_queue(self, action: Any, song_ids: GLib.Variant):
-        self.app_config.state.play_queue.extend(song_ids)
-        self.app_config.state.old_play_queue.extend(song_ids)
+        print(song_ids)
+        print(type(song_ids))
+        self.app_config.state.play_queue += tuple(song_ids)
+        self.app_config.state.old_play_queue += tuple(song_ids)
         self.update_window()
 
     def on_go_to_album(self, action: Any, album_id: GLib.Variant):
@@ -714,12 +716,14 @@ class SublimeMusicApp(Gtk.Application):
         self,
         win: Any,
         song_index: int,
-        song_queue: List[str],
+        song_queue: Tuple[str, ...],
         metadata: Dict[str, Any],
     ):
+        print(type(song_queue), song_queue)
+        song_queue = tuple(song_queue)
         # Reset the play queue so that we don't ever revert back to the
         # previous one.
-        old_play_queue = song_queue.copy()
+        old_play_queue = song_queue
 
         if (force_shuffle := metadata.get("force_shuffle_state")) is not None:
             self.app_config.state.shuffle_on = force_shuffle
@@ -729,10 +733,11 @@ class SublimeMusicApp(Gtk.Application):
         # If shuffle is enabled, then shuffle the playlist.
         if self.app_config.state.shuffle_on and not metadata.get("no_reshuffle"):
             song_id = song_queue[song_index]
-
-            del song_queue[song_index]
-            random.shuffle(song_queue)
-            song_queue = [song_id] + song_queue
+            song_queue_list = list(
+                song_queue[:song_index] + song_queue[song_index + 1 :]
+            )
+            random.shuffle(song_queue_list)
+            song_queue = tuple(song_id, *song_queue_list)
             song_index = 0
 
         self.play_song(
@@ -743,11 +748,11 @@ class SublimeMusicApp(Gtk.Application):
         )
 
     def on_songs_removed(self, win: Any, song_indexes_to_remove: List[int]):
-        self.app_config.state.play_queue = [
+        self.app_config.state.play_queue = tuple(
             song_id
             for i, song_id in enumerate(self.app_config.state.play_queue)
             if i not in song_indexes_to_remove
-        ]
+        )
 
         # Determine how many songs before the currently playing one were also
         # deleted.
@@ -902,7 +907,7 @@ class SublimeMusicApp(Gtk.Application):
 
         def do_update(f: Future):
             play_queue = f.result()
-            new_play_queue = [s.id for s in play_queue.entry]
+            new_play_queue = tuple(s.id for s in play_queue.entry)
             new_current_song_id = str(play_queue.current)
             new_song_progress = play_queue.position / 1000
 
@@ -965,8 +970,8 @@ class SublimeMusicApp(Gtk.Application):
         self,
         song_index: int,
         reset: bool = False,
-        old_play_queue: List[str] = None,
-        play_queue: List[str] = None,
+        old_play_queue: Tuple[str, ...] = None,
+        play_queue: Tuple[str, ...] = None,
     ):
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.

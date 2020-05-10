@@ -8,7 +8,6 @@ from termcolor import cprint
 
 todo_re = re.compile(r"\s*#\s*TODO:?\s*")
 accounted_for_todo = re.compile(r"\s*#\s*TODO:?\s*\((#\d+)\)")
-print_re = re.compile(r"\s+print\(.*\)")
 
 
 def noqa_re(error_id: str = ""):
@@ -26,10 +25,6 @@ def check_file(path: Path) -> bool:
 
     for i, line in enumerate(file, start=1):
         if todo_re.match(line) and not accounted_for_todo.match(line):
-            eprint(f"{i}: {line}")
-            valid = False
-
-        if print_re.search(line) and not noqa_re("T001").search(line):
             eprint(f"{i}: {line}")
             valid = False
 

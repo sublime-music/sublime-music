@@ -170,27 +170,9 @@ class DBusManager:
         elif has_current_song:
             has_next_song = state.current_song_index < len(state.play_queue) - 1
 
-        active_playlist = (False, GLib.Variant("(oss)", ("/", "", "")))
-        if state.active_playlist_id and AdapterManager.can_get_playlist_details():
-            try:
-                playlist = AdapterManager.get_playlist_details(
-                    state.active_playlist_id, allow_download=False
-                ).result()
+        active_playlist = self.get_active_playlist(state.active_playlist_id)
 
-                cover_art = AdapterManager.get_cover_art_filename(
-                    playlist.cover_art, allow_download=False
-                ).result()
-
-                active_playlist = (
-                    True,
-                    GLib.Variant(
-                        "(oss)", ("/playlist/" + playlist.id, playlist.name, cover_art)
-                    ),
-                )
-            except CacheMissError:
-                pass
-
-        get_playlists_result = AdapterManager.get_playlists()
+        get_playlists_result = AdapterManager.get_playlists(allow_download=False)
         if get_playlists_result.data_is_available:
             playlist_count = len(get_playlists_result.result())
         else:
@@ -249,7 +231,38 @@ class DBusManager:
             },
         }
 
-    def get_mpris_metadata(self, idx: int, play_queue: List[str],) -> Dict[str, Any]:
+    @functools.lru_cache(maxsize=10)
+    def get_active_playlist(
+        self, active_playlist_id: Optional[str]
+    ) -> Tuple[bool, GLib.Variant]:
+        if not active_playlist_id or not AdapterManager.can_get_playlist_details():
+            return (False, GLib.Variant("(oss)", ("/", "", "")))
+
+        try:
+            playlist = AdapterManager.get_playlist_details(
+                active_playlist_id, allow_download=False
+            ).result()
+
+            try:
+                cover_art = AdapterManager.get_cover_art_filename(
+                    playlist.cover_art, allow_download=False
+                ).result()
+            except CacheMissError:
+                cover_art = ""
+
+            return (
+                True,
+                GLib.Variant(
+                    "(oss)", ("/playlist/" + playlist.id, playlist.name, cover_art)
+                ),
+            )
+        except CacheMissError:
+            return (False, GLib.Variant("(oss)", ("/", "", "")))
+
+    @functools.lru_cache(maxsize=10)
+    def get_mpris_metadata(
+        self, idx: int, play_queue: Tuple[str, ...]
+    ) -> Dict[str, Any]:
         try:
             song = AdapterManager.get_song_details(
                 play_queue[idx], allow_download=False
@@ -283,7 +296,8 @@ class DBusManager:
             "xesam:title": song.title,
         }
 
-    def get_dbus_playlist(self, play_queue: List[str]) -> List[str]:
+    @functools.lru_cache(maxsize=10)
+    def get_dbus_playlist(self, play_queue: Tuple[str, ...]) -> List[str]:
         seen_counts: DefaultDict[str, int] = defaultdict(int)
         tracks = []
         for song_id in play_queue:

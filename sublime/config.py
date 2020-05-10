@@ -137,6 +137,7 @@ class AppConfiguration:
         return self._state
 
     def load_state(self):
+        self._state = UIState()
         if not self.server:
             return
 
