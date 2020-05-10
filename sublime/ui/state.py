@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
 
-from sublime.server.api_objects import Child
+from sublime.adapters.api_objects import Song
 
 
 class RepeatType(Enum):
@@ -63,18 +63,14 @@ class UIState:
         pass
 
     @property
-    def current_song(self) -> Optional[Child]:
-        from sublime.cache_manager import CacheManager
+    def current_song(self) -> Optional[Song]:
+        from sublime.adapters import AdapterManager
 
-        if (
-            not self.play_queue
-            or self.current_song_index < 0
-            or not CacheManager.ready()
-        ):
+        if not self.play_queue or self.current_song_index < 0:
             return None
 
         current_song_id = self.play_queue[self.current_song_index]
-        return CacheManager.get_song_details(current_song_id).result()
+        return AdapterManager.get_song_details(current_song_id).result()
 
     @property
     def volume(self) -> float:

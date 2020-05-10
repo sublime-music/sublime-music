@@ -1,14 +1,13 @@
 import functools
 import os
 import re
-
 from collections import defaultdict
+from datetime import timedelta
 from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
 
 from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
 
-from sublime.cache_manager import CacheManager
 from sublime.adapters import AdapterManager, CacheMissError
 from sublime.config import AppConfiguration
 from sublime.players import Player
@@ -172,7 +171,7 @@ class DBusManager:
             has_next_song = state.current_song_index < len(state.play_queue) - 1
 
         active_playlist = (False, GLib.Variant("(oss)", ("/", "", "")))
-        if state.active_playlist_id and AdapterManager.can_get_playlist_details:
+        if state.active_playlist_id and AdapterManager.can_get_playlist_details():
             try:
                 playlist = AdapterManager.get_playlist_details(
                     state.active_playlist_id, allow_download=False
@@ -251,20 +250,26 @@ class DBusManager:
         }
 
     def get_mpris_metadata(self, idx: int, play_queue: List[str],) -> Dict[str, Any]:
-        song_result = CacheManager.get_song_details(play_queue[idx])
-        if song_result.is_future:
+        try:
+            song = AdapterManager.get_song_details(
+                play_queue[idx], allow_download=False
+            ).result()
+        except CacheMissError:
             return {}
-        song = song_result.result()
 
         trackid = self.get_dbus_playlist(play_queue)[idx]
         duration = (
             "x",
-            (song.duration or 0) * self.second_microsecond_conversion,
+            (song.duration or timedelta(0)).total_seconds()
+            * self.second_microsecond_conversion,
         )
 
-        cover_art = AdapterManager.get_cover_art_filename(
-            song.coverArt, allow_download=False
-        ).result()
+        try:
+            cover_art = AdapterManager.get_cover_art_filename(
+                song.cover_art, allow_download=False
+            ).result()
+        except CacheMissError:
+            cover_art = ""
 
         return {
             "mpris:trackid": trackid,

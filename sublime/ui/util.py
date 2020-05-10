@@ -22,7 +22,7 @@ from gi.repository import Gdk, GLib, Gtk
 
 from sublime.adapters import AdapterManager, Result, SongCacheStatus
 from sublime.adapters.api_objects import Playlist
-from sublime.cache_manager import CacheManager, SongCacheStatus as OldSongCacheStatus
+from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 
 
@@ -117,19 +117,12 @@ def dot_join(*items: Any) -> str:
     return "  •  ".join(map(str, filter(lambda x: x is not None, items)))
 
 
-def get_cached_status_icon(
-    cache_status: Union[OldSongCacheStatus, SongCacheStatus]
-) -> str:
+def get_cached_status_icon(cache_status: SongCacheStatus) -> str:
     cache_icon = {
         SongCacheStatus.NOT_CACHED: "",
         SongCacheStatus.CACHED: "folder-download-symbolic",
         SongCacheStatus.PERMANENTLY_CACHED: "view-pin-symbolic",
         SongCacheStatus.DOWNLOADING: "emblem-synchronizing-symbolic",
-        # TODO remove the old ones eventually
-        OldSongCacheStatus.NOT_CACHED: "",
-        OldSongCacheStatus.CACHED: "folder-download-symbolic",
-        OldSongCacheStatus.PERMANENTLY_CACHED: "view-pin-symbolic",
-        OldSongCacheStatus.DOWNLOADING: "emblem-synchronizing-symbolic",
     }
     return cache_icon[cache_status]
 
@@ -181,7 +174,7 @@ def diff_model_store(store_to_edit: Any, new_store: Iterable[Any]):
 
 
 def show_song_popover(
-    song_ids: List[int],
+    song_ids: List[str],
     x: int,
     y: int,
     relative_to: Any,
@@ -191,14 +184,14 @@ def show_song_popover(
     extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = None,
 ):
     def on_download_songs_click(_: Any):
-        CacheManager.batch_download_songs(
+        AdapterManager.batch_download_songs(
             song_ids,
             before_download=on_download_state_change,
             on_song_download_complete=on_download_state_change,
         )
 
     def on_remove_downloads_click(_: Any):
-        CacheManager.batch_delete_cached_songs(
+        AdapterManager.batch_delete_cached_songs(
             song_ids, on_song_delete=on_download_state_change,
         )
 
@@ -219,10 +212,10 @@ def show_song_popover(
     download_sensitive, remove_download_sensitive = False, False
     albums, artists, parents = set(), set(), set()
     for song_id in song_ids:
-        details = CacheManager.get_song_details(song_id).result()
-        status = CacheManager.get_cached_status(details)
-        albums.add(details.albumId)
-        artists.add(details.artistId)
+        details = AdapterManager.get_song_details(song_id).result()
+        status = AdapterManager.get_cached_status(details)
+        albums.add(details.album_id)
+        artists.add(details.artist_id)
         parents.add(details.parent)
 
         if download_sensitive or status == SongCacheStatus.NOT_CACHED:

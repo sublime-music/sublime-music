@@ -435,11 +435,17 @@ def test_delete_song_data(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(
         FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("1",), MOCK_ALBUM_ART,
     )
-
     cache_adapter.ingest_new_data(
         FilesystemAdapter.CachedDataKey.SONG_FILE, ("1",), MOCK_SONG_FILE
     )
+
+    music_file_path = cache_adapter.get_song_uri("1", "file")
+    cover_art_path = cache_adapter.get_cover_art_uri("1", "file")
+
     cache_adapter.delete_data(FilesystemAdapter.CachedDataKey.SONG_FILE, ("1",))
+
+    assert not Path(music_file_path).exists()
+    assert not Path(cover_art_path).exists()
 
     try:
         cache_adapter.get_song_uri("1", "file")

@@ -615,11 +615,6 @@ class AdapterManager:
         return future
 
     @staticmethod
-    def get_song_filename_or_stream() -> Tuple[str, bool]:
-        # TODO
-        raise NotImplementedError()
-
-    @staticmethod
     def batch_download_songs(
         song_ids: List[str],
         before_download: Callable[[], None],
@@ -686,15 +681,70 @@ class AdapterManager:
         Result(do_batch_download_songs, is_download=True)
 
     @staticmethod
-    def get_song_uri(
+    def batch_delete_cached_songs(
+        song_ids: List[str], on_song_delete: Callable[[], None]
+    ):
+        assert AdapterManager._instance
+
+        # This only really makes sense if we have a caching_adapter.
+        if not AdapterManager._instance.caching_adapter:
+            return
+
+        for song_id in song_ids:
+            AdapterManager._instance.caching_adapter.delete_data(
+                CachingAdapter.CachedDataKey.SONG_FILE, (song_id,)
+            )
+
+    @staticmethod
+    def get_song_details(
         song_id: str,
-        scheme: str,
-        stream=False,
+        allow_download: bool = True,
         before_download: Callable[[], None] = lambda: None,
-        force: bool = False,  # TODO: rename to use_ground_truth_adapter?
-    ) -> Result[str]:
-        # TODO
-        raise NotImplementedError()
+        force: bool = False,
+    ) -> Result[Song]:
+        assert AdapterManager._instance
+        partial_song_details = None
+        if AdapterManager._can_use_cache(force, "get_song_details"):
+            assert AdapterManager._instance.caching_adapter
+            try:
+                return Result(
+                    AdapterManager._instance.caching_adapter.get_song_details(song_id)
+                )
+            except CacheMissError as e:
+                partial_song_details = e.partial_data
+                logging.debug(f'Cache Miss on {"get_song_details"}.')
+            except Exception:
+                logging.exception(
+                    f'Error on {"get_song_details"} retrieving from cache.'
+                )
+
+        if not allow_download:
+            raise CacheMissError(partial_data=partial_song_details)
+
+        if AdapterManager._instance.caching_adapter and force:
+            AdapterManager._instance.caching_adapter.invalidate_data(
+                CachingAdapter.CachedDataKey.SONG_DETAILS, (song_id,)
+            )
+
+        if not AdapterManager._ground_truth_can_do("get_song_details"):
+            if partial_song_details:
+                return partial_song_details
+            raise Exception(
+                f'No adapters can service {"get_song_details"} at the moment.'
+            )
+
+        future: Result[Song] = AdapterManager._create_ground_truth_future_fn(
+            "get_song_details", before_download, song_id
+        )
+
+        if AdapterManager._instance.caching_adapter:
+            future.add_done_callback(
+                AdapterManager._create_caching_done_callback(
+                    CachingAdapter.CachedDataKey.SONG_DETAILS, (song_id,),
+                )
+            )
+
+        return future
 
     @staticmethod
     def get_genres(force: bool = False) -> Result[Sequence[Genre]]:

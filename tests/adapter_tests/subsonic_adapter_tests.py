@@ -258,6 +258,16 @@ def test_update_playlist(adapter: SubsonicAdapter):
         assert result_playlist.public is False
 
 
+def test_get_song_details(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files_multi_part("get_song_details"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        song = adapter.get_song_details("1")
+        assert song.id == "1"
+
+
 def test_get_genres(adapter: SubsonicAdapter):
     for filename, data in mock_data_files_multi_part("get_genres"):
         logging.info(filename)

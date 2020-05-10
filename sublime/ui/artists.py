@@ -6,6 +6,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
+from sublime.adapters import AdapterManager
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.server.api_objects import (
@@ -369,12 +370,12 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
         )
 
     def on_download_all_click(self, btn: Any):
-        CacheManager.batch_download_songs(
+        AdapterManager.batch_download_songs(
             self.get_artist_song_ids(),
             before_download=lambda: self.update_artist_view(
                 self.artist_id, order_token=self.update_order_token,
             ),
-            on_song_download_complete=lambda i: self.update_artist_view(
+            on_song_download_complete=lambda: self.update_artist_view(
                 self.artist_id, order_token=self.update_order_token,
             ),
         )
@@ -420,7 +421,7 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
             util.format_sequence_duration(duration),
         )
 
-    def get_artist_song_ids(self) -> List[int]:
+    def get_artist_song_ids(self) -> List[str]:
         songs = []
         for album in CacheManager.get_artist(self.artist_id).result().album:
             album_songs = CacheManager.get_album(album.id).result()

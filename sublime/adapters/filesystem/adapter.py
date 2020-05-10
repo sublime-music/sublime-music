@@ -61,6 +61,8 @@ class FilesystemAdapter(CachingAdapter):
     can_get_playlist_details = True
     can_get_cover_art_uri = True
     can_get_song_uri = True
+    can_get_song_details = True
+    can_get_genres = True
 
     supported_schemes = ("file",)
 
@@ -70,8 +72,10 @@ class FilesystemAdapter(CachingAdapter):
     # Data Retrieval Methods
     # ==================================================================================
     def get_cached_status(self, song: API.Song) -> SongCacheStatus:
-        relative_path = models.Song.get_by_id(song.id).path
-        cache_path = self.music_dir.joinpath(relative_path)
+        song = models.Song.get_or_none(models.Song.id == song.id)
+        if not song:
+            return SongCacheStatus.NOT_CACHED
+        cache_path = self.music_dir.joinpath(song.path)
         if cache_path.exists():
             # TODO check if path is permanently cached
             return SongCacheStatus.CACHED
@@ -165,6 +169,27 @@ class FilesystemAdapter(CachingAdapter):
 
         return str(music_filename)
 
+    def get_song_details(self, song_id: str) -> API.Song:
+        song = models.Song.get_or_none(models.Song.id == song_id)
+
+        # Handle the case that this is the ground truth adapter.
+        if not self.is_cache:
+            if not song:
+                raise Exception(f"song {song} does not exist.")
+            return song
+
+        # If we haven't ingested data for this playlist before, or it's been
+        # invalidated, raise a CacheMissError with the partial song data.
+        cache_key = CachingAdapter.CachedDataKey.SONG_DETAILS
+        cache_info = models.CacheInfo.get_or_none(
+            models.CacheInfo.cache_key == cache_key,
+            models.CacheInfo.params_hash == util.params_hash(song_id),
+        )
+        if not cache_info:
+            raise CacheMissError(partial_data=song)
+
+        return song
+
     def get_genres(self) -> Sequence[API.Genre]:
         genres = list(models.Genre.select().order_by(models.Genre.name))
         if self.is_cache:
@@ -232,6 +257,7 @@ class FilesystemAdapter(CachingAdapter):
             models.Playlist.delete().where(
                 models.Playlist.id.not_in([p.id for p in data])
             ).execute()
+
         elif data_key == CachingAdapter.CachedDataKey.PLAYLIST_DETAILS:
             playlist_data = asdict(data)
             playlist, playlist_created = models.Playlist.get_or_create(
@@ -269,14 +295,37 @@ class FilesystemAdapter(CachingAdapter):
                     setattr(playlist, k, v)
 
             playlist.save()
+
         elif data_key == CachingAdapter.CachedDataKey.COVER_ART_FILE:
             # ``data`` is the filename of the tempfile in this case
             shutil.copy(str(data), str(self.cover_art_dir.joinpath(params_hash)))
+
         elif data_key == CachingAdapter.CachedDataKey.SONG_FILE:
             relative_path = models.Song.get_by_id(params[0]).path
             absolute_path = self.music_dir.joinpath(relative_path)
             absolute_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(str(data), str(absolute_path))
+
+        elif data_key == CachingAdapter.CachedDataKey.SONG_DETAILS:
+            song_data = asdict(data)
+            song, song_created = models.Song.get_or_create(
+                id=song_data["id"], defaults=song_data
+            )
+
+            keys = ("title", "duration", "path")
+            if not song_created:
+                for key in keys:
+                    setattr(song, key, song_data[key])
+
+            # FKs
+            if song_data.get("genre"):
+                genre, genre_created = models.Genre.get_or_create(
+                    name=song_data["genre"], defaults={"name": song_data["genre"]},
+                )
+                song.genre = genre
+
+            song.save()
+
         elif data_key == CachingAdapter.CachedDataKey.GENRES:
             models.Genre.insert_many(map(asdict, data)).on_conflict_replace().execute()
             models.Genre.delete().where(
@@ -342,12 +391,14 @@ class FilesystemAdapter(CachingAdapter):
             playlist.delete_instance()
 
         elif data_key == CachingAdapter.CachedDataKey.SONG_FILE:
-            # Delete the song and corresponding cover art.
             song = models.Song.get_or_none(models.Song.id == params[0])
             if not song:
                 return
 
+            # Delete the song
+            music_filename = self.music_dir.joinpath(song.path)
+            music_filename.unlink(missing_ok=True)
+
+            # Delete the corresponding cover art.
             if song.cover_art:
                 delete_cover_art(song.cover_art)
-
-            song.delete_instance()

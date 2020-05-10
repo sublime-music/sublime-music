@@ -5,6 +5,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
+from sublime.adapters import AdapterManager
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.server.api_objects import Artist, Child, Directory
@@ -300,7 +301,9 @@ class DrilldownList(Gtk.Box):
             else:
                 new_songs_store.append(
                     [
-                        util.get_cached_status_icon(CacheManager.get_cached_status(el)),
+                        util.get_cached_status_icon(
+                            AdapterManager.get_cached_status(el)
+                        ),
                         util.esc(el.title),
                         util.format_song_duration(el.duration),
                         el.id,

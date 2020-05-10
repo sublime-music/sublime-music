@@ -15,6 +15,7 @@ import bottle
 import mpv
 import pychromecast
 
+from sublime.adapters import AdapterManager
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.server.api_objects import Child
@@ -250,10 +251,13 @@ class ChromecastPlayer(Player):
 
             @self.app.route("/s/<token>")
             def stream_song(token: str) -> bytes:
+                assert self.song_id
+
                 if token != self.token:
                     raise bottle.HTTPError(status=401, body="Invalid token.")
 
-                song = CacheManager.get_song_details(self.song_id).result()
+                # TODO remove this
+                song = AdapterManager.get_song_details(self.song_id).result()
                 filename, _ = CacheManager.get_song_filename_or_stream(song)
                 with open(filename, "rb") as fin:
                     song_buffer = io.BytesIO(fin.read())

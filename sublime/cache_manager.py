@@ -787,84 +787,6 @@ class CacheManager(metaclass=Singleton):
                 after_download=after_download,
             )
 
-        def batch_delete_cached_songs(
-            self, song_ids: List[int], on_song_delete: Callable[[], None],
-        ) -> Future:
-            def do_delete_cached_songs():
-                # Do the actual download.
-                for f in map(CacheManager.get_song_details, song_ids):
-                    song: Child = f.result()
-                    relative_path = song.path
-                    abs_path = self.calculate_abs_path(relative_path)
-                    if abs_path.exists():
-                        abs_path.unlink()
-                    on_song_delete()
-
-            return CacheManager.create_future(do_delete_cached_songs)
-
-        def batch_download_songs(
-            self,
-            song_ids: List[int],
-            before_download: Callable[[], None],
-            on_song_download_complete: Callable[[], None],
-        ) -> Future:
-            def do_download_song(song_id: int):
-                try:
-                    # If a song download is already in the queue and then the
-                    # app is exited, this prevents the download.
-                    if CacheManager.should_exit:
-                        return
-
-                    # Do the actual download. Call .result() because we are
-                    # already inside of a future.
-                    song = CacheManager.get_song_details(song_id).result()
-                    self.return_cached_or_download(
-                        song.path,
-                        lambda: self.server.download(song.id),
-                        before_download=before_download,
-                    ).result()
-                    on_song_download_complete()
-                finally:
-                    # Release the semaphore lock. This will allow the next song
-                    # in the queue to be downloaded. I'm doing this in the
-                    # finally block so that it always runs, regardless of
-                    # whether an exception is thrown or the function returns.
-                    self.download_limiter_semaphore.release()
-
-            def do_batch_download_songs():
-                for song_id in song_ids:
-                    # Only allow a certain number of songs ot be downloaded
-                    # simultaneously.
-                    self.download_limiter_semaphore.acquire()
-
-                    # Prevents further songs from being downloaded.
-                    if CacheManager.should_exit:
-                        break
-                    CacheManager.create_future(do_download_song, song_id)
-
-            return CacheManager.create_future(do_batch_download_songs)
-
-        def get_song_details(
-            self,
-            song_id: int,
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-        ) -> "CacheManager.Result[Child]":
-            cache_name = "song_details"
-            if self.cache[cache_name].get(song_id) and not force:
-                return CacheManager.Result.from_data(self.cache[cache_name][song_id])
-
-            def after_download(song_details: Child):
-                with self.cache_lock:
-                    self.cache[cache_name][song_id] = song_details
-                self.save_cache_info()
-
-            return CacheManager.Result.from_server(
-                lambda: self.server.get_song(song_id),
-                before_download=before_download,
-                after_download=after_download,
-            )
-
         def get_play_queue(self) -> Future:
             return CacheManager.create_future(self.server.get_play_queue)
 
@@ -956,18 +878,6 @@ class CacheManager(metaclass=Singleton):
                 cancelled = True
 
             return CacheManager.Result.from_server(do_search, on_cancel=on_cancel)
-
-        def get_cached_status(self, song: Child) -> SongCacheStatus:
-            cache_path = self.calculate_abs_path(song.path)
-            if cache_path.exists():
-                if cache_path in self.permanently_cached_paths:
-                    return SongCacheStatus.PERMANENTLY_CACHED
-                else:
-                    return SongCacheStatus.CACHED
-            elif str(cache_path) in self.current_downloads:
-                return SongCacheStatus.DOWNLOADING
-            else:
-                return SongCacheStatus.NOT_CACHED
 
     _instance: Optional[__CacheManagerInternal] = None
 

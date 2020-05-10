@@ -43,7 +43,7 @@ class AlbumsPanel(Gtk.Box):
         self.sort_type_combo = self.make_combobox(
             (
                 ("random", "randomly", True),
-                ("byGenre", "by genre", AdapterManager.can_get_genres),
+                ("byGenre", "by genre", AdapterManager.can_get_genres()),
                 ("newest", "by most recently added", True),
                 ("highest", "by highest rated", True),
                 ("frequent", "by most played", True),

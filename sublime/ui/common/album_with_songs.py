@@ -220,10 +220,10 @@ class AlbumWithSongs(Gtk.Box):
         return False
 
     def on_download_all_click(self, btn: Any):
-        CacheManager.batch_download_songs(
+        AdapterManager.batch_download_songs(
             [x[-1] for x in self.album_song_store],
             before_download=self.update,
-            on_song_download_complete=lambda x: self.update(),
+            on_song_download_complete=self.update,
         )
 
     def play_btn_clicked(self, btn: Any):
@@ -271,7 +271,7 @@ class AlbumWithSongs(Gtk.Box):
     ):
         new_store = [
             [
-                util.get_cached_status_icon(CacheManager.get_cached_status(song)),
+                util.get_cached_status_icon(AdapterManager.get_cached_status(song)),
                 util.esc(song.title),
                 util.format_song_duration(song.duration),
                 song.id,
@@ -285,7 +285,7 @@ class AlbumWithSongs(Gtk.Box):
         self.shuffle_btn.set_sensitive(True)
         self.play_next_btn.set_action_target_value(GLib.Variant("as", song_ids))
         self.add_to_queue_btn.set_action_target_value(GLib.Variant("as", song_ids))
-        self.download_all_btn.set_sensitive(True)
+        self.download_all_btn.set_sensitive(AdapterManager.can_batch_download_songs())
 
         util.diff_song_store(self.album_song_store, new_store)
         self.loading_indicator.hide()

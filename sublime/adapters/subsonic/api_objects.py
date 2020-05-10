@@ -43,6 +43,7 @@ class Song(SublimeAPI.Song):
     parent: str
     album: str
     artist: str
+    path: str
     track: Optional[int] = None
     year: Optional[int] = None
     genre: Optional[str] = None
@@ -54,7 +55,6 @@ class Song(SublimeAPI.Song):
     transcoded_suffix: Optional[str] = None
     duration: Optional[timedelta] = None
     bit_rate: Optional[int] = None
-    path: Optional[str] = None
     is_video: Optional[bool] = None
     user_rating: Optional[int] = None
     average_rating: Optional[float] = None

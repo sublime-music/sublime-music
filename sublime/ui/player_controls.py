@@ -1,6 +1,6 @@
 import math
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, List, Optional
 
@@ -11,10 +11,10 @@ from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
 from pychromecast import Chromecast
 
 from sublime.adapters import AdapterManager
+from sublime.adapters.api_objects import Song
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.players import ChromecastPlayer
-from sublime.server.api_objects import Child
 from sublime.ui import util
 from sublime.ui.common import IconButton, IconToggleButton, SpinnerImage
 from sublime.ui.state import RepeatType
@@ -133,7 +133,7 @@ class PlayerControls(Gtk.ActionBar):
         if app_config.state.current_song is not None:
             self.cover_art_update_order_token += 1
             self.update_cover_art(
-                app_config.state.current_song.coverArt,
+                app_config.state.current_song.cover_art,
                 order_token=self.cover_art_update_order_token,
             )
 
@@ -166,7 +166,7 @@ class PlayerControls(Gtk.ActionBar):
 
         new_store = []
 
-        def calculate_label(song_details: Child) -> str:
+        def calculate_label(song_details: Song) -> str:
             title = util.esc(song_details.title)
             album = util.esc(song_details.album)
             artist = util.esc(song_details.artist)
@@ -201,7 +201,7 @@ class PlayerControls(Gtk.ActionBar):
             return cover_art_result.result()
 
         def on_song_details_future_done(
-            idx: int, order_token: int, song_details: Child,
+            idx: int, order_token: int, song_details: Song,
         ):
             if order_token != self.play_queue_update_order_token:
                 return
@@ -210,7 +210,7 @@ class PlayerControls(Gtk.ActionBar):
 
             # Cover Art
             filename = get_cover_art_filename_or_create_future(
-                song_details.coverArt, idx, order_token
+                song_details.cover_art, idx, order_token
             )
             if filename:
                 self.play_queue_store[idx][0] = filename
@@ -221,23 +221,23 @@ class PlayerControls(Gtk.ActionBar):
 
         song_details_results = []
         for i, song_id in enumerate(app_config.state.play_queue):
-            song_details_result = CacheManager.get_song_details(song_id)
+            song_details_result = AdapterManager.get_song_details(song_id)
 
             cover_art_filename = ""
             label = "\n"
 
-            if song_details_result.is_future:
-                song_details_results.append((i, song_details_result))
-            else:
+            if song_details_result.data_is_available:
                 # We have the details of the song already cached.
                 song_details = song_details_result.result()
                 label = calculate_label(song_details)
 
                 filename = get_cover_art_filename_or_create_future(
-                    song_details.coverArt, i, self.play_queue_update_order_token
+                    song_details.cover_art, i, self.play_queue_update_order_token
                 )
                 if filename:
                     cover_art_filename = filename
+            else:
+                song_details_results.append((i, song_details_result))
 
             new_store.append(
                 [
@@ -281,7 +281,7 @@ class PlayerControls(Gtk.ActionBar):
         self.album_art.set_loading(False)
 
     def update_scrubber(
-        self, current: Optional[float], duration: Optional[int],
+        self, current: Optional[float], duration: Optional[timedelta],
     ):
         if current is None or duration is None:
             self.song_duration_label.set_text("-:--")
@@ -290,7 +290,7 @@ class PlayerControls(Gtk.ActionBar):
             return
 
         current = current or 0
-        percent_complete = current / duration * 100
+        percent_complete = current / duration.total_seconds() * 100
 
         if not self.editing:
             self.song_scrubber.set_value(percent_complete)

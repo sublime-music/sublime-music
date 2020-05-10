@@ -37,7 +37,7 @@ class Song(abc.ABC):
     transcoded_suffix: Optional[str]
     duration: Optional[timedelta]
     bit_rate: Optional[int]
-    path: Optional[str]
+    path: str
     is_video: Optional[bool]
     user_rating: Optional[int]
     average_rating: Optional[float]

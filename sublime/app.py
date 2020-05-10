@@ -41,12 +41,12 @@ except Exception:
     glib_notify_exists = False
 
 from .adapters import AdapterManager
-from .adapters.api_objects import Playlist
+from .adapters.api_objects import Playlist, Song
 from .cache_manager import CacheManager
 from .config import AppConfiguration, ReplayGainType
 from .dbus import dbus_propagate, DBusManager
 from .players import ChromecastPlayer, MPVPlayer, PlayerEvent
-from .server.api_objects import Child, Directory
+from .server.api_objects import Directory
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.main import MainWindow
 from .ui.settings import SettingsDialog
@@ -200,7 +200,7 @@ class SublimeMusicApp(Gtk.Application):
             if at_end and no_repeat:
                 self.app_config.state.playing = False
                 self.app_config.state.current_song_index = -1
-                GLib.idle_add(self.update_window)
+                self.update_window()
                 return
 
             GLib.idle_add(self.on_next_track)
@@ -212,7 +212,7 @@ class SublimeMusicApp(Gtk.Application):
             elif event.name == "volume_change":
                 self.app_config.state.volume = event.value
 
-            GLib.idle_add(self.update_window)
+            self.update_window()
 
         self.mpv_player = MPVPlayer(
             time_observer, on_track_end, on_player_event, self.app_config,
@@ -272,7 +272,12 @@ class SublimeMusicApp(Gtk.Application):
             # it could be a directory.
             assert self.app_config.state.current_song.duration is not None
             self.on_song_scrub(
-                None, new_seconds / self.app_config.state.current_song.duration * 100,
+                None,
+                (
+                    new_seconds
+                    / self.app_config.state.current_song.duration.total_seconds()
+                )
+                * 100,
             )
 
         def set_pos_fn(track_id: str, position: float = 0):
@@ -779,7 +784,7 @@ class SublimeMusicApp(Gtk.Application):
         assert self.app_config.state.current_song.duration is not None
         new_time = self.app_config.state.current_song.duration * (scrub_value / 100)
 
-        self.app_config.state.song_progress = new_time
+        self.app_config.state.song_progress = new_time.total_seconds()
         self.window.player_controls.update_scrubber(
             self.app_config.state.song_progress,
             self.app_config.state.current_song.duration,
@@ -966,7 +971,7 @@ class SublimeMusicApp(Gtk.Application):
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.
         @dbus_propagate(self)
-        def do_play_song(song: Child):
+        def do_play_song(song: Song):
             uri, stream = CacheManager.get_song_filename_or_stream(
                 song, force_stream=self.app_config.always_stream,
             )
@@ -1014,7 +1019,7 @@ class SublimeMusicApp(Gtk.Application):
                         def get_cover_art_filename(order_token: int) -> Tuple[str, int]:
                             return (
                                 AdapterManager.get_cover_art_filename(
-                                    song.coverArt
+                                    song.cover_art
                                 ).result(),
                                 order_token,
                             )
@@ -1049,24 +1054,23 @@ class SublimeMusicApp(Gtk.Application):
                         "daemon running?"
                     )
 
-            def on_song_download_complete(song_id: int):
-                if (
+            def on_song_download_complete():
+                if not self.app_config.state.playing or (
                     self.app_config.state.current_song
                     and self.app_config.state.current_song.id != song.id
                 ):
                     return
-                if not self.app_config.state.playing:
-                    return
 
-                # Switch to the local media if the player can hotswap (MPV can,
-                # Chromecast cannot hotswap without lag).
+                # Switch to the local media if the player can hotswap without lag.
+                # MPV can is barely noticable whereas there's quite a delay with
+                # Chromecast.
                 if self.player.can_hotswap_source:
                     self.player.play_media(
                         CacheManager.get_song_filename_or_stream(song)[0],
                         self.app_config.state.song_progress,
                         song,
                     )
-                GLib.idle_add(self.update_window)
+                self.update_window()
 
             # If streaming, also download the song, unless configured not to,
             # or configured to always stream.
@@ -1074,10 +1078,11 @@ class SublimeMusicApp(Gtk.Application):
                 stream
                 and self.app_config.download_on_stream
                 and not self.app_config.always_stream
+                and AdapterManager.can_batch_download_songs()
             ):
-                CacheManager.batch_download_songs(
+                AdapterManager.batch_download_songs(
                     [song.id],
-                    before_download=lambda: self.update_window(),
+                    before_download=self.update_window,
                     on_song_download_complete=on_song_download_complete,
                 )
 
@@ -1088,7 +1093,12 @@ class SublimeMusicApp(Gtk.Application):
             self.update_window()
 
             # Prefetch songs
-            if self.app_config.state.repeat_type != RepeatType.REPEAT_SONG:
+            # TODO: when shuffle state or repeat state change, redo this.
+            if (
+                self.app_config.state.repeat_type != RepeatType.REPEAT_SONG
+                and not self.app_config.always_stream
+                and AdapterManager.can_batch_download_songs()
+            ):
                 song_idx = self.app_config.state.play_queue.index(song.id)
                 repeat_type = self.app_config.state.repeat_type
                 is_repeat_queue = RepeatType.REPEAT_QUEUE == repeat_type
@@ -1100,12 +1110,10 @@ class SublimeMusicApp(Gtk.Application):
                         prefetch_idxs.append(
                             prefetch_idx % play_queue_len
                         )  # noqa: S001
-                CacheManager.batch_download_songs(
+                AdapterManager.batch_download_songs(
                     [self.app_config.state.play_queue[i] for i in prefetch_idxs],
-                    before_download=lambda: GLib.idle_add(self.update_window),
-                    on_song_download_complete=lambda _: GLib.idle_add(
-                        self.update_window
-                    ),
+                    before_download=self.update_window,
+                    on_song_download_complete=self.update_window,
                 )
 
         if old_play_queue:
@@ -1119,7 +1127,7 @@ class SublimeMusicApp(Gtk.Application):
         if play_queue:
             self.save_play_queue()
 
-        song_details_future = CacheManager.get_song_details(
+        song_details_future = AdapterManager.get_song_details(
             self.app_config.state.play_queue[self.app_config.state.current_song_index]
         )
         song_details_future.add_done_callback(

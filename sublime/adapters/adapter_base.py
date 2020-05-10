@@ -267,6 +267,14 @@ class Adapter(abc.ABC):
         """
         return False
 
+    # Songs
+    @property
+    def can_get_song_details(self) -> bool:
+        """
+        Whether :class:`get_song_details` can be called on the adapter right now.
+        """
+        return False
+
     # Misc
     @property
     def can_get_genres(self) -> bool:
@@ -360,6 +368,14 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("get_song_uri")
 
+    def get_song_details(self, song_id: str) -> Song:
+        """
+        Get the details for a given song ID.
+
+        :param song_id: The ID of the song to get the details for.
+        """
+        raise self._check_can_error("get_song_details")
+
     def get_genres(self) -> Sequence[Genre]:
         """
         Get all of the genres.
@@ -410,6 +426,7 @@ class CachingAdapter(Adapter):
         GENRES = "genres"
         PLAYLISTS = "get_playlists"
         PLAYLIST_DETAILS = "get_playlist_details"
+        SONG_DETAILS = "song_details"
         SONG_FILE = "song_file"
         SONG_FILE_PERMANENT = "song_file_permanent"
 
