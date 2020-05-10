@@ -260,8 +260,10 @@ class DBusManager:
         trackid = self.get_dbus_playlist(play_queue)[idx]
         duration = (
             "x",
-            (song.duration or timedelta(0)).total_seconds()
-            * self.second_microsecond_conversion,
+            int(
+                (song.duration or timedelta(0)).total_seconds()
+                * self.second_microsecond_conversion
+            ),
         )
 
         try:

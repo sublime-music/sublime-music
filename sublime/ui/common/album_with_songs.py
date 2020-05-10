@@ -222,8 +222,8 @@ class AlbumWithSongs(Gtk.Box):
     def on_download_all_click(self, btn: Any):
         AdapterManager.batch_download_songs(
             [x[-1] for x in self.album_song_store],
-            before_download=self.update,
-            on_song_download_complete=self.update,
+            before_download=lambda: self.update(),
+            on_song_download_complete=lambda: self.update(),
         )
 
     def play_btn_clicked(self, btn: Any):

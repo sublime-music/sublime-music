@@ -468,7 +468,10 @@ class AlbumsListWithSongs(Gtk.Overlay):
         new_albums = artist.get("album", artist.get("child", []))
 
         if self.albums == new_albums:
-            # No need to do anything.
+            # Just go through all of the colidren and update them.
+            for c in self.box.get_children():
+                c.update()
+
             self.spinner.hide()
             return
 
