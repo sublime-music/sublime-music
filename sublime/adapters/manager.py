@@ -370,6 +370,10 @@ class AdapterManager:
         # We can only download from the ground truth adapter.
         return AdapterManager._ground_truth_can_do("get_song_uri")
 
+    @staticmethod
+    def can_get_genres() -> bool:
+        return AdapterManager._any_adapter_can_do("get_genres")
+
     # Data Retrieval Methods
     # ==================================================================================
     @staticmethod
@@ -693,9 +697,7 @@ class AdapterManager:
         raise NotImplementedError()
 
     @staticmethod
-    def get_genres(
-        self, before_download: Callable[[], None] = lambda: None, force: bool = False,
-    ) -> Result[Sequence[Genre]]:
+    def get_genres(force: bool = False) -> Result[Sequence[Genre]]:
         assert AdapterManager._instance
         partial_genre_list = None
         if AdapterManager._can_use_cache(force, "get_genres"):
@@ -719,7 +721,7 @@ class AdapterManager:
             raise Exception(f'No adapters can service {"get_genres"} at the moment.')
 
         future: Result[Sequence[Genre]] = AdapterManager._create_ground_truth_future_fn(
-            "get_genres", before_download
+            "get_genres"
         )
 
         if AdapterManager._instance.caching_adapter:
@@ -730,10 +732,6 @@ class AdapterManager:
             )
 
         return future
-
-        if genres := self._get_json(self._make_url("getGenres")).genres:
-            return genres.genre
-        return []
 
     # Cache Status Methods
     # ==================================================================================

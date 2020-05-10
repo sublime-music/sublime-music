@@ -1,12 +1,12 @@
 import datetime
-from typing import Any, Callable, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, cast, Iterable, Optional, Tuple, Union
 
 import gi
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager
+from sublime.adapters import AdapterManager, Result
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.server.api_objects import AlbumWithSongsID3, Child
@@ -42,15 +42,15 @@ class AlbumsPanel(Gtk.Box):
         actionbar.add(Gtk.Label(label="Sort"))
         self.sort_type_combo = self.make_combobox(
             (
-                ("random", "randomly"),
-                ("byGenre", "by genre"),
-                ("newest", "by most recently added"),
-                ("highest", "by highest rated"),
-                ("frequent", "by most played"),
-                ("recent", "by most recently played"),
-                ("alphabetical", "alphabetically"),
-                ("starred", "by starred only"),
-                ("byYear", "by year"),
+                ("random", "randomly", True),
+                ("byGenre", "by genre", AdapterManager.can_get_genres),
+                ("newest", "by most recently added", True),
+                ("highest", "by highest rated", True),
+                ("frequent", "by most played", True),
+                ("recent", "by most recently played", True),
+                ("alphabetical", "alphabetically", True),
+                ("starred", "by starred only", True),
+                ("byYear", "by year", True),
             ),
             self.on_type_combo_changed,
         )
@@ -58,7 +58,7 @@ class AlbumsPanel(Gtk.Box):
 
         # Alphabetically how?
         self.alphabetical_type_combo = self.make_combobox(
-            (("name", "by album name"), ("artist", "by artist name"),),
+            (("name", "by album name", True), ("artist", "by artist name", True)),
             self.on_alphabetical_type_change,
         )
         actionbar.pack_start(self.alphabetical_type_combo)
@@ -98,12 +98,13 @@ class AlbumsPanel(Gtk.Box):
 
     def make_combobox(
         self,
-        items: Iterable[Tuple[str, str]],
+        items: Iterable[Tuple[str, str, bool]],
         on_change: Callable[["AlbumsPanel", Gtk.ComboBox], None],
     ) -> Gtk.ComboBox:
         store = Gtk.ListStore(str, str)
-        for item in items:
-            store.append(item)
+        for *item, include in items:
+            if include:
+                store.append(item)
 
         combo = Gtk.ComboBox.new_with_model(store)
         combo.set_id_column(0)
@@ -121,9 +122,9 @@ class AlbumsPanel(Gtk.Box):
         if not CacheManager.ready():
             return
 
-        def get_genres_done(f: CacheManager.Result):
+        def get_genres_done(f: Result):
             try:
-                new_store = [(genre.value, genre.value) for genre in (f.result() or [])]
+                new_store = [(genre.name, genre.name) for genre in (f.result() or [])]
 
                 util.diff_song_store(self.genre_combo.get_model(), new_store)
 
@@ -135,7 +136,7 @@ class AlbumsPanel(Gtk.Box):
 
         # Never force. We invalidate the cache ourselves (force is used when
         # sort params change).
-        genres_future = CacheManager.get_genres(force=False)
+        genres_future = AdapterManager.get_genres(force=False)
         genres_future.add_done_callback(lambda f: GLib.idle_add(get_genres_done, f))
 
     def update(self, app_config: AppConfiguration, force: bool = False):

@@ -60,7 +60,6 @@ from .server.api_objects import (
     ArtistWithAlbumsID3,
     Child,
     Directory,
-    Genre,
     Playlist,
 )
 
@@ -392,7 +391,6 @@ class CacheManager(metaclass=Singleton):
             self.cache["version"] = 1
 
             cache_configs = [
-                ("genres", Genre, list),
                 ("song_details", Child, dict),
                 # Non-ID3 caches
                 ("music_directories", Directory, dict),
@@ -890,25 +888,6 @@ class CacheManager(metaclass=Singleton):
             if abs_path.exists() and not force_stream:
                 return (str(abs_path), False)
             return (self.server.get_stream_url(song.id, format=format), True)
-
-        def get_genres(
-            self,
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-        ) -> "CacheManager.Result[List[Genre]]":
-            if self.cache.get("genres") and not force:
-                return CacheManager.Result.from_data(self.cache["genres"])
-
-            def after_download(genres: List[Genre]):
-                with self.cache_lock:
-                    self.cache["genres"] = genres
-                self.save_cache_info()
-
-            return CacheManager.Result.from_server(
-                lambda: self.server.get_genres().genre,
-                before_download=before_download,
-                after_download=after_download,
-            )
 
         def search(
             self,
