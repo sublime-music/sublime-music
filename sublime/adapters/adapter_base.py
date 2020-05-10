@@ -18,6 +18,7 @@ from .api_objects import (
     Genre,
     Playlist,
     PlaylistDetails,
+    PlayQueue,
     Song,
 )
 
@@ -290,6 +291,21 @@ class Adapter(abc.ABC):
         """
         return False
 
+    # Play Queue
+    @property
+    def can_get_play_queue(self) -> bool:
+        """
+        Whether :class:`get_play_queue` can be called on the adapter right now.
+        """
+        return False
+
+    @property
+    def can_save_play_queue(self) -> bool:
+        """
+        Whether :class:`save_play_queue` can be called on the adapter right now.
+        """
+        return False
+
     # Data Retrieval Methods
     # These properties determine if what things the adapter can be used to do
     # at the current moment.
@@ -394,6 +410,21 @@ class Adapter(abc.ABC):
         Get all of the genres.
         """
         raise self._check_can_error("get_genres")
+
+    def get_play_queue(self) -> Optional[PlayQueue]:
+        """
+        Returns the state of the play queue for this user. This could be used to restore
+        the play queue from the cloud.
+        """
+        raise self._check_can_error("get_play_queue")
+
+    def save_play_queue(
+        self, song_ids: List[int], current_song_id: int = None, position: int = None
+    ):
+        """
+        Save the current play queue to the cloud.
+        """
+        raise self._check_can_error("can_save_play_queue")
 
     @staticmethod
     def _check_can_error(method_name: str) -> NotImplementedError:

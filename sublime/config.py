@@ -145,7 +145,7 @@ class AppConfiguration:
         if self.state_file_location.exists():
             try:
                 with open(self.state_file_location, "rb") as f:
-                    self._state = UIState(**pickle.load(f))
+                    self._state = pickle.load(f)
             except Exception:
                 logging.warning(f"Couldn't load state from {self.state_file_location}")
                 # Just ignore any errors, it is only UI state.
@@ -177,4 +177,4 @@ class AppConfiguration:
         # Save the state for the current server.
         self.state_file_location.parent.mkdir(parents=True, exist_ok=True)
         with open(self.state_file_location, "wb+") as f:
-            pickle.dump(asdict(self.state), f)
+            pickle.dump(self.state, f)

@@ -4,9 +4,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
-import gi
-
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
 from pychromecast import Chromecast
 
@@ -138,7 +135,16 @@ class PlayerControls(Gtk.ActionBar):
             )
 
             self.song_title.set_markup(util.esc(app_config.state.current_song.title))
-            self.album_name.set_markup(util.esc(app_config.state.current_song.album))
+            self.album_name.set_markup(
+                util.esc(
+                    app_config.state.current_song.album.name
+                    if (
+                        app_config.state.current_song
+                        and app_config.state.current_song.album
+                    )
+                    else None
+                )
+            )
             artist_name = util.esc(app_config.state.current_song.artist)
             self.artist_name.set_markup(artist_name or "")
         else:
@@ -173,7 +179,7 @@ class PlayerControls(Gtk.ActionBar):
 
         def calculate_label(song_details: Song) -> str:
             title = util.esc(song_details.title)
-            album = util.esc(song_details.album)
+            album = util.esc(song_details.album.name if song_details.album else None)
             artist = util.esc(song_details.artist)
             return f"<b>{title}</b>\n{util.dot_join(album, artist)}"
 

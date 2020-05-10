@@ -20,16 +20,22 @@ class Genre(abc.ABC):
     album_count: Optional[int] = None
 
 
+class Album(abc.ABC):
+    id: str
+    name: str
+
+
 class Song(abc.ABC):
     # TODO make these cross-reference the corresponding Album / Artist / Directory
     id: str
     title: str
     parent: str
-    album: str
+    album: Optional[Album] = None
+    genre: Optional[Genre] = None
+
     artist: str
     track: Optional[int]
     year: Optional[int]
-    genre: Optional[Genre]
     cover_art: Optional[str]
     size: Optional[int]
     content_type: Optional[str]
@@ -46,7 +52,6 @@ class Song(abc.ABC):
     disc_number: Optional[int]
     created: Optional[datetime]
     starred: Optional[datetime]
-    album_id: Optional[str]
     artist_id: Optional[str]
     type: Optional[MediaType]
     # TODO trim down, make another data structure for directory?
@@ -79,3 +84,13 @@ class PlaylistDetails(abc.ABC):
     owner: Optional[str]
     public: Optional[bool]
     cover_art: Optional[str]
+
+
+class PlayQueue(abc.ABC):
+    songs: Sequence[Song]
+    username: Optional[str]
+    changed: Optional[datetime]
+    changed_by: Optional[str]
+    value: Optional[str]
+    current: Optional[int]
+    position: Optional[int]

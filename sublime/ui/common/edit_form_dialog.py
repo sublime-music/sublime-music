@@ -1,8 +1,5 @@
 from typing import Any, List, Optional, Tuple
 
-import gi
-
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 TextFieldDescription = Tuple[str, str, bool]

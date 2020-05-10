@@ -1,9 +1,6 @@
 from datetime import datetime
 from typing import Any, Callable, Set
 
-import gi
-
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from sublime.adapters import AdapterManager, Result

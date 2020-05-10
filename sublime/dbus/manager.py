@@ -290,7 +290,7 @@ class DBusManager:
             "mpris:trackid": trackid,
             "mpris:length": duration,
             "mpris:artUrl": cover_art,
-            "xesam:album": song.album or "",
+            "xesam:album": song.album.name if song.album else "",
             "xesam:albumArtist": [song.artist or ""],
             "xesam:artist": [song.artist or ""],
             "xesam:title": song.title,

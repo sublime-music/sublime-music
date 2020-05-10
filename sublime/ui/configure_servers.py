@@ -1,9 +1,6 @@
 import subprocess
 from typing import Any
 
-import gi
-
-gi.require_version("Gtk", "3.0")
 from gi.repository import GObject, Gtk
 
 from sublime.config import AppConfiguration, ServerConfiguration

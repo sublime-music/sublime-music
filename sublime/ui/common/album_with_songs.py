@@ -1,9 +1,6 @@
 from random import randint
 from typing import Any, Union
 
-import gi
-
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
 from sublime.adapters import AdapterManager, Result

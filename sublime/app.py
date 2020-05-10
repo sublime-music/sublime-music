@@ -1,10 +1,9 @@
 import logging
-import math
 import os
 import random
 import sys
-from concurrent.futures import Future
 from pathlib import Path
+from time import time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 try:
@@ -21,13 +20,11 @@ try:
 except ImportError:
     has_keyring = False
 
-
-import gi
-
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
 
 try:
+    import gi
+
     gi.require_version("Notify", "0.7")
     from gi.repository import Notify
 
@@ -40,8 +37,8 @@ except Exception:
     )
     glib_notify_exists = False
 
-from .adapters import AdapterManager
-from .adapters.api_objects import Playlist, Song
+from .adapters import AdapterManager, Result
+from .adapters.api_objects import Playlist, PlayQueue, Song
 from .cache_manager import CacheManager
 from .config import AppConfiguration, ReplayGainType
 from .dbus import dbus_propagate, DBusManager
@@ -908,15 +905,18 @@ class SublimeMusicApp(Gtk.Application):
         self.app_config.state.playing = False
         self.update_window()
 
-        def do_update(f: Future):
+        def do_update(f: Result[PlayQueue]):
             play_queue = f.result()
-            new_play_queue = tuple(s.id for s in play_queue.entry)
+            play_queue.position = play_queue.position or 0
+
+            new_play_queue = tuple(s.id for s in play_queue.songs)
             new_current_song_id = str(play_queue.current)
-            new_song_progress = play_queue.position / 1000
+            new_song_progress = play_queue.position
 
             if prompt_confirm:
-                # If there's not a significant enough difference, don't prompt.
-                progress_diff = 15
+                # If there's not a significant enough difference in the song state,
+                # don't prompt.
+                progress_diff = 15.0
                 if self.app_config.state.song_progress:
                     progress_diff = abs(
                         self.app_config.state.song_progress - new_song_progress
@@ -937,15 +937,19 @@ class SublimeMusicApp(Gtk.Application):
                     text="Resume Playback?",
                 )
 
-                dialog.format_secondary_markup(
-                    "Do you want to resume the play queue saved by "
-                    + str(play_queue.changedBy)
-                    + " at "
-                    + play_queue.changed.astimezone(tz=None).strftime(
-                        "%H:%M on %Y-%m-%d"
-                    )
-                    + "?"
-                )
+                resume_text = "Do you want to resume the play queue"
+                if play_queue.changed_by or play_queue.changed:
+                    resume_text += " saved"
+                    if play_queue.changed_by:
+                        resume_text += f" by {play_queue.changed_by}"
+                    if play_queue.changed:
+                        changed_str = play_queue.changed.astimezone(tz=None).strftime(
+                            "%H:%M on %Y-%m-%d"
+                        )
+                        resume_text += f" at {changed_str}"
+                resume_text += "?"
+
+                dialog.format_secondary_markup(resume_text)
                 result = dialog.run()
                 dialog.destroy()
                 if result != Gtk.ResponseType.YES:
@@ -964,7 +968,7 @@ class SublimeMusicApp(Gtk.Application):
             if was_playing:
                 self.on_play_pause()
 
-        play_queue_future = CacheManager.get_play_queue()
+        play_queue_future = AdapterManager.get_play_queue()
         play_queue_future.add_done_callback(lambda f: GLib.idle_add(do_update, f))
 
     song_playing_order_token = 0
@@ -997,7 +1001,7 @@ class SublimeMusicApp(Gtk.Application):
                     if glib_notify_exists:
                         notification_lines = []
                         if song.album:
-                            notification_lines.append(f"<i>{song.album}</i>")
+                            notification_lines.append(f"<i>{song.album.name}</i>")
                         if song.artist:
                             notification_lines.append(song.artist)
                         song_notification = Notify.Notification.new(
@@ -1151,8 +1155,8 @@ class SublimeMusicApp(Gtk.Application):
         self.last_play_queue_update = position or 0
 
         if self.app_config.server.sync_enabled and self.app_config.state.current_song:
-            CacheManager.save_play_queue(
-                play_queue=self.app_config.state.play_queue,
-                current=self.app_config.state.current_song.id,
-                position=math.floor(position * 1000) if position else None,
+            AdapterManager.save_play_queue(
+                song_ids=self.app_config.state.play_queue,
+                current_song_id=self.app_config.state.current_song.id,
+                position=position,
             )

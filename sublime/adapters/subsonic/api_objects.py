@@ -37,17 +37,32 @@ class Genre(SublimeAPI.Genre):
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
+class Album(SublimeAPI.Album):
+    id: str
+    name: str
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
 class Song(SublimeAPI.Song):
     id: str
     title: str
-    parent: str
-    album: str
-    artist: str
     path: str
-    track: Optional[int] = None
-    year: Optional[int] = None
+    parent: str  # TODO fk
+    artist: str  # TODO fk
+
+    # Album
+    album: Optional[Album] = field(init=False)
+    _album: Optional[str] = field(default=None, metadata=config(field_name="album"))
+    album_id: Optional[str] = None
+
+    # Genre
     genre: Optional[Genre] = field(init=False)
     _genre: Optional[str] = field(default=None, metadata=config(field_name="genre"))
+
+    # TODO deal with these
+    track: Optional[int] = None
+    year: Optional[int] = None
     cover_art: Optional[str] = None
     size: Optional[int] = None
     content_type: Optional[str] = None
@@ -63,12 +78,12 @@ class Song(SublimeAPI.Song):
     disc_number: Optional[int] = None
     created: Optional[datetime] = None
     starred: Optional[datetime] = None
-    album_id: Optional[str] = None
     artist_id: Optional[str] = None
     type: Optional[SublimeAPI.MediaType] = None
 
     def __post_init__(self):
-        # Convert genre to the correct object.
+        # Initialize the cross-references
+        self.album = None if not self.album_id else Album(self.album_id, self._album)
         self.genre = None if not self._genre else Genre(self._genre)
 
 
@@ -111,6 +126,18 @@ class PlaylistWithSongs(SublimeAPI.PlaylistDetails):
         )
 
 
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class PlayQueue(SublimeAPI.PlayQueue):
+    songs: List[Song] = field(default_factory=list, metadata=config(field_name="entry"))
+    username: Optional[str] = None
+    changed: Optional[datetime] = None
+    changed_by: Optional[str] = None
+    value: Optional[str] = None
+    current: Optional[int] = None
+    position: Optional[int] = None
+
+
 @dataclass
 class Genres(DataClassJsonMixin):
     genre: List[Genre] = field(default_factory=list)
@@ -129,3 +156,6 @@ class Response(DataClassJsonMixin):
     song: Optional[Song] = None
     playlists: Optional[Playlists] = None
     playlist: Optional[PlaylistWithSongs] = None
+    play_queue: Optional[PlayQueue] = field(
+        default=None, metadata=config(field_name="playQueue")
+    )

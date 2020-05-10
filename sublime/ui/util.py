@@ -1,6 +1,5 @@
 import functools
 import re
-from concurrent.futures import Future
 from datetime import timedelta
 from typing import (
     Any,
@@ -14,10 +13,7 @@ from typing import (
     Union,
 )
 
-import gi
 from deepdiff import DeepDiff
-
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from sublime.adapters import AdapterManager, Result, SongCacheStatus
@@ -211,7 +207,7 @@ def show_song_popover(
     for song_id in song_ids:
         details = AdapterManager.get_song_details(song_id).result()
         status = AdapterManager.get_cached_status(details)
-        albums.add(details.album_id)
+        albums.add(details.album.id if details.album else None)
         artists.add(details.artist_id)
         parents.add(details.parent)
 

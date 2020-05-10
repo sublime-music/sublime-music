@@ -2,9 +2,6 @@ from functools import lru_cache
 from random import randint
 from typing import Any, Iterable, List, Tuple
 
-import gi
-
-gi.require_version("Gtk", "3.0")
 from fuzzywuzzy import process
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
@@ -484,7 +481,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             [
                 util.get_cached_status_icon(AdapterManager.get_cached_status(song)),
                 song.title,
-                song.album,
+                song.album.name if song.album else None,
                 song.artist,
                 util.format_song_duration(song.duration),
                 song.id,

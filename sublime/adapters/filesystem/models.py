@@ -42,6 +42,7 @@ class Genre(BaseModel):
 
 class Album(BaseModel):
     id = TextField(unique=True, primary_key=True)
+    name = TextField()
 
 
 class Song(BaseModel):
@@ -72,8 +73,7 @@ class Song(BaseModel):
     # original_height: Optional[int] = None
 
     # TODO make these fks
-    album = TextField(null=True)
-    album_id = TextField(null=True)
+    album = ForeignKeyField(Album, null=True)
     artist = TextField(null=True)
     artist_id = TextField(null=True)
 

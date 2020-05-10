@@ -251,11 +251,15 @@ class FilesystemAdapter(CachingAdapter):
         ).on_conflict_replace().execute()
 
         def ingest_song_data(song_data: Dict[str, Any]) -> models.Song:
-            exclude_fields = ("_genre",)
+            exclude_fields = ("_genre", "_album", "album_id")
             for field in exclude_fields:
                 del song_data[field]
 
             # Deal with foreign key fields
+            if album_dict := song_data.get("album"):
+                song_data["album"], _ = models.Album.get_or_create(
+                    id=album_dict["id"], defaults=album_dict
+                )
             if genre_dict := song_data.get("genre"):
                 song_data["genre"], _ = models.Genre.get_or_create(
                     name=genre_dict["name"], defaults=genre_dict
@@ -313,7 +317,6 @@ class FilesystemAdapter(CachingAdapter):
             song.save()
 
         elif data_key == CachingAdapter.CachedDataKey.GENRES:
-            print(list(map(asdict, data)))
             models.Genre.insert_many(map(asdict, data)).on_conflict_replace().execute()
             models.Genre.delete().where(
                 models.Genre.name.not_in([g.name for g in data])

@@ -26,7 +26,7 @@ from sublime import util
 from sublime.config import AppConfiguration
 
 from .adapter_base import Adapter, CacheMissError, CachingAdapter, SongCacheStatus
-from .api_objects import Genre, Playlist, PlaylistDetails, Song
+from .api_objects import Genre, Playlist, PlaylistDetails, PlayQueue, Song
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter
 
@@ -379,6 +379,14 @@ class AdapterManager:
     def can_scrobble_song() -> bool:
         return AdapterManager._any_adapter_can_do("scrobble_song")
 
+    @staticmethod
+    def can_get_play_queue() -> bool:
+        return AdapterManager._ground_truth_can_do("get_play_queue")
+
+    @staticmethod
+    def can_save_play_queue() -> bool:
+        return AdapterManager._ground_truth_can_do("save_play_queue")
+
     # Data Retrieval Methods
     # ==================================================================================
     @staticmethod
@@ -415,7 +423,7 @@ class AdapterManager:
         future: Result[
             Sequence[Playlist]
         ] = AdapterManager._create_ground_truth_future_fn(
-            "get_playlists", before_download
+            "get_playlists", before_download=before_download
         )
 
         if AdapterManager._instance.caching_adapter:
@@ -468,7 +476,7 @@ class AdapterManager:
             )
 
         future: Result[PlaylistDetails] = AdapterManager._create_ground_truth_future_fn(
-            "get_playlist_details", before_download, playlist_id
+            "get_playlist_details", playlist_id, before_download=before_download,
         )
 
         if AdapterManager._instance.caching_adapter:
@@ -490,7 +498,7 @@ class AdapterManager:
         assert AdapterManager._instance
 
         future: Result[None] = AdapterManager._create_ground_truth_future_fn(
-            "create_playlist", before_download, name, songs=songs
+            "create_playlist", name, songs=songs, before_download=before_download,
         )
 
         if AdapterManager._instance.caching_adapter:
@@ -528,8 +536,8 @@ class AdapterManager:
         assert AdapterManager._instance
         future: Result[PlaylistDetails] = AdapterManager._create_ground_truth_future_fn(
             "update_playlist",
-            before_download,
             playlist_id,
+            before_download=before_download,
             name=name,
             comment=comment,
             public=public,
@@ -669,6 +677,10 @@ class AdapterManager:
                 raise Exception("Can't stream the song.")
             return (cached_song_filename, False)
 
+        # TODO implement subsonic extension to get the hash of the song and compare
+        # here. That way of the cache gets blown away, but not the song files, it will
+        # not have to re-download.
+
         if force_stream and not AdapterManager._ground_truth_can_do("stream"):
             raise Exception("Can't stream the song.")
 
@@ -800,7 +812,7 @@ class AdapterManager:
             )
 
         future: Result[Song] = AdapterManager._create_ground_truth_future_fn(
-            "get_song_details", before_download, song_id
+            "get_song_details", song_id, before_download=before_download
         )
 
         if AdapterManager._instance.caching_adapter:
@@ -853,6 +865,40 @@ class AdapterManager:
     def scrobble_song(song: Song):
         assert AdapterManager._instance
         AdapterManager._create_ground_truth_future_fn("scrobble_song", song)
+
+    @staticmethod
+    def get_play_queue() -> Result[Optional[PlayQueue]]:
+        assert AdapterManager._instance
+        future: Result[
+            Optional[PlayQueue]
+        ] = AdapterManager._create_ground_truth_future_fn("get_play_queue")
+
+        if AdapterManager._instance.caching_adapter:
+
+            def future_finished(f: Result):
+                assert AdapterManager._instance
+                assert AdapterManager._instance.caching_adapter
+                if play_queue := f.result():
+                    for song in play_queue.songs:
+                        AdapterManager._instance.caching_adapter.ingest_new_data(
+                            CachingAdapter.CachedDataKey.SONG_DETAILS, (song.id,), song
+                        )
+
+            future.add_done_callback(future_finished)
+
+        return future
+
+    @staticmethod
+    def save_play_queue(
+        song_ids: List[int], current_song_id: int = None, position: int = None
+    ):
+        assert AdapterManager._instance
+        AdapterManager._create_ground_truth_future_fn(
+            "save_play_queue",
+            song_ids,
+            current_song_id=current_song_id,
+            position=position,
+        )
 
     # Cache Status Methods
     # ==================================================================================

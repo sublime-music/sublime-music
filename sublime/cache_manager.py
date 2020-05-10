@@ -786,16 +786,6 @@ class CacheManager(metaclass=Singleton):
                 after_download=after_download,
             )
 
-        def get_play_queue(self) -> Future:
-            return CacheManager.create_future(self.server.get_play_queue)
-
-        def save_play_queue(
-            self, play_queue: List[str], current: str, position: float,
-        ):
-            CacheManager.create_future(
-                self.server.save_play_queue, play_queue, current, position
-            )
-
         def search(
             self,
             query: str,

@@ -1225,37 +1225,6 @@ class Server:
         """
         return self._get_json(self._make_url("deleteBookmark"), id=id)
 
-    def get_play_queue(self) -> Optional[PlayQueue]:
-        """
-        Returns the state of the play queue for this user (as set by
-        ``savePlayQueue``). This includes the tracks in the play queue, the
-        currently playing track, and the position within this track. Typically
-        used to allow a user to move between different clients/apps while
-        retaining the same play queue (for instance when listening to an audio
-        book).
-        """
-        return self._get_json(self._make_url("getPlayQueue")).playQueue
-
-    def save_play_queue(
-        self, id: Union[int, List[int]], current: int = None, position: int = None,
-    ) -> Response:
-        """
-        Saves the state of the play queue for this user. This includes the
-        tracks in the play queue, the currently playing track, and the position
-        within this track. Typically used to allow a user to move between
-        different clients/apps while retaining the same play queue (for
-        instance when listening to an audio book).
-
-        :param id: ID(s) of a/the song(s) in the play queue. Can be either a
-            single ID or a list of IDs.
-        :param current: The ID of the current playing song.
-        :param position: The position in milliseconds within the currently
-            playing song.
-        """
-        return self._get_json(
-            self._make_url("savePlayQueue"), id=id, current=current, position=position,
-        )
-
     def get_scan_status(self) -> ScanStatus:
         """
         Returns the current status for media library scanning. Takes no extra
