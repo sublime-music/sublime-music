@@ -44,12 +44,32 @@ class Album(SublimeAPI.Album):
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
+class Artist(SublimeAPI.Artist):
+    id: str
+    name: str
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class Directory(SublimeAPI.Directory):
+    id: str
+    title: Optional[str] = None
+    parent: Optional["Directory"] = None
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
 class Song(SublimeAPI.Song):
     id: str
     title: str
     path: str
-    parent: str  # TODO fk
-    artist: str  # TODO fk
+    parent: Directory = field(init=False)
+    _parent: Optional[str] = field(default=None, metadata=config(field_name="parent"))
+
+    # Artist
+    artist: Optional[Artist] = field(init=False)
+    _artist: Optional[str] = field(default=None, metadata=config(field_name="artist"))
+    artist_id: Optional[str] = None
 
     # Album
     album: Optional[Album] = field(init=False)
@@ -78,11 +98,14 @@ class Song(SublimeAPI.Song):
     disc_number: Optional[int] = None
     created: Optional[datetime] = None
     starred: Optional[datetime] = None
-    artist_id: Optional[str] = None
     type: Optional[SublimeAPI.MediaType] = None
 
     def __post_init__(self):
         # Initialize the cross-references
+        self.parent = None if not self._parent else Directory(self._parent)
+        self.artist = (
+            None if not self.artist_id else Artist(self.artist_id, self._artist)
+        )
         self.album = None if not self.album_id else Album(self.album_id, self._album)
         self.genre = None if not self._genre else Genre(self._genre)
 

@@ -135,18 +135,14 @@ class PlayerControls(Gtk.ActionBar):
             )
 
             self.song_title.set_markup(util.esc(app_config.state.current_song.title))
-            self.album_name.set_markup(
-                util.esc(
-                    app_config.state.current_song.album.name
-                    if (
-                        app_config.state.current_song
-                        and app_config.state.current_song.album
-                    )
-                    else None
-                )
-            )
-            artist_name = util.esc(app_config.state.current_song.artist)
-            self.artist_name.set_markup(artist_name or "")
+            if (album := app_config.state.current_song.album) :
+                self.album_name.set_markup(util.esc(album.name))
+            else:
+                self.album_name.set_markup(None)
+            if (artist := app_config.state.current_song.artist) :
+                self.artist_name.set_markup(util.esc(artist.name))
+            else:
+                self.artist_name.set_markup(None)
         else:
             # Clear out the cover art and song tite if no song
             self.album_art.set_from_file(None)
@@ -179,8 +175,8 @@ class PlayerControls(Gtk.ActionBar):
 
         def calculate_label(song_details: Song) -> str:
             title = util.esc(song_details.title)
-            album = util.esc(song_details.album.name if song_details.album else None)
-            artist = util.esc(song_details.artist)
+            album = util.esc(album.name if (album := song_details.album) else None)
+            artist = util.esc(artist.name if (artist := song_details.artist) else None)
             return f"<b>{title}</b>\n{util.dot_join(album, artist)}"
 
         def make_idle_index_capturing_function(

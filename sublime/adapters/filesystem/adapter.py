@@ -243,6 +243,7 @@ class FilesystemAdapter(CachingAdapter):
         params: Tuple[Any, ...],
         data: Any,
     ):
+        # TODO may need to remove reliance on asdict in order to support more backends.
         params_hash = util.params_hash(*params)
         models.CacheInfo.insert(
             cache_key=data_key,
@@ -250,20 +251,67 @@ class FilesystemAdapter(CachingAdapter):
             last_ingestion_time=datetime.now(),
         ).on_conflict_replace().execute()
 
-        def ingest_song_data(song_data: Dict[str, Any]) -> models.Song:
-            exclude_fields = ("_genre", "_album", "album_id")
-            for field in exclude_fields:
-                del song_data[field]
+        def ingest_directory_data(api_directory: API.Directory) -> models.Directory:
+            directory_data = asdict(api_directory)
+            directory, created = models.Directory.get_or_create(
+                id=api_directory.id, defaults=directory_data
+            )
 
-            # Deal with foreign key fields
-            if album_dict := song_data.get("album"):
-                song_data["album"], _ = models.Album.get_or_create(
-                    id=album_dict["id"], defaults=album_dict
-                )
-            if genre_dict := song_data.get("genre"):
-                song_data["genre"], _ = models.Genre.get_or_create(
-                    name=genre_dict["name"], defaults=genre_dict
-                )
+            if not created:
+                for k, v in directory_data.items():
+                    setattr(directory, k, v)
+                directory.save()
+
+            return directory
+
+        def ingest_genre_data(api_genre: API.Genre) -> models.Genre:
+            genre_data = asdict(api_genre)
+            genre, created = models.Genre.get_or_create(
+                name=api_genre.name, defaults=asdict(api_genre)
+            )
+
+            if not created:
+                for k, v in genre_data.items():
+                    setattr(genre, k, v)
+                genre.save()
+
+            return genre
+
+        def ingest_album_data(api_album: API.Album) -> models.Album:
+            album_data = asdict(api_album)
+            album, created = models.Album.get_or_create(
+                id=api_album.id, defaults=asdict(api_album)
+            )
+
+            if not created:
+                for k, v in album_data.items():
+                    setattr(album, k, v)
+                album.save()
+
+            return album
+
+        def ingest_artist_data(api_artist: API.Artist) -> models.Artist:
+            artist_data = asdict(api_artist)
+            artist, created = models.Artist.get_or_create(
+                id=api_artist.id, defaults=artist_data
+            )
+
+            if not created:
+                for k, v in artist_data.items():
+                    setattr(artist, k, v)
+                artist.save()
+
+            return artist
+
+        def ingest_song_data(api_song: API.Song) -> models.Song:
+            song_data = {
+                **asdict(api_song),
+                # Deal with foreign key fields
+                "album": ingest_album_data(al) if (al := api_song.album) else None,
+                "artist": ingest_artist_data(ar) if (ar := api_song.artist) else None,
+                "genre": ingest_genre_data(g) if (g := api_song.genre) else None,
+                "parent": ingest_directory_data(d) if (d := api_song.parent) else None,
+            }
 
             song, created = models.Song.get_or_create(
                 id=song_data["id"], defaults=song_data
@@ -285,22 +333,18 @@ class FilesystemAdapter(CachingAdapter):
             ).execute()
 
         elif data_key == CachingAdapter.CachedDataKey.PLAYLIST_DETAILS:
-            playlist_data = asdict(data)
+            song_objects = [ingest_song_data(s) for s in data.songs]
+            playlist_data = {**asdict(data), "songs": song_objects}
             playlist, playlist_created = models.Playlist.get_or_create(
                 id=playlist_data["id"], defaults=playlist_data
             )
-
-            # Handle the songs.
-            playlist.songs = [ingest_song_data(d) for d in playlist_data["songs"]]
-            del playlist_data["songs"]
 
             # Update the values if the playlist already existed.
             if not playlist_created:
                 for k, v in playlist_data.items():
                     setattr(playlist, k, v)
 
-            # Always save because we always add the songs.
-            playlist.save()
+                playlist.save()
 
         elif data_key == CachingAdapter.CachedDataKey.COVER_ART_FILE:
             # ``data`` is the filename of the tempfile in this case
@@ -313,8 +357,7 @@ class FilesystemAdapter(CachingAdapter):
             shutil.copy(str(data), str(absolute_path))
 
         elif data_key == CachingAdapter.CachedDataKey.SONG_DETAILS:
-            song = ingest_song_data(asdict(data))
-            song.save()
+            ingest_song_data(data)
 
         elif data_key == CachingAdapter.CachedDataKey.GENRES:
             models.Genre.insert_many(map(asdict, data)).on_conflict_replace().execute()

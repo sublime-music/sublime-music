@@ -999,10 +999,10 @@ class SublimeMusicApp(Gtk.Application):
                 try:
                     if glib_notify_exists:
                         notification_lines = []
-                        if song.album:
-                            notification_lines.append(f"<i>{song.album.name}</i>")
-                        if song.artist:
-                            notification_lines.append(song.artist)
+                        if album := song.album:
+                            notification_lines.append(f"<i>{album.name}</i>")
+                        if artist := song.artist:
+                            notification_lines.append(artist.name)
                         song_notification = Notify.Notification.new(
                             song.title, "\n".join(notification_lines),
                         )
@@ -1061,9 +1061,8 @@ class SublimeMusicApp(Gtk.Application):
 
                         os.system(f"osascript -e '{' '.join(osascript_command)}'")
                 except Exception:
-                    logging.warning(
-                        "Unable to display notification. Is a notification "
-                        "daemon running?"
+                    logging.exception(
+                        "Unable to display notification. Is a notification daemon running?"  # noqa: E501
                     )
 
             def on_song_download_complete():

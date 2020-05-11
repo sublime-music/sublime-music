@@ -25,15 +25,26 @@ class Album(abc.ABC):
     name: str
 
 
+class Artist(abc.ABC):
+    id: str
+    name: str
+
+
+class Directory(abc.ABC):
+    id: str
+    title: Optional[str]
+    parent: Optional["Directory"]
+
+
 class Song(abc.ABC):
     # TODO make these cross-reference the corresponding Album / Artist / Directory
     id: str
     title: str
-    parent: str
+    parent: Directory
     album: Optional[Album] = None
+    artist: Optional[Artist] = None
     genre: Optional[Genre] = None
 
-    artist: str
     track: Optional[int]
     year: Optional[int]
     cover_art: Optional[str]
@@ -52,7 +63,6 @@ class Song(abc.ABC):
     disc_number: Optional[int]
     created: Optional[datetime]
     starred: Optional[datetime]
-    artist_id: Optional[str]
     type: Optional[MediaType]
     # TODO trim down, make another data structure for directory?
 

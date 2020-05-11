@@ -19,10 +19,11 @@ MOCK_SUBSONIC_SONGS = [
     SubsonicAPI.Song(
         "2",
         "Song 2",
-        parent="foo",
+        _parent="foo",
         _album="foo",
         album_id="a1",
-        artist="foo",
+        _artist="cool",
+        artist_id="art1",
         duration=timedelta(seconds=20.8),
         path="foo/song2.mp3",
         cover_art="2",
@@ -31,26 +32,28 @@ MOCK_SUBSONIC_SONGS = [
     SubsonicAPI.Song(
         "1",
         "Song 1",
-        parent="foo",
+        _parent="foo",
         _album="foo",
         album_id="a1",
-        artist="foo",
+        _artist="foo",
+        artist_id="art2",
         duration=timedelta(seconds=10.2),
         path="foo/song1.mp3",
         cover_art="1",
-        _genre="Bar",
+        _genre="Foo",
     ),
     SubsonicAPI.Song(
         "1",
         "Song 1",
-        parent="foo",
+        _parent="foo",
         _album="foo",
         album_id="a1",
-        artist="foo",
+        _artist="foo",
+        artist_id="art2",
         duration=timedelta(seconds=10.2),
         path="foo/song1.mp3",
         cover_art="1",
-        _genre="Bar",
+        _genre="Foo",
     ),
 ]
 
@@ -153,7 +156,14 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
     ):
         for actual, song in zip(actual_songs, expected_songs):
             for k, v in asdict(song).items():
-                ignore = ("_genre", "_album", "album_id")
+                ignore = (
+                    "_genre",
+                    "_album",
+                    "_artist",
+                    "_parent",
+                    "album_id",
+                    "artist_id",
+                )
                 if k in ignore:
                     continue
                 print(k)  # noqa: T001
@@ -162,7 +172,11 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
                 if k == "album":
                     assert ("a1", "foo") == (actual_value.id, actual_value.name)
                 elif k == "genre":
-                    assert "Bar" == actual_value.name
+                    assert v["name"] == actual_value.name
+                elif k == "parent":
+                    assert "foo" == actual_value.id
+                elif k == "artist":
+                    assert (v["id"], v["name"]) == (actual_value.id, actual_value.name)
                 else:
                     assert actual_value == v
 
@@ -180,7 +194,7 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
     assert playlist.duration == timedelta(seconds=31)
     verify_playlists(playlist.songs, MOCK_SUBSONIC_SONGS[:2])
 
-    # "Force refresh" the playlist
+    # "Force refresh" the playlist and add a new song (duplicate).
     cache_adapter.ingest_new_data(
         FilesystemAdapter.CachedDataKey.PLAYLIST_DETAILS,
         ("1",),
@@ -438,34 +452,10 @@ def test_caching_get_genres(cache_adapter: FilesystemAdapter):
         cache_adapter.get_genres()
 
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.SONG_DETAILS,
-        ("2",),
-        SubsonicAPI.Song(
-            "2",
-            "Song 2",
-            parent="foo",
-            album_id="a1",
-            _album="foo",
-            artist="foo",
-            duration=timedelta(seconds=10.2),
-            path="foo/song2.mp3",
-            _genre="Foo",
-        ),
+        FilesystemAdapter.CachedDataKey.SONG_DETAILS, ("2",), MOCK_SUBSONIC_SONGS[0]
     )
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.SONG_DETAILS,
-        ("1",),
-        SubsonicAPI.Song(
-            "1",
-            "Song 1",
-            parent="foo",
-            album_id="a1",
-            _album="foo",
-            artist="foo",
-            duration=timedelta(seconds=10.2),
-            path="foo/song1.mp3",
-            _genre="Bar",
-        ),
+        FilesystemAdapter.CachedDataKey.SONG_DETAILS, ("1",), MOCK_SUBSONIC_SONGS[1]
     )
 
     # Getting genres now should look at what's on the songs. This sould cache miss, but
@@ -503,11 +493,11 @@ def test_caching_get_song_details(cache_adapter: FilesystemAdapter):
     assert song.title == "Song 1"
     assert song.album
     assert (song.album.id, song.album.name) == ("a1", "foo")
-    assert song.artist == "foo"
-    assert song.parent == "foo"
+    assert song.artist and song.artist.name == "foo"
+    assert song.parent.id == "foo"
     assert song.duration == timedelta(seconds=10.2)
     assert song.path == "foo/song1.mp3"
-    assert song.genre and song.genre.name == "Bar"
+    assert song.genre and song.genre.name == "Foo"
 
     # "Force refresh" the song details
     cache_adapter.ingest_new_data(
@@ -516,10 +506,11 @@ def test_caching_get_song_details(cache_adapter: FilesystemAdapter):
         SubsonicAPI.Song(
             "1",
             "Song 1",
-            parent="bar",
-            album_id="a2",
+            _parent="bar",
             _album="bar",
-            artist="bar",
+            album_id="a2",
+            _artist="bar",
+            artist_id="art2",
             duration=timedelta(seconds=10.2),
             path="bar/song1.mp3",
             _genre="Bar",
@@ -531,8 +522,8 @@ def test_caching_get_song_details(cache_adapter: FilesystemAdapter):
     assert song.title == "Song 1"
     assert song.album
     assert (song.album.id, song.album.name) == ("a2", "bar")
-    assert song.artist == "bar"
-    assert song.parent == "bar"
+    assert song.artist and song.artist.name == "bar"
+    assert song.parent.id == "bar"
     assert song.duration == timedelta(seconds=10.2)
     assert song.path == "bar/song1.mp3"
     assert song.genre and song.genre.name == "Bar"

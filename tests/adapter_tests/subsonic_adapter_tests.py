@@ -154,11 +154,12 @@ def test_get_playlist_details(adapter: SubsonicAdapter):
         # Make sure that at least the first song got decoded properly.
         assert playlist_details.songs[0] == SubsonicAPI.Song(
             id="202",
-            parent="318",
+            _parent="318",
             title="What a Beautiful Name",
             _album="What a Beautiful Name - Single",
             album_id="48",
-            artist="Hillsong Worship",
+            _artist="Hillsong Worship",
+            artist_id="38",
             track=1,
             year=2016,
             _genre="Christian & Gospel",
@@ -181,7 +182,6 @@ def test_get_playlist_details(adapter: SubsonicAdapter):
             play_count=20,
             disc_number=1,
             created=datetime(2020, 3, 27, 5, 17, 7, tzinfo=timezone.utc),
-            artist_id="38",
             type=SubsonicAPI.SublimeAPI.MediaType.MUSIC,
         )
 
@@ -197,11 +197,12 @@ def test_create_playlist(adapter: SubsonicAdapter):
             songs=[
                 SubsonicAPI.Song(
                     id="202",
-                    parent="318",
+                    _parent="318",
                     title="What a Beautiful Name",
                     _album="What a Beautiful Name - Single",
                     album_id="48",
-                    artist="Hillsong Worship",
+                    _artist="Hillsong Worship",
+                    artist_id="38",
                     track=1,
                     year=2016,
                     _genre="Christian & Gospel",
@@ -224,7 +225,6 @@ def test_create_playlist(adapter: SubsonicAdapter):
                     play_count=20,
                     disc_number=1,
                     created=datetime(2020, 3, 27, 5, 17, 7, tzinfo=timezone.utc),
-                    artist_id="38",
                     type=SubsonicAPI.SublimeAPI.MediaType.MUSIC,
                 )
             ],

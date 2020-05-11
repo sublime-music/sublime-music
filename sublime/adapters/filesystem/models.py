@@ -42,13 +42,29 @@ class Genre(BaseModel):
 
 class Album(BaseModel):
     id = TextField(unique=True, primary_key=True)
-    name = TextField()
+    name = TextField(null=True)
+
+
+class Artist(BaseModel):
+    id = TextField(unique=True, primary_key=True)
+    name = TextField(null=True)
+
+
+class Directory(BaseModel):
+    id = TextField(unique=True, primary_key=True)
+    name = TextField(null=True)
+    parent = ForeignKeyField("self", null=True, backref="children")
 
 
 class Song(BaseModel):
     id = TextField(unique=True, primary_key=True)
     title = TextField()
     duration = DurationField()
+    album = ForeignKeyField(Album, null=True)
+    artist = ForeignKeyField(Artist, null=True)
+    parent = ForeignKeyField(Directory, null=True)
+    genre = ForeignKeyField(Genre, null=True)
+
     track = IntegerField(null=True)
     year = IntegerField(null=True)
     cover_art = TextField(null=True)  # TODO: fk?
@@ -71,29 +87,6 @@ class Song(BaseModel):
     # bookmark_position: Optional[int] = None
     # original_width: Optional[int] = None
     # original_height: Optional[int] = None
-
-    # TODO make these fks
-    album = ForeignKeyField(Album, null=True)
-    artist = TextField(null=True)
-    artist_id = TextField(null=True)
-
-    parent = TextField(null=True)
-
-    _genre = ForeignKeyField(Genre, null=True)
-
-    @property
-    def genre(self) -> Optional[Genre]:
-        return self._genre
-
-    @genre.setter
-    def genre(self, genre: API.Genre):
-        if not genre or not genre.name:
-            return
-        genre, genre_created = Genre.get_or_create(
-            name=genre.name, defaults={"name": genre.name},
-        )
-        self._genre = genre
-        self.save()
 
 
 class CacheInfo(BaseModel):
@@ -126,8 +119,9 @@ class Playlist(BaseModel):
 
 ALL_TABLES = (
     Album,
+    Artist,
     CacheInfo,
-    # CachedFile,
+    Directory,
     Genre,
     Playlist,
     Playlist.songs.get_through_model(),

@@ -9,6 +9,7 @@ from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
 
 from sublime.adapters import AdapterManager, CacheMissError
+from sublime.adapters.api_objects import Playlist, PlaylistDetails, Song
 from sublime.config import AppConfiguration
 from sublime.players import Player
 from sublime.ui.state import RepeatType
@@ -172,7 +173,9 @@ class DBusManager:
 
         active_playlist = self.get_active_playlist(state.active_playlist_id)
 
-        get_playlists_result = AdapterManager.get_playlists(allow_download=False)
+        get_playlists_result: List[Playlist] = AdapterManager.get_playlists(
+            allow_download=False
+        )
         if get_playlists_result.data_is_available:
             playlist_count = len(get_playlists_result.result())
         else:
@@ -239,7 +242,7 @@ class DBusManager:
             return (False, GLib.Variant("(oss)", ("/", "", "")))
 
         try:
-            playlist = AdapterManager.get_playlist_details(
+            playlist: PlaylistDetails = AdapterManager.get_playlist_details(
                 active_playlist_id, allow_download=False
             ).result()
 
@@ -264,7 +267,7 @@ class DBusManager:
         self, idx: int, play_queue: Tuple[str, ...]
     ) -> Dict[str, Any]:
         try:
-            song = AdapterManager.get_song_details(
+            song: Song = AdapterManager.get_song_details(
                 play_queue[idx], allow_download=False
             ).result()
         except CacheMissError:
@@ -290,9 +293,9 @@ class DBusManager:
             "mpris:trackid": trackid,
             "mpris:length": duration,
             "mpris:artUrl": cover_art,
-            "xesam:album": song.album.name if song.album else "",
-            "xesam:albumArtist": [song.artist or ""],
-            "xesam:artist": [song.artist or ""],
+            "xesam:album": album.name if (album := song.album) else "",
+            "xesam:albumArtist": [artist.name if (artist := song.artist) else ""],
+            "xesam:artist": [artist.name if (artist := song.artist) else ""],
             "xesam:title": song.title,
         }
 

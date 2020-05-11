@@ -481,8 +481,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
             [
                 util.get_cached_status_icon(AdapterManager.get_cached_status(song)),
                 song.title,
-                song.album.name if song.album else None,
-                song.artist,
+                album.name if (album := song.album) else None,
+                artist.name if (artist := song.artist) else None,
                 util.format_song_duration(song.duration),
                 song.id,
             ]

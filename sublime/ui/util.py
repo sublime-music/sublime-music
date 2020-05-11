@@ -100,6 +100,10 @@ def format_sequence_duration(duration_secs: Union[int, timedelta]) -> str:
 
 
 def esc(string: Optional[str]) -> str:
+    """
+    >>> esc("test & <a href='ohea' target='_blank'>test</a>")
+    "test &amp; <a href='ohea'>test</a>"
+    """
     if string is None:
         return ""
     return string.replace("&", "&amp;").replace(" target='_blank'", "")
