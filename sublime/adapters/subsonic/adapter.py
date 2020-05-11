@@ -3,11 +3,12 @@ import logging
 import math
 import multiprocessing
 import os
+import pickle
 import random
 from datetime import datetime
 from pathlib import Path
 from time import sleep
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple, Union
 from urllib.parse import urlencode, urlparse
 
 import requests
@@ -42,6 +43,10 @@ class SubsonicAdapter(Adapter):
         return errors
 
     def __init__(self, config: dict, data_directory: Path):
+        self.data_directory = data_directory
+        self.ignored_articles_cache_file = self.data_directory.joinpath(
+            "ignored_articles.pickle"
+        )
         self.hostname = config["server_address"]
         self.username = config["username"]
         self.password = config["password"]
@@ -90,6 +95,7 @@ class SubsonicAdapter(Adapter):
     def can_service_requests(self) -> bool:
         return self._server_available.value
 
+    # TODO make these way smarter
     can_get_playlists = True
     can_get_playlist_details = True
     can_create_playlist = True
@@ -99,18 +105,20 @@ class SubsonicAdapter(Adapter):
     can_get_song_uri = True
     can_get_song_details = True
     can_scrobble_song = True
+    can_get_artists = True
+    can_get_ignored_articles = True
     can_get_genres = True
     can_get_play_queue = True
     can_save_play_queue = True
     supports_streaming = True
 
-    _schemas = None
+    _schemes = None
 
     @property
     def supported_schemes(self) -> Iterable[str]:
-        if not self._schemas:
-            self._schemas = (urlparse(self.hostname)[0],)
-        return self._schemas
+        if not self._schemes:
+            self._schemes = (urlparse(self.hostname)[0],)
+        return self._schemes
 
     # Helper mothods for making requests
     # ==================================================================================
@@ -245,7 +253,7 @@ class SubsonicAdapter(Adapter):
         return result
 
     def create_playlist(
-        self, name: str, songs: List[API.Song] = None,
+        self, name: str, songs: Sequence[API.Song] = None,
     ) -> Optional[API.PlaylistDetails]:
         return self._get_json(
             self._make_url("createPlaylist"),
@@ -259,8 +267,8 @@ class SubsonicAdapter(Adapter):
         name: str = None,
         comment: str = None,
         public: bool = None,
-        song_ids: List[str] = None,
-        append_song_ids: List[str] = None,
+        song_ids: Sequence[str] = None,
+        append_song_ids: Sequence[str] = None,
     ) -> API.PlaylistDetails:
         if any(x is not None for x in (name, comment, public, append_song_ids)):
             self._get_json(
@@ -304,6 +312,30 @@ class SubsonicAdapter(Adapter):
     def scrobble_song(self, song: API.Song):
         self._get(self._make_url("scrobble"), id=song.id)
 
+    def get_artists(self) -> Sequence[API.Artist]:
+        if artist_index := self._get_json(self._make_url("getArtists")).artists:
+            with open(self.ignored_articles_cache_file, "wb+") as f:
+                pickle.dump(artist_index.ignored_articles, f)
+
+            artists = []
+            for index in artist_index.index:
+                artists.extend(index.artist)
+            return artists
+        return []
+
+    def get_ignored_articles(self) -> Set[str]:
+        ignored_articles = ""
+        try:
+            # If we already got the ignored articles from the get_artists, do that here.
+            with open(self.ignored_articles_cache_file, "rb+") as f:
+                ignored_articles = pickle.load(f)
+        except Exception:
+            # Whatever the exception, fall back on getting from the server.
+            if artists := self._get_json(self._make_url("getArtists")).artists:
+                ignored_articles = artists.ignored_articles
+
+        return set(ignored_articles.split())
+
     def get_genres(self) -> Sequence[API.Genre]:
         if genres := self._get_json(self._make_url("getGenres")).genres:
             return genres.genre
@@ -317,7 +349,10 @@ class SubsonicAdapter(Adapter):
         return None
 
     def save_play_queue(
-        self, song_ids: List[int], current_song_id: int = None, position: float = None
+        self,
+        song_ids: Sequence[int],
+        current_song_id: int = None,
+        position: float = None,
     ):
         self._get(
             self._make_url("savePlayQueue"),

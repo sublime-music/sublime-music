@@ -532,5 +532,91 @@ def test_caching_get_song_details(cache_adapter: FilesystemAdapter):
         cache_adapter.get_playlist_details("2")
 
 
-# TODO test to make sure that if you ingest something with less info on the song, it
-# doesn't delete stuff
+def test_caching_less_info(cache_adapter: FilesystemAdapter):
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.SONG_DETAILS,
+        ("1",),
+        SubsonicAPI.Song(
+            "1",
+            "Song 1",
+            _parent="bar",
+            _album="bar",
+            album_id="a2",
+            _artist="bar",
+            artist_id="art2",
+            duration=timedelta(seconds=10.2),
+            path="bar/song1.mp3",
+            _genre="Bar",
+        ),
+    )
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.SONG_DETAILS,
+        ("1",),
+        SubsonicAPI.Song(
+            "1",
+            "Song 1",
+            _parent="bar",
+            duration=timedelta(seconds=10.2),
+            path="bar/song1.mp3",
+        ),
+    )
+
+    song = cache_adapter.get_song_details("1")
+    assert song.album and song.album.name == "bar"
+    assert song.artist and song.artist.name == "bar"
+    assert song.genre and song.genre.name == "Bar"
+
+
+def test_caching_get_artists(cache_adapter: FilesystemAdapter):
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_artists()
+
+    # Ingest artists.
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.ARTISTS,
+        (),
+        [
+            SubsonicAPI.Artist("1", "test1", album_count=3),
+            SubsonicAPI.Artist("2", "test2", album_count=4),
+        ],
+    )
+
+    artists = cache_adapter.get_artists()
+    assert len(artists) == 2
+    assert (artists[0].id, artists[0].name, artists[0].album_count) == ("1", "test1", 3)
+    assert (artists[1].id, artists[1].name, artists[1].album_count) == ("2", "test2", 4)
+
+    # Ingest a new artists list with one of them deleted.
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.ARTISTS,
+        (),
+        [
+            SubsonicAPI.Artist("1", "test1", album_count=3),
+            SubsonicAPI.Artist("3", "test3", album_count=8),
+        ],
+    )
+
+    # Now, artist 2 should be gone.
+    artists = cache_adapter.get_artists()
+    assert len(artists) == 2
+    assert (artists[0].id, artists[0].name, artists[0].album_count) == ("1", "test1", 3)
+    assert (artists[1].id, artists[1].name, artists[1].album_count) == ("3", "test3", 8)
+
+
+def test_caching_get_ignored_articles(cache_adapter: FilesystemAdapter):
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_ignored_articles()
+
+    # Ingest ignored_articles.
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.IGNORED_ARTICLES, (), {"Foo", "Bar"}
+    )
+    artists = cache_adapter.get_ignored_articles()
+    assert {"Foo", "Bar"} == artists
+
+    # Ingest a new artists list with one of them deleted.
+    cache_adapter.ingest_new_data(
+        FilesystemAdapter.CachedDataKey.IGNORED_ARTICLES, (), {"Foo", "Baz"}
+    )
+    artists = cache_adapter.get_ignored_articles()
+    assert {"Foo", "Baz"} == artists

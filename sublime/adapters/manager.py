@@ -10,7 +10,6 @@ from typing import (
     Callable,
     cast,
     Generic,
-    List,
     Optional,
     Sequence,
     Set,
@@ -26,7 +25,7 @@ from sublime import util
 from sublime.config import AppConfiguration
 
 from .adapter_base import Adapter, CacheMissError, CachingAdapter, SongCacheStatus
-from .api_objects import Genre, Playlist, PlaylistDetails, PlayQueue, Song
+from .api_objects import Artist, Genre, Playlist, PlaylistDetails, PlayQueue, Song
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter
 
@@ -476,6 +475,10 @@ class AdapterManager:
         return AdapterManager._any_adapter_can_do("scrobble_song")
 
     @staticmethod
+    def can_get_artists() -> bool:
+        return AdapterManager._any_adapter_can_do("get_artists")
+
+    @staticmethod
     def can_get_play_queue() -> bool:
         return AdapterManager._ground_truth_can_do("get_play_queue")
 
@@ -517,7 +520,7 @@ class AdapterManager:
 
     @staticmethod
     def create_playlist(
-        name: str, songs: List[Song] = None
+        name: str, songs: Sequence[Song] = None
     ) -> Result[Optional[PlaylistDetails]]:
         def on_result_finished(f: Result[Optional[PlaylistDetails]]):
             assert AdapterManager._instance
@@ -548,8 +551,8 @@ class AdapterManager:
         name: str = None,
         comment: str = None,
         public: bool = False,
-        song_ids: List[str] = None,
-        append_song_ids: List[str] = None,
+        song_ids: Sequence[str] = None,
+        append_song_ids: Sequence[str] = None,
         before_download: Callable[[], None] = lambda: None,
     ) -> Result[PlaylistDetails]:
         return AdapterManager._get_from_cache_or_ground_truth(
@@ -705,7 +708,7 @@ class AdapterManager:
 
     @staticmethod
     def batch_download_songs(
-        song_ids: List[str],
+        song_ids: Sequence[str],
         before_download: Callable[[], None],
         on_song_download_complete: Callable[[], None],
         one_at_a_time: bool = False,
@@ -789,7 +792,7 @@ class AdapterManager:
 
     @staticmethod
     def batch_delete_cached_songs(
-        song_ids: List[str], on_song_delete: Callable[[], None]
+        song_ids: Sequence[str], on_song_delete: Callable[[], None]
     ):
         assert AdapterManager._instance
 
@@ -833,6 +836,39 @@ class AdapterManager:
         AdapterManager._create_ground_truth_result("scrobble_song", song)
 
     @staticmethod
+    def get_artists(
+        force: bool = False, before_download: Callable[[], None] = lambda: None
+    ) -> Result[Sequence[Artist]]:
+        def do_get_artists() -> Sequence[Artist]:
+            artists: Sequence[Artist] = AdapterManager._get_from_cache_or_ground_truth(
+                "get_artists",
+                use_ground_truth_adapter=force,
+                before_download=before_download,
+                cache_key=CachingAdapter.CachedDataKey.ARTISTS,
+            ).result()
+
+            ignored_articles: Set[str] = set()
+            if AdapterManager._any_adapter_can_do("get_ignored_articles"):
+                try:
+                    ignored_articles = AdapterManager._get_from_cache_or_ground_truth(
+                        "get_ignored_articles",
+                        use_ground_truth_adapter=force,
+                        cache_key=CachingAdapter.CachedDataKey.IGNORED_ARTICLES,
+                    ).result()
+                except Exception:
+                    logging.exception("Failed to retrieve ignored_articles")
+
+            def strip_ignored_articles(artist: Artist) -> str:
+                name_parts = artist.name.split()
+                if name_parts[0] in ignored_articles:
+                    name_parts = name_parts[1:]
+                return " ".join(name_parts)
+
+            return sorted(artists, key=strip_ignored_articles)
+
+        return Result(do_get_artists)
+
+    @staticmethod
     def get_play_queue() -> Result[Optional[PlayQueue]]:
         assert AdapterManager._instance
         future: Result[
@@ -856,7 +892,7 @@ class AdapterManager:
 
     @staticmethod
     def save_play_queue(
-        song_ids: List[int], current_song_id: int = None, position: int = None
+        song_ids: Sequence[int], current_song_id: int = None, position: int = None
     ):
         assert AdapterManager._instance
         AdapterManager._create_ground_truth_result(

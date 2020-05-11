@@ -44,6 +44,14 @@ class Album(BaseModel):
 class Artist(BaseModel):
     id = TextField(unique=True, primary_key=True)
     name = TextField(null=True)
+    album_count = IntegerField(null=True)
+    cover_art = TextField(null=True)
+    artist_image_url = TextField(null=True)
+    starred = TzDateTimeField(null=True)
+
+
+class IgnoredArticle(BaseModel):
+    name = TextField(unique=True, primary_key=True)
 
 
 class Directory(BaseModel):
@@ -143,6 +151,7 @@ ALL_TABLES = (
     CacheInfo,
     Directory,
     Genre,
+    IgnoredArticle,
     Playlist,
     Playlist.songs.get_through_model(),
     Song,

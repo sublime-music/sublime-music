@@ -265,3 +265,43 @@ def test_get_genres(adapter: SubsonicAdapter):
 
         assert len(genres) == 2
         assert [g.name for g in genres] == ["Country", "Pop"]
+
+
+def test_get_artists(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files("get_artists"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        artists = adapter.get_artists()
+        assert len(artists) == 7
+        assert {a.name for a in artists} == {
+            "Adele",
+            "Austin  French",
+            "The Afters",
+            "The Band Perry",
+            "Basshunter",
+            "Zac Brown Band",
+            "Zach Williams",
+        }
+
+
+def test_get_ignored_articles(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files("get_artists"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        ignored_articles = adapter.get_ignored_articles()
+        assert ignored_articles == {"The", "El", "La", "Los", "Las", "Le", "Les"}
+
+
+def test_get_ignored_articles_from_cached_get_artists(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files("get_artists"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        adapter.get_artists()
+        ignored_articles = adapter.get_ignored_articles()
+        assert ignored_articles == {"The", "El", "La", "Los", "Las", "Le", "Les"}

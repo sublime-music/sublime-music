@@ -523,33 +523,6 @@ class CacheManager(metaclass=Singleton):
             for path in glob.glob(str(abs_path)):
                 Path(path).unlink()
 
-        def get_artists(
-            self,
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-        ) -> "CacheManager.Result[List[ArtistID3]]":
-            cache_name = "artists"
-
-            if self.cache.get(cache_name) and not force:
-                return CacheManager.Result.from_data(self.cache[cache_name])
-
-            def download_fn() -> List[ArtistID3]:
-                artists: List[ArtistID3] = []
-                for index in self.server.get_artists().index:
-                    artists.extend(index.artist)
-                return artists
-
-            def after_download(artists: List[ArtistID3]):
-                with self.cache_lock:
-                    self.cache[cache_name] = artists
-                self.save_cache_info()
-
-            return CacheManager.Result.from_server(
-                download_fn,
-                before_download=before_download,
-                after_download=after_download,
-            )
-
         def get_artist(
             self,
             artist_id: int,

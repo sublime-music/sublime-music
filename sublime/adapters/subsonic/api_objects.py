@@ -10,7 +10,6 @@ import dataclasses_json
 from dataclasses_json import (
     config,
     dataclass_json,
-    DataClassJsonMixin,
     LetterCase,
 )
 
@@ -47,6 +46,10 @@ class Album(SublimeAPI.Album):
 class Artist(SublimeAPI.Artist):
     id: str
     name: str
+    album_count: Optional[int] = None
+    cover_art: Optional[str] = None
+    artist_image_url: Optional[str] = None
+    starred: Optional[datetime] = None
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -161,24 +164,40 @@ class PlayQueue(SublimeAPI.PlayQueue):
     current: Optional[int] = None
 
 
+@dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class Genres(DataClassJsonMixin):
+class IndexID3:
+    name: str
+    artist: List[Artist] = field(default_factory=list)
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class ArtistsID3:
+    ignored_articles: str
+    index: List[IndexID3] = field(default_factory=list)
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class Genres:
     genre: List[Genre] = field(default_factory=list)
 
 
+@dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class Playlists(DataClassJsonMixin):
+class Playlists:
     playlist: List[Playlist] = field(default_factory=list)
 
 
+@dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class Response(DataClassJsonMixin):
+class Response:
     """The base Subsonic response object."""
 
+    artists: Optional[ArtistsID3] = None
     genres: Optional[Genres] = None
-    song: Optional[Song] = None
-    playlists: Optional[Playlists] = None
     playlist: Optional[PlaylistWithSongs] = None
-    play_queue: Optional[PlayQueue] = field(
-        default=None, metadata=config(field_name="playQueue")
-    )
+    playlists: Optional[Playlists] = None
+    play_queue: Optional[PlayQueue] = None
+    song: Optional[Song] = None

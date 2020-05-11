@@ -79,11 +79,11 @@ class BrowsePanel(Gtk.Overlay):
                     current_dir_id, before_download=self.spinner.show,
                 ).result()
                 id_stack.append(directory.id)
-                current_dir_id = directory.parent
+                current_dir_id = directory.parent  # Detect loops?
 
             return id_stack, update_order_token
 
-        path_fut = CacheManager.create_future(calculate_path, self.update_order_token,)
+        path_fut = CacheManager.create_future(calculate_path, self.update_order_token)
         path_fut.add_done_callback(lambda f: GLib.idle_add(do_update, *f.result()))
 
 

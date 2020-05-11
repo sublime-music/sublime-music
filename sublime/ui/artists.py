@@ -1,14 +1,13 @@
 from random import randint
-from typing import Any, cast, List, Union
+from typing import Any, cast, List, Sequence, Union
 
 from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager
+from sublime.adapters import AdapterManager, api_objects as API
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.server.api_objects import (
     AlbumID3,
-    ArtistID3,
     ArtistInfo2,
     ArtistWithAlbumsID3,
     Child,
@@ -55,11 +54,11 @@ class _ArtistModel(GObject.GObject):
     name = GObject.Property(type=str)
     album_count = GObject.Property(type=int)
 
-    def __init__(self, artist_id: str, name: str, album_count: int):
+    def __init__(self, artist: API.Artist):
         GObject.GObject.__init__(self)
-        self.artist_id = artist_id
-        self.name = name
-        self.album_count = album_count
+        self.artist_id = artist.id
+        self.name = artist.name
+        self.album_count = artist.album_count or 0
 
 
 class ArtistList(Gtk.Box):
@@ -116,23 +115,32 @@ class ArtistList(Gtk.Box):
 
         self.pack_start(list_scroll_window, True, True, 0)
 
+    _app_config = None
+
     @util.async_callback(
-        lambda *a, **k: CacheManager.get_artists(*a, **k),
+        AdapterManager.get_artists,
         before_download=lambda self: self.loading_indicator.show_all(),
         on_failure=lambda self, e: self.loading_indicator.hide(),
     )
     def update(
-        self, artists: List[ArtistID3], app_config: AppConfiguration, **kwargs,
+        self,
+        artists: Sequence[API.Artist],
+        app_config: AppConfiguration = None,
+        **kwargs,
     ):
+        if app_config:
+            self._app_config = app_config
+
         new_store = []
         selected_idx = None
         for i, artist in enumerate(artists):
-            if app_config.state and app_config.state.selected_artist_id == artist.id:
+            if (
+                self._app_config
+                and self._app_config.state
+                and self._app_config.state.selected_artist_id == artist.id
+            ):
                 selected_idx = i
-
-            new_store.append(
-                _ArtistModel(artist.id, artist.name, artist.get("albumCount", ""),)
-            )
+            new_store.append(_ArtistModel(artist))
 
         util.diff_model_store(self.artists_store, new_store)
 

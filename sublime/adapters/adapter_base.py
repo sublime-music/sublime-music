@@ -6,15 +6,16 @@ from typing import (
     Any,
     Dict,
     Iterable,
-    List,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Type,
     Union,
 )
 
 from .api_objects import (
+    Artist,
     Genre,
     Playlist,
     PlaylistDetails,
@@ -279,7 +280,22 @@ class Adapter(abc.ABC):
     @property
     def can_scrobble_song(self) -> bool:
         """
-        Wheter :class:`scrobble_song` can be called on the adapter right now.
+        Whether :class:`scrobble_song` can be called on the adapter right now.
+        """
+        return False
+
+    # Artists
+    @property
+    def can_get_artists(self) -> bool:
+        """
+        Whether :class:`get_aritsts` can be called on the adapter right now.
+        """
+        return False
+
+    @property
+    def can_get_ignored_articles(self) -> bool:
+        """
+        Whether :class:`get_ignored_articles` can be called on the adapter right now.
         """
         return False
 
@@ -327,7 +343,7 @@ class Adapter(abc.ABC):
         raise self._check_can_error("get_playlist_details")
 
     def create_playlist(
-        self, name: str, songs: List[Song] = None,
+        self, name: str, songs: Sequence[Song] = None,
     ) -> Optional[PlaylistDetails]:
         """
         Creates a playlist of the given name with the given songs.
@@ -343,7 +359,7 @@ class Adapter(abc.ABC):
         name: str = None,
         comment: str = None,
         public: bool = None,
-        song_ids: List[str] = None,
+        song_ids: Sequence[str] = None,
     ) -> PlaylistDetails:
         """
         Updates a given playlist. If a parameter is ``None``, then it will be ignored
@@ -405,6 +421,18 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("scrobble_song")
 
+    def get_artists(self) -> Sequence[Artist]:
+        """
+        Get a list of all of the artists known to the adapter.
+        """
+        raise self._check_can_error("get_artists")
+
+    def get_ignored_articles(self) -> Set[str]:
+        """
+        A set of articles (i.e. The, A, El, La, Los) to ignore when sorting artists.
+        """
+        raise self._check_can_error("get_ignored_articles")
+
     def get_genres(self) -> Sequence[Genre]:
         """
         Get all of the genres.
@@ -419,7 +447,7 @@ class Adapter(abc.ABC):
         raise self._check_can_error("get_play_queue")
 
     def save_play_queue(
-        self, song_ids: List[int], current_song_id: int = None, position: int = None
+        self, song_ids: Sequence[int], current_song_id: int = None, position: int = None
     ):
         """
         Save the current play queue to the cloud.
@@ -466,8 +494,10 @@ class CachingAdapter(Adapter):
     # Data Ingestion Methods
     # ==================================================================================
     class CachedDataKey(Enum):
+        ARTISTS = "artists"
         COVER_ART_FILE = "cover_art_file"
         GENRES = "genres"
+        IGNORED_ARTICLES = "ignored_articles"
         PLAYLISTS = "get_playlists"
         PLAYLIST_DETAILS = "get_playlist_details"
         SONG_DETAILS = "song_details"

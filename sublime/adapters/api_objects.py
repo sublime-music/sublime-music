@@ -16,8 +16,8 @@ class MediaType(Enum):
 
 class Genre(abc.ABC):
     name: str
-    song_count: Optional[int] = None
-    album_count: Optional[int] = None
+    song_count: Optional[int]
+    album_count: Optional[int]
 
 
 class Album(abc.ABC):
@@ -28,6 +28,10 @@ class Album(abc.ABC):
 class Artist(abc.ABC):
     id: str
     name: str
+    album_count: Optional[int]
+    cover_art: Optional[str]
+    artist_image_url: Optional[str]
+    starred: Optional[datetime]
 
 
 class Directory(abc.ABC):
@@ -41,9 +45,9 @@ class Song(abc.ABC):
     id: str
     title: str
     parent: Directory
-    album: Optional[Album] = None
-    artist: Optional[Artist] = None
-    genre: Optional[Genre] = None
+    album: Optional[Album]
+    artist: Optional[Artist]
+    genre: Optional[Genre]
 
     track: Optional[int]
     year: Optional[int]
