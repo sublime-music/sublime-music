@@ -262,7 +262,7 @@ class SubsonicAdapter(Adapter):
         song_ids: List[str] = None,
         append_song_ids: List[str] = None,
     ) -> API.PlaylistDetails:
-        if name is not None or comment is not None or public is not None:
+        if any(x is not None for x in (name, comment, public, append_song_ids)):
             self._get_json(
                 self._make_url("updatePlaylist"),
                 playlistId=playlist_id,

@@ -43,7 +43,7 @@ class Result(Generic[T]):
     _data: Optional[T] = None
     _future: Optional[Future] = None
     _default_value: Optional[T] = None
-    # on_cancel: Optional[Callable[[], None]] = None
+    _on_cancel: Optional[Callable[[], None]] = None
 
     def __init__(
         self,
@@ -51,6 +51,7 @@ class Result(Generic[T]):
         *args,
         is_download: bool = False,
         default_value: T = None,
+        on_cancel: Callable[[], None] = None,
     ):
         """
         Creates a :class:`Result` object.
@@ -72,9 +73,11 @@ class Result(Generic[T]):
             self._data = data_resolver
 
         self._default_value = default_value
+        self._on_cancel = on_cancel
 
     def _on_future_complete(self, future: Future):
-        self._data = future.result()
+        if not future.cancelled() and not future.exception():
+            self._data = future.result()
 
     def result(self) -> T:
         """
@@ -103,6 +106,8 @@ class Result(Generic[T]):
 
     def cancel(self) -> bool:
         """Cancel the future, or do nothing if the data already exists."""
+        if self._on_cancel:
+            self._on_cancel()
         if self._future is not None:
             return self._future.cancel()
         return True
@@ -658,7 +663,7 @@ class AdapterManager:
     @staticmethod
     def get_song_filename_or_stream(
         song: Song, format: str = None, force_stream: bool = False,
-    ) -> Tuple[str, bool]:
+    ) -> Tuple[str, bool]:  # TODO probably don't need to return a tuple anymore
         assert AdapterManager._instance
         cached_song_filename = None
         if AdapterManager._can_use_cache(force_stream, "get_song_uri"):
@@ -703,15 +708,19 @@ class AdapterManager:
         song_ids: List[str],
         before_download: Callable[[], None],
         on_song_download_complete: Callable[[], None],
-    ):
+        one_at_a_time: bool = False,
+        delay: float = 0.0,
+    ) -> Result[None]:
         assert AdapterManager._instance
 
         # This only really makes sense if we have a caching_adapter.
         if not AdapterManager._instance.caching_adapter:
-            return
+            return Result(None)
+
+        cancelled = False
 
         def do_download_song(song_id: str):
-            if AdapterManager.is_shutting_down:
+            if AdapterManager.is_shutting_down or cancelled:
                 return
 
             assert AdapterManager._instance
@@ -754,7 +763,10 @@ class AdapterManager:
                 AdapterManager._instance.download_limiter_semaphore.release()
 
         def do_batch_download_songs():
+            sleep(delay)
             for song_id in song_ids:
+                if cancelled:
+                    return
                 # Only allow a certain number of songs to be downloaded
                 # simultaneously.
                 AdapterManager._instance.download_limiter_semaphore.acquire()
@@ -763,9 +775,17 @@ class AdapterManager:
                 if AdapterManager.is_shutting_down:
                     break
 
-                Result(do_download_song, song_id, is_download=True)
+                result = Result(do_download_song, song_id, is_download=True)
 
-        Result(do_batch_download_songs, is_download=True)
+                if one_at_a_time:
+                    # Wait the file to download.
+                    result.result()
+
+        def on_cancel():
+            nonlocal cancelled
+            cancelled = True
+
+        return Result(do_batch_download_songs, is_download=True, on_cancel=on_cancel)
 
     @staticmethod
     def batch_delete_cached_songs(

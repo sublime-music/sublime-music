@@ -2,7 +2,9 @@ import logging
 import os
 import random
 import sys
+from functools import partial
 from pathlib import Path
+from time import sleep
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 try:
@@ -971,6 +973,7 @@ class SublimeMusicApp(Gtk.Application):
         play_queue_future.add_done_callback(lambda f: GLib.idle_add(do_update, f))
 
     song_playing_order_token = 0
+    batch_download_jobs = set()
 
     def play_song(
         self,
@@ -982,8 +985,11 @@ class SublimeMusicApp(Gtk.Application):
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.
         @dbus_propagate(self)
-        def do_play_song(song: Song):
-            uri, stream = AdapterManager.get_song_filename_or_stream(
+        def do_play_song(order_token: int, song: Song):
+            if order_token != self.song_playing_order_token:
+                return
+
+            uri, _ = AdapterManager.get_song_filename_or_stream(
                 song, force_stream=self.app_config.always_stream,
             )
 
@@ -993,6 +999,16 @@ class SublimeMusicApp(Gtk.Application):
                 self.player.reset()
                 self.app_config.state.song_progress = 0
                 self.should_scrobble_song = True
+
+            # Start playing the song.
+            if order_token != self.song_playing_order_token:
+                return
+
+            self.player.play_media(
+                uri, 0 if reset else self.app_config.state.song_progress, song,
+            )
+            self.app_config.state.playing = True
+            self.update_window()
 
             # Show a song play notification.
             if self.app_config.song_play_notification:
@@ -1013,9 +1029,7 @@ class SublimeMusicApp(Gtk.Application):
                         )
                         song_notification.show()
 
-                        def on_cover_art_download_complete(
-                            cover_art_filename: str, order_token: int,
-                        ):
+                        def on_cover_art_download_complete(cover_art_filename: str):
                             if order_token != self.song_playing_order_token:
                                 return
 
@@ -1028,21 +1042,13 @@ class SublimeMusicApp(Gtk.Application):
                             )
                             song_notification.show()
 
-                        def get_cover_art_filename(order_token: int) -> Tuple[str, int]:
-                            return (
-                                AdapterManager.get_cover_art_filename(
-                                    song.cover_art
-                                ).result(),
-                                order_token,
-                            )
+                        cover_art_result = AdapterManager.get_cover_art_filename(
+                            song.cover_art
+                        )
+                        cover_art_result.add_done_callback(
+                            lambda f: on_cover_art_download_complete(f.result())
+                        )
 
-                        self.song_playing_order_token += 1
-                        cover_art_future = CacheManager.create_future(
-                            get_cover_art_filename, self.song_playing_order_token,
-                        )
-                        cover_art_future.add_done_callback(
-                            lambda f: on_cover_art_download_complete(*f.result())
-                        )
                     if sys.platform == "darwin":
                         notification_lines = []
                         if song.album:
@@ -1065,16 +1071,18 @@ class SublimeMusicApp(Gtk.Application):
                         "Unable to display notification. Is a notification daemon running?"  # noqa: E501
                     )
 
+            # Download current song and prefetch songs. Only do this if
+            # download_on_stream is True and always_stream is off.
             def on_song_download_complete():
-                if not self.app_config.state.playing or (
-                    self.app_config.state.current_song
-                    and self.app_config.state.current_song.id != song.id
+                if (
+                    order_token != self.song_playing_order_token
+                    or not self.app_config.state.playing
                 ):
                     return
 
                 # Switch to the local media if the player can hotswap without lag.
-                # MPV can is barely noticable whereas there's quite a delay with
-                # Chromecast.
+                # For example, MPV can is barely noticable whereas there's quite a delay
+                # with Chromecast.
                 if self.player.can_hotswap_source:
                     self.player.play_media(
                         AdapterManager.get_song_filename_or_stream(song)[0],
@@ -1083,48 +1091,39 @@ class SublimeMusicApp(Gtk.Application):
                     )
                 self.update_window()
 
-            # If streaming, also download the song, unless configured not to,
-            # or configured to always stream.
             if (
-                stream
-                and self.app_config.download_on_stream
+                self.app_config.download_on_stream
                 and not self.app_config.always_stream
                 and AdapterManager.can_batch_download_songs()
             ):
-                AdapterManager.batch_download_songs(
-                    [song.id],
-                    before_download=lambda: self.update_window(),
-                    on_song_download_complete=on_song_download_complete,
-                )
+                song_ids = [song.id]
 
-            self.player.play_media(
-                uri, 0 if reset else self.app_config.state.song_progress, song,
-            )
-            self.app_config.state.playing = True
-            self.update_window()
+                # Add the prefetch songs.
+                if (
+                    repeat_type := self.app_config.state.repeat_type
+                ) != RepeatType.REPEAT_SONG:
+                    song_idx = self.app_config.state.play_queue.index(song.id)
+                    is_repeat_queue = RepeatType.REPEAT_QUEUE == repeat_type
+                    prefetch_idxs = []
+                    for i in range(self.app_config.prefetch_amount):
+                        prefetch_idx: int = song_idx + 1 + i
+                        play_queue_len: int = len(self.app_config.state.play_queue)
+                        if is_repeat_queue or prefetch_idx < play_queue_len:
+                            prefetch_idxs.append(
+                                prefetch_idx % play_queue_len  # noqa: S001
+                            )
+                    song_ids.extend(
+                        [self.app_config.state.play_queue[i] for i in prefetch_idxs]
+                    )
 
-            # Prefetch songs
-            # TODO: when shuffle state or repeat state change, redo this.
-            if (
-                self.app_config.state.repeat_type != RepeatType.REPEAT_SONG
-                and not self.app_config.always_stream
-                and AdapterManager.can_batch_download_songs()
-            ):
-                song_idx = self.app_config.state.play_queue.index(song.id)
-                repeat_type = self.app_config.state.repeat_type
-                is_repeat_queue = RepeatType.REPEAT_QUEUE == repeat_type
-                prefetch_idxs = []
-                for i in range(self.app_config.prefetch_amount):
-                    prefetch_idx: int = song_idx + 1 + i
-                    play_queue_len: int = len(self.app_config.state.play_queue)
-                    if is_repeat_queue or prefetch_idx < play_queue_len:
-                        prefetch_idxs.append(
-                            prefetch_idx % play_queue_len  # noqa: S001
-                        )
-                AdapterManager.batch_download_songs(
-                    [self.app_config.state.play_queue[i] for i in prefetch_idxs],
-                    before_download=lambda: self.update_window(),
-                    on_song_download_complete=lambda: self.update_window(),
+                self.batch_download_jobs.add(
+                    AdapterManager.batch_download_songs(
+                        song_ids,
+                        before_download=lambda: self.update_window(),
+                        on_song_download_complete=on_song_download_complete,
+                        one_at_a_time=True,
+                        delay=5,
+                    )
                 )
 
         if old_play_queue:
@@ -1135,17 +1134,32 @@ class SublimeMusicApp(Gtk.Application):
 
         self.app_config.state.current_song_index = song_index
 
+        for job in self.batch_download_jobs:
+            job.cancel()
+
+        self.song_playing_order_token += 1
+
         if play_queue:
-            self.save_play_queue()
+
+            def save_play_queue_later(order_token: int):
+                sleep(5)
+                if order_token != self.song_playing_order_token:
+                    return
+                self.save_play_queue()
+
+            Result(partial(save_play_queue_later, self.song_playing_order_token))
 
         song_details_future = AdapterManager.get_song_details(
             self.app_config.state.play_queue[self.app_config.state.current_song_index]
         )
         song_details_future.add_done_callback(
-            lambda f: GLib.idle_add(do_play_song, f.result()),
+            lambda f: GLib.idle_add(
+                partial(do_play_song, self.song_playing_order_token), f.result()
+            ),
         )
 
     def save_play_queue(self):
+        # TODO let this be delayed as well
         if len(self.app_config.state.play_queue) == 0:
             return
 

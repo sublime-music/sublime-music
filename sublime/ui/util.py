@@ -198,6 +198,7 @@ def show_song_popover(
         AdapterManager.update_playlist(
             playlist_id=playlist.id, append_song_ids=song_ids
         )
+        # TODO: make this update the entire window (or at least what's visible)
 
     popover = Gtk.PopoverMenu()
     vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)

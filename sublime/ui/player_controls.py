@@ -138,11 +138,11 @@ class PlayerControls(Gtk.ActionBar):
             if (album := app_config.state.current_song.album) :
                 self.album_name.set_markup(util.esc(album.name))
             else:
-                self.album_name.set_markup(None)
+                self.album_name.set_markup("")
             if (artist := app_config.state.current_song.artist) :
                 self.artist_name.set_markup(util.esc(artist.name))
             else:
-                self.artist_name.set_markup(None)
+                self.artist_name.set_markup("")
         else:
             # Clear out the cover art and song tite if no song
             self.album_art.set_from_file(None)
@@ -182,6 +182,7 @@ class PlayerControls(Gtk.ActionBar):
         def make_idle_index_capturing_function(
             idx: int, order_tok: int, fn: Callable[[int, int, Any], None],
         ) -> Callable[[Result], None]:
+            # TODO use partial here?
             return lambda f: GLib.idle_add(fn, idx, order_tok, f.result())
 
         def on_cover_art_future_done(

@@ -653,9 +653,15 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
             def on_remove_songs_click(_: Any):
                 assert self.playlist_id
+                delete_idxs = {p.get_indices()[0] for p in paths}
+                new_song_ids = [
+                    model[-1]
+                    for i, model in enumerate(self.playlist_song_store)
+                    if i not in delete_idxs
+                ]
                 AdapterManager.update_playlist(
-                    playlist_id=self.playlist_id, song_ids=song_ids
-                )
+                    playlist_id=self.playlist_id, song_ids=new_song_ids
+                ).result()
                 self.update_playlist_view(
                     self.playlist_id,
                     force=True,
