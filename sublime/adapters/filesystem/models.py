@@ -1,5 +1,3 @@
-from typing import Optional
-
 from peewee import (
     BooleanField,
     CompositeKey,
@@ -9,8 +7,6 @@ from peewee import (
     SqliteDatabase,
     TextField,
 )
-
-from sublime.adapters import api_objects as API
 
 from .sqlite_extensions import (
     CacheConstantsField,
@@ -117,6 +113,30 @@ class Playlist(BaseModel):
     songs = SortedManyToManyField(Song, backref="playlists")
 
 
+class Version(BaseModel):
+    id = IntegerField(unique=True, primary_key=True)
+    major = IntegerField()
+    minor = IntegerField()
+    patch = IntegerField()
+
+    @staticmethod
+    def is_less_than(semver: str) -> bool:
+        major, minor, patch = map(int, semver.split("."))
+        version, created = Version.get_or_create(
+            id=0, defaults={"major": major, "minor": minor, "patch": patch}
+        )
+        if created:
+            # There was no version before, definitely out-of-date
+            return True
+
+        return version.major < major or version.minor < minor or version.patch < patch
+
+    @staticmethod
+    def update_version(semver: str):
+        major, minor, patch = map(int, semver.split("."))
+        Version.update(major=major, minor=minor, patch=patch)
+
+
 ALL_TABLES = (
     Album,
     Artist,
@@ -126,4 +146,5 @@ ALL_TABLES = (
     Playlist,
     Playlist.songs.get_through_model(),
     Song,
+    Version,
 )

@@ -751,6 +751,19 @@ class AdapterManager:
                 AdapterManager._instance.download_limiter_semaphore.release()
 
         def do_batch_download_songs():
+            # Download the actual songs.
+            for song_id in song_ids:
+                # Only allow a certain number of songs to be downloaded
+                # simultaneously.
+                AdapterManager._instance.download_limiter_semaphore.acquire()
+
+                # Prevents further songs from being downloaded.
+                if AdapterManager.is_shutting_down:
+                    break
+
+                Result(do_download_song, song_id, is_download=True)
+
+            # Download the corresponding cover art songs.
             for song_id in song_ids:
                 # Only allow a certain number of songs to be downloaded
                 # simultaneously.

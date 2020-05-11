@@ -49,9 +49,15 @@ class FilesystemAdapter(CachingAdapter):
 
         with self.db_write_lock, models.database.atomic():
             models.database.create_tables(models.ALL_TABLES)
+            self._migrate_db()
 
     def shutdown(self):
         logging.info("Shutdown complete")
+
+    # Database Migration
+    # ==================================================================================
+    def _migrate_db(self):
+        pass
 
     # Usage and Availability Properties
     # ==================================================================================
