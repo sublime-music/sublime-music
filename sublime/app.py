@@ -3,7 +3,6 @@ import os
 import random
 import sys
 from pathlib import Path
-from time import time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 try:
@@ -956,7 +955,7 @@ class SublimeMusicApp(Gtk.Application):
                     return
 
             self.app_config.state.play_queue = new_play_queue
-            self.app_config.state.song_progress = play_queue.position / 1000
+            self.app_config.state.song_progress = play_queue.position
 
             self.app_config.state.current_song_index = new_play_queue.index(
                 new_current_song_id

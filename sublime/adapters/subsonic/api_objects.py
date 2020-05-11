@@ -130,12 +130,12 @@ class PlaylistWithSongs(SublimeAPI.PlaylistDetails):
 @dataclass
 class PlayQueue(SublimeAPI.PlayQueue):
     songs: List[Song] = field(default_factory=list, metadata=config(field_name="entry"))
+    position: float = 0.0
     username: Optional[str] = None
     changed: Optional[datetime] = None
     changed_by: Optional[str] = None
     value: Optional[str] = None
     current: Optional[int] = None
-    position: Optional[int] = None
 
 
 @dataclass

@@ -31,7 +31,6 @@ from .api_objects import (
     NowPlaying,
     Playlists,
     PlaylistWithSongs,
-    PlayQueue,
     Response,
     ScanStatus,
     SearchResult,

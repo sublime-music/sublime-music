@@ -37,10 +37,9 @@ class AlbumsPanel(Gtk.Box):
 
         # Sort by
         actionbar.add(Gtk.Label(label="Sort"))
-        self.sort_type_combo = self.make_combobox(
+        self.sort_type_combo, self.sort_type_combo_store = self.make_combobox(
             (
                 ("random", "randomly", True),
-                # TODO this needs to be updated after the ping
                 ("byGenre", "by genre", AdapterManager.can_get_genres()),
                 ("newest", "by most recently added", True),
                 ("highest", "by highest rated", True),
@@ -54,15 +53,16 @@ class AlbumsPanel(Gtk.Box):
         )
         actionbar.pack_start(self.sort_type_combo)
 
-        # Alphabetically how?
-        self.alphabetical_type_combo = self.make_combobox(
+        self.alphabetical_type_combo, _ = self.make_combobox(
             (("name", "by album name", True), ("artist", "by artist name", True)),
             self.on_alphabetical_type_change,
         )
         actionbar.pack_start(self.alphabetical_type_combo)
 
-        # Alphabetically how?
-        self.genre_combo = self.make_combobox((), self.on_genre_change)
+        # TODO: Alphabetically?
+        self.genre_combo, self.genre_combo_store = self.make_combobox(
+            (), self.on_genre_change
+        )
         actionbar.pack_start(self.genre_combo)
 
         next_decade = datetime.datetime.now().year + 10
@@ -98,7 +98,7 @@ class AlbumsPanel(Gtk.Box):
         self,
         items: Iterable[Tuple[str, str, bool]],
         on_change: Callable[["AlbumsPanel", Gtk.ComboBox], None],
-    ) -> Gtk.ComboBox:
+    ) -> Tuple[Gtk.ComboBox, Gtk.ListStore]:
         store = Gtk.ListStore(str, str, bool)
         for item in items:
             store.append(item)
@@ -112,12 +112,12 @@ class AlbumsPanel(Gtk.Box):
         combo.add_attribute(renderer_text, "text", 1)
         combo.add_attribute(renderer_text, "sensitive", 2)
 
-        return combo
+        return combo, store
 
     def populate_genre_combo(
         self, app_config: AppConfiguration, force: bool = False,
     ):
-        if not CacheManager.ready():
+        if not AdapterManager.can_get_genres():
             return
 
         def get_genres_done(f: Result):
@@ -126,7 +126,7 @@ class AlbumsPanel(Gtk.Box):
                     (genre.name, genre.name, True) for genre in (f.result() or [])
                 ]
 
-                util.diff_song_store(self.genre_combo.get_model(), new_store)
+                util.diff_song_store(self.genre_combo_store, new_store)
 
                 current_genre_id = self.get_id(self.genre_combo)
                 if current_genre_id != app_config.state.current_album_genre:
@@ -141,6 +141,9 @@ class AlbumsPanel(Gtk.Box):
 
     def update(self, app_config: AppConfiguration, force: bool = False):
         self.updating_query = True
+
+        # (En|Dis)able getting genres.
+        self.sort_type_combo_store[1][2] = AdapterManager.can_get_genres()
 
         self.sort_type_combo.set_active_id(app_config.state.current_album_sort)
         self.alphabetical_type_combo.set_active_id(

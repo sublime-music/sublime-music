@@ -253,9 +253,13 @@ class AdapterManager:
         ) or AdapterManager._cache_can_do(action_name)
 
     @staticmethod
-    def _create_ground_truth_future_fn(
+    def _create_ground_truth_result(
         function_name: str, *args, before_download: Callable[[], None] = None, **kwargs
     ) -> Result:
+        """
+        Creates a Result using the given ``function_name`` on the ground truth adapter.
+        """
+
         def future_fn() -> Any:
             assert AdapterManager._instance
             if before_download:
@@ -268,6 +272,11 @@ class AdapterManager:
 
     @staticmethod
     def _create_download_fn(uri: str, params_hash: str) -> Callable[[], str]:
+        """
+        Create a function to download the given URI, and return it. The returned
+        function will spin-loop if the resource is already being downloaded.
+        """
+
         def download_fn() -> str:
             assert AdapterManager._instance
             download_tmp_filename = AdapterManager._instance.download_path.joinpath(
@@ -319,6 +328,13 @@ class AdapterManager:
     def _create_caching_done_callback(
         cache_key: CachingAdapter.CachedDataKey, params: Tuple[Any, ...]
     ) -> Callable[[Result], None]:
+        """
+        Create a function to let the caching_adapter ingest new data.
+
+        :param cache_key: the cache key to ingest.
+        :param params: the parameters to uniquely identify the cached item.
+        """
+
         def future_finished(f: Result):
             assert AdapterManager._instance
             assert AdapterManager._instance.caching_adapter
@@ -330,6 +346,7 @@ class AdapterManager:
 
     @staticmethod
     def _get_scheme() -> str:
+        # TODO eventually this will come from the players
         assert AdapterManager._instance
         scheme_priority = ("https", "http")
         schemes = sorted(
@@ -337,6 +354,79 @@ class AdapterManager:
             key=scheme_priority.index,
         )
         return list(schemes)[0]
+
+    R = TypeVar("R")
+
+    @staticmethod
+    def _get_from_cache_or_ground_truth(
+        function_name: str,
+        *args: Any,
+        cache_key: CachingAdapter.CachedDataKey = None,
+        before_download: Callable[[], None] = None,
+        use_ground_truth_adapter: bool = False,
+        allow_download: bool = True,
+        on_result_finished: Callable[[Result], None] = None,
+        **kwargs: Any,
+    ) -> Result[R]:
+        """
+        Get data from one of the adapters.
+
+        :param function_name: The function to call on the adapter.
+        :param args: The arguments to pass to the adapter function (also used for the
+            cache parameter tuple to uniquely identify the request).
+        :param cache_key: The cache key to use to invalidate caches and ingest caches.
+        :param before_download: Function to call before doing a network request.
+        :param allow_download: Whether or not to allow a network request to retrieve the
+            data.
+        :param on_result_finished: A function to run after the result received from the
+            ground truth adapter. (Has no effect if the result is from the caching
+            adapter.)
+        :param kwargs: The keyword arguments to pass to the adapter function.
+        """
+        assert AdapterManager._instance
+        partial_data = None
+        if AdapterManager._can_use_cache(use_ground_truth_adapter, function_name):
+            assert AdapterManager._instance.caching_adapter
+            try:
+                return Result(
+                    getattr(AdapterManager._instance.caching_adapter, function_name)(
+                        *args, **kwargs
+                    )
+                )
+            except CacheMissError as e:
+                partial_data = e.partial_data
+                logging.info(f"Cache Miss on {function_name}.")
+            except Exception:
+                logging.exception(f"Error on {function_name} retrieving from cache.")
+
+        if (
+            cache_key
+            and AdapterManager._instance.caching_adapter
+            and use_ground_truth_adapter
+        ):
+            AdapterManager._instance.caching_adapter.invalidate_data(cache_key, args)
+
+        # TODO don't short circuit if not allow_download because it could be the
+        # filesystem adapter.
+        if not allow_download or not AdapterManager._ground_truth_can_do(function_name):
+            if partial_data:
+                return Result(cast(AdapterManager.R, partial_data))
+            raise Exception(f"No adapters can service {function_name} at the moment.")
+
+        result: Result[AdapterManager.R] = AdapterManager._create_ground_truth_result(
+            function_name, *args, before_download=before_download, **kwargs,
+        )
+
+        if AdapterManager._instance.caching_adapter:
+            if cache_key:
+                result.add_done_callback(
+                    AdapterManager._create_caching_done_callback(cache_key, args)
+                )
+
+            if on_result_finished:
+                result.add_done_callback(on_result_finished)
+
+        return result
 
     # TODO abstract more stuff
 
@@ -395,45 +485,13 @@ class AdapterManager:
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
         allow_download: bool = True,
     ) -> Result[Sequence[Playlist]]:
-        assert AdapterManager._instance
-        partial_playlists_data = None
-        if AdapterManager._can_use_cache(force, "get_playlists"):
-            assert AdapterManager._instance.caching_adapter
-            try:
-                return Result(AdapterManager._instance.caching_adapter.get_playlists())
-            except CacheMissError as e:
-                partial_playlists_data = e.partial_data
-                logging.info(f'Cache Miss on {"get_playlists"}.')
-            except Exception:
-                logging.exception(f'Error on {"get_playlists"} retrieving from cache.')
-
-        if not allow_download:
-            raise CacheMissError(partial_data=partial_playlists_data)
-
-        if AdapterManager._instance.caching_adapter and force:
-            AdapterManager._instance.caching_adapter.invalidate_data(
-                CachingAdapter.CachedDataKey.PLAYLISTS, ()
-            )
-
-        if not AdapterManager._ground_truth_can_do("get_playlists"):
-            if partial_playlists_data:
-                return partial_playlists_data
-            raise Exception(f'No adapters can service {"get_playlists"} at the moment.')
-
-        future: Result[
-            Sequence[Playlist]
-        ] = AdapterManager._create_ground_truth_future_fn(
-            "get_playlists", before_download=before_download
+        return AdapterManager._get_from_cache_or_ground_truth(
+            "get_playlists",
+            cache_key=CachingAdapter.CachedDataKey.PLAYLISTS,
+            before_download=before_download,
+            use_ground_truth_adapter=force,
+            allow_download=allow_download,
         )
-
-        if AdapterManager._instance.caching_adapter:
-            future.add_done_callback(
-                AdapterManager._create_caching_done_callback(
-                    CachingAdapter.CachedDataKey.PLAYLISTS, (),
-                )
-            )
-
-        return future
 
     @staticmethod
     def get_playlist_details(
@@ -442,85 +500,41 @@ class AdapterManager:
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
         allow_download: bool = True,
     ) -> Result[PlaylistDetails]:
-        assert AdapterManager._instance
-        partial_playlist_data = None
-        if AdapterManager._can_use_cache(force, "get_playlist_details"):
-            assert AdapterManager._instance.caching_adapter
-            try:
-                return Result(
-                    AdapterManager._instance.caching_adapter.get_playlist_details(
-                        playlist_id
-                    )
-                )
-            except CacheMissError as e:
-                partial_playlist_data = e.partial_data
-                logging.info(f'Cache Miss on {"get_playlist_details"}.')
-            except Exception:
-                logging.exception(
-                    f'Error on {"get_playlist_details"} retrieving from cache.'
-                )
-
-        if not allow_download:
-            raise CacheMissError(partial_data=partial_playlist_data)
-
-        if AdapterManager._instance.caching_adapter and force:
-            AdapterManager._instance.caching_adapter.invalidate_data(
-                CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, (playlist_id,)
-            )
-
-        if not AdapterManager._ground_truth_can_do("get_playlist_details"):
-            if partial_playlist_data:
-                return partial_playlist_data
-            raise Exception(
-                f'No adapters can service {"get_playlist_details"} at the moment.'
-            )
-
-        future: Result[PlaylistDetails] = AdapterManager._create_ground_truth_future_fn(
-            "get_playlist_details", playlist_id, before_download=before_download,
+        return AdapterManager._get_from_cache_or_ground_truth(
+            "get_playlist_details",
+            playlist_id,
+            cache_key=CachingAdapter.CachedDataKey.PLAYLIST_DETAILS,
+            before_download=before_download,
+            use_ground_truth_adapter=force,
+            allow_download=allow_download,
         )
-
-        if AdapterManager._instance.caching_adapter:
-            future.add_done_callback(
-                AdapterManager._create_caching_done_callback(
-                    CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, (playlist_id,),
-                )
-            )
-
-        return future
 
     @staticmethod
     def create_playlist(
-        name: str,
-        songs: List[Song] = None,
-        before_download: Callable[[], None] = lambda: None,
-        force: bool = False,  # TODO: rename to use_ground_truth_adapter?
-    ) -> Result[None]:
-        assert AdapterManager._instance
+        name: str, songs: List[Song] = None
+    ) -> Result[Optional[PlaylistDetails]]:
+        def on_result_finished(f: Result[Optional[PlaylistDetails]]):
+            assert AdapterManager._instance
+            assert AdapterManager._instance.caching_adapter
+            playlist: Optional[PlaylistDetails] = f.result()
+            if playlist:
+                AdapterManager._instance.caching_adapter.ingest_new_data(
+                    CachingAdapter.CachedDataKey.PLAYLIST_DETAILS,
+                    (playlist.id,),
+                    playlist,
+                )
+            else:
+                AdapterManager._instance.caching_adapter.invalidate_data(
+                    CachingAdapter.CachedDataKey.PLAYLISTS, ()
+                )
 
-        future: Result[None] = AdapterManager._create_ground_truth_future_fn(
-            "create_playlist", name, songs=songs, before_download=before_download,
+        return AdapterManager._get_from_cache_or_ground_truth(
+            "create_playlist",
+            name,
+            songs=songs,
+            on_result_finished=on_result_finished,
+            use_ground_truth_adapter=True,
         )
-
-        if AdapterManager._instance.caching_adapter:
-
-            def future_finished(f: Result[None]):
-                assert AdapterManager._instance
-                assert AdapterManager._instance.caching_adapter
-                playlist: Optional[PlaylistDetails] = f.result()
-                if playlist:
-                    AdapterManager._instance.caching_adapter.ingest_new_data(
-                        CachingAdapter.CachedDataKey.PLAYLIST_DETAILS,
-                        (playlist.id,),
-                        playlist,
-                    )
-                else:
-                    AdapterManager._instance.caching_adapter.invalidate_data(
-                        CachingAdapter.CachedDataKey.PLAYLISTS, ()
-                    )
-
-            future.add_done_callback(future_finished)
-
-        return future
 
     @staticmethod
     def update_playlist(
@@ -531,28 +545,19 @@ class AdapterManager:
         song_ids: List[str] = None,
         append_song_ids: List[str] = None,
         before_download: Callable[[], None] = lambda: None,
-        force: bool = False,  # TODO: rename to use_ground_truth_adapter?
     ) -> Result[PlaylistDetails]:
-        assert AdapterManager._instance
-        future: Result[PlaylistDetails] = AdapterManager._create_ground_truth_future_fn(
+        return AdapterManager._get_from_cache_or_ground_truth(
             "update_playlist",
             playlist_id,
-            before_download=before_download,
             name=name,
             comment=comment,
             public=public,
             song_ids=song_ids,
             append_song_ids=append_song_ids,
+            before_download=before_download,
+            use_ground_truth_adapter=True,
+            cache_key=CachingAdapter.CachedDataKey.PLAYLIST_DETAILS,
         )
-
-        if AdapterManager._instance.caching_adapter:
-            future.add_done_callback(
-                AdapterManager._create_caching_done_callback(
-                    CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, (playlist_id,),
-                )
-            )
-
-        return future
 
     @staticmethod
     def delete_playlist(playlist_id: str):
@@ -624,6 +629,7 @@ class AdapterManager:
         if not AdapterManager._ground_truth_can_do("get_cover_art_uri"):
             return Result(existing_cover_art_filename)
 
+        # TODO: make _get_from_cache_or_ground_truth work with downloading
         if before_download:
             before_download()
 
@@ -780,98 +786,34 @@ class AdapterManager:
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,
     ) -> Result[Song]:
-        assert AdapterManager._instance
-        partial_song_details = None
-        if AdapterManager._can_use_cache(force, "get_song_details"):
-            assert AdapterManager._instance.caching_adapter
-            try:
-                return Result(
-                    AdapterManager._instance.caching_adapter.get_song_details(song_id)
-                )
-            except CacheMissError as e:
-                partial_song_details = e.partial_data
-                logging.info(f'Cache Miss on {"get_song_details"}.')
-            except Exception:
-                logging.exception(
-                    f'Error on {"get_song_details"} retrieving from cache.'
-                )
-
-        if not allow_download:
-            raise CacheMissError(partial_data=partial_song_details)
-
-        if AdapterManager._instance.caching_adapter and force:
-            AdapterManager._instance.caching_adapter.invalidate_data(
-                CachingAdapter.CachedDataKey.SONG_DETAILS, (song_id,)
-            )
-
-        if not AdapterManager._ground_truth_can_do("get_song_details"):
-            if partial_song_details:
-                return partial_song_details
-            raise Exception(
-                f'No adapters can service {"get_song_details"} at the moment.'
-            )
-
-        future: Result[Song] = AdapterManager._create_ground_truth_future_fn(
-            "get_song_details", song_id, before_download=before_download
+        return AdapterManager._get_from_cache_or_ground_truth(
+            "get_song_details",
+            song_id,
+            allow_download=allow_download,
+            before_download=before_download,
+            use_ground_truth_adapter=force,
+            cache_key=CachingAdapter.CachedDataKey.SONG_DETAILS,
         )
-
-        if AdapterManager._instance.caching_adapter:
-            future.add_done_callback(
-                AdapterManager._create_caching_done_callback(
-                    CachingAdapter.CachedDataKey.SONG_DETAILS, (song_id,),
-                )
-            )
-
-        return future
 
     @staticmethod
     def get_genres(force: bool = False) -> Result[Sequence[Genre]]:
-        assert AdapterManager._instance
-        partial_genre_list = None
-        if AdapterManager._can_use_cache(force, "get_genres"):
-            assert AdapterManager._instance.caching_adapter
-            try:
-                return Result(AdapterManager._instance.caching_adapter.get_genres())
-            except CacheMissError as e:
-                partial_genre_list = e.partial_data
-                logging.info(f'Cache Miss on {"get_genres"}.')
-            except Exception:
-                logging.exception(f'Error on {"get_genres"} retrieving from cache.')
-
-        if AdapterManager._instance.caching_adapter and force:
-            AdapterManager._instance.caching_adapter.invalidate_data(
-                CachingAdapter.CachedDataKey.GENRES, ()
-            )
-
-        if not AdapterManager._ground_truth_can_do("get_genres"):
-            if partial_genre_list:
-                return partial_genre_list
-            raise Exception(f'No adapters can service {"get_genres"} at the moment.')
-
-        future: Result[Sequence[Genre]] = AdapterManager._create_ground_truth_future_fn(
-            "get_genres"
+        return AdapterManager._get_from_cache_or_ground_truth(
+            "get_genres",
+            use_ground_truth_adapter=force,
+            cache_key=CachingAdapter.CachedDataKey.GENRES,
         )
-
-        if AdapterManager._instance.caching_adapter:
-            future.add_done_callback(
-                AdapterManager._create_caching_done_callback(
-                    CachingAdapter.CachedDataKey.GENRES, (),
-                )
-            )
-
-        return future
 
     @staticmethod
     def scrobble_song(song: Song):
         assert AdapterManager._instance
-        AdapterManager._create_ground_truth_future_fn("scrobble_song", song)
+        AdapterManager._create_ground_truth_result("scrobble_song", song)
 
     @staticmethod
     def get_play_queue() -> Result[Optional[PlayQueue]]:
         assert AdapterManager._instance
         future: Result[
             Optional[PlayQueue]
-        ] = AdapterManager._create_ground_truth_future_fn("get_play_queue")
+        ] = AdapterManager._create_ground_truth_result("get_play_queue")
 
         if AdapterManager._instance.caching_adapter:
 
@@ -893,7 +835,7 @@ class AdapterManager:
         song_ids: List[int], current_song_id: int = None, position: int = None
     ):
         assert AdapterManager._instance
-        AdapterManager._create_ground_truth_future_fn(
+        AdapterManager._create_ground_truth_result(
             "save_play_queue",
             song_ids,
             current_song_id=current_song_id,

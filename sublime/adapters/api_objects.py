@@ -57,6 +57,7 @@ class Song(abc.ABC):
     # TODO trim down, make another data structure for directory?
 
 
+# TODO remove distinction between Playlist and PlaylistDetails
 class Playlist(abc.ABC):
     # TODO trim down
     id: str
@@ -88,9 +89,9 @@ class PlaylistDetails(abc.ABC):
 
 class PlayQueue(abc.ABC):
     songs: Sequence[Song]
+    position: float
     username: Optional[str]
     changed: Optional[datetime]
     changed_by: Optional[str]
     value: Optional[str]
     current: Optional[int]
-    position: Optional[int]

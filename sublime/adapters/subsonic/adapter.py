@@ -12,7 +12,7 @@ from urllib.parse import urlencode, urlparse
 
 import requests
 
-from .api_objects import PlayQueue, Response
+from .api_objects import Response
 from .. import Adapter, api_objects as API, ConfigParamDescriptor
 
 
@@ -311,12 +311,13 @@ class SubsonicAdapter(Adapter):
 
     def get_play_queue(self) -> Optional[API.PlayQueue]:
         if play_queue := self._get_json(self._make_url("getPlayQueue")).play_queue:
-            play_queue.position = play_queue.position / 1000 or 0
+            if pos := play_queue.position:
+                play_queue.position = pos / 1000 or 0
             return play_queue
         return None
 
     def save_play_queue(
-        self, song_ids: List[int], current_song_id: int = None, position: int = None
+        self, song_ids: List[int], current_song_id: int = None, position: float = None
     ):
         self._get(
             self._make_url("savePlayQueue"),
