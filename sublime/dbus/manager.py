@@ -1,4 +1,5 @@
 import functools
+import logging
 import os
 import re
 from collections import defaultdict
@@ -95,6 +96,8 @@ class DBusManager:
         )
 
     def shutdown(self):
+        logging.info('DBusManager is shutting down.')
+        self.property_diff()
         Gio.bus_unown_name(self.bus_number)
 
     def on_get_property(
