@@ -293,6 +293,13 @@ class Adapter(abc.ABC):
         return False
 
     @property
+    def can_get_artist(self) -> bool:
+        """
+        Whether :class:`get_aritst` can be called on the adapter right now.
+        """
+        return False
+
+    @property
     def can_get_ignored_articles(self) -> bool:
         """
         Whether :class:`get_ignored_articles` can be called on the adapter right now.
@@ -427,6 +434,12 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("get_artists")
 
+    def get_artist(self, artist_id: str) -> Artist:
+        """
+        Get the given artist.
+        """
+        raise self._check_can_error("get_artist")
+
     def get_ignored_articles(self) -> Set[str]:
         """
         A set of articles (i.e. The, A, El, La, Los) to ignore when sorting artists.
@@ -494,6 +507,7 @@ class CachingAdapter(Adapter):
     # Data Ingestion Methods
     # ==================================================================================
     class CachedDataKey(Enum):
+        ARTIST = "artist"
         ARTISTS = "artists"
         COVER_ART_FILE = "cover_art_file"
         GENRES = "genres"

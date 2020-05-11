@@ -176,11 +176,13 @@ class DBusManager:
 
         active_playlist = self.get_active_playlist(state.active_playlist_id)
 
-        get_playlists_result = AdapterManager.get_playlists(allow_download=False)
-        if get_playlists_result.data_is_available:
-            playlist_count = len(get_playlists_result.result())
-        else:
-            playlist_count = 0
+        playlist_count = 0
+        try:
+            get_playlists_result = AdapterManager.get_playlists(allow_download=False)
+            if get_playlists_result.data_is_available:
+                playlist_count = len(get_playlists_result.result())
+        except Exception:
+            logging.exception("Couldn't get playlists")
 
         return {
             "org.mpris.MediaPlayer2": {
@@ -260,7 +262,8 @@ class DBusManager:
                     "(oss)", ("/playlist/" + playlist.id, playlist.name, cover_art)
                 ),
             )
-        except CacheMissError:
+        except Exception:
+            logging.exception("Couldn't get playlist details")
             return (False, GLib.Variant("(oss)", ("/", "", "")))
 
     @functools.lru_cache(maxsize=10)

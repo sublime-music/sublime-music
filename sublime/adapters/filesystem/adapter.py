@@ -4,7 +4,7 @@ import threading
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Sequence, Set, Tuple, TypeVar
+from typing import Any, Dict, Optional, Sequence, Set, Tuple
 
 from sublime import util
 from sublime.adapters import api_objects as API
@@ -63,12 +63,15 @@ class FilesystemAdapter(CachingAdapter):
     # ==================================================================================
     can_be_cached = False  # Can't be cached (there's no need).
     can_service_requests = True  # Can always be used to service requests.
+
+    # TODO make these dependent on cache state.
     can_get_playlists = True
     can_get_playlist_details = True
     can_get_cover_art_uri = True
     can_get_song_uri = True
     can_get_song_details = True
     can_get_artists = True
+    can_get_artist = True
     can_get_ignored_articles = True
     can_get_genres = True
 
@@ -89,6 +92,55 @@ class FilesystemAdapter(CachingAdapter):
                 raise CacheMissError(partial_data=result)
         return result
 
+    def _get_object_details(
+        self, model: Any, id: str, cache_key: CachingAdapter.CachedDataKey
+    ) -> Any:
+        obj = model.get_or_none(model.id == id)
+
+        # Handle the case that this is the ground truth adapter.
+        if not self.is_cache:
+            if not obj:
+                raise Exception(f"{model} with id={id} does not exist")
+            return obj
+
+        # If we haven't ingested data for this item before, or it's been invalidated,
+        # raise a CacheMissError with the partial data.
+        cache_info = models.CacheInfo.get_or_none(
+            models.CacheInfo.cache_key == cache_key,
+            models.CacheInfo.params_hash == util.params_hash(id),
+        )
+        if not cache_info:
+            raise CacheMissError(partial_data=obj)
+
+        return obj
+
+    def _get_download_filename(
+        self,
+        filename: Path,
+        params: Tuple[Any],
+        cache_key: CachingAdapter.CachedDataKey,
+    ) -> str:
+        if not filename.exists():
+            # Handle the case that this is the ground truth adapter.
+            if self.is_cache:
+                raise CacheMissError()
+            else:
+                raise Exception(f"File for {cache_key} {params} does not exist.")
+
+        if not self.is_cache:
+            return str(filename)
+
+        # If we haven't ingested data for this file before, or it's been invalidated,
+        # raise a CacheMissError with the filename.
+        cache_info = models.CacheInfo.get_or_none(
+            models.CacheInfo.cache_key == cache_key,
+            models.CacheInfo.params_hash == util.params_hash(*params),
+        )
+        if not cache_info:
+            raise CacheMissError(partial_data=str(filename))
+
+        return str(filename)
+
     # Data Retrieval Methods
     # ==================================================================================
     def get_cached_status(self, song: API.Song) -> SongCacheStatus:
@@ -106,50 +158,19 @@ class FilesystemAdapter(CachingAdapter):
         return self._get_list(models.Playlist, CachingAdapter.CachedDataKey.PLAYLISTS)
 
     def get_playlist_details(self, playlist_id: str) -> API.PlaylistDetails:
-        playlist = models.Playlist.get_or_none(models.Playlist.id == playlist_id)
-
-        # Handle the case that this is the ground truth adapter.
-        if not self.is_cache:
-            if not playlist:
-                raise Exception(f"Playlist {playlist_id} does not exist.")
-            return playlist
-
-        # If we haven't ingested data for this playlist before, raise a CacheMissError
-        # with the partial playlist data.
-        cache_key = CachingAdapter.CachedDataKey.PLAYLIST_DETAILS
-        cache_info = models.CacheInfo.get_or_none(
-            models.CacheInfo.cache_key == cache_key,
-            models.CacheInfo.params_hash == util.params_hash(playlist_id),
+        return self._get_object_details(
+            models.Playlist, playlist_id, CachingAdapter.CachedDataKey.PLAYLIST_DETAILS
         )
-        if not cache_info:
-            raise CacheMissError(partial_data=playlist)
-
-        return playlist
 
     def get_cover_art_uri(self, cover_art_id: str, scheme: str) -> str:
         # TODO cache by the content of the file (need to see if cover art ID is
         # duplicated a lot)?
         params_hash = util.params_hash(cover_art_id)
-        cover_art_filename = self.cover_art_dir.joinpath(params_hash)
-
-        # Handle the case that this is the ground truth adapter.
-        if not self.is_cache:
-            if not cover_art_filename.exists:
-                raise Exception(f"Cover Art for {cover_art_id} does not exist.")
-            return str(cover_art_filename)
-
-        if not cover_art_filename.exists():
-            raise CacheMissError()
-
-        cache_key = CachingAdapter.CachedDataKey.COVER_ART_FILE
-        cache_info = models.CacheInfo.get_or_none(
-            models.CacheInfo.cache_key == cache_key,
-            models.CacheInfo.params_hash == params_hash,
+        return self._get_download_filename(
+            self.cover_art_dir.joinpath(params_hash),
+            (cover_art_id,),
+            CachingAdapter.CachedDataKey.COVER_ART_FILE,
         )
-        if not cache_info:
-            raise CacheMissError(partial_data=str(cover_art_filename))
-
-        return str(cover_art_filename)
 
     def get_song_uri(self, song_id: str, scheme: str, stream: bool = False) -> str:
         song = models.Song.get_or_none(models.Song.id == song_id)
@@ -159,50 +180,24 @@ class FilesystemAdapter(CachingAdapter):
             else:
                 raise Exception(f"Song {song_id} does not exist.")
 
-        music_filename = self.music_dir.joinpath(song.path)
-
-        # Handle the case that this is the ground truth adapter.
-        if not self.is_cache:
-            if not music_filename.exists:
-                raise Exception(f"Music File for song {song_id} does not exist.")
-            return str(music_filename)
-
-        if not music_filename.exists():
-            raise CacheMissError()
-
-        cache_key = CachingAdapter.CachedDataKey.SONG_FILE
-        cache_info = models.CacheInfo.get_or_none(
-            models.CacheInfo.cache_key == cache_key,
-            models.CacheInfo.params_hash == util.params_hash(song_id),
+        return self._get_download_filename(
+            self.music_dir.joinpath(song.path),
+            (song_id,),
+            CachingAdapter.CachedDataKey.SONG_FILE,
         )
-        if not cache_info:
-            raise CacheMissError(partial_data=str(music_filename))
-
-        return str(music_filename)
 
     def get_song_details(self, song_id: str) -> API.Song:
-        song = models.Song.get_or_none(models.Song.id == song_id)
-
-        # Handle the case that this is the ground truth adapter.
-        if not self.is_cache:
-            if not song:
-                raise Exception(f"song {song} does not exist.")
-            return song
-
-        # If we haven't ingested data for this playlist before, or it's been
-        # invalidated, raise a CacheMissError with the partial song data.
-        cache_key = CachingAdapter.CachedDataKey.SONG_DETAILS
-        cache_info = models.CacheInfo.get_or_none(
-            models.CacheInfo.cache_key == cache_key,
-            models.CacheInfo.params_hash == util.params_hash(song_id),
+        return self._get_object_details(
+            models.Song, song_id, CachingAdapter.CachedDataKey.SONG_DETAILS
         )
-        if not cache_info:
-            raise CacheMissError(partial_data=song)
-
-        return song
 
     def get_artists(self) -> Sequence[API.Artist]:
         return self._get_list(models.Artist, CachingAdapter.CachedDataKey.ARTISTS)
+
+    def get_artist(self, artist_id: str) -> API.Artist:
+        return self._get_object_details(
+            models.Artist, artist_id, CachingAdapter.CachedDataKey.ARTIST
+        )
 
     def get_ignored_articles(self) -> Set[str]:
         return set(
@@ -302,7 +297,10 @@ class FilesystemAdapter(CachingAdapter):
             return genre
 
         def ingest_album_data(api_album: API.Album) -> models.Album:
-            album_data = asdict(api_album)
+            album_data = {
+                **asdict(api_album),
+                "genre": ingest_genre_data(g) if (g := api_album.genre) else None,
+            }
             album, created = models.Album.get_or_create(
                 id=api_album.id, defaults=asdict(api_album)
             )
@@ -314,7 +312,27 @@ class FilesystemAdapter(CachingAdapter):
             return album
 
         def ingest_artist_data(api_artist: API.Artist) -> models.Artist:
+            # Ingest similar artists.
+            models.SimilarArtist.insert_many(
+                [
+                    {"artist": api_artist.id, "similar_artist": a.id, "order": i}
+                    for i, a in enumerate(api_artist.similar_artists or [])
+                ]
+            ).on_conflict_replace().execute()
+            models.SimilarArtist.delete().where(
+                models.SimilarArtist.similar_artist.not_in(
+                    [sa.id for sa in api_artist.similar_artists or []]
+                ),
+                models.Artist == api_artist.id,
+            ).execute()
+
             artist_data = asdict(api_artist)
+            del artist_data["similar_artists"]
+
+            artist_data["albums"] = [
+                ingest_album_data(a) for a in api_artist.albums or []
+            ]
+
             artist, created = models.Artist.get_or_create(
                 id=api_artist.id, defaults=artist_data
             )
@@ -345,8 +363,15 @@ class FilesystemAdapter(CachingAdapter):
 
             return song
 
-        if data_key == CachingAdapter.CachedDataKey.ARTISTS:
-            ingest_list(models.Artist, data, models.Artist.id)
+        if data_key == CachingAdapter.CachedDataKey.ARTIST:
+            ingest_artist_data(data)
+
+        elif data_key == CachingAdapter.CachedDataKey.ARTISTS:
+            for a in data:
+                ingest_artist_data(a)
+            models.Artist.delete().where(
+                models.Artist.id.not_in([a.id for a in data])
+            ).execute()
 
         elif data_key == CachingAdapter.CachedDataKey.COVER_ART_FILE:
             # ``data`` is the filename of the tempfile in this case

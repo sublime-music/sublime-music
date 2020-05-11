@@ -3,7 +3,7 @@ from typing import Any, Union
 
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, Result
+from sublime.adapters import AdapterManager, api_objects as API, Result
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.server.api_objects import AlbumWithSongsID3, Child, Directory
@@ -25,7 +25,7 @@ class AlbumWithSongs(Gtk.Box):
 
     def __init__(
         self,
-        album: AlbumWithSongsID3,
+        album: API.Album,
         cover_art_size: int = 200,
         show_artist_name: bool = True,
     ):
@@ -50,7 +50,7 @@ class AlbumWithSongs(Gtk.Box):
             artist_artwork.set_loading(False)
 
         cover_art_filename_future = AdapterManager.get_cover_art_filename(
-            album.coverArt, before_download=lambda: artist_artwork.set_loading(True),
+            album.cover_art, before_download=lambda: artist_artwork.set_loading(True),
         )
         cover_art_filename_future.add_done_callback(
             lambda f: GLib.idle_add(cover_art_future_done, f)
@@ -62,7 +62,7 @@ class AlbumWithSongs(Gtk.Box):
         # TODO (#43): deal with super long-ass titles
         album_title_and_buttons.add(
             Gtk.Label(
-                label=album.get("name", album.get("title")),
+                label=album.name,
                 name="artist-album-list-album-name",
                 halign=Gtk.Align.START,
                 ellipsize=Pango.EllipsizeMode.END,
@@ -112,10 +112,8 @@ class AlbumWithSongs(Gtk.Box):
         stats = [
             album.artist if show_artist_name else None,
             album.year,
-            album.genre,
-            util.format_sequence_duration(album.duration)
-            if album.get("duration")
-            else None,
+            album.genre.name,
+            util.format_sequence_duration(album.duration) if album.duration else None,
         ]
 
         album_details.add(
@@ -125,7 +123,7 @@ class AlbumWithSongs(Gtk.Box):
         )
 
         self.album_song_store = Gtk.ListStore(
-            str, str, str, str,  # cache status  # title  # duration  # song ID
+            str, str, str, str,  # cache status, title, duration, song ID
         )
 
         self.loading_indicator = Gtk.Spinner(name="album-list-song-list-spinner")
@@ -187,7 +185,7 @@ class AlbumWithSongs(Gtk.Box):
             store, paths = tree.get_selection().get_selected_rows()
             allow_deselect = False
 
-            def on_download_state_change():
+            def on_download_state_change(song_id: str):
                 self.update_album_songs(self.album.id)
 
             # Use the new selection instead of the old one for calculating what
@@ -219,8 +217,8 @@ class AlbumWithSongs(Gtk.Box):
     def on_download_all_click(self, btn: Any):
         AdapterManager.batch_download_songs(
             [x[-1] for x in self.album_song_store],
-            before_download=lambda: self.update(),
-            on_song_download_complete=lambda: self.update(),
+            before_download=lambda _: self.update(),
+            on_song_download_complete=lambda _: self.update(),
         )
 
     def play_btn_clicked(self, btn: Any):

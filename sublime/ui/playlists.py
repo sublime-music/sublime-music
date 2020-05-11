@@ -583,7 +583,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         dialog.destroy()
 
     def on_playlist_list_download_all_button_click(self, _: Any):
-        def download_state_change(*args):
+        def download_state_change(song_id: str):
             GLib.idle_add(
                 lambda: self.update_playlist_view(
                     self.playlist_id, order_token=self.update_playlist_view_order_token,
@@ -631,7 +631,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             store, paths = tree.get_selection().get_selected_rows()
             allow_deselect = False
 
-            def on_download_state_change():
+            def on_download_state_change(song_id: str):
                 GLib.idle_add(
                     lambda: self.update_playlist_view(
                         self.playlist_id,

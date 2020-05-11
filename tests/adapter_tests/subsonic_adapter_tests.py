@@ -41,7 +41,7 @@ def mock_data_files(
     sep_re = re.compile(r"=+\n")
 
     for file in MOCK_DATA_FILES.iterdir():
-        if file.name.split("-")[0] in request_name:
+        if file.name.split("-")[0] == request_name:
             with open(file, mode) as f:
                 parts: List[str] = []
                 aggregate: List[str] = []
@@ -252,7 +252,20 @@ def test_get_song_details(adapter: SubsonicAdapter):
         adapter._set_mock_data(data)
 
         song = adapter.get_song_details("1")
-        assert song.id == "1"
+        assert (song.id, song.title, song.year, song.cover_art, song.duration) == (
+            "1",
+            "Sweet Caroline",
+            2017,
+            "544",
+            timedelta(seconds=203),
+        )
+        assert song.path.endswith("Sweet Caroline.mp3")
+        assert song.parent and song.parent.id == "544"
+        assert song.artist
+        assert (song.artist.id, song.artist.name) == ("60", "Neil Diamond")
+        assert song.album
+        assert (song.album.id, song.album.name) == ("88", "50th Anniversary Collection")
+        assert song.genre and song.genre.name == "Pop"
 
 
 def test_get_genres(adapter: SubsonicAdapter):
@@ -305,3 +318,36 @@ def test_get_ignored_articles_from_cached_get_artists(adapter: SubsonicAdapter):
         adapter.get_artists()
         ignored_articles = adapter.get_ignored_articles()
         assert ignored_articles == {"The", "El", "La", "Los", "Las", "Le", "Les"}
+
+
+def test_get_artist(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files("get_artist"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        artist = adapter.get_artist("3")
+        assert artist.name == "Kane Brown"
+        assert artist.album_count == 1
+        assert artist.artist_image_url == "ar-3"
+        assert artist.biography and len(artist.biography) > 0
+        assert artist.albums and len(artist.albums) == 1
+        assert ("3", "Kane Brown") == (artist.albums[0].id, artist.albums[0].name)
+
+
+def test_get_artist_with_good_image_url(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files("get_artist_good_image_url"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        artist = adapter.get_artist("3")
+        assert artist.name == "Kane Brown"
+        assert artist.album_count == 1
+        assert (
+            artist.artist_image_url
+            == "http://entertainermag.com/wp-content/uploads/2017/04/Kane-Brown-Web-Optimized.jpg"  # noqa: E501
+        )
+        assert artist.biography and len(artist.biography) > 0
+        assert artist.albums and len(artist.albums) == 1
+        assert ("3", "Kane Brown") == (artist.albums[0].id, artist.albums[0].name)

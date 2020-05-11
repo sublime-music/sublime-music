@@ -8,7 +8,7 @@ import random
 from datetime import datetime
 from pathlib import Path
 from time import sleep
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple, Union
+from typing import Any, cast, Dict, Iterable, Optional, Sequence, Set, Tuple, Union
 from urllib.parse import urlencode, urlparse
 
 import requests
@@ -106,6 +106,7 @@ class SubsonicAdapter(Adapter):
     can_get_song_details = True
     can_scrobble_song = True
     can_get_artists = True
+    can_get_artist = True
     can_get_ignored_articles = True
     can_get_genres = True
     can_get_play_queue = True
@@ -320,8 +321,16 @@ class SubsonicAdapter(Adapter):
             artists = []
             for index in artist_index.index:
                 artists.extend(index.artist)
-            return artists
+            return cast(Sequence[API.Artist], artists)
         return []
+
+    def get_artist(self, artist_id: str) -> API.Artist:
+        artist = self._get_json(self._make_url("getArtist"), id=artist_id).artist
+        assert artist, f"Error getting artist {artist_id}"
+        artist.augment_with_artist_info(
+            self._get_json(self._make_url("getArtistInfo2"), id=artist_id).artist_info
+        )
+        return artist
 
     def get_ignored_articles(self) -> Set[str]:
         ignored_articles = ""

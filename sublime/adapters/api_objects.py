@@ -23,15 +23,25 @@ class Genre(abc.ABC):
 class Album(abc.ABC):
     id: str
     name: str
+    cover_art: Optional[str]
+    song_count: Optional[int]
+    year: Optional[int]
+    genre: Optional[Genre]
+    duration: Optional[timedelta]
 
 
 class Artist(abc.ABC):
     id: str
     name: str
     album_count: Optional[int]
-    cover_art: Optional[str]
     artist_image_url: Optional[str]
     starred: Optional[datetime]
+    albums: Optional[Sequence[Album]]
+
+    similar_artists: Optional[Sequence["Artist"]] = None
+    biography: Optional[str] = None
+    music_brainz_id: Optional[str] = None
+    last_fm_url: Optional[str] = None
 
 
 class Directory(abc.ABC):

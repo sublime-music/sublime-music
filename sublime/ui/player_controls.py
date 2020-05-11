@@ -398,7 +398,7 @@ class PlayerControls(Gtk.ActionBar):
             store, paths = tree.get_selection().get_selected_rows()
             allow_deselect = False
 
-            def on_download_state_change():
+            def on_download_state_change(song_id: str):
                 # Refresh the entire window (no force) because the song could
                 # be in a list anywhere in the window.
                 self.emit("refresh-window", {}, False)

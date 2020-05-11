@@ -4,6 +4,7 @@ from peewee import (
     ForeignKeyField,
     IntegerField,
     Model,
+    Query,
     SqliteDatabase,
     TextField,
 )
@@ -39,15 +40,39 @@ class Genre(BaseModel):
 class Album(BaseModel):
     id = TextField(unique=True, primary_key=True)
     name = TextField(null=True)
+    cover_art = TextField(null=True)
+    year = IntegerField(null=True)
+    song_count = IntegerField(null=True)
+    duration = DurationField(null=True)
+    genre = ForeignKeyField(Genre, null=True, backref="albums")
 
 
 class Artist(BaseModel):
     id = TextField(unique=True, primary_key=True)
     name = TextField(null=True)
     album_count = IntegerField(null=True)
-    cover_art = TextField(null=True)
     artist_image_url = TextField(null=True)
     starred = TzDateTimeField(null=True)
+    biography = TextField(null=True)
+    music_brainz_id = TextField(null=True)
+    last_fm_url = TextField(null=True)
+
+    # Many to many is probably overkill, but meh.
+    albums = SortedManyToManyField(Album, backref="artist")
+
+    @property
+    def similar_artists(self) -> Query:
+        return SimilarArtist.select().where(SimilarArtist.artist == self.id)
+
+
+class SimilarArtist(BaseModel):
+    artist = ForeignKeyField(Artist)
+    similar_artist = ForeignKeyField(Artist)
+    order = IntegerField()
+
+    class Meta:
+        # The whole thing is unique.
+        indexes = ((("artist", "similar_artist", "order"), True),)
 
 
 class IgnoredArticle(BaseModel):
@@ -64,10 +89,10 @@ class Song(BaseModel):
     id = TextField(unique=True, primary_key=True)
     title = TextField()
     duration = DurationField()
-    album = ForeignKeyField(Album, null=True)
-    artist = ForeignKeyField(Artist, null=True)
-    parent = ForeignKeyField(Directory, null=True)
-    genre = ForeignKeyField(Genre, null=True)
+    album = ForeignKeyField(Album, null=True, backref="songs")
+    artist = ForeignKeyField(Artist, null=True, backref="songs")
+    parent = ForeignKeyField(Directory, null=True, backref="songs")
+    genre = ForeignKeyField(Genre, null=True, backref="songs")
 
     track = IntegerField(null=True)
     year = IntegerField(null=True)
@@ -148,12 +173,14 @@ class Version(BaseModel):
 ALL_TABLES = (
     Album,
     Artist,
+    Artist.albums.get_through_model(),
     CacheInfo,
     Directory,
     Genre,
     IgnoredArticle,
     Playlist,
     Playlist.songs.get_through_model(),
+    SimilarArtist,
     Song,
     Version,
 )

@@ -1,0 +1,138 @@
+{
+   "subsonic-response" : {
+      "status" : "ok",
+      "version" : "1.15.0",
+      "artist" : {
+         "id" : "3",
+         "name" : "Kane Brown",
+         "coverArt" : "ar-3",
+         "album" : [ {
+            "id" : "3",
+            "name" : "Kane Brown",
+            "artist" : "Kane Brown",
+            "artistId" : "3",
+            "coverArt" : "al-3",
+            "songCount" : 1,
+            "duration" : 188,
+            "created" : "2020-03-27T05:18:42.000Z",
+            "year" : 2016,
+            "genre" : "Country"
+         } ]
+      }
+   }
+}
+=====================================================================
+{
+   "subsonic-response" : {
+      "status" : "ok",
+      "version" : "1.15.0",
+      "artistInfo2" : {
+         "biography" : "Kane Brown was born and raised in the Chattanooga, Tennessee area by a single mother, moving from Rossville to Fort Oglethorpe and LaFayette in Georgia, finally settling in Red Bank, Tennessee.  He attended Lakeview-Fort Oglethorpe High School where he sang in the choir with Lauren Alaina, the runner-up on season 10 of American Idol. He also attended Red Bank, Ridgeland, and Soddy Daisy High Schools, at all of which he was a stand out athlete at football, basketball and track. <a target='_blank' href=\"https://www.last.fm/music/Kane+Brown\">Read more on Last.fm</a>",
+         "lastFmUrl" : "https://www.last.fm/music/Kane+Brown",
+         "smallImageUrl" : "https://lastfm.freetls.fastly.net/i/u/64s/2a96cbd8b46e442fc41c2b86b821562f.png",
+         "mediumImageUrl" : "https://lastfm.freetls.fastly.net/i/u/174s/2a96cbd8b46e442fc41c2b86b821562f.png",
+         "largeImageUrl" : "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png",
+         "similarArtist" : [ {
+            "id" : "158",
+            "name" : "Luke Combs",
+            "coverArt" : "ar-158",
+            "albumCount" : 4
+         }, {
+            "id" : "22",
+            "name" : "Brett Young",
+            "coverArt" : "ar-22",
+            "albumCount" : 1
+         }, {
+            "id" : "14",
+            "name" : "Thomas Rhett",
+            "coverArt" : "ar-14",
+            "albumCount" : 1
+         }, {
+            "id" : "59",
+            "name" : "Luke Bryan",
+            "coverArt" : "ar-59",
+            "albumCount" : 1
+         }, {
+            "id" : "49",
+            "name" : "Lee Brice",
+            "coverArt" : "ar-49",
+            "albumCount" : 2
+         }, {
+            "id" : "110",
+            "name" : "Scotty McCreery",
+            "coverArt" : "ar-110",
+            "albumCount" : 1
+         }, {
+            "id" : "168",
+            "name" : "Brantley Gilbert",
+            "coverArt" : "ar-168",
+            "albumCount" : 1
+         }, {
+            "id" : "94",
+            "name" : "Billy Currington",
+            "coverArt" : "ar-94",
+            "albumCount" : 1
+         }, {
+            "id" : "74",
+            "name" : "Blake Shelton",
+            "coverArt" : "ar-74",
+            "albumCount" : 3
+         }, {
+            "id" : "77",
+            "name" : "Justin Moore",
+            "coverArt" : "ar-77",
+            "albumCount" : 1
+         }, {
+            "id" : "45",
+            "name" : "Keith Urban",
+            "coverArt" : "ar-45",
+            "albumCount" : 1
+         }, {
+            "id" : "107",
+            "name" : "Eli Young Band",
+            "coverArt" : "ar-107",
+            "albumCount" : 1
+         }, {
+            "id" : "34",
+            "name" : "Rodney Atkins",
+            "coverArt" : "ar-34",
+            "albumCount" : 2
+         }, {
+            "id" : "133",
+            "name" : "Kenny Chesney",
+            "coverArt" : "ar-133",
+            "albumCount" : 2
+         }, {
+            "id" : "114",
+            "name" : "Tim McGraw",
+            "coverArt" : "ar-114",
+            "albumCount" : 1
+         }, {
+            "id" : "126",
+            "name" : "Maddie & Tae",
+            "coverArt" : "ar-126",
+            "albumCount" : 2
+         }, {
+            "id" : "184",
+            "name" : "Carly Pearce",
+            "coverArt" : "ar-184",
+            "albumCount" : 1
+         }, {
+            "id" : "135",
+            "name" : "Brooks & Dunn",
+            "coverArt" : "ar-135",
+            "albumCount" : 2
+         }, {
+            "id" : "140",
+            "name" : "Hunter Hayes",
+            "coverArt" : "ar-140",
+            "albumCount" : 1
+         }, {
+            "id" : "53",
+            "name" : "Rascal Flatts",
+            "coverArt" : "ar-53",
+            "albumCount" : 4
+         } ]
+      }
+   }
+}

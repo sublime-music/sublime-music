@@ -1073,16 +1073,19 @@ class SublimeMusicApp(Gtk.Application):
 
             # Download current song and prefetch songs. Only do this if
             # download_on_stream is True and always_stream is off.
-            def on_song_download_complete():
+            def on_song_download_complete(song_id: str):
                 if (
                     order_token != self.song_playing_order_token
                     or not self.app_config.state.playing
+                    or not self.app_config.state.current_song
+                    or self.app_config.state.current_song.id != song_id
                 ):
                     return
 
                 # Switch to the local media if the player can hotswap without lag.
                 # For example, MPV can is barely noticable whereas there's quite a delay
                 # with Chromecast.
+                assert self.player
                 if self.player.can_hotswap_source:
                     self.player.play_media(
                         AdapterManager.get_song_filename_or_stream(song)[0],
@@ -1119,7 +1122,7 @@ class SublimeMusicApp(Gtk.Application):
                 self.batch_download_jobs.add(
                     AdapterManager.batch_download_songs(
                         song_ids,
-                        before_download=lambda: self.update_window(),
+                        before_download=lambda _: self.update_window(),
                         on_song_download_complete=on_song_download_complete,
                         one_at_a_time=True,
                         delay=5,

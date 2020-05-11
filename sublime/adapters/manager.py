@@ -479,6 +479,10 @@ class AdapterManager:
         return AdapterManager._any_adapter_can_do("get_artists")
 
     @staticmethod
+    def can_get_artist() -> bool:
+        return AdapterManager._any_adapter_can_do("get_artist")
+
+    @staticmethod
     def can_get_play_queue() -> bool:
         return AdapterManager._ground_truth_can_do("get_play_queue")
 
@@ -709,8 +713,8 @@ class AdapterManager:
     @staticmethod
     def batch_download_songs(
         song_ids: Sequence[str],
-        before_download: Callable[[], None],
-        on_song_download_complete: Callable[[], None],
+        before_download: Callable[[str], None],
+        on_song_download_complete: Callable[[str], None],
         one_at_a_time: bool = False,
         delay: float = 0.0,
     ) -> Result[None]:
@@ -729,6 +733,8 @@ class AdapterManager:
             assert AdapterManager._instance
             assert AdapterManager._instance.caching_adapter
 
+            logging.info(f"Downloading {song_id}")
+
             try:
                 # Download the actual song file.
                 try:
@@ -738,8 +744,9 @@ class AdapterManager:
                     )
                 except CacheMissError:
                     # The song is not already cached.
+                    print('ohea', before_download)
                     if before_download:
-                        before_download()
+                        before_download(song_id)
 
                     # Download the song.
                     song_tmp_filename = AdapterManager._create_download_fn(
@@ -753,7 +760,8 @@ class AdapterManager:
                         (song_id,),
                         song_tmp_filename,
                     )
-                    on_song_download_complete()
+                    print('qfuy', on_song_download_complete)
+                    on_song_download_complete(song_id)
 
                 # Download the corresponding cover art.
                 song = AdapterManager.get_song_details(song_id).result()
@@ -792,7 +800,7 @@ class AdapterManager:
 
     @staticmethod
     def batch_delete_cached_songs(
-        song_ids: Sequence[str], on_song_delete: Callable[[], None]
+        song_ids: Sequence[str], on_song_delete: Callable[[str], None]
     ):
         assert AdapterManager._instance
 
@@ -804,7 +812,7 @@ class AdapterManager:
             AdapterManager._instance.caching_adapter.delete_data(
                 CachingAdapter.CachedDataKey.SONG_FILE, (song_id,)
             )
-            on_song_delete()
+            on_song_delete(song_id)
 
     @staticmethod
     def get_song_details(
@@ -867,6 +875,20 @@ class AdapterManager:
             return sorted(artists, key=strip_ignored_articles)
 
         return Result(do_get_artists)
+
+    @staticmethod
+    def get_artist(
+        artist_id: str,
+        before_download: Callable[[], None] = lambda: None,
+        force: bool = False,
+    ) -> Result[Artist]:
+        return AdapterManager._get_from_cache_or_ground_truth(
+            "get_artist",
+            artist_id,
+            before_download=before_download,
+            use_ground_truth_adapter=force,
+            cache_key=CachingAdapter.CachedDataKey.ARTIST,
+        )
 
     @staticmethod
     def get_play_queue() -> Result[Optional[PlayQueue]]:

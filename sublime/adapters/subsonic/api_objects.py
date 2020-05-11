@@ -2,7 +2,7 @@
 These are the API objects that are returned by Subsonic.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -10,6 +10,7 @@ import dataclasses_json
 from dataclasses_json import (
     config,
     dataclass_json,
+    DataClassJsonMixin,
     LetterCase,
 )
 
@@ -39,17 +40,70 @@ class Genre(SublimeAPI.Genre):
 class Album(SublimeAPI.Album):
     id: str
     name: str
+    cover_art: Optional[str] = None
+    song_count: Optional[int] = None
+    year: Optional[int] = None
+    duration: Optional[timedelta] = None
+
+    # Genre
+    genre: Optional[Genre] = field(init=False)
+    _genre: Optional[str] = field(default=None, metadata=config(field_name="genre"))
+
+    def __post_init__(self):
+        # Initialize the cross-references
+        self.genre = None if not self._genre else Genre(self._genre)
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class Artist(SublimeAPI.Artist):
+class ArtistAndArtistInfo(SublimeAPI.Artist):
     id: str
     name: str
+    albums: List[Album] = field(
+        default_factory=list, metadata=config(field_name="album")
+    )
     album_count: Optional[int] = None
     cover_art: Optional[str] = None
     artist_image_url: Optional[str] = None
     starred: Optional[datetime] = None
+
+    # Artist Info
+    similar_artists: List["ArtistAndArtistInfo"] = field(
+        default_factory=list, metadata=config(field_name="similar_artist")
+    )
+    biography: Optional[str] = None
+    music_brainz_id: Optional[str] = None
+    last_fm_url: Optional[str] = None
+
+    def __post_init__(self):
+        self.album_count = self.album_count or len(self.albums)
+        if not self.artist_image_url:
+            self.artist_image_url = self.cover_art
+
+    def augment_with_artist_info(self, artist_info: Optional["ArtistInfo"]):
+        if artist_info:
+            for k, v in asdict(artist_info).items():
+                if v:
+                    setattr(self, k, v)
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class ArtistInfo:
+    similar_artist: List[ArtistAndArtistInfo] = field(default_factory=list)
+    biography: Optional[str] = None
+    last_fm_url: Optional[str] = None
+    artist_image_url: Optional[str] = field(
+        default=None, metadata=config(field_name="largeImageUrl")
+    )
+    music_brainz_id: Optional[str] = None
+
+    def __post_init__(self):
+        if self.artist_image_url:
+            if self.artist_image_url.endswith("2a96cbd8b46e442fc41c2b86b821562f.png"):
+                self.artist_image_url = ""
+            elif self.artist_image_url.endswith("-No_image_available.svg.png"):
+                self.artist_image_url = ""
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -70,7 +124,7 @@ class Song(SublimeAPI.Song):
     _parent: Optional[str] = field(default=None, metadata=config(field_name="parent"))
 
     # Artist
-    artist: Optional[Artist] = field(init=False)
+    artist: Optional[ArtistAndArtistInfo] = field(init=False)
     _artist: Optional[str] = field(default=None, metadata=config(field_name="artist"))
     artist_id: Optional[str] = None
 
@@ -107,7 +161,9 @@ class Song(SublimeAPI.Song):
         # Initialize the cross-references
         self.parent = None if not self._parent else Directory(self._parent)
         self.artist = (
-            None if not self.artist_id else Artist(self.artist_id, self._artist)
+            None
+            if not self.artist_id
+            else ArtistAndArtistInfo(self.artist_id, self._artist)
         )
         self.album = None if not self.album_id else Album(self.album_id, self._album)
         self.genre = None if not self._genre else Genre(self._genre)
@@ -168,7 +224,7 @@ class PlayQueue(SublimeAPI.PlayQueue):
 @dataclass
 class IndexID3:
     name: str
-    artist: List[Artist] = field(default_factory=list)
+    artist: List[ArtistAndArtistInfo] = field(default_factory=list)
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -190,14 +246,19 @@ class Playlists:
     playlist: List[Playlist] = field(default_factory=list)
 
 
-@dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class Response:
+class Response(DataClassJsonMixin):
     """The base Subsonic response object."""
 
     artists: Optional[ArtistsID3] = None
+    artist: Optional[ArtistAndArtistInfo] = None
+    artist_info: Optional[ArtistInfo] = field(
+        default=None, metadata=config(field_name="artistInfo2")
+    )
     genres: Optional[Genres] = None
     playlist: Optional[PlaylistWithSongs] = None
     playlists: Optional[Playlists] = None
-    play_queue: Optional[PlayQueue] = None
+    play_queue: Optional[PlayQueue] = field(
+        default=None, metadata=config(field_name="playQueue")
+    )
     song: Optional[Song] = None

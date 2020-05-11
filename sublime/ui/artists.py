@@ -1,17 +1,12 @@
+import math
 from random import randint
-from typing import Any, cast, List, Sequence, Union
+from typing import Any, List, Sequence
 
 from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
 from sublime.adapters import AdapterManager, api_objects as API
 from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
-from sublime.server.api_objects import (
-    AlbumID3,
-    ArtistInfo2,
-    ArtistWithAlbumsID3,
-    Child,
-)
 from sublime.ui import util
 from sublime.ui.common import AlbumWithSongs, IconButton, SpinnerImage
 
@@ -167,7 +162,7 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, name="artist-detail-panel", **kwargs)
-        self.albums: Union[List[AlbumID3], List[Child]] = []
+        self.albums: Sequence[API.Album] = []
         self.artist_id = None
 
         artist_info_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -277,7 +272,7 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
 
             self.artist_artwork.set_from_file(None)
 
-            self.albums = cast(List[Child], [])
+            self.albums = []
             self.albums_list.update(None)
         else:
             self.update_order_token += 1
@@ -289,13 +284,13 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
             )
 
     @util.async_callback(
-        lambda *a, **k: CacheManager.get_artist(*a, **k),
+        AdapterManager.get_artist,
         before_download=lambda self: self.set_all_loading(True),
         on_failure=lambda self, e: self.set_all_loading(False),
     )
     def update_artist_view(
         self,
-        artist: ArtistWithAlbumsID3,
+        artist: API.Artist,
         app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
@@ -307,36 +302,14 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
         self.artist_name.set_markup(util.esc(f"<b>{artist.name}</b>"))
         self.artist_stats.set_markup(self.format_stats(artist))
 
-        self.update_artist_info(
-            artist.id, force=force, order_token=order_token,
-        )
-        self.update_artist_artwork(
-            artist, force=force, order_token=order_token,
-        )
+        self.artist_bio.set_markup(util.esc(artist.biography))
 
-        self.albums = artist.get("album", artist.get("child", []))
-        self.albums_list.update(artist)
-
-    @util.async_callback(lambda *a, **k: CacheManager.get_artist_info(*a, **k),)
-    def update_artist_info(
-        self,
-        artist_info: ArtistInfo2,
-        app_config: AppConfiguration,
-        force: bool = False,
-        order_token: int = None,
-    ):
-        if order_token != self.update_order_token:
-            return
-
-        self.artist_bio.set_markup(util.esc("".join(artist_info.biography)))
-        self.play_shuffle_buttons.show_all()
-
-        if len(artist_info.similarArtist or []) > 0:
+        if len(artist.similar_artists or []) > 0:
             self.similar_artists_label.set_markup("<b>Similar Artists:</b> ")
             for c in self.similar_artists_button_box.get_children():
                 self.similar_artists_button_box.remove(c)
 
-            for artist in artist_info.similarArtist[:5]:
+            for artist in (artist.similar_artists or [])[:5]:
                 self.similar_artists_button_box.add(
                     Gtk.LinkButton(
                         label=artist.name,
@@ -349,8 +322,17 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
         else:
             self.similar_artists_scrolledwindow.hide()
 
+        self.play_shuffle_buttons.show_all()
+
+        self.update_artist_artwork(
+            artist.artist_image_url, force=force, order_token=order_token,
+        )
+
+        self.albums = artist.albums or []
+        self.albums_list.update(artist)
+
     @util.async_callback(
-        lambda *a, **k: CacheManager.get_artist_artwork(*a, **k),
+        AdapterManager.get_cover_art_filename,
         before_download=lambda self: self.artist_artwork.set_loading(True),
         on_failure=lambda self, e: self.artist_artwork.set_loading(False),
     )
@@ -363,7 +345,6 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
     ):
         if order_token != self.update_order_token:
             return
-
         self.artist_artwork.set_from_file(cover_art_filename)
         self.artist_artwork.set_loading(False)
 
@@ -377,10 +358,10 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
     def on_download_all_click(self, btn: Any):
         AdapterManager.batch_download_songs(
             self.get_artist_song_ids(),
-            before_download=lambda: self.update_artist_view(
+            before_download=lambda _: self.update_artist_view(
                 self.artist_id, order_token=self.update_order_token,
             ),
-            on_song_download_complete=lambda: self.update_artist_view(
+            on_song_download_complete=lambda _: self.update_artist_view(
                 self.artist_id, order_token=self.update_order_token,
             ),
         )
@@ -416,10 +397,15 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
             label=text, name=name, halign=Gtk.Align.START, xalign=0, **params,
         )
 
-    def format_stats(self, artist: ArtistWithAlbumsID3) -> str:
-        album_count = artist.get("albumCount", 0)
-        song_count = sum(a.songCount for a in artist.album)
-        duration = sum(a.duration for a in artist.album)
+    def format_stats(self, artist: API.Artist) -> str:
+        album_count = artist.album_count or 0
+        song_count = sum(a.song_count for a in artist.albums or []) or 0
+        duration = math.floor(
+            sum(
+                (a.duration.total_seconds() if a.duration else 0)
+                for a in artist.albums or []
+            )
+        )
         return util.dot_join(
             "{} {}".format(album_count, util.pluralize("album", album_count)),
             "{} {}".format(song_count, util.pluralize("song", song_count)),
@@ -428,7 +414,7 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
 
     def get_artist_song_ids(self) -> List[str]:
         songs = []
-        for album in CacheManager.get_artist(self.artist_id).result().album:
+        for album in AdapterManager.get_artist(self.artist_id).result().albums or []:
             album_songs = CacheManager.get_album(album.id).result()
             for song in album_songs.get("song", []):
                 songs.append(song.id)
@@ -460,7 +446,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
 
         self.albums = []
 
-    def update(self, artist: ArtistWithAlbumsID3):
+    def update(self, artist: API.Artist):
         def remove_all():
             for c in self.box.get_children():
                 self.box.remove(c)
@@ -470,7 +456,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
             self.spinner.hide()
             return
 
-        new_albums = artist.get("album", artist.get("child", []))
+        new_albums = list(artist.albums or [])
 
         if self.albums == new_albums:
             # Just go through all of the colidren and update them.
