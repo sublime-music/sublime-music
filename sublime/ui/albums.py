@@ -521,7 +521,7 @@ class AlbumsGrid(Gtk.Overlay):
             widget_box.pack_start(info_label, False, False, 0)
 
         # Download the cover art.
-        def on_artwork_downloaded(f: CacheManager.Result):
+        def on_artwork_downloaded(f: Result[str]):
             artwork.set_from_file(f.result())
             artwork.set_loading(False)
 

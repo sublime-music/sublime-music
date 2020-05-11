@@ -5,7 +5,7 @@ import sys
 from functools import partial
 from pathlib import Path
 from time import sleep
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 try:
     import osxmmkeys
@@ -973,7 +973,7 @@ class SublimeMusicApp(Gtk.Application):
         play_queue_future.add_done_callback(lambda f: GLib.idle_add(do_update, f))
 
     song_playing_order_token = 0
-    batch_download_jobs = set()
+    batch_download_jobs: Set[Result] = set()
 
     def play_song(
         self,

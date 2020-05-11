@@ -9,7 +9,7 @@ from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
 
 from sublime.adapters import AdapterManager, CacheMissError
-from sublime.adapters.api_objects import Playlist, PlaylistDetails, Song
+from sublime.adapters.api_objects import PlaylistDetails, Song
 from sublime.config import AppConfiguration
 from sublime.players import Player
 from sublime.ui.state import RepeatType
@@ -173,9 +173,7 @@ class DBusManager:
 
         active_playlist = self.get_active_playlist(state.active_playlist_id)
 
-        get_playlists_result: List[Playlist] = AdapterManager.get_playlists(
-            allow_download=False
-        )
+        get_playlists_result = AdapterManager.get_playlists(allow_download=False)
         if get_playlists_result.data_is_available:
             playlist_count = len(get_playlists_result.result())
         else:
@@ -293,9 +291,10 @@ class DBusManager:
             "mpris:trackid": trackid,
             "mpris:length": duration,
             "mpris:artUrl": cover_art,
-            "xesam:album": album.name if (album := song.album) else "",
-            "xesam:albumArtist": [artist.name if (artist := song.artist) else ""],
-            "xesam:artist": [artist.name if (artist := song.artist) else ""],
+            # TODO use walrus once MYPY isn't retarded
+            "xesam:album": song.album.name if song.album else "",
+            "xesam:albumArtist": [song.artist.name if song.artist else ""],
+            "xesam:artist": [song.artist.name if song.artist else ""],
             "xesam:title": song.title,
         }
 

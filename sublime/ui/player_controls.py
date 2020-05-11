@@ -135,11 +135,14 @@ class PlayerControls(Gtk.ActionBar):
             )
 
             self.song_title.set_markup(util.esc(app_config.state.current_song.title))
-            if (album := app_config.state.current_song.album) :
+            # TODO use walrus once MYPY gets its act together
+            album = app_config.state.current_song.album
+            artist = app_config.state.current_song.artist
+            if album:
                 self.album_name.set_markup(util.esc(album.name))
             else:
                 self.album_name.set_markup("")
-            if (artist := app_config.state.current_song.artist) :
+            if artist:
                 self.artist_name.set_markup(util.esc(artist.name))
             else:
                 self.artist_name.set_markup("")
@@ -175,8 +178,11 @@ class PlayerControls(Gtk.ActionBar):
 
         def calculate_label(song_details: Song) -> str:
             title = util.esc(song_details.title)
-            album = util.esc(album.name if (album := song_details.album) else None)
-            artist = util.esc(artist.name if (artist := song_details.artist) else None)
+            # TODO: use walrus once MYPY works with this
+            # album = util.esc(album.name if (album := song_details.album) else None)
+            # artist = util.esc(artist.name if (artist := song_details.artist) else None)  # noqa
+            album = util.esc(song_details.album.name if song_details.album else None)
+            artist = util.esc(song_details.artist.name if song_details.artist else None)
             return f"<b>{title}</b>\n{util.dot_join(album, artist)}"
 
         def make_idle_index_capturing_function(
