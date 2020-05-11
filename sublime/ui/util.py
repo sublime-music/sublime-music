@@ -211,9 +211,9 @@ def show_song_popover(
     for song_id in song_ids:
         details = AdapterManager.get_song_details(song_id).result()
         status = AdapterManager.get_cached_status(details)
-        albums.add(details.album.id if details.album else None)
-        artists.add(details.artist_id)
-        parents.add(details.parent)
+        albums.add(album.id if (album := details.album) else None)
+        artists.add(artist.id if (artist := details.artist) else None)
+        parents.add(parent.id if (parent := details.parent) else None)
 
         if download_sensitive or status == SongCacheStatus.NOT_CACHED:
             download_sensitive = True

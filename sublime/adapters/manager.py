@@ -273,8 +273,9 @@ class AdapterManager:
     @staticmethod
     def _create_download_fn(uri: str, params_hash: str) -> Callable[[], str]:
         """
-        Create a function to download the given URI, and return it. The returned
-        function will spin-loop if the resource is already being downloaded.
+        Create a function to download the given URI to a temporary file, and return the
+        filename. The returned function will spin-loop if the resource is already being
+        downloaded to prevent multiple requests for the same download.
         """
 
         def download_fn() -> str:
@@ -289,7 +290,7 @@ class AdapterManager:
                     resource_downloading = True
                 AdapterManager.current_download_hashes.add(params_hash)
 
-            # TODO figure out how to retry
+            # TODO figure out how to retry if the other request failed.
             if resource_downloading:
                 logging.info(f"{uri} already being downloaded.")
 
@@ -710,39 +711,41 @@ class AdapterManager:
             return
 
         def do_download_song(song_id: str):
+            if AdapterManager.is_shutting_down:
+                return
+
             assert AdapterManager._instance
             assert AdapterManager._instance.caching_adapter
 
             try:
-                # If the song is already cached, return
+                # Download the actual song file.
                 try:
+                    # If the song file is already cached, return immediately.
                     AdapterManager._instance.caching_adapter.get_song_uri(
                         song_id, "file"
                     )
-                    return
                 except CacheMissError:
-                    pass
+                    # The song is not already cached.
+                    if before_download:
+                        before_download()
 
-                if AdapterManager.is_shutting_down:
-                    return
+                    # Download the song.
+                    song_tmp_filename = AdapterManager._create_download_fn(
+                        AdapterManager._instance.ground_truth_adapter.get_song_uri(
+                            song_id, AdapterManager._get_scheme()
+                        ),
+                        util.params_hash("song", song_id),
+                    )()
+                    AdapterManager._instance.caching_adapter.ingest_new_data(
+                        CachingAdapter.CachedDataKey.SONG_FILE,
+                        (song_id,),
+                        song_tmp_filename,
+                    )
+                    on_song_download_complete()
 
-                if before_download:
-                    before_download()
-
-                song_tmp_filename = AdapterManager._create_download_fn(
-                    AdapterManager._instance.ground_truth_adapter.get_song_uri(
-                        song_id, AdapterManager._get_scheme()
-                    ),
-                    util.params_hash("song", song_id),
-                )()
-
-                AdapterManager._instance.caching_adapter.ingest_new_data(
-                    CachingAdapter.CachedDataKey.SONG_FILE,
-                    (song_id,),
-                    song_tmp_filename,
-                )
-
-                on_song_download_complete()
+                # Download the corresponding cover art.
+                song = AdapterManager.get_song_details(song_id).result()
+                AdapterManager.get_cover_art_filename(song.cover_art).result()
             finally:
                 # Release the semaphore lock. This will allow the next song in the queue
                 # to be downloaded. I'm doing this in the finally block so that it
@@ -751,19 +754,6 @@ class AdapterManager:
                 AdapterManager._instance.download_limiter_semaphore.release()
 
         def do_batch_download_songs():
-            # Download the actual songs.
-            for song_id in song_ids:
-                # Only allow a certain number of songs to be downloaded
-                # simultaneously.
-                AdapterManager._instance.download_limiter_semaphore.acquire()
-
-                # Prevents further songs from being downloaded.
-                if AdapterManager.is_shutting_down:
-                    break
-
-                Result(do_download_song, song_id, is_download=True)
-
-            # Download the corresponding cover art songs.
             for song_id in song_ids:
                 # Only allow a certain number of songs to be downloaded
                 # simultaneously.
@@ -791,6 +781,7 @@ class AdapterManager:
             AdapterManager._instance.caching_adapter.delete_data(
                 CachingAdapter.CachedDataKey.SONG_FILE, (song_id,)
             )
+            on_song_delete()
 
     @staticmethod
     def get_song_details(
