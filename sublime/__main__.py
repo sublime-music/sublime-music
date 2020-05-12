@@ -27,7 +27,7 @@ def main():
     parser.add_argument(
         '-m',
         '--loglevel',
-        help='the minium level of logging to do',
+        help='the minimum level of logging to do',
         default='WARNING',
     )
     parser.add_argument(
