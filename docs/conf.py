@@ -21,12 +21,12 @@ import datetime
 project = "Sublime Music"
 copyright = f"{datetime.datetime.today().year}, Sumner Evans"
 author = "Sumner Evans"
-gitlab = "https://gitlab.com/sumner/sublime-music/"
+gitlab_url = "https://gitlab.com/sumner/sublime-music/"
 
 # Get the version from the package.
 import sublime
 
-release = f"v{sublime.__version__}"
+version = release = f"v{sublime.__version__}"
 
 # -- General configuration ---------------------------------------------------
 
@@ -66,23 +66,25 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
 
-rst_epilog = f"""
--------------------------------------------------------------------------------
-
-.. tip::
-
-   If you have any questions or want to suggest a change to this document,
-   please submit an issue or MR to the `GitLab repo`_.
-
-   .. _GitLab repo: {gitlab}
-"""
-
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
+html_logo = "../logo/logo.png"
+html_theme_options = {
+    "logo_only": True,
+}
+
+# Edit on GitLab integration
+html_context = {
+    "display_gitlab": True,
+    "gitlab_user": "sumner",
+    "gitlab_repo": "sublime-music",
+    "gitlab_version": "master",
+    "conf_py_path": "/docs/",
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
