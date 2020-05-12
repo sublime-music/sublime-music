@@ -1,16 +1,12 @@
 import datetime
-from typing import Any, Callable, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Iterable, Optional, Tuple
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, Result
-from sublime.cache_manager import CacheManager
+from sublime.adapters import AdapterManager, api_objects as API, Result
 from sublime.config import AppConfiguration
-from sublime.server.api_objects import AlbumWithSongsID3, Child
 from sublime.ui import util
 from sublime.ui.common import AlbumWithSongs, IconButton, SpinnerImage
-
-Album = Union[Child, AlbumWithSongsID3]
 
 
 class AlbumsPanel(Gtk.Box):
@@ -253,9 +249,9 @@ class AlbumsGrid(Gtk.Overlay):
     current_min_size_request = 30
     server_hash = None
 
-    class AlbumModel(GObject.Object):
-        def __init__(self, album: Album):
-            self.album: Album = album
+    class _AlbumModel(GObject.Object):
+        def __init__(self, album: API.Album):
+            self.album = album
             super().__init__()
 
         @property
@@ -384,9 +380,9 @@ class AlbumsGrid(Gtk.Overlay):
     error_dialog = None
 
     def update_grid(
-        self, order_token: int, force: bool = False, selected_id: str = None,
+        self, order_token: int, force: bool = False, selected_id: str = None
     ):
-        if not CacheManager.ready():
+        if not AdapterManager.can_get_artists():
             self.spinner.hide()
             return
 
@@ -395,7 +391,7 @@ class AlbumsGrid(Gtk.Overlay):
         if self.type_ == "alphabetical":
             type_ += {"name": "ByName", "artist": "ByArtist"}[self.alphabetical_type]
 
-        def do_update(f: CacheManager.Result):
+        def do_update(f: Result[Iterable[API.Album]]):
             try:
                 albums = f.result()
             except Exception as e:
@@ -431,7 +427,7 @@ class AlbumsGrid(Gtk.Overlay):
 
             selected_index = None
             for i, album in enumerate(albums):
-                model = AlbumsGrid.AlbumModel(album)
+                model = AlbumsGrid._AlbumModel(album)
 
                 if model.id == selected_id:
                     selected_index = i
@@ -446,7 +442,7 @@ class AlbumsGrid(Gtk.Overlay):
             )
             self.spinner.hide()
 
-        future = CacheManager.get_album_list(
+        future = AdapterManager.get_albums(
             type_=type_,
             from_year=self.from_year,
             to_year=self.to_year,
@@ -484,7 +480,7 @@ class AlbumsGrid(Gtk.Overlay):
 
     # Helper Methods
     # =========================================================================
-    def create_widget(self, item: "AlbumsGrid.AlbumModel") -> Gtk.Box:
+    def create_widget(self, item: _AlbumModel) -> Gtk.Box:
         widget_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Cover art image

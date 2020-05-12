@@ -86,8 +86,13 @@ class Result(Generic[T]):
         self._on_cancel = on_cancel
 
     def _on_future_complete(self, future: Future):
-        if not future.cancelled() and not future.exception():
+        try:
             self._data = future.result()
+        except Exception as e:
+            if self._default_value:
+                self._data = self._default_value
+            else:
+                raise e
 
     def result(self) -> T:
         """
@@ -103,7 +108,7 @@ class Result(Generic[T]):
             assert 0, "AdapterManager.Result had neither _data nor _future member!"
         except Exception as e:
             if self._default_value:
-                return self._default_value
+                self._data = self._default_value
             raise e
 
     def add_done_callback(self, fn: Callable, *args):
@@ -924,9 +929,7 @@ class AdapterManager:
     # Albums
     @staticmethod
     def get_albums(
-        album_id: str,
-        before_download: Callable[[], None] = lambda: None,
-        force: bool = False,
+        before_download: Callable[[], None] = lambda: None, force: bool = False,
     ) -> Result[Sequence[Album]]:
         return AdapterManager._get_from_cache_or_ground_truth(
             "get_albums",
@@ -1042,13 +1045,21 @@ class AdapterManager:
                 return False
 
             try:
-                search_result.update(
-                    AdapterManager._instance.ground_truth_adapter.search(query)
+                ground_truth_search_results = AdapterManager._instance.ground_truth_adapter.search(  # noqa: E501
+                    query
                 )
+                search_result.update(ground_truth_search_results)
                 search_callback(search_result)
             except Exception:
                 logging.exception(
                     "Failed getting search results from server for query '{query}'"
+                )
+
+            if AdapterManager._instance.caching_adapter:
+                AdapterManager._instance.caching_adapter.ingest_new_data(
+                    CachingAdapter.CachedDataKey.SEARCH_RESULTS,
+                    (),
+                    ground_truth_search_results,
                 )
 
             return True

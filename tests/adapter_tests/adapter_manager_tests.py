@@ -56,3 +56,14 @@ def test_result_future_callback():
         assert t < 2
         t += 0.1
         sleep(0.1)
+
+
+def test_default_value():
+    def resolve_fail() -> int:
+        sleep(1)
+        raise Exception()
+
+    result = Result(resolve_fail, default_value=42)
+    assert not result.data_is_available
+    assert result.result() == 42
+    assert result.data_is_available

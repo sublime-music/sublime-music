@@ -478,7 +478,7 @@ def test_caching_get_genres(cache_adapter: FilesystemAdapter):
             SubsonicAPI.Genre("Foo", 10, 20),
         ],
     )
-    assert [g.name for g in cache_adapter.get_genres()] == ["Bar", "Baz", "Foo"]
+    assert {g.name for g in cache_adapter.get_genres()} == {"Bar", "Baz", "Foo"}
 
 
 def test_caching_get_song_details(cache_adapter: FilesystemAdapter):
