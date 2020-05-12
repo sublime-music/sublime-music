@@ -16,6 +16,15 @@ Please note that as of right now, I (Sumner) am basically the only contributor
 to this project, so my response time to your issue may be anywhere from instant
 to infinite.
 
+When reporting a bug, please be as specific as possible, and include steps to
+reproduce. Additionally, you can run Sublime Music with the ``-m`` flag to
+enable logging at different levels. For the most verbose logging, run Sublime
+Music with ``debug`` level logging::
+
+    sublime-music -m debug
+
+This may not be necessary, and using ``info`` may also suffice.
+
 Code
 ====
 
@@ -136,7 +145,21 @@ Testing
 This project uses ``pytest`` for testing. Tests can be added in the docstrings
 of the methods that are being tested or in the ``tests`` directory. 100% test
 coverage is **not** a goal of this project, and will never be. There is a lot of
-code that just doesn't need tested, or is better if just tested manually.
+code that just doesn't need tested, or is better if just tested manually (for
+example most of the UI code).
+
+Simulating Bad Network Conditions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+One of the primary goals of this project is to be resilient to crappy network
+conditions. If you have good internet, you can simulate bad internet with the
+``SUBSONIC_ADAPTER_DEBUG_DELAY`` environment variable. This environment variable
+should be two values, separated by a ``,``: the lower and upper limit for the
+delay to add to each network request. The delay will be a random number between
+the lower and upper bounds. For example, the following will run Sublime Music
+and every request will have an additional 3-5 seconds of latency::
+
+    SUBSONIC_ADAPTER_DEBUG_DELAY=3,5 sublime-music
 
 CI/CD Pipeline
 --------------
