@@ -552,7 +552,7 @@ class SublimeMusicApp(Gtk.Application):
         no_repeat = self.app_config.state.repeat_type == RepeatType.NO_REPEAT
         if self.app_config.state.repeat_type == RepeatType.REPEAT_SONG:
             song_index_to_play = self.app_config.state.current_song_index
-        elif self.app_config.state.song_progress < 5:
+        elif self.app_config.state.song_progress.total_seconds() < 5:
             if self.app_config.state.current_song_index == 0 and no_repeat:
                 song_index_to_play = 0
             else:
@@ -626,19 +626,17 @@ class SublimeMusicApp(Gtk.Application):
     def on_go_to_album(self, action: Any, album_id: GLib.Variant):
         # Switch to the By Year view (or genre, if year is not available) to
         # guarantee that the album is there.
-        album = CacheManager.get_album(album_id.get_string()).result()
-        if isinstance(album, Directory):
-            if len(album.child) > 0:
-                album = album.child[0]
+        album = AdapterManager.get_album(album_id.get_string()).result()
 
-        if year := album.get("year"):
+        if year := album.year:
             self.app_config.state.current_album_sort = "byYear"
             self.app_config.state.current_album_from_year = year
             self.app_config.state.current_album_to_year = year
-        elif genre := album.get("genre"):
+        elif genre := album.genre:
             self.app_config.state.current_album_sort = "byGenre"
-            self.app_config.state.current_album_genre = genre
+            self.app_config.state.current_album_genre = genre.name
         else:
+            # TODO (#167) change this to not be a modal dialog.
             dialog = Gtk.MessageDialog(
                 transient_for=self.window,
                 message_type=Gtk.MessageType.ERROR,
@@ -646,7 +644,7 @@ class SublimeMusicApp(Gtk.Application):
                 text="Could not go to album",
             )
             dialog.format_secondary_markup(
-                "Could not go to the album because it does not have a year or " "genre."
+                "Could not go to the album because it does not have a year or genre."
             )
             dialog.run()
             dialog.destroy()
@@ -900,8 +898,8 @@ class SublimeMusicApp(Gtk.Application):
         GLib.idle_add(lambda: self.window.update(self.app_config, force=force))
 
     def update_play_state_from_server(self, prompt_confirm: bool = False):
-        # TODO (#129): need to make the up next list loading for the duration
-        # here if prompt_confirm is False.
+        # TODO (#129): need to make the play queue list loading for the duration here if
+        # prompt_confirm is False.
         was_playing = self.app_config.state.playing
         self.player.pause()
         self.app_config.state.playing = False
@@ -909,10 +907,9 @@ class SublimeMusicApp(Gtk.Application):
 
         def do_update(f: Result[PlayQueue]):
             play_queue = f.result()
-            play_queue.position = play_queue.position or 0.0
+            play_queue.position = play_queue.position or timedelta(0)
 
             new_play_queue = tuple(s.id for s in play_queue.songs)
-            new_current_song_id = str(play_queue.current)
             new_song_progress = play_queue.position
 
             if prompt_confirm:
@@ -921,18 +918,20 @@ class SublimeMusicApp(Gtk.Application):
                 progress_diff = 15.0
                 if self.app_config.state.song_progress:
                     progress_diff = abs(
-                        self.app_config.state.song_progress.total_seconds()
-                        - new_song_progress
+                        (
+                            self.app_config.state.song_progress - new_song_progress
+                        ).total_seconds()
                     )
 
                 if (
                     self.app_config.state.play_queue == new_play_queue
                     and self.app_config.state.current_song
                 ):
-                    song_id = self.app_config.state.current_song.id
-                    if song_id == new_current_song_id and progress_diff < 15:
+                    song_index = self.app_config.state.current_song_index
+                    if song_index == play_queue.current_index and progress_diff < 15:
                         return
 
+                # TODO (#167): info bar here (maybe pop up above the player controls?)
                 dialog = Gtk.MessageDialog(
                     transient_for=self.window,
                     message_type=Gtk.MessageType.INFO,
@@ -959,11 +958,9 @@ class SublimeMusicApp(Gtk.Application):
                     return
 
             self.app_config.state.play_queue = new_play_queue
-            self.app_config.state.song_progress = timedelta(seconds=play_queue.position)
+            self.app_config.state.song_progress = play_queue.position
 
-            self.app_config.state.current_song_index = new_play_queue.index(
-                new_current_song_id
-            )
+            self.app_config.state.current_song_index = play_queue.current_index or 0
 
             self.player.reset()
             self.update_window()

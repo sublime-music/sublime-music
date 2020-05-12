@@ -44,6 +44,17 @@ class Album(SublimeAPI.Album):
     song_count: Optional[int] = None
     year: Optional[int] = None
     duration: Optional[timedelta] = None
+    created: Optional[datetime] = None
+    songs: List["Song"] = field(
+        default_factory=list, metadata=config(field_name="song")
+    )
+    play_count: Optional[int] = None
+    starred: Optional[datetime] = None
+
+    # Artist
+    artist: Optional["ArtistAndArtistInfo"] = field(init=False)
+    _artist: Optional[str] = field(default=None, metadata=config(field_name="artist"))
+    artist_id: Optional[str] = None
 
     # Genre
     genre: Optional[Genre] = field(init=False)
@@ -51,6 +62,11 @@ class Album(SublimeAPI.Album):
 
     def __post_init__(self):
         # Initialize the cross-references
+        self.artist = (
+            None
+            if not self.artist_id
+            else ArtistAndArtistInfo(self.artist_id, self._artist)
+        )
         self.genre = None if not self._genre else Genre(self._genre)
 
 
@@ -212,12 +228,21 @@ class PlaylistWithSongs(SublimeAPI.PlaylistDetails):
 @dataclass
 class PlayQueue(SublimeAPI.PlayQueue):
     songs: List[Song] = field(default_factory=list, metadata=config(field_name="entry"))
-    position: float = 0.0
+    position: timedelta = timedelta(0)
     username: Optional[str] = None
     changed: Optional[datetime] = None
     changed_by: Optional[str] = None
     value: Optional[str] = None
-    current: Optional[int] = None
+    current: Optional[str] = None
+    current_index: Optional[int] = None
+
+    def __post_init__(self):
+        if pos := self.position:
+            # The position for this endpoint is in milliseconds instead of seconds
+            # because the Subsonic API is sometime stupid.
+            self.position = pos / 1000
+        if cur := self.current:
+            self.current_index = [int(s.id) for s in self.songs].index(cur)
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -232,6 +257,12 @@ class IndexID3:
 class ArtistsID3:
     ignored_articles: str
     index: List[IndexID3] = field(default_factory=list)
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class AlbumList2:
+    album: List[Album] = field(default_factory=list)
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -255,6 +286,12 @@ class Response(DataClassJsonMixin):
     artist_info: Optional[ArtistInfo] = field(
         default=None, metadata=config(field_name="artistInfo2")
     )
+
+    albums: Optional[AlbumList2] = field(
+        default=None, metadata=config(field_name="albumList2")
+    )
+    album: Optional[Album] = None
+
     genres: Optional[Genres] = None
     playlist: Optional[PlaylistWithSongs] = None
     playlists: Optional[Playlists] = None

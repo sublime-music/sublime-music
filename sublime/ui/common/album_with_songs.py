@@ -4,7 +4,6 @@ from typing import Any, Union
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
 from sublime.adapters import AdapterManager, api_objects as API, Result
-from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.server.api_objects import AlbumWithSongsID3, Child, Directory
 from sublime.ui import util
@@ -242,7 +241,7 @@ class AlbumWithSongs(Gtk.Box):
         self.album_songs.get_selection().unselect_all()
 
     def update(self, force: bool = False):
-        self.update_album_songs(self.album.id)
+        self.update_album_songs(self.album.id, force=force)
 
     def set_loading(self, loading: bool):
         if loading:
@@ -253,13 +252,13 @@ class AlbumWithSongs(Gtk.Box):
             self.loading_indicator.hide()
 
     @util.async_callback(
-        lambda *a, **k: CacheManager.get_album(*a, **k),
+        AdapterManager.get_album,
         before_download=lambda self: self.set_loading(True),
         on_failure=lambda self, e: self.set_loading(False),
     )
     def update_album_songs(
         self,
-        album: Union[AlbumWithSongsID3, Child, Directory],
+        album: API.Album,
         app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
@@ -271,7 +270,7 @@ class AlbumWithSongs(Gtk.Box):
                 util.format_song_duration(song.duration),
                 song.id,
             ]
-            for song in (album.get("child") or album.get("song") or [])
+            for song in list(album.songs or [])
         ]
 
         song_ids = [song[-1] for song in new_store]

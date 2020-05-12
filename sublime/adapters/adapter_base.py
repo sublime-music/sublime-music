@@ -319,6 +319,13 @@ class Adapter(abc.ABC):
 
     # Albums
     @property
+    def can_get_albums(self) -> bool:
+        """
+        Whether :class:`get_albums` can be called on the adapter right now.
+        """
+        return False
+
+    @property
     def can_get_album(self) -> bool:
         """
         Whether :class:`get_album` can be called on the adapter right now.
@@ -439,7 +446,7 @@ class Adapter(abc.ABC):
             ``scheme`` will be one of the schemes returned by
             :class:`supported_schemes`.
         :param stream: Whether or not the URI returned should be a stream URI. This will
-            only be ``True`` if :class:`supports_streaming` returns ``True``.
+            only be ``True`` if :class:`supports_streaming` returns ``True``. TODO fix
         :returns: The URI for the given song.
         """
         raise self._check_can_error("get_song_uri")
@@ -487,6 +494,16 @@ class Adapter(abc.ABC):
             artists.
         """
         raise self._check_can_error("get_ignored_articles")
+
+    # TODO a crapton of params here
+    def get_albums(self) -> Sequence[Album]:
+        """
+        Get a list of all of the albums known to the adapter.
+
+        :returns: A list of all of the :class:`sublime.adapter.api_objects.Album`
+            objects known to the adapter.
+        """
+        raise self._check_can_error("get_albums")
 
     def get_album(self, album_id: str) -> Album:
         """
@@ -571,6 +588,8 @@ class CachingAdapter(Adapter):
     # Data Ingestion Methods
     # ==================================================================================
     class CachedDataKey(Enum):
+        ALBUM = "album"
+        ALBUMS = "albums"
         ARTIST = "artist"
         ARTISTS = "artists"
         COVER_ART_FILE = "cover_art_file"

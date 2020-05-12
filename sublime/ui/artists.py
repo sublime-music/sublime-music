@@ -415,8 +415,8 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
     def get_artist_song_ids(self) -> List[str]:
         songs = []
         for album in AdapterManager.get_artist(self.artist_id).result().albums or []:
-            album_songs = CacheManager.get_album(album.id).result()
-            for song in album_songs.get("song", []):
+            album_songs = AdapterManager.get_album(album.id).result()
+            for song in album_songs.songs or []:
                 songs.append(song.id)
 
         return songs

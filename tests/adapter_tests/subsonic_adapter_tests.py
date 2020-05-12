@@ -40,6 +40,7 @@ def mock_data_files(
     """
     sep_re = re.compile(r"=+\n")
 
+    num_files = 0
     for file in MOCK_DATA_FILES.iterdir():
         if file.name.split("-")[0] == request_name:
             with open(file, mode) as f:
@@ -54,7 +55,10 @@ def mock_data_files(
 
                 parts.append("\n".join(aggregate))
                 print(file)  # noqa: T001
+                num_files += 1
                 yield file, iter(parts)
+
+    assert num_files > 0
 
 
 def mock_json(**obj: Any) -> str:
@@ -327,11 +331,11 @@ def test_get_artist(adapter: SubsonicAdapter):
         adapter._set_mock_data(data)
 
         artist = adapter.get_artist("3")
-        assert artist.name == "Kane Brown"
         assert artist.album_count == 1
+        assert artist.albums and len(artist.albums) == 1
         assert artist.artist_image_url == "ar-3"
         assert artist.biography and len(artist.biography) > 0
-        assert artist.albums and len(artist.albums) == 1
+        assert artist.name == "Kane Brown"
         assert ("3", "Kane Brown") == (artist.albums[0].id, artist.albums[0].name)
 
 
@@ -342,12 +346,82 @@ def test_get_artist_with_good_image_url(adapter: SubsonicAdapter):
         adapter._set_mock_data(data)
 
         artist = adapter.get_artist("3")
-        assert artist.name == "Kane Brown"
         assert artist.album_count == 1
+        assert artist.albums and len(artist.albums) == 1
+        assert artist.biography and len(artist.biography) > 0
+        assert artist.name == "Kane Brown"
+        assert ("3", "Kane Brown") == (artist.albums[0].id, artist.albums[0].name)
         assert (
             artist.artist_image_url
             == "http://entertainermag.com/wp-content/uploads/2017/04/Kane-Brown-Web-Optimized.jpg"  # noqa: E501
         )
-        assert artist.biography and len(artist.biography) > 0
-        assert artist.albums and len(artist.albums) == 1
-        assert ("3", "Kane Brown") == (artist.albums[0].id, artist.albums[0].name)
+
+
+def test_get_play_queue(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files("get_play_queue"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        play_queue = adapter.get_play_queue()
+        assert play_queue
+        assert play_queue.current_index and play_queue.current_index == 1
+        assert play_queue.position == timedelta(milliseconds=98914)
+        assert play_queue.username == "sumner"
+        assert play_queue.changed == datetime(
+            2020, 5, 12, 5, 16, 32, 114000, tzinfo=timezone.utc
+        )
+        assert play_queue.songs and len(play_queue.songs) == 5
+
+        song = play_queue.songs[0]
+        assert song.album and song.album.name == "Despacito"
+        assert song.artist and song.artist.name == "Peter Bence"
+        assert song.genre and song.genre.name == "Classical"
+
+
+def test_get_album(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files("get_album"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        album = adapter.get_album("243")
+        assert (
+            album.id,
+            album.name,
+            album.cover_art,
+            album.song_count,
+            album.year,
+            album.duration,
+        ) == (
+            "243",
+            "What You See Is What You Get",
+            "al-243",
+            17,
+            2019,
+            timedelta(seconds=3576),
+        )
+        assert album.artist
+        assert (album.artist.id, album.artist.name) == ("158", "Luke Combs")
+        assert album.genre and album.genre.name == "Country"
+        assert album.songs
+        assert len(album.songs) == 17
+        assert [s.title for s in album.songs] == [
+            "Beer Never Broke My Heart",
+            "Refrigerator Door",
+            "Even Though I'm Leaving",
+            "Lovin' On You",
+            "Moon Over Mexico",
+            "1, 2 Many",
+            "Blue Collar Boys",
+            "New Every Day",
+            "Reasons",
+            "Every Little Bit Helps",
+            "Dear Today",
+            "What You See Is What You Get",
+            "Does To Me",
+            "Angels Workin' Overtime",
+            "All Over Again",
+            "Nothing Like You",
+            "Better Together",
+        ]

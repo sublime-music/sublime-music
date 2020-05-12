@@ -38,16 +38,32 @@ there must be one and only one class in the module which inherits from the
 :class:`sublime.adapters.Adapter` class. Normally, a single file with a single
 class should be enough to implement the entire adapter.
 
+.. warning::
+
+   Your adapter cannot assume that it will be running on a single thread. Due to
+   the nature of the GTK event loop, functions can be called from any thread at
+   any time. **It is critical that your adapter is thread-safe.** Failure to
+   make your adapter thread-safe will result in massive problems and undefined
+   behavior.
+
 After you've created the class, you will want to implement the following
 functions and properties first:
 
 * ``__init__``: Used to initialize your adapter. See the
   :class:`sublime.adapters.Adapter.__init__` documentation for the function
   signature of the ``__init__`` function.
-* ``is_available``: This property which will tell the UI whether or not your
-  adapter can currently service requests. (See the
-  :class:`sublime.adapters.Adapter.is_available` documentation for examples of
-  what you may want to check in this property.)
+* ``can_service_requests``: This property which will tell the UI whether or not
+  your adapter can currently service requests. (See the
+  :class:`sublime.adapters.Adapter.can_service_requests` documentation for
+  examples of what you may want to check in this property.)
+
+  .. warning::
+
+     This function is called *a lot* (probably too much?) so it *must* return a
+     value *instantly*. **Do not** perform a network request in this function.
+     If your adapter depends on connection to the network use a periodic ping
+     that updates a state variable that this function returns.
+
 * ``get_config_parameters``: Specifies the settings which can be configured on
   for the adapter. See :ref:`adapter-api:Handling Configuration` for details.
 * ``verify_configuration``: Verifies whether or not a given set of configuration
@@ -55,9 +71,9 @@ functions and properties first:
 
 .. tip::
 
-   While developing the adapter, setting ``is_available`` to ``True`` will
-   indicate to the UI that your adapter is always ready to service requests.
-   This can be a useful debugging tool.
+   While developing the adapter, setting ``can_service_requests`` to ``True``
+   will indicate to the UI that your adapter is always ready to service
+   requests. This can be a useful debugging tool.
 
 .. note::
 
@@ -109,16 +125,17 @@ the CPPs may depend on the API version.
 
 There is a special, global ``can_``-prefixed property which determines whether
 the adapter can currently service *any* requests. This should be used for checks
-such as making sure that the user is able to access the server.
+such as making sure that the user is able to access the server. (However, this
+must be done in a non-blocking manner since this is called *a lot*.)
 
 .. code:: python
 
     @property
     def can_service_requests(self) -> bool:
-        return self.check_can_access_server()
+        return self.cached_ping_result_is_ok()
 
 Here is an example of what a ``get_playlists`` interface for an external server
-might look like:
+might look:
 
 .. code:: python
 
@@ -135,7 +152,11 @@ might look like:
    By default, all ``can_``-prefixed properties are ``False``, which means that
    you can implement them one-by-one, testing as you go. The UI should
    dynamically enable features as new ``can_``-prefixed properties become
-   ``True``.
+   ``True``.*
+
+   \* At the moment, this isn't really the case and the UI just kinda explodes
+   if it doesn't have some of the functions available, but in the future guards
+   will be added around all of the function calls.
 
 Usage Parameters
 ----------------

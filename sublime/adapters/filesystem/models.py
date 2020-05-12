@@ -37,16 +37,6 @@ class Genre(BaseModel):
     album_count = IntegerField(null=True)
 
 
-class Album(BaseModel):
-    id = TextField(unique=True, primary_key=True)
-    name = TextField(null=True)
-    cover_art = TextField(null=True)
-    year = IntegerField(null=True)
-    song_count = IntegerField(null=True)
-    duration = DurationField(null=True)
-    genre = ForeignKeyField(Genre, null=True, backref="albums")
-
-
 class Artist(BaseModel):
     id = TextField(unique=True, primary_key=True)
     name = TextField(null=True)
@@ -56,9 +46,6 @@ class Artist(BaseModel):
     biography = TextField(null=True)
     music_brainz_id = TextField(null=True)
     last_fm_url = TextField(null=True)
-
-    # Many to many is probably overkill, but meh.
-    albums = SortedManyToManyField(Album, backref="artist")
 
     @property
     def similar_artists(self) -> Query:
@@ -73,6 +60,21 @@ class SimilarArtist(BaseModel):
     class Meta:
         # The whole thing is unique.
         indexes = ((("artist", "similar_artist", "order"), True),)
+
+
+class Album(BaseModel):
+    id = TextField(unique=True, primary_key=True)
+    cover_art = TextField(null=True)
+    created = TzDateTimeField(null=True)
+    duration = DurationField(null=True)
+    name = TextField(null=True)
+    play_count = IntegerField(null=True)
+    song_count = IntegerField(null=True)
+    starred = TzDateTimeField(null=True)
+    year = IntegerField(null=True)
+
+    artist = ForeignKeyField(Artist, null=True, backref="albums")
+    genre = ForeignKeyField(Genre, null=True, backref="albums")
 
 
 class IgnoredArticle(BaseModel):
@@ -173,7 +175,6 @@ class Version(BaseModel):
 ALL_TABLES = (
     Album,
     Artist,
-    Artist.albums.get_through_model(),
     CacheInfo,
     Directory,
     Genre,

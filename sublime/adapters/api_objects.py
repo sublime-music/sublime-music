@@ -23,11 +23,16 @@ class Genre(abc.ABC):
 class Album(abc.ABC):
     id: str
     name: str
+    artist: Optional["Artist"]
     cover_art: Optional[str]
-    song_count: Optional[int]
-    year: Optional[int]
-    genre: Optional[Genre]
+    created: Optional[datetime]
     duration: Optional[timedelta]
+    genre: Optional[Genre]
+    play_count: Optional[int]
+    song_count: Optional[int]
+    songs: Optional[Sequence["Song"]]
+    starred: Optional[datetime]
+    year: Optional[int]
 
 
 class Artist(abc.ABC):
@@ -113,9 +118,9 @@ class PlaylistDetails(abc.ABC):
 
 class PlayQueue(abc.ABC):
     songs: Sequence[Song]
-    position: float
+    position: timedelta
     username: Optional[str]
     changed: Optional[datetime]
     changed_by: Optional[str]
     value: Optional[str]
-    current: Optional[int]
+    current_index: Optional[int]

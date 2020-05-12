@@ -42,6 +42,7 @@ class PlayerControls(Gtk.ActionBar):
     reordering_play_queue_song_list: bool = False
     current_song = None
     current_device = None
+    current_playing_index: Optional[int] = None
     current_play_queue: Tuple[str, ...] = ()
     chromecasts: List[ChromecastPlayer] = []
     cover_art_update_order_token = 0
@@ -158,9 +159,13 @@ class PlayerControls(Gtk.ActionBar):
             self.update_device_list()
 
         # Short circuit if no changes to the play queue
-        if self.current_play_queue == app_config.state.play_queue:
+        if (
+            self.current_play_queue == app_config.state.play_queue
+            and self.current_playing_index == app_config.state.current_song_index
+        ):
             return
         self.current_play_queue = app_config.state.play_queue
+        self.current_playing_index = app_config.state.current_song_index
 
         # Set the Play Queue button popup.
         play_queue_len = len(app_config.state.play_queue)

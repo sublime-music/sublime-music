@@ -26,7 +26,15 @@ from sublime import util
 from sublime.config import AppConfiguration
 
 from .adapter_base import Adapter, CacheMissError, CachingAdapter, SongCacheStatus
-from .api_objects import Artist, Genre, Playlist, PlaylistDetails, PlayQueue, Song
+from .api_objects import (
+    Album,
+    Artist,
+    Genre,
+    Playlist,
+    PlaylistDetails,
+    PlayQueue,
+    Song,
+)
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter
 
@@ -390,10 +398,12 @@ class AdapterManager:
         :param kwargs: The keyword arguments to pass to the adapter function.
         """
         assert AdapterManager._instance
+        logging.info(f"START: {function_name}")
         partial_data = None
         if AdapterManager._can_use_cache(use_ground_truth_adapter, function_name):
             assert AdapterManager._instance.caching_adapter
             try:
+                logging.info(f"END: TRY SERVE FROM CACHE: {function_name}")
                 return Result(
                     getattr(AdapterManager._instance.caching_adapter, function_name)(
                         *args, **kwargs
@@ -415,7 +425,9 @@ class AdapterManager:
         # TODO don't short circuit if not allow_download because it could be the
         # filesystem adapter.
         if not allow_download or not AdapterManager._ground_truth_can_do(function_name):
+            logging.info(f"END: NO DOWNLOAD: {function_name}")
             if partial_data:
+                logging.debug("partial_data exists, returning", partial_data)
                 return Result(cast(AdapterManager.R, partial_data))
             raise Exception(f"No adapters can service {function_name} at the moment.")
 
@@ -432,6 +444,8 @@ class AdapterManager:
             if on_result_finished:
                 result.add_done_callback(on_result_finished)
 
+        logging.info(f"END: {function_name}")
+        logging.debug(result)
         return result
 
     # TODO abstract more stuff
@@ -530,8 +544,7 @@ class AdapterManager:
         def on_result_finished(f: Result[Optional[PlaylistDetails]]):
             assert AdapterManager._instance
             assert AdapterManager._instance.caching_adapter
-            playlist: Optional[PlaylistDetails] = f.result()
-            if playlist:
+            if playlist := f.result():
                 AdapterManager._instance.caching_adapter.ingest_new_data(
                     CachingAdapter.CachedDataKey.PLAYLIST_DETAILS,
                     (playlist.id,),
@@ -881,12 +894,52 @@ class AdapterManager:
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,
     ) -> Result[Artist]:
+        def on_result_finished(f: Result[Artist]):
+            if not force:
+                return
+
+            assert AdapterManager._instance
+            assert AdapterManager._instance.caching_adapter
+            if artist := f.result():
+                for album in artist.albums or []:
+                    AdapterManager._instance.caching_adapter.invalidate_data(
+                        CachingAdapter.CachedDataKey.ALBUM, (album.id,)
+                    )
+
         return AdapterManager._get_from_cache_or_ground_truth(
             "get_artist",
             artist_id,
             before_download=before_download,
             use_ground_truth_adapter=force,
             cache_key=CachingAdapter.CachedDataKey.ARTIST,
+            on_result_finished=on_result_finished,
+        )
+
+    @staticmethod
+    def get_albums(
+        album_id: str,
+        before_download: Callable[[], None] = lambda: None,
+        force: bool = False,
+    ) -> Result[Sequence[Album]]:
+        return AdapterManager._get_from_cache_or_ground_truth(
+            "get_albums",
+            cache_key=CachingAdapter.CachedDataKey.ALBUMS,
+            before_download=before_download,
+            use_ground_truth_adapter=force,
+        )
+
+    @staticmethod
+    def get_album(
+        album_id: str,
+        before_download: Callable[[], None] = lambda: None,
+        force: bool = False,
+    ) -> Result[Album]:
+        return AdapterManager._get_from_cache_or_ground_truth(
+            "get_album",
+            album_id,
+            before_download=before_download,
+            use_ground_truth_adapter=force,
+            cache_key=CachingAdapter.CachedDataKey.ALBUM,
         )
 
     @staticmethod

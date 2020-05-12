@@ -108,10 +108,11 @@ class SubsonicAdapter(Adapter):
     can_get_artists = True
     can_get_artist = True
     can_get_ignored_articles = True
+    can_get_albums = True
+    can_get_album = True
     can_get_genres = True
     can_get_play_queue = True
     can_save_play_queue = True
-    supports_streaming = True
 
     _schemes = None
 
@@ -345,17 +346,23 @@ class SubsonicAdapter(Adapter):
 
         return set(ignored_articles.split())
 
+    def get_albums(self) -> Sequence[API.Album]:
+        if albums := self._get_json(self._make_url("getAlbums")).albums:
+            return albums.album
+        return []
+
+    def get_album(self, album_id: str) -> API.Album:
+        album = self._get_json(self._make_url("getAlbum"), id=album_id).album
+        assert album, f"Error getting album {album_id}"
+        return album
+
     def get_genres(self) -> Sequence[API.Genre]:
         if genres := self._get_json(self._make_url("getGenres")).genres:
             return genres.genre
         return []
 
     def get_play_queue(self) -> Optional[API.PlayQueue]:
-        if play_queue := self._get_json(self._make_url("getPlayQueue")).play_queue:
-            if pos := play_queue.position:
-                play_queue.position = pos / 1000 or 0
-            return play_queue
-        return None
+        return self._get_json(self._make_url("getPlayQueue")).play_queue
 
     def save_play_queue(
         self,
