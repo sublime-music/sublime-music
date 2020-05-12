@@ -96,7 +96,7 @@ class DBusManager:
         )
 
     def shutdown(self):
-        logging.info('DBusManager is shutting down.')
+        logging.info("DBusManager is shutting down.")
         self.property_diff()
         Gio.bus_unown_name(self.bus_number)
 
@@ -293,14 +293,15 @@ class DBusManager:
         except CacheMissError:
             cover_art = ""
 
+        artist_name = song.artist.name if song.artist else ""
         return {
             "mpris:trackid": trackid,
             "mpris:length": duration,
             "mpris:artUrl": cover_art,
             # TODO use walrus once MYPY isn't retarded
             "xesam:album": song.album.name if song.album else "",
-            "xesam:albumArtist": [song.artist.name if song.artist else ""],
-            "xesam:artist": [song.artist.name if song.artist else ""],
+            "xesam:albumArtist": [artist_name],
+            "xesam:artist": artist_name,
             "xesam:title": song.title,
         }
 

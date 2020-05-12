@@ -744,7 +744,6 @@ class AdapterManager:
                     )
                 except CacheMissError:
                     # The song is not already cached.
-                    print('ohea', before_download)
                     if before_download:
                         before_download(song_id)
 
@@ -760,7 +759,6 @@ class AdapterManager:
                         (song_id,),
                         song_tmp_filename,
                     )
-                    print('qfuy', on_song_download_complete)
                     on_song_download_complete(song_id)
 
                 # Download the corresponding cover art.
