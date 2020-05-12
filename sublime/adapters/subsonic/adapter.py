@@ -5,7 +5,7 @@ import multiprocessing
 import os
 import pickle
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
 from typing import Any, cast, Dict, Iterable, Optional, Sequence, Set, Tuple, Union
@@ -360,12 +360,14 @@ class SubsonicAdapter(Adapter):
     def save_play_queue(
         self,
         song_ids: Sequence[int],
-        current_song_id: int = None,
-        position: float = None,
+        current_song_index: int = None,
+        position: timedelta = None,
     ):
+        # TODO make an extension that allows you to save the play queue position by
+        # index instead of id.
         self._get(
             self._make_url("savePlayQueue"),
             id=song_ids,
-            current=current_song_id,
-            position=math.floor(position * 1000) if position else None,
+            current=song_ids[current_song_index] if current_song_index else None,
+            position=math.floor(position.total_seconds() * 1000) if position else None,
         )

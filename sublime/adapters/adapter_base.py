@@ -1,5 +1,6 @@
 import abc
 from dataclasses import dataclass
+from datetime import timedelta
 from enum import Enum
 from pathlib import Path
 from typing import (
@@ -15,6 +16,7 @@ from typing import (
 )
 
 from .api_objects import (
+    Album,
     Artist,
     Genre,
     Playlist,
@@ -174,11 +176,20 @@ class Adapter(abc.ABC):
     @property
     def can_be_cached(self) -> bool:
         """
-        Specifies whether or not this adapter can be used as the ground-truth adapter
-        behind a caching adapter.
+        Whether or not this adapter can be used as the ground-truth adapter behind a
+        caching adapter.
 
         The default is ``True``, since most adapters will want to take advantage of the
         built-in filesystem cache.
+        """
+        return True
+
+    @property
+    def is_networked(self) -> bool:
+        """
+        Whether or not this adapter operates over the network. This will be used to
+        determine whether or not some of the offline/online management features should
+        be enabled.
         """
         return True
 
@@ -306,6 +317,14 @@ class Adapter(abc.ABC):
         """
         return False
 
+    # Albums
+    @property
+    def can_get_album(self) -> bool:
+        """
+        Whether :class:`get_album` can be called on the adapter right now.
+        """
+        return False
+
     # Misc
     @property
     def can_get_genres(self) -> bool:
@@ -335,28 +354,35 @@ class Adapter(abc.ABC):
     # ==================================================================================
     def get_playlists(self) -> Sequence[Playlist]:
         """
-        Gets a list of all of the :class:`sublime.adapter.api_objects.Playlist` objects
-        known to the adapter.
+        Get a list of all of the playlists known by the adapter.
+
+        :returns: A list of all of the :class:`sublime.adapter.api_objects.Playlist`
+            objects known to the adapter.
         """
         raise self._check_can_error("get_playlists")
 
     def get_playlist_details(self, playlist_id: str,) -> PlaylistDetails:
         """
-        Gets the details about the given ``playlist_id``. If the playlist_id does not
+        Get the details for the given ``playlist_id``. If the playlist_id does not
         exist, then this function should throw an exception.
 
         :param playlist_id: The ID of the playlist to retrieve.
+        :returns: A :class:`sublime.adapter.api_objects.PlaylistDetails` object for the
+            given playlist.
         """
         raise self._check_can_error("get_playlist_details")
 
     def create_playlist(
         self, name: str, songs: Sequence[Song] = None,
-    ) -> Optional[PlaylistDetails]:
+    ) -> Optional[PlaylistDetails]:  # TODO make not optional?
         """
         Creates a playlist of the given name with the given songs.
 
         :param name: The human-readable name of the playlist.
         :param songs: A list of songs that should be included in the playlist.
+        :returns: A :class:`sublime.adapter.api_objects.PlaylistDetails` object for the
+            created playlist. If getting this information will incurr network overhead,
+            then just return ``None``.
         """
         raise self._check_can_error("create_playlist")
 
@@ -379,6 +405,8 @@ class Adapter(abc.ABC):
             shared/public vs. not shared/private playlists concept, setting this to
             ``True`` will make the playlist shared/public.
         :param song_ids: A list of song IDs that should be included in the playlist.
+        :returns: A :class:`sublime.adapter.api_objects.PlaylistDetails` object for the
+            updated playlist.
         """
         raise self._check_can_error("update_playlist")
 
@@ -392,12 +420,13 @@ class Adapter(abc.ABC):
 
     def get_cover_art_uri(self, cover_art_id: str, scheme: str) -> str:
         """
-        Get a URI for a given song, album, or artist.
+        Get a URI for a given ``cover_art_id``.
 
         :param cover_art_id: The song, album, or artist ID.
         :param scheme: The URI scheme that should be returned. It is guaranteed that
             ``scheme`` will be one of the schemes returned by
             :class:`supported_schemes`.
+        :returns: The URI as a string.
         """
         raise self._check_can_error("get_cover_art_uri")
 
@@ -411,6 +440,7 @@ class Adapter(abc.ABC):
             :class:`supported_schemes`.
         :param stream: Whether or not the URI returned should be a stream URI. This will
             only be ``True`` if :class:`supports_streaming` returns ``True``.
+        :returns: The URI for the given song.
         """
         raise self._check_can_error("get_song_uri")
 
@@ -419,36 +449,60 @@ class Adapter(abc.ABC):
         Get the details for a given song ID.
 
         :param song_id: The ID of the song to get the details for.
+        :returns: The :class:`sublime.adapters.api_objects.Song`.
         """
         raise self._check_can_error("get_song_details")
 
     def scrobble_song(self, song: Song):
         """
         Scrobble the given song.
+
+        :params song: The :class:`sublime.adapters.api_objects.Song` to scrobble.
         """
         raise self._check_can_error("scrobble_song")
 
     def get_artists(self) -> Sequence[Artist]:
         """
         Get a list of all of the artists known to the adapter.
+
+        :returns: A list of all of the :class:`sublime.adapter.api_objects.Artist`
+            objects known to the adapter.
         """
         raise self._check_can_error("get_artists")
 
     def get_artist(self, artist_id: str) -> Artist:
         """
-        Get the given artist.
+        Get the details for the given artist ID.
+
+        :param artist_id: The ID of the artist to get the details for.
+        :returns: The :classs`sublime.adapters.api_objects.Artist`
         """
         raise self._check_can_error("get_artist")
 
     def get_ignored_articles(self) -> Set[str]:
         """
-        A set of articles (i.e. The, A, El, La, Los) to ignore when sorting artists.
+        Get the list of articles to ignore when sorting artists by name.
+
+        :returns: A set of articles (i.e. The, A, El, La, Los) to ignore when sorting
+            artists.
         """
         raise self._check_can_error("get_ignored_articles")
 
+    def get_album(self, album_id: str) -> Album:
+        """
+        Get the details for the given album ID.
+
+        :param album_id: The ID of the album to get the details for.
+        :returns: The :classs`sublime.adapters.api_objects.Album`
+        """
+        raise self._check_can_error("get_album")
+
     def get_genres(self) -> Sequence[Genre]:
         """
-        Get all of the genres.
+        Get a list of the genres known to the adapter.
+
+        :returns: A list of all of the :classs`sublime.adapter.api_objects.Genre`
+            objects known to the adapter.
         """
         raise self._check_can_error("get_genres")
 
@@ -456,14 +510,24 @@ class Adapter(abc.ABC):
         """
         Returns the state of the play queue for this user. This could be used to restore
         the play queue from the cloud.
+
+        :returns: The cloud-saved play queue as a
+            :class:`sublime.adapter.api_objects.PlayQueue` object.
         """
         raise self._check_can_error("get_play_queue")
 
     def save_play_queue(
-        self, song_ids: Sequence[int], current_song_id: int = None, position: int = None
+        self,
+        song_ids: Sequence[int],
+        current_song_index: int = None,
+        position: timedelta = None,
     ):
         """
         Save the current play queue to the cloud.
+
+        :param song_ids: A list of the song IDs in the queue.
+        :param current_song_index: The index of the song that is currently being played.
+        :param position: The current position in the song.
         """
         raise self._check_can_error("can_save_play_queue")
 
@@ -568,6 +632,9 @@ class CachingAdapter(Adapter):
     @abc.abstractmethod
     def get_cached_status(self, song: Song) -> SongCacheStatus:
         """
-        Returns the cache status of a given song ID. See the :class:`SongCacheStatus`
+        Returns the cache status of a given song. See the :class:`SongCacheStatus`
         documentation for more details about what each status means.
+
+        :params song: The song to get the cache status for.
+        :returns: The :class:`SongCacheStatus` for the song.
         """

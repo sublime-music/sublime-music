@@ -62,6 +62,7 @@ class FilesystemAdapter(CachingAdapter):
     # Usage and Availability Properties
     # ==================================================================================
     can_be_cached = False  # Can't be cached (there's no need).
+    is_networked = False  # Can't be cached (there's no need).
     can_service_requests = True  # Can always be used to service requests.
 
     # TODO make these dependent on cache state.

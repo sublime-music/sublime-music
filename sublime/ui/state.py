@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import timedelta
 from enum import Enum
 from typing import Dict, Optional, Tuple
 
@@ -42,7 +43,7 @@ class UIState:
     is_muted: bool = False
     repeat_type: RepeatType = RepeatType.NO_REPEAT
     shuffle_on: bool = False
-    song_progress: float = 0
+    song_progress: timedelta = timedelta()
     current_device: str = "this device"
     current_tab: str = "albums"
     selected_album_id: Optional[str] = None

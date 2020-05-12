@@ -3,6 +3,7 @@ import tempfile
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 from time import sleep
 from typing import (
@@ -912,13 +913,15 @@ class AdapterManager:
 
     @staticmethod
     def save_play_queue(
-        song_ids: Sequence[int], current_song_id: int = None, position: int = None
+        song_ids: Sequence[int],
+        current_song_index: int = None,
+        position: timedelta = None,
     ):
         assert AdapterManager._instance
         AdapterManager._create_ground_truth_result(
             "save_play_queue",
             song_ids,
-            current_song_id=current_song_id,
+            current_song_index=current_song_index,
             position=position,
         )
 

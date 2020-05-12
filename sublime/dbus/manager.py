@@ -213,7 +213,7 @@ class DBusManager:
                 "Position": (
                     "x",
                     int(
-                        max(state.song_progress or 0, 0)
+                        max(state.song_progress.total_seconds(), 0)
                         * self.second_microsecond_conversion
                     ),
                 ),

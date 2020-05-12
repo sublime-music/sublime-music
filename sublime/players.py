@@ -6,6 +6,7 @@ import os
 import socket
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
+from datetime import timedelta
 from time import sleep
 from typing import Any, Callable, List, Optional
 from urllib.parse import urlparse
@@ -30,6 +31,8 @@ class PlayerEvent:
 
 
 class Player:
+    # TODO: convert to ABC and pull players out into different modules and actually
+    # document this API because it's kinda a bit strange tbh.
     _can_hotswap_source: bool
 
     def __init__(
@@ -76,7 +79,7 @@ class Player:
     def reset(self):
         raise NotImplementedError("reset must be implemented by implementor of Player")
 
-    def play_media(self, file_or_url: str, progress: float, song: Song):
+    def play_media(self, file_or_url: str, progress: timedelta, song: Song):
         raise NotImplementedError(
             "play_media must be implemented by implementor of Player"
         )
@@ -167,14 +170,17 @@ class MPVPlayer(Player):
         with self.progress_value_lock:
             self.progress_value_count = 0
 
-    def play_media(self, file_or_url: str, progress: float, song: Song):
+    def play_media(self, file_or_url: str, progress: timedelta, song: Song):
         self.had_progress_value = False
         with self.progress_value_lock:
             self.progress_value_count = 0
 
         self.mpv.pause = False
         self.mpv.command(
-            "loadfile", file_or_url, "replace", f"start={progress}" if progress else "",
+            "loadfile",
+            file_or_url,
+            "replace",
+            f"start={progress.total_seconds()}" if progress else "",
         )
         self._song_loaded = True
 
@@ -424,7 +430,7 @@ class ChromecastPlayer(Player):
     def reset(self):
         self._song_loaded = False
 
-    def play_media(self, file_or_url: str, progress: float, song: Song):
+    def play_media(self, file_or_url: str, progress: timedelta, song: Song):
         stream_scheme = urlparse(file_or_url).scheme
         # If it's a local file, then see if we can serve it over the LAN.
         if not stream_scheme:
@@ -444,7 +450,7 @@ class ChromecastPlayer(Player):
             file_or_url,
             # Just pretend that whatever we send it is mp3, even if it isn't.
             "audio/mp3",
-            current_time=progress,
+            current_time=progress.total_seconds(),
             title=song.title,
             thumb=cover_art_url,
             metadata={
@@ -454,9 +460,10 @@ class ChromecastPlayer(Player):
                 "trackNumber": song.track,
             },
         )
-        self._timepos = progress
+        self._timepos = progress.total_seconds()
 
         def on_play_begin():
+            # TODO this starts too soon, do something better
             self._song_loaded = True
             self.start_time_incrementor()
 

@@ -2,6 +2,7 @@ import logging
 import os
 import random
 import sys
+from datetime import timedelta
 from functools import partial
 from pathlib import Path
 from time import sleep
@@ -159,7 +160,7 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
         # Configure the players
-        self.last_play_queue_update = 0
+        self.last_play_queue_update = timedelta(0)
         self.loading_state = False
         self.should_scrobble_song = False
 
@@ -172,17 +173,17 @@ class SublimeMusicApp(Gtk.Application):
                 return
 
             if value is None:
-                self.last_play_queue_update = 0
+                self.last_play_queue_update = timedelta(0)
                 return
 
-            self.app_config.state.song_progress = value
+            self.app_config.state.song_progress = timedelta(seconds=value)
             GLib.idle_add(
                 self.window.player_controls.update_scrubber,
                 self.app_config.state.song_progress,
                 self.app_config.state.current_song.duration,
             )
 
-            if self.last_play_queue_update + 15 <= value:
+            if (self.last_play_queue_update + timedelta(15)).total_seconds() <= value:
                 self.save_play_queue()
 
             if (
@@ -266,7 +267,7 @@ class SublimeMusicApp(Gtk.Application):
         def seek_fn(offset: float):
             if not self.app_config.state.current_song:
                 return
-            offset_seconds = offset / second_microsecond_conversion
+            offset_seconds = timedelta(seconds=offset / second_microsecond_conversion)
             new_seconds = self.app_config.state.song_progress + offset_seconds
 
             # This should not ever happen. The current_song should always have
@@ -285,7 +286,7 @@ class SublimeMusicApp(Gtk.Application):
         def set_pos_fn(track_id: str, position: float = 0):
             if self.app_config.state.playing:
                 self.on_play_pause()
-            pos_seconds = position / second_microsecond_conversion
+            pos_seconds = timedelta(seconds=position / second_microsecond_conversion)
             self.app_config.state.song_progress = pos_seconds
             track_id, occurrence = track_id.split("/")[-2:]
 
@@ -790,7 +791,7 @@ class SublimeMusicApp(Gtk.Application):
         assert self.app_config.state.current_song.duration is not None
         new_time = self.app_config.state.current_song.duration * (scrub_value / 100)
 
-        self.app_config.state.song_progress = new_time.total_seconds()
+        self.app_config.state.song_progress = new_time
         self.window.player_controls.update_scrubber(
             self.app_config.state.song_progress,
             self.app_config.state.current_song.duration,
@@ -908,7 +909,7 @@ class SublimeMusicApp(Gtk.Application):
 
         def do_update(f: Result[PlayQueue]):
             play_queue = f.result()
-            play_queue.position = play_queue.position or 0
+            play_queue.position = play_queue.position or 0.0
 
             new_play_queue = tuple(s.id for s in play_queue.songs)
             new_current_song_id = str(play_queue.current)
@@ -920,7 +921,8 @@ class SublimeMusicApp(Gtk.Application):
                 progress_diff = 15.0
                 if self.app_config.state.song_progress:
                     progress_diff = abs(
-                        self.app_config.state.song_progress - new_song_progress
+                        self.app_config.state.song_progress.total_seconds()
+                        - new_song_progress
                     )
 
                 if (
@@ -957,7 +959,7 @@ class SublimeMusicApp(Gtk.Application):
                     return
 
             self.app_config.state.play_queue = new_play_queue
-            self.app_config.state.song_progress = play_queue.position
+            self.app_config.state.song_progress = timedelta(seconds=play_queue.position)
 
             self.app_config.state.current_song_index = new_play_queue.index(
                 new_current_song_id
@@ -997,7 +999,7 @@ class SublimeMusicApp(Gtk.Application):
             # songs when it has to download.
             if reset:
                 self.player.reset()
-                self.app_config.state.song_progress = 0
+                self.app_config.state.song_progress = timedelta(0)
                 self.should_scrobble_song = True
 
             # Start playing the song.
@@ -1167,11 +1169,11 @@ class SublimeMusicApp(Gtk.Application):
             return
 
         position = self.app_config.state.song_progress
-        self.last_play_queue_update = position or 0
+        self.last_play_queue_update = position or timedelta(0)
 
         if self.app_config.server.sync_enabled and self.app_config.state.current_song:
             AdapterManager.save_play_queue(
                 song_ids=self.app_config.state.play_queue,
-                current_song_id=self.app_config.state.current_song.id,
+                current_song_index=self.app_config.state.current_song_index,
                 position=position,
             )

@@ -295,7 +295,7 @@ class PlayerControls(Gtk.ActionBar):
         self.album_art.set_loading(False)
 
     def update_scrubber(
-        self, current: Optional[float], duration: Optional[timedelta],
+        self, current: Optional[timedelta], duration: Optional[timedelta],
     ):
         if current is None or duration is None:
             self.song_duration_label.set_text("-:--")
@@ -303,14 +303,13 @@ class PlayerControls(Gtk.ActionBar):
             self.song_scrubber.set_value(0)
             return
 
-        current = current or 0
-        percent_complete = current / duration.total_seconds() * 100
+        percent_complete = current.total_seconds() / duration.total_seconds() * 100
 
         if not self.editing:
             self.song_scrubber.set_value(percent_complete)
         self.song_duration_label.set_text(util.format_song_duration(duration))
         self.song_progress_label.set_text(
-            util.format_song_duration(math.floor(current))
+            util.format_song_duration(math.floor(current.total_seconds()))
         )
 
     def on_volume_change(self, scale: Gtk.Scale):
