@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Set, Tuple
 
+import sublime
 from sublime import util
 from sublime.adapters import api_objects as API
 
@@ -77,16 +78,20 @@ class FilesystemAdapter(CachingAdapter):
     can_get_album = True
     can_get_ignored_articles = True
     can_get_genres = True
+    can_search = True
 
     supported_schemes = ("file",)
 
     # Data Helper Methods
     # ==================================================================================
     def _get_list(
-        self, model: Any, cache_key: CachingAdapter.CachedDataKey
+        self,
+        model: Any,
+        cache_key: CachingAdapter.CachedDataKey,
+        ignore_cache_miss: bool = False,
     ) -> Sequence:
         result = list(model.select())
-        if self.is_cache:
+        if self.is_cache and not ignore_cache_miss:
             # Determine if the adapter has ingested data for this key before, and if
             # not, cache miss.
             if not models.CacheInfo.get_or_none(
@@ -157,8 +162,12 @@ class FilesystemAdapter(CachingAdapter):
 
         return SongCacheStatus.NOT_CACHED
 
-    def get_playlists(self) -> Sequence[API.Playlist]:
-        return self._get_list(models.Playlist, CachingAdapter.CachedDataKey.PLAYLISTS)
+    def get_playlists(self, ignore_cache_miss: bool = False) -> Sequence[API.Playlist]:
+        return self._get_list(
+            models.Playlist,
+            CachingAdapter.CachedDataKey.PLAYLISTS,
+            ignore_cache_miss=ignore_cache_miss,
+        )
 
     def get_playlist_details(self, playlist_id: str) -> API.PlaylistDetails:
         return self._get_object_details(
@@ -194,16 +203,25 @@ class FilesystemAdapter(CachingAdapter):
             models.Song, song_id, CachingAdapter.CachedDataKey.SONG_DETAILS
         )
 
-    def get_artists(self) -> Sequence[API.Artist]:
-        return self._get_list(models.Artist, CachingAdapter.CachedDataKey.ARTISTS)
+    def get_artists(self, ignore_cache_miss: bool = False) -> Sequence[API.Artist]:
+        return self._get_list(
+            models.Artist,
+            CachingAdapter.CachedDataKey.ARTISTS,
+            ignore_cache_miss=ignore_cache_miss,
+        )
 
     def get_artist(self, artist_id: str) -> API.Artist:
         return self._get_object_details(
             models.Artist, artist_id, CachingAdapter.CachedDataKey.ARTIST
         )
 
-    def get_albums(self) -> Sequence[API.Album]:
-        return self._get_list(models.Album, CachingAdapter.CachedDataKey.ALBUMS)
+    def get_albums(self, ignore_cache_miss: bool = False) -> Sequence[API.Album]:
+        # TODO all of the parameters
+        return self._get_list(
+            models.Album,
+            CachingAdapter.CachedDataKey.ALBUMS,
+            ignore_cache_miss=ignore_cache_miss,
+        )
 
     def get_album(self, album_id: str) -> API.Album:
         return self._get_object_details(
@@ -222,6 +240,23 @@ class FilesystemAdapter(CachingAdapter):
 
     def get_genres(self) -> Sequence[API.Genre]:
         return self._get_list(models.Genre, CachingAdapter.CachedDataKey.GENRES)
+
+    def search(self, query: str) -> API.SearchResult:
+        search_result = API.SearchResult()
+        search_result.add_results("albums", self.get_albums(ignore_cache_miss=True))
+        search_result.add_results("artists", self.get_artists(ignore_cache_miss=True))
+        search_result.add_results(
+            "songs",
+            self._get_list(
+                models.Song,
+                CachingAdapter.CachedDataKey.SONG_DETAILS,
+                ignore_cache_miss=True,
+            ),
+        )
+        search_result.add_results(
+            "playlists", self.get_playlists(ignore_cache_miss=True)
+        )
+        return search_result
 
     # Data Ingestion Methods
     # ==================================================================================

@@ -33,10 +33,12 @@ from .api_objects import (
     Playlist,
     PlaylistDetails,
     PlayQueue,
+    SearchResult,
     Song,
 )
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter
+
 
 T = TypeVar("T")
 
@@ -505,6 +507,10 @@ class AdapterManager:
     def can_save_play_queue() -> bool:
         return AdapterManager._ground_truth_can_do("save_play_queue")
 
+    @staticmethod
+    def can_search() -> bool:
+        return AdapterManager._any_adapter_can_do("search")
+
     # Data Retrieval Methods
     # ==================================================================================
     @staticmethod
@@ -915,6 +921,7 @@ class AdapterManager:
             on_result_finished=on_result_finished,
         )
 
+    # Albums
     @staticmethod
     def get_albums(
         album_id: str,
@@ -977,6 +984,82 @@ class AdapterManager:
             current_song_index=current_song_index,
             position=position,
         )
+
+    @staticmethod
+    def search(
+        query: str,
+        search_callback: Callable[[SearchResult], None],
+        before_download: Callable[[], None] = lambda: None,
+    ) -> Result[bool]:
+        if query == "":
+            search_callback(SearchResult(""))
+            return Result(True)
+
+        before_download()
+
+        # Keep track of if the result is cancelled and if it is, then don't do anything
+        # with any results.
+        cancelled = False
+
+        # This function actually does the search and calls the search_callback when each
+        # of the futures completes. Returns whether or not it was cancelled.
+        def do_search() -> bool:
+            # Sleep for a little while before returning the local results. They are less
+            # expensive to retrieve (but they still incur some overhead due to the GTK
+            # UI main loop queue).
+            sleep(0.3)
+            if cancelled:
+                logging.info(f"Cancelled query {query} before caching adapter")
+                return False
+
+            assert AdapterManager._instance
+
+            # Caching Adapter Results
+            search_result = SearchResult(query)
+            if AdapterManager._can_use_cache(False, "search"):
+                assert AdapterManager._instance.caching_adapter
+                try:
+                    logging.info(
+                        f"Returning caching adapter search results for '{query}'."
+                    )
+                    search_result.update(
+                        AdapterManager._instance.caching_adapter.search(query)
+                    )
+                    search_callback(search_result)
+                except Exception:
+                    logging.exception("Error on caching adapter search")
+
+            if not AdapterManager._ground_truth_can_do("search"):
+                return False
+
+            # Wait longer to see if the user types anything else so we don't peg the
+            # server with tons of requests.
+            sleep(
+                1 if AdapterManager._instance.ground_truth_adapter.is_networked else 0.2
+            )
+            if cancelled:
+                logging.info(f"Cancelled query {query} before server results")
+                return False
+
+            try:
+                search_result.update(
+                    AdapterManager._instance.ground_truth_adapter.search(query)
+                )
+                search_callback(search_result)
+            except Exception:
+                logging.exception(
+                    "Failed getting search results from server for query '{query}'"
+                )
+
+            return True
+
+        # When the future is cancelled (this will happen if a new search is created),
+        # set cancelled to True so that the search function can abort.
+        def on_cancel():
+            nonlocal cancelled
+            cancelled = True
+
+        return Result(do_search, on_cancel=on_cancel)
 
     # Cache Status Methods
     # ==================================================================================

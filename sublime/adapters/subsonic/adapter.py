@@ -113,6 +113,7 @@ class SubsonicAdapter(Adapter):
     can_get_genres = True
     can_get_play_queue = True
     can_save_play_queue = True
+    can_search = True
 
     _schemes = None
 
@@ -378,3 +379,14 @@ class SubsonicAdapter(Adapter):
             current=song_ids[current_song_index] if current_song_index else None,
             position=math.floor(position.total_seconds() * 1000) if position else None,
         )
+
+    def search(self, query: str) -> API.SearchResult:
+        result = self._get_json(self._make_url("search3"), query=query).search_result
+        if not result:
+            return API.SearchResult()
+
+        search_result = API.SearchResult()
+        search_result.add_results("albums", result.album)
+        search_result.add_results("artists", result.artist)
+        search_result.add_results("songs", result.song)
+        return search_result

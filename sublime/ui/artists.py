@@ -5,7 +5,6 @@ from typing import Any, List, Sequence
 from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
 from sublime.adapters import AdapterManager, api_objects as API
-from sublime.cache_manager import CacheManager
 from sublime.config import AppConfiguration
 from sublime.ui import util
 from sublime.ui.common import AlbumWithSongs, IconButton, SpinnerImage

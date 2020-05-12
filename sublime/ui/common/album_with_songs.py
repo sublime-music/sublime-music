@@ -1,11 +1,10 @@
 from random import randint
-from typing import Any, Union
+from typing import Any
 
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
 from sublime.adapters import AdapterManager, api_objects as API, Result
 from sublime.config import AppConfiguration
-from sublime.server.api_objects import AlbumWithSongsID3, Child, Directory
 from sublime.ui import util
 from sublime.ui.common.icon_button import IconButton
 from sublime.ui.common.song_list_column import SongListColumn

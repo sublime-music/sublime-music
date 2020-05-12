@@ -46,7 +46,7 @@ except Exception:
     )
     networkmanager_imported = False
 
-from .adapters import AdapterManager, Result as AdapterResult
+from .adapters import AdapterManager, api_objects as API, Result as AdapterResult
 from .config import AppConfiguration
 from .server import Server
 from .server.api_object import APIObject
@@ -59,7 +59,6 @@ from .server.api_objects import (
     ArtistWithAlbumsID3,
     Child,
     Directory,
-    Playlist,
 )
 
 
@@ -105,19 +104,16 @@ def similarity_ratio(query: str, string: str) -> int:
     return fuzz.partial_ratio(query.lower(), string.lower())
 
 
-S = TypeVar("S")
-
-
 class SearchResult:
     """
     An object representing the aggregate results of a search which can include
     both server and local results.
     """
 
-    _artist: Set[ArtistID3] = set()
-    _album: Set[AlbumID3] = set()
-    _song: Set[Child] = set()
-    _playlist: Set[Playlist] = set()
+    _artist: Set[API.Artist] = set()
+    _album: Set[API.Album] = set()
+    _song: Set[API.Song] = set()
+    _playlist: Set[API.Playlist] = set()
 
     def __init__(self, query: str):
         self.query = query
@@ -133,13 +129,15 @@ class SearchResult:
 
         setattr(self, member, getattr(self, member, set()).union(set(results)))
 
+    S = TypeVar("S")
+
     def _to_result(self, it: Iterable[S], transform: Callable[[S], str],) -> List[S]:
         all_results = sorted(
             ((similarity_ratio(self.query, transform(x)), x) for x in it),
             key=lambda rx: rx[0],
             reverse=True,
         )
-        result: List[S] = []
+        result: List[SearchResult.S] = []
         for ratio, x in all_results:
             if ratio > 60 and len(result) < 20:
                 result.append(x)
@@ -149,26 +147,26 @@ class SearchResult:
         return result
 
     @property
-    def artist(self) -> Optional[List[ArtistID3]]:
+    def artist(self) -> Optional[List[API.Artist]]:
         if self._artist is None:
             return None
         return self._to_result(self._artist, lambda a: a.name)
 
     @property
-    def album(self) -> Optional[List[AlbumID3]]:
+    def album(self) -> Optional[List[API.Album]]:
         if self._album is None:
             return None
 
         return self._to_result(self._album, lambda a: f"{a.name} - {a.artist}")
 
     @property
-    def song(self) -> Optional[List[Child]]:
+    def song(self) -> Optional[List[API.Song]]:
         if self._song is None:
             return None
         return self._to_result(self._song, lambda s: f"{s.title} - {s.artist}")
 
     @property
-    def playlist(self) -> Optional[List[Playlist]]:
+    def playlist(self) -> Optional[List[API.Playlist]]:
         if self._playlist is None:
             return None
         return self._to_result(self._playlist, lambda p: p.name)

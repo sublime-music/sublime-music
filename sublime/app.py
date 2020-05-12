@@ -45,7 +45,6 @@ from .cache_manager import CacheManager
 from .config import AppConfiguration, ReplayGainType
 from .dbus import dbus_propagate, DBusManager
 from .players import ChromecastPlayer, MPVPlayer, PlayerEvent
-from .server.api_objects import Directory
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.main import MainWindow
 from .ui.settings import SettingsDialog

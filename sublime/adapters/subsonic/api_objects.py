@@ -277,6 +277,14 @@ class Playlists:
     playlist: List[Playlist] = field(default_factory=list)
 
 
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class SearchResult3:
+    artist: List[ArtistAndArtistInfo] = field(default_factory=list)
+    album: List[Album] = field(default_factory=list)
+    song: List[Song] = field(default_factory=list)
+
+
 @dataclass
 class Response(DataClassJsonMixin):
     """The base Subsonic response object."""
@@ -299,3 +307,7 @@ class Response(DataClassJsonMixin):
         default=None, metadata=config(field_name="playQueue")
     )
     song: Optional[Song] = None
+
+    search_result: Optional[SearchResult3] = field(
+        default=None, metadata=config(field_name="searchResult3")
+    )

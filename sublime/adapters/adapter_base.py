@@ -22,6 +22,7 @@ from .api_objects import (
     Playlist,
     PlaylistDetails,
     PlayQueue,
+    SearchResult,
     Song,
 )
 
@@ -355,6 +356,13 @@ class Adapter(abc.ABC):
         """
         return False
 
+    @property
+    def can_search(self) -> bool:
+        """
+        Whether :class:`search` can be called on the adapter right now.
+        """
+        return False
+
     # Data Retrieval Methods
     # These properties determine if what things the adapter can be used to do
     # at the current moment.
@@ -545,6 +553,16 @@ class Adapter(abc.ABC):
         :param song_ids: A list of the song IDs in the queue.
         :param current_song_index: The index of the song that is currently being played.
         :param position: The current position in the song.
+        """
+        raise self._check_can_error("can_save_play_queue")
+
+    def search(self, query: str) -> SearchResult:
+        """
+        Return search results fro the given query.
+
+        :param query: The query string.
+        :returns: A :class:`sublime.adapters.api_objects.SearchResult` object
+            representing the results of the search.
         """
         raise self._check_can_error("can_save_play_queue")
 

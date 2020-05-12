@@ -5,7 +5,7 @@ from .adapter_base import (
     ConfigParamDescriptor,
     SongCacheStatus,
 )
-from .manager import AdapterManager, Result
+from .manager import AdapterManager, Result, SearchResult
 
 __all__ = (
     "Adapter",
@@ -14,5 +14,6 @@ __all__ = (
     "CachingAdapter",
     "ConfigParamDescriptor",
     "Result",
+    "SearchResult",
     "SongCacheStatus",
 )
