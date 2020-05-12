@@ -43,6 +43,60 @@ class SongCacheStatus(Enum):
     DOWNLOADING = 3
 
 
+@dataclass(frozen=True)
+class AlbumSearchQuery:
+    """
+    Represents a query for getting albums from an adapter. The UI will request the
+    albums in pages.
+
+    **Fields:**
+
+    * :class:`AlbumSearchQuery.type` -- the query :class:`AlbumSearchQuery.Type`
+    * :class:`AlbumSearchQuery.year_range` -- (guaranteed to only exist if ``type`` is
+      :class:`AlbumSearchQuery.Type.YEAR_RANGE`) a tuple with the lower and upper bound
+      (inclusive) of the album years to return
+    * :class:`AlbumSearchQuery.genre` -- (guaranteed to only exist if the ``type`` is
+      :class:`AlbumSearchQuery.Type.GENRE`) return albums of the given genre
+    """
+
+    class _Genre(Genre):
+        def __init__(self, name: str):
+            self.name = name
+
+    class Type(Enum):
+        """
+        Represents a type of query. Use :class:`Adapter.supported_artist_query_types` to
+        specify what search types your adapter supports.
+
+        * :class:`AlbumSearchQuery.Type.RANDOM` -- return a random set of albums
+        * :class:`AlbumSearchQuery.Type.NEWEST` -- return the most recently added albums
+        * :class:`AlbumSearchQuery.Type.RECENT` -- return the most recently played
+          albums
+        * :class:`AlbumSearchQuery.Type.STARRED` -- return only starred albums
+        * :class:`AlbumSearchQuery.Type.ALPHABETICAL_BY_NAME` -- return the albums
+          sorted alphabetically by album name
+        * :class:`AlbumSearchQuery.Type.ALPHABETICAL_BY_ARTIST` -- return the albums
+          sorted alphabetically by artist name
+        * :class:`AlbumSearchQuery.Type.YEAR_RANGE` -- return albums in the given year
+          range
+        * :class:`AlbumSearchQuery.Type.GENRE` -- return songs of the given genre
+        """
+
+        RANDOM = 0
+        NEWEST = 1
+        FREQUENT = 2
+        RECENT = 3
+        STARRED = 4
+        ALPHABETICAL_BY_NAME = 5
+        ALPHABETICAL_BY_ARTIST = 6
+        YEAR_RANGE = 7
+        GENRE = 8
+
+    type: Type
+    year_range: Tuple[int, int] = (2010, 2020)
+    genre: Genre = _Genre("Rock")
+
+
 class CacheMissError(Exception):
     """
     This exception should be thrown by caching adapters when the request data is not
@@ -259,6 +313,7 @@ class Adapter(abc.ABC):
         Examples of values that could be provided include ``http``, ``https``, ``file``,
         or ``ftp``.
         """
+        # TODO actually use this
         return ()
 
     @property
@@ -297,6 +352,16 @@ class Adapter(abc.ABC):
         return False
 
     # Artists
+    @property
+    def supported_artist_query_types(self) -> Set[AlbumSearchQuery.Type]:
+        """
+        A set of the query types that this adapter can service.
+
+        :returns: A set of :class:`AlbumSearchQuery.Type` objects.
+        """
+        # TODO: use this
+        return set()
+
     @property
     def can_get_artists(self) -> bool:
         """
@@ -356,6 +421,7 @@ class Adapter(abc.ABC):
         """
         return False
 
+    # Search
     @property
     def can_search(self) -> bool:
         """
@@ -503,11 +569,16 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("get_ignored_articles")
 
-    # TODO a crapton of params here
-    def get_albums(self) -> Sequence[Album]:
+    def get_albums(
+        self, query: AlbumSearchQuery, limit: int, offset: int
+    ) -> Sequence[Album]:
         """
-        Get a list of all of the albums known to the adapter.
+        Get a list of all of the albums known to the adapter for the given query.
 
+        :param query: An :class:`AlbumSearchQuery` object representing the types of
+            albums to return.
+        :param limit: The maximum number of albums to return.
+        :param offset: The index at whith to start returning albums (for paging).
         :returns: A list of all of the :class:`sublime.adapter.api_objects.Album`
             objects known to the adapter.
         """

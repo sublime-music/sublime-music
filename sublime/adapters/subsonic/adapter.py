@@ -14,7 +14,7 @@ from urllib.parse import urlencode, urlparse
 import requests
 
 from .api_objects import Response
-from .. import Adapter, api_objects as API, ConfigParamDescriptor
+from .. import Adapter, AlbumSearchQuery, api_objects as API, ConfigParamDescriptor
 
 
 class SubsonicAdapter(Adapter):
@@ -122,6 +122,19 @@ class SubsonicAdapter(Adapter):
         if not self._schemes:
             self._schemes = (urlparse(self.hostname)[0],)
         return self._schemes
+
+    # TODO make this way smarter
+    supported_artist_query_types = {
+        AlbumSearchQuery.Type.RANDOM,
+        AlbumSearchQuery.Type.NEWEST,
+        AlbumSearchQuery.Type.FREQUENT,
+        AlbumSearchQuery.Type.RECENT,
+        AlbumSearchQuery.Type.STARRED,
+        AlbumSearchQuery.Type.ALPHABETICAL_BY_NAME,
+        AlbumSearchQuery.Type.ALPHABETICAL_BY_ARTIST,
+        AlbumSearchQuery.Type.YEAR_RANGE,
+        AlbumSearchQuery.Type.GENRE,
+    }
 
     # Helper mothods for making requests
     # ==================================================================================
@@ -347,8 +360,39 @@ class SubsonicAdapter(Adapter):
 
         return set(ignored_articles.split())
 
-    def get_albums(self) -> Sequence[API.Album]:
-        if albums := self._get_json(self._make_url("getAlbums")).albums:
+    def get_albums(
+        self, query: AlbumSearchQuery, limit: int, offset: int
+    ) -> Sequence[API.Album]:
+        type_ = {
+            AlbumSearchQuery.Type.RANDOM: "random",
+            AlbumSearchQuery.Type.NEWEST: "newest",
+            AlbumSearchQuery.Type.FREQUENT: "frequent",
+            AlbumSearchQuery.Type.RECENT: "recent",
+            AlbumSearchQuery.Type.STARRED: "starred",
+            AlbumSearchQuery.Type.ALPHABETICAL_BY_NAME: "alphabeticalByName",
+            AlbumSearchQuery.Type.ALPHABETICAL_BY_ARTIST: "alphabeticalByArtist",
+            AlbumSearchQuery.Type.YEAR_RANGE: "byYear",
+            AlbumSearchQuery.Type.GENRE: "byGenre",
+        }[query.type]
+
+        extra_args: Dict[str, Any] = {}
+        if query.type == AlbumSearchQuery.Type.YEAR_RANGE:
+            assert query.year_range
+            extra_args = {
+                "fromYear": query.year_range[0],
+                "toYear": query.year_range[1],
+            }
+        elif query.type == AlbumSearchQuery.Type.GENRE:
+            assert query.genre
+            extra_args = {"genre": query.genre.name}
+
+        if albums := self._get_json(
+            self._make_url("getAlbumList2"),
+            type=type_,
+            size=limit,
+            offset=offset,
+            **extra_args,
+        ).albums:
             return albums.album
         return []
 

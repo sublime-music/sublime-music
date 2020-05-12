@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Dict, Optional, Tuple
 
 from sublime.adapters.api_objects import Song
+from sublime.adapters import AlbumSearchQuery
 
 
 class RepeatType(Enum):
@@ -52,11 +53,9 @@ class UIState:
     selected_playlist_id: Optional[str] = None
 
     # State for Album sort.
-    current_album_sort: str = "random"
-    current_album_genre: str = "Rock"
-    current_album_alphabetical_sort: str = "name"
-    current_album_from_year: int = 2010
-    current_album_to_year: int = 2020
+    current_album_search_query: AlbumSearchQuery = AlbumSearchQuery(
+        AlbumSearchQuery.Type.RANDOM, genre=None, year_range=(2010, 2020),
+    )
 
     active_playlist_id: Optional[str] = None
 

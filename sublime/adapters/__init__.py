@@ -4,12 +4,14 @@ from .adapter_base import (
     CachingAdapter,
     ConfigParamDescriptor,
     SongCacheStatus,
+    AlbumSearchQuery,
 )
 from .manager import AdapterManager, Result, SearchResult
 
 __all__ = (
     "Adapter",
     "AdapterManager",
+    "AlbumSearchQuery",
     "CacheMissError",
     "CachingAdapter",
     "ConfigParamDescriptor",

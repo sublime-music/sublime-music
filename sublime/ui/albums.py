@@ -1,12 +1,45 @@
 import datetime
-from typing import Any, Callable, Iterable, Optional, Tuple
+from typing import Any, Callable, cast, Iterable, Optional, Tuple
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, api_objects as API, Result
+from sublime.adapters import (
+    AdapterManager,
+    AlbumSearchQuery,
+    api_objects as API,
+    Result,
+)
 from sublime.config import AppConfiguration
 from sublime.ui import util
 from sublime.ui.common import AlbumWithSongs, IconButton, SpinnerImage
+
+
+def _to_type(query_type: AlbumSearchQuery.Type) -> str:
+    return {
+        AlbumSearchQuery.Type.RANDOM: "random",
+        AlbumSearchQuery.Type.NEWEST: "newest",
+        AlbumSearchQuery.Type.FREQUENT: "frequent",
+        AlbumSearchQuery.Type.RECENT: "recent",
+        AlbumSearchQuery.Type.STARRED: "starred",
+        AlbumSearchQuery.Type.ALPHABETICAL_BY_NAME: "alphabetical",
+        AlbumSearchQuery.Type.ALPHABETICAL_BY_ARTIST: "alphabetical",
+        AlbumSearchQuery.Type.YEAR_RANGE: "year",
+        AlbumSearchQuery.Type.GENRE: "genre",
+    }[query_type]
+
+
+def _from_str(type_str: str) -> AlbumSearchQuery.Type:
+    return {
+        "random": AlbumSearchQuery.Type.RANDOM,
+        "newest": AlbumSearchQuery.Type.NEWEST,
+        "frequent": AlbumSearchQuery.Type.FREQUENT,
+        "recent": AlbumSearchQuery.Type.RECENT,
+        "starred": AlbumSearchQuery.Type.STARRED,
+        "alphabetical_by_name": AlbumSearchQuery.Type.ALPHABETICAL_BY_NAME,
+        "alphabetical_by_artist": AlbumSearchQuery.Type.ALPHABETICAL_BY_ARTIST,
+        "year_range": AlbumSearchQuery.Type.YEAR_RANGE,
+        "genre": AlbumSearchQuery.Type.GENRE,
+    }[type_str]
 
 
 class AlbumsPanel(Gtk.Box):
@@ -36,21 +69,22 @@ class AlbumsPanel(Gtk.Box):
         self.sort_type_combo, self.sort_type_combo_store = self.make_combobox(
             (
                 ("random", "randomly", True),
-                ("byGenre", "by genre", AdapterManager.can_get_genres()),
+                ("genre", "by genre", AdapterManager.can_get_genres()),
                 ("newest", "by most recently added", True),
-                ("highest", "by highest rated", True),
+                # ("highest", "by highest rated", True),  # I don't t hink this works
+                # anyway
                 ("frequent", "by most played", True),
                 ("recent", "by most recently played", True),
                 ("alphabetical", "alphabetically", True),
                 ("starred", "by starred only", True),
-                ("byYear", "by year", True),
+                ("year_range", "by year", True),
             ),
             self.on_type_combo_changed,
         )
         actionbar.pack_start(self.sort_type_combo)
 
         self.alphabetical_type_combo, _ = self.make_combobox(
-            (("name", "by album name", True), ("artist", "by artist name", True)),
+            (("by_name", "by album name", True), ("by_artist", "by artist name", True)),
             self.on_alphabetical_type_change,
         )
         actionbar.pack_start(self.alphabetical_type_combo)
@@ -111,7 +145,7 @@ class AlbumsPanel(Gtk.Box):
         return combo, store
 
     def populate_genre_combo(
-        self, app_config: AppConfiguration, force: bool = False,
+        self, app_config: AppConfiguration = None, force: bool = False,
     ):
         if not AdapterManager.can_get_genres():
             return
@@ -124,47 +158,69 @@ class AlbumsPanel(Gtk.Box):
 
                 util.diff_song_store(self.genre_combo_store, new_store)
 
-                current_genre_id = self.get_id(self.genre_combo)
-                if current_genre_id != app_config.state.current_album_genre:
-                    self.genre_combo.set_active_id(app_config.state.current_album_genre)
+                if app_config:
+                    current_genre_id = self.get_id(self.genre_combo)
+                    genre = app_config.state.current_album_search_query.genre
+                    if genre and current_genre_id != (genre_name := genre.name):
+                        self.genre_combo.set_active_id(genre_name)
             finally:
                 self.updating_query = False
 
         # Never force. We invalidate the cache ourselves (force is used when
-        # sort params change).
+        # sort params change). TODO
         genres_future = AdapterManager.get_genres(force=False)
         genres_future.add_done_callback(lambda f: GLib.idle_add(get_genres_done, f))
 
-    def update(self, app_config: AppConfiguration, force: bool = False):
+    def update(self, app_config: AppConfiguration = None, force: bool = False):
         self.updating_query = True
 
         # (En|Dis)able getting genres.
         self.sort_type_combo_store[1][2] = AdapterManager.can_get_genres()
-
-        self.sort_type_combo.set_active_id(app_config.state.current_album_sort)
-        self.alphabetical_type_combo.set_active_id(
-            app_config.state.current_album_alphabetical_sort
-        )
-        self.from_year_spin_button.set_value(app_config.state.current_album_from_year)
-        self.to_year_spin_button.set_value(app_config.state.current_album_to_year)
         self.populate_genre_combo(app_config, force=force)
 
+        if app_config:
+            self.current_query = app_config.state.current_album_search_query
+
+        self.sort_type_combo.set_active_id(_to_type(self.current_query.type))
+        self.alphabetical_type_combo.set_active_id(
+            {
+                AlbumSearchQuery.Type.ALPHABETICAL_BY_NAME: "by_name",
+                AlbumSearchQuery.Type.ALPHABETICAL_BY_ARTIST: "by_artist",
+            }.get(self.current_query.type)
+            or "by_name"
+        )
+
+        if year_range := self.current_query.year_range:
+            self.from_year_spin_button.set_value(year_range[0])
+            self.to_year_spin_button.set_value(year_range[1])
+
         # Show/hide the combo boxes.
-        def show_if(sort_type: str, *elements):
+        def show_if(sort_type: Iterable[AlbumSearchQuery.Type], *elements):
             for element in elements:
-                if app_config.state.current_album_sort == sort_type:
+                if self.current_query.type in sort_type:
                     element.show()
                 else:
                     element.hide()
 
-        show_if("alphabetical", self.alphabetical_type_combo)
-        show_if("byGenre", self.genre_combo)
-        show_if("byYear", self.from_year_label, self.from_year_spin_button)
-        show_if("byYear", self.to_year_label, self.to_year_spin_button)
+        show_if(
+            (
+                AlbumSearchQuery.Type.ALPHABETICAL_BY_NAME,
+                AlbumSearchQuery.Type.ALPHABETICAL_BY_ARTIST,
+            ),
+            self.alphabetical_type_combo,
+        )
+        show_if((AlbumSearchQuery.Type.GENRE,), self.genre_combo)
+        show_if(
+            (AlbumSearchQuery.Type.YEAR_RANGE,),
+            self.from_year_label,
+            self.from_year_spin_button,
+            self.to_year_label,
+            self.to_year_spin_button,
+        )
 
         self.grid.update(self.grid_order_token, app_config, force=force)
 
-    def get_id(self, combo: Gtk.ComboBox) -> Optional[int]:
+    def get_id(self, combo: Gtk.ComboBox) -> Optional[str]:
         tree_iter = combo.get_active_iter()
         if tree_iter is not None:
             return combo.get_model()[tree_iter][0]
@@ -173,44 +229,61 @@ class AlbumsPanel(Gtk.Box):
     def on_refresh_clicked(self, button: Any):
         self.emit("refresh-window", {}, True)
 
+    class _Genre(API.Genre):
+        def __init__(self, name: str):
+            self.name = name
+
     def on_type_combo_changed(self, combo: Gtk.ComboBox):
-        new_active_sort = self.get_id(combo)
-        self.grid_order_token = self.grid.update_params(type_=new_active_sort)
+        id = self.get_id(combo)
+        assert id
+        if id == "alphabetical":
+            id += "_" + cast(str, self.get_id(self.alphabetical_type_combo))
+        self.current_query = AlbumSearchQuery(
+            _from_str(id), self.current_query.year_range, self.current_query.genre
+        )
+        self.grid_order_token = self.grid.update_params(self.current_query)
         self.emit_if_not_updating(
-            "refresh-window", {"current_album_sort": new_active_sort}, False,
+            "refresh-window", {"current_album_search_query": self.current_query}, False,
         )
 
     def on_alphabetical_type_change(self, combo: Gtk.ComboBox):
-        new_active_alphabetical_sort = self.get_id(combo)
-        self.grid_order_token = self.grid.update_params(
-            alphabetical_type=new_active_alphabetical_sort
+        id = "alphabetical_" + cast(str, self.get_id(combo))
+        self.current_query = AlbumSearchQuery(
+            _from_str(id), self.current_query.year_range, self.current_query.genre
         )
+        self.grid_order_token = self.grid.update_params(self.current_query)
         self.emit_if_not_updating(
-            "refresh-window",
-            {"current_album_alphabetical_sort": new_active_alphabetical_sort},
-            False,
+            "refresh-window", {"current_album_search_query": self.current_query}, False,
         )
 
     def on_genre_change(self, combo: Gtk.ComboBox):
-        new_active_genre = self.get_id(combo)
-        self.grid_order_token = self.grid.update_params(genre=new_active_genre)
+        genre = self.get_id(combo)
+        assert genre
+        self.current_query = AlbumSearchQuery(
+            self.current_query.type,
+            self.current_query.year_range,
+            AlbumsPanel._Genre(genre),
+        )
+        self.grid_order_token = self.grid.update_params(self.current_query)
+        self.update()
         self.emit_if_not_updating(
-            "refresh-window", {"current_album_genre": new_active_genre}, True,
+            "refresh-window", {"current_album_search_query": self.current_query}, False,
         )
 
     def on_year_changed(self, entry: Gtk.SpinButton) -> bool:
         year = int(entry.get_value())
-
+        assert self.current_query.year_range
         if self.to_year_spin_button == entry:
-            self.grid_order_token = self.grid.update_params(to_year=year)
-            self.emit_if_not_updating(
-                "refresh-window", {"current_album_to_year": year}, True,
-            )
+            new_year_tuple = (self.current_query.year_range[0], year)
         else:
-            self.grid_order_token = self.grid.update_params(from_year=year)
-            self.emit_if_not_updating(
-                "refresh-window", {"current_album_from_year": year}, True,
-            )
+            new_year_tuple = (year, self.current_query.year_range[0])
+
+        self.current_query = AlbumSearchQuery(
+            self.current_query.type, new_year_tuple, self.current_query.genre
+        )
+        self.emit_if_not_updating(
+            "refresh-window", {"current_album_search_query": self.current_query}, False,
+        )
 
         return False
 
@@ -236,18 +309,15 @@ class AlbumsGrid(Gtk.Overlay):
         ),
         "cover-clicked": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (object,),),
     }
-    type_: str = "random"
-    alphabetical_type: str = "name"
-    from_year: int = 2010
-    to_year: int = 2020
-    genre: str = "Rock"
+
+    current_query: AlbumSearchQuery = AlbumSearchQuery(AlbumSearchQuery.Type.RANDOM)
     latest_applied_order_ratchet: int = 0
     order_ratchet: int = 0
 
     current_selection: Optional[int] = None
     next_page_fn = None
     current_min_size_request = 30
-    server_hash = None
+    # server_hash = None
 
     class _AlbumModel(GObject.Object):
         def __init__(self, album: API.Album):
@@ -261,28 +331,11 @@ class AlbumsGrid(Gtk.Overlay):
         def __repr__(self) -> str:
             return f"<AlbumsGrid.AlbumModel {self.album}>"
 
-    def update_params(
-        self,
-        type_: str = None,
-        alphabetical_type: str = None,
-        from_year: int = None,
-        to_year: int = None,
-        genre: str = None,
-    ) -> int:
+    def update_params(self, query: AlbumSearchQuery) -> int:
         # If there's a diff, increase the ratchet.
-        if (
-            self.type_ != type_
-            or self.alphabetical_type != alphabetical_type
-            or self.from_year != from_year
-            or self.to_year != to_year
-            or self.genre != genre
-        ):
+        if hash(self.current_query) != hash(query):
             self.order_ratchet += 1
-        self.type_ = type_ or self.type_
-        self.alphabetical_type = alphabetical_type or self.alphabetical_type
-        self.from_year = from_year or self.from_year
-        self.to_year = to_year or self.to_year
-        self.genre = genre or self.genre
+        self.current_query = query
         self.current_min_size_request = 30
         return self.order_ratchet
 
@@ -356,19 +409,17 @@ class AlbumsGrid(Gtk.Overlay):
         self.add_overlay(self.spinner)
 
     def update(
-        self, order_token: int, app_config: AppConfiguration, force: bool = False,
+        self, order_token: int, app_config: AppConfiguration, force: bool = False
     ):
         if order_token < self.latest_applied_order_ratchet:
             return
-        if app_config.server is None:
-            return
 
-        new_hash = app_config.server.strhash()
-        server_changed = self.server_hash != new_hash
-        self.server_hash = new_hash
+        # new_hash = app_config.server.strhash()
+        # server_changed = self.server_hash != new_hash
+        # self.server_hash = new_hash
         self.update_grid(
             order_token,
-            force=force or server_changed,
+            force=force,  # or server_changed,
             selected_id=app_config.state.selected_album_id,
         )
 
@@ -386,11 +437,6 @@ class AlbumsGrid(Gtk.Overlay):
             self.spinner.hide()
             return
 
-        # Calculate the type.
-        type_ = self.type_
-        if self.type_ == "alphabetical":
-            type_ += {"name": "ByName", "artist": "ByArtist"}[self.alphabetical_type]
-
         def do_update(f: Result[Iterable[API.Album]]):
             try:
                 albums = f.result()
@@ -405,8 +451,9 @@ class AlbumsGrid(Gtk.Overlay):
                     text="Failed to retrieve albums",
                 )
                 self.error_dialog.format_secondary_markup(
-                    f"Getting albums by {type_} failed due to the following"
-                    f" error\n\n{e}"
+                    # TODO make this error better
+                    f"Getting albums by {self.current_query.type} failed due to the"
+                    f"following error\n\n{e}"
                 )
                 self.error_dialog.run()
                 self.error_dialog.destroy()
@@ -425,6 +472,7 @@ class AlbumsGrid(Gtk.Overlay):
 
             self.list_store.remove_all()
 
+            print(selected_id, self.current_selection)
             selected_index = None
             for i, album in enumerate(albums):
                 model = AlbumsGrid._AlbumModel(album)
@@ -443,10 +491,7 @@ class AlbumsGrid(Gtk.Overlay):
             self.spinner.hide()
 
         future = AdapterManager.get_albums(
-            type_=type_,
-            from_year=self.from_year,
-            to_year=self.to_year,
-            genre=self.genre,
+            self.current_query,
             before_download=lambda: GLib.idle_add(self.spinner.show),
             force=force,
         )
@@ -504,14 +549,16 @@ class AlbumsGrid(Gtk.Overlay):
 
         # Header for the widget
         header_text = (
-            item.album.title if isinstance(item.album, Child) else item.album.name
+            item.album.title if isinstance(item.album, API.Song) else item.album.name
         )
 
         header_label = make_label(header_text, "grid-header-label")
         widget_box.pack_start(header_label, False, False, 0)
 
         # Extra info for the widget
-        info_text = util.dot_join(item.album.artist, item.album.year)
+        info_text = util.dot_join(
+            item.album.artist.name if item.album.artist else "-", item.album.year
+        )
         if info_text:
             info_label = make_label(info_text, "grid-info-label")
             widget_box.pack_start(info_label, False, False, 0)
@@ -525,7 +572,7 @@ class AlbumsGrid(Gtk.Overlay):
             artwork.set_loading(True)
 
         cover_art_filename_future = AdapterManager.get_cover_art_filename(
-            item.album.coverArt, before_download=lambda: GLib.idle_add(start_loading),
+            item.album.cover_art, before_download=lambda: GLib.idle_add(start_loading),
         )
         cover_art_filename_future.add_done_callback(
             lambda f: GLib.idle_add(on_artwork_downloaded, f)

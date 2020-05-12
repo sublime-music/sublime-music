@@ -25,7 +25,13 @@ import requests
 from sublime import util
 from sublime.config import AppConfiguration
 
-from .adapter_base import Adapter, CacheMissError, CachingAdapter, SongCacheStatus
+from .adapter_base import (
+    Adapter,
+    AlbumSearchQuery,
+    CacheMissError,
+    CachingAdapter,
+    SongCacheStatus,
+)
 from .api_objects import (
     Album,
     Artist,
@@ -375,6 +381,22 @@ class AdapterManager:
             key=scheme_priority.index,
         )
         return list(schemes)[0]
+
+    @staticmethod
+    def get_supported_artist_query_types() -> Set[AlbumSearchQuery.Type]:
+        assert AdapterManager._instance
+
+        supported_artist_query_types: Set[AlbumSearchQuery.Type] = set()
+        supported_artist_query_types.union(
+            AdapterManager._instance.ground_truth_adapter.supported_artist_query_types
+        )
+
+        if caching_adapter := AdapterManager._instance.caching_adapter:
+            supported_artist_query_types.union(
+                caching_adapter.supported_artist_query_types
+            )
+
+        return supported_artist_query_types
 
     R = TypeVar("R")
 
@@ -929,10 +951,17 @@ class AdapterManager:
     # Albums
     @staticmethod
     def get_albums(
-        before_download: Callable[[], None] = lambda: None, force: bool = False,
+        query: AlbumSearchQuery,
+        size: int = 40,
+        offset: int = 0,
+        before_download: Callable[[], None] = lambda: None,
+        force: bool = False,
     ) -> Result[Sequence[Album]]:
         return AdapterManager._get_from_cache_or_ground_truth(
             "get_albums",
+            query,
+            size,
+            offset,
             cache_key=CachingAdapter.CachedDataKey.ALBUMS,
             before_download=before_download,
             use_ground_truth_adapter=force,

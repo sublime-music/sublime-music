@@ -6,11 +6,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, cast, Dict, Optional, Sequence, Set, Tuple, Union
 
+from peewee import fn
+
 from sublime import util
 from sublime.adapters import api_objects as API
 
 from . import models
-from .. import CacheMissError, CachingAdapter, ConfigParamDescriptor, SongCacheStatus
+from .. import (
+    AlbumSearchQuery,
+    CacheMissError,
+    CachingAdapter,
+    ConfigParamDescriptor,
+    SongCacheStatus,
+)
 
 
 class FilesystemAdapter(CachingAdapter):
@@ -80,6 +88,17 @@ class FilesystemAdapter(CachingAdapter):
     can_search = True
 
     supported_schemes = ("file",)
+    supported_artist_query_types = {
+        AlbumSearchQuery.Type.RANDOM,
+        AlbumSearchQuery.Type.NEWEST,
+        AlbumSearchQuery.Type.FREQUENT,
+        AlbumSearchQuery.Type.RECENT,
+        AlbumSearchQuery.Type.STARRED,
+        AlbumSearchQuery.Type.ALPHABETICAL_BY_NAME,
+        AlbumSearchQuery.Type.ALPHABETICAL_BY_ARTIST,
+        AlbumSearchQuery.Type.YEAR_RANGE,
+        AlbumSearchQuery.Type.GENRE,
+    }
 
     # Data Helper Methods
     # ==================================================================================
@@ -214,12 +233,46 @@ class FilesystemAdapter(CachingAdapter):
             models.Artist, artist_id, CachingAdapter.CachedDataKey.ARTIST
         )
 
-    def get_albums(self, ignore_cache_miss: bool = False) -> Sequence[API.Album]:
-        # TODO all of the parameters
+    def get_albums(
+        self, query: AlbumSearchQuery, limit: int, offset: int,
+    ) -> Sequence[API.Album]:
+        sql_query = models.Album.select()
+
+        Type = AlbumSearchQuery.Type
+        if query.type == Type.GENRE:
+            assert query.genre
+        genre_name = genre.name if (genre := query.genre) else None
+
+        sql_query = {
+            Type.RANDOM: sql_query.order_by(fn.Random()),
+            Type.NEWEST: sql_query.order_by(models.Album.created.desc()),
+            Type.FREQUENT: sql_query.order_by(models.Album.play_count.desc()),
+            Type.RECENT: sql_query,  # TODO IMPLEMENT
+            Type.STARRED: sql_query.where(models.Album.starred.is_null(False)),
+            Type.ALPHABETICAL_BY_NAME: sql_query.order_by(models.Album.name),
+            Type.ALPHABETICAL_BY_ARTIST: sql_query.order_by(models.Album.artist.name),
+            Type.YEAR_RANGE: sql_query.where(
+                models.Album.year.between(*query.year_range)
+            ).order_by(models.Album.year),
+            Type.GENRE: sql_query.where(models.Album.genre == genre_name),
+        }[query.type]
+
+        sql_query = sql_query.limit(limit).offset(offset)
+
+        if self.is_cache:
+            # Determine if the adapter has ingested data for this key before, and if
+            # not, cache miss.
+            if not models.CacheInfo.get_or_none(
+                models.CacheInfo.cache_key == CachingAdapter.CachedDataKey.ALBUMS,
+                models.CacheInfo.params_hash == util.params_hash(query, limit, offset),
+            ):
+                raise CacheMissError(partial_data=sql_query)
+
+        return sql_query
+
+    def get_all_albums(self) -> Sequence[API.Album]:
         return self._get_list(
-            models.Album,
-            CachingAdapter.CachedDataKey.ALBUMS,
-            ignore_cache_miss=ignore_cache_miss,
+            models.Album, CachingAdapter.CachedDataKey.ALBUMS, ignore_cache_miss=True
         )
 
     def get_album(self, album_id: str) -> API.Album:
@@ -242,7 +295,7 @@ class FilesystemAdapter(CachingAdapter):
 
     def search(self, query: str) -> API.SearchResult:
         search_result = API.SearchResult()
-        search_result.add_results("albums", self.get_albums(ignore_cache_miss=True))
+        search_result.add_results("albums", self.get_all_albums())
         search_result.add_results("artists", self.get_artists(ignore_cache_miss=True))
         search_result.add_results(
             "songs",

@@ -1,5 +1,5 @@
 from random import randint
-from typing import Any
+from typing import Any, List
 
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
@@ -107,10 +107,10 @@ class AlbumWithSongs(Gtk.Box):
 
         album_details.add(album_title_and_buttons)
 
-        stats = [
-            album.artist if show_artist_name else None,
+        stats: List[Any] = [
+            album.artist.name if show_artist_name and album.artist else None,
             album.year,
-            album.genre.name,
+            album.genre.name if album.genre else None,
             util.format_sequence_duration(album.duration) if album.duration else None,
         ]
 
