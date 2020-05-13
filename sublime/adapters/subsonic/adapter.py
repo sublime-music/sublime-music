@@ -8,7 +8,18 @@ import random
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
-from typing import Any, cast, Dict, Iterable, Optional, Sequence, Set, Tuple, Union
+from typing import (
+    Any,
+    cast,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 from urllib.parse import urlencode, urlparse
 
 import requests
@@ -360,9 +371,7 @@ class SubsonicAdapter(Adapter):
 
         return set(ignored_articles.split())
 
-    def get_albums(
-        self, query: AlbumSearchQuery, limit: int, offset: int
-    ) -> Sequence[API.Album]:
+    def get_albums(self, query: AlbumSearchQuery) -> Sequence[API.Album]:
         type_ = {
             AlbumSearchQuery.Type.RANDOM: "random",
             AlbumSearchQuery.Type.NEWEST: "newest",
@@ -377,24 +386,36 @@ class SubsonicAdapter(Adapter):
 
         extra_args: Dict[str, Any] = {}
         if query.type == AlbumSearchQuery.Type.YEAR_RANGE:
-            assert query.year_range
+            assert (year_range := query.year_range)
             extra_args = {
-                "fromYear": query.year_range[0],
-                "toYear": query.year_range[1],
+                "fromYear": year_range[0],
+                "toYear": year_range[1],
             }
         elif query.type == AlbumSearchQuery.Type.GENRE:
-            assert query.genre
-            extra_args = {"genre": query.genre.name}
+            assert (genre := query.genre)
+            extra_args = {"genre": genre.name}
 
-        if albums := self._get_json(
-            self._make_url("getAlbumList2"),
-            type=type_,
-            size=limit,
-            offset=offset,
-            **extra_args,
-        ).albums:
-            return albums.album
-        return []
+        albums: List[API.Album] = []
+        page_size = 50 if query.type == AlbumSearchQuery.Type.RANDOM else 500
+        offset = 0
+
+        def get_page(offset: int) -> Sequence[API.Album]:
+            album_list = self._get_json(
+                self._make_url("getAlbumList2"),
+                type=type_,
+                size=page_size,
+                offset=offset,
+                **extra_args,
+            ).albums
+            return album_list.album if album_list else []
+
+        while len(next_page := get_page(offset)) > 0:
+            albums.extend(next_page)
+            if query.type == AlbumSearchQuery.Type.RANDOM:
+                break
+            offset += page_size
+
+        return albums
 
     def get_album(self, album_id: str) -> API.Album:
         album = self._get_json(self._make_url("getAlbum"), id=album_id).album

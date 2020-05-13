@@ -569,18 +569,19 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("get_ignored_articles")
 
-    def get_albums(
-        self, query: AlbumSearchQuery, limit: int, offset: int
-    ) -> Sequence[Album]:
+    def get_albums(self, query: AlbumSearchQuery) -> Sequence[Album]:
         """
         Get a list of all of the albums known to the adapter for the given query.
 
+        .. note::
+
+           This request is not paged. You should do any page management to get all of
+           the albums matching the query internally.
+
         :param query: An :class:`AlbumSearchQuery` object representing the types of
             albums to return.
-        :param limit: The maximum number of albums to return.
-        :param offset: The index at whith to start returning albums (for paging).
         :returns: A list of all of the :class:`sublime.adapter.api_objects.Album`
-            objects known to the adapter.
+            objects known to the adapter that match the query.
         """
         raise self._check_can_error("get_albums")
 

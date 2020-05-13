@@ -39,7 +39,7 @@ except Exception:
     )
     glib_notify_exists = False
 
-from .adapters import AdapterManager, Result
+from .adapters import AdapterManager, AlbumSearchQuery, Result
 from .adapters.api_objects import Playlist, PlayQueue, Song
 from .cache_manager import CacheManager
 from .config import AppConfiguration, ReplayGainType
@@ -628,12 +628,13 @@ class SublimeMusicApp(Gtk.Application):
         album = AdapterManager.get_album(album_id.get_string()).result()
 
         if year := album.year:
-            self.app_config.state.current_album_sort = "byYear"
-            self.app_config.state.current_album_from_year = year
-            self.app_config.state.current_album_to_year = year
+            self.app_config.state.current_album_search_query = AlbumSearchQuery(
+                AlbumSearchQuery.Type.YEAR_RANGE, year_range=(year, year)
+            )
         elif genre := album.genre:
-            self.app_config.state.current_album_sort = "byGenre"
-            self.app_config.state.current_album_genre = genre.name
+            self.app_config.state.current_album_search_query = AlbumSearchQuery(
+                AlbumSearchQuery.Type.GENRE, genre=genre
+            )
         else:
             # TODO (#167) change this to not be a modal dialog.
             dialog = Gtk.MessageDialog(
@@ -894,15 +895,17 @@ class SublimeMusicApp(Gtk.Application):
     def update_window(self, force: bool = False):
         if not self.window:
             return
+        logging.info(f"Updating window force={force}")
         GLib.idle_add(lambda: self.window.update(self.app_config, force=force))
 
     def update_play_state_from_server(self, prompt_confirm: bool = False):
         # TODO (#129): need to make the play queue list loading for the duration here if
         # prompt_confirm is False.
-        was_playing = self.app_config.state.playing
-        self.player.pause()
-        self.app_config.state.playing = False
-        self.update_window()
+        if (was_playing := self.app_config.state.playing) :
+            assert self.player
+            self.player.pause()
+            self.app_config.state.playing = False
+            self.update_window()
 
         def do_update(f: Result[PlayQueue]):
             play_queue = f.result()

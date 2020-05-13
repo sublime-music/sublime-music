@@ -430,14 +430,10 @@ class AdapterManager:
         logging.info(f"START: {function_name}")
         partial_data = None
         if AdapterManager._can_use_cache(use_ground_truth_adapter, function_name):
-            assert AdapterManager._instance.caching_adapter
+            assert (caching_adapter := AdapterManager._instance.caching_adapter)
             try:
-                logging.info(f"END: TRY SERVE FROM CACHE: {function_name}")
-                return Result(
-                    getattr(AdapterManager._instance.caching_adapter, function_name)(
-                        *args, **kwargs
-                    )
-                )
+                logging.info(f"END: {function_name}: serving from cache")
+                return Result(getattr(caching_adapter, function_name)(*args, **kwargs))
             except CacheMissError as e:
                 partial_data = e.partial_data
                 logging.info(f"Cache Miss on {function_name}.")
@@ -952,16 +948,12 @@ class AdapterManager:
     @staticmethod
     def get_albums(
         query: AlbumSearchQuery,
-        size: int = 40,
-        offset: int = 0,
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,
     ) -> Result[Sequence[Album]]:
         return AdapterManager._get_from_cache_or_ground_truth(
             "get_albums",
             query,
-            size,
-            offset,
             cache_key=CachingAdapter.CachedDataKey.ALBUMS,
             before_download=before_download,
             use_ground_truth_adapter=force,

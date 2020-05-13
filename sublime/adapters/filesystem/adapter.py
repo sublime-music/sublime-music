@@ -233,12 +233,13 @@ class FilesystemAdapter(CachingAdapter):
             models.Artist, artist_id, CachingAdapter.CachedDataKey.ARTIST
         )
 
-    def get_albums(
-        self, query: AlbumSearchQuery, limit: int, offset: int,
-    ) -> Sequence[API.Album]:
+    def get_albums(self, query: AlbumSearchQuery) -> Sequence[API.Album]:
+        # TODO: deal with ordering
+        # TODO: deal with paging
+        # TODO: deal with cache invalidation
         sql_query = models.Album.select()
 
-        Type = AlbumSearchQuery.Type
+        Type = AlbumSearchQuery.Type)
         if query.type == Type.GENRE:
             assert query.genre
         genre_name = genre.name if (genre := query.genre) else None
@@ -257,14 +258,12 @@ class FilesystemAdapter(CachingAdapter):
             Type.GENRE: sql_query.where(models.Album.genre == genre_name),
         }[query.type]
 
-        sql_query = sql_query.limit(limit).offset(offset)
-
         if self.is_cache:
             # Determine if the adapter has ingested data for this key before, and if
             # not, cache miss.
             if not models.CacheInfo.get_or_none(
                 models.CacheInfo.cache_key == CachingAdapter.CachedDataKey.ALBUMS,
-                models.CacheInfo.params_hash == util.params_hash(query, limit, offset),
+                models.CacheInfo.params_hash == util.params_hash(query),
             ):
                 raise CacheMissError(partial_data=sql_query)
 

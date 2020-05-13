@@ -266,7 +266,6 @@ class MainWindow(Gtk.ApplicationWindow):
 
         def search_result_calback(idx: int, result: API.SearchResult):
             # Ignore slow returned searches.
-            print("ohea", idx, self.search_idx)
             if idx < self.search_idx:
                 return
 
