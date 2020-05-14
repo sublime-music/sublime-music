@@ -153,10 +153,8 @@ class AppConfiguration:
                 self._state = UIState()
 
         # Do the import in the function to avoid circular imports.
-        from sublime.cache_manager import CacheManager
         from sublime.adapters import AdapterManager
 
-        CacheManager.reset(self)
         AdapterManager.reset(self)
 
     @property

@@ -4,7 +4,6 @@ from typing import Any
 from gi.repository import GObject, Gtk
 
 from sublime.config import AppConfiguration, ServerConfiguration
-from sublime.server import Server
 from sublime.ui.common import EditFormDialog, IconButton
 
 
@@ -26,7 +25,7 @@ class EditServerDialog(EditFormDialog):
 
     def __init__(self, *args, **kwargs):
         test_server = Gtk.Button(label="Test Connection to Server")
-        test_server.connect("clicked", self.on_test_server_clicked)
+        # test_server.connect("clicked", self.on_test_server_clicked)
 
         open_in_browser = Gtk.Button(label="Open in Browser")
         open_in_browser.connect("clicked", self.on_open_in_browser_clicked)
@@ -35,43 +34,43 @@ class EditServerDialog(EditFormDialog):
 
         super().__init__(*args, **kwargs)
 
-    def on_test_server_clicked(self, event: Any):
-        # Instantiate the server.
-        server_address = self.data["server_address"].get_text()
-        server = Server(
-            name=self.data["name"].get_text(),
-            hostname=server_address,
-            username=self.data["username"].get_text(),
-            password=self.data["password"].get_text(),
-            disable_cert_verify=self.data["disable_cert_verify"].get_active(),
-        )
+    # def on_test_server_clicked(self, event: Any):
+    #     # Instantiate the server.
+    #     server_address = self.data["server_address"].get_text()
+    #     server = Server(
+    #         name=self.data["name"].get_text(),
+    #         hostname=server_address,
+    #         username=self.data["username"].get_text(),
+    #         password=self.data["password"].get_text(),
+    #         disable_cert_verify=self.data["disable_cert_verify"].get_active(),
+    #     )
 
-        # Try to ping, and show a message box with whether or not it worked.
-        try:
-            server.ping()
-            dialog = Gtk.MessageDialog(
-                transient_for=self,
-                message_type=Gtk.MessageType.INFO,
-                buttons=Gtk.ButtonsType.OK,
-                text="Connection to server successful.",
-            )
-            dialog.format_secondary_markup(
-                f"Connection to {server_address} successful."
-            )
-        except Exception as err:
-            dialog = Gtk.MessageDialog(
-                transient_for=self,
-                message_type=Gtk.MessageType.ERROR,
-                buttons=Gtk.ButtonsType.OK,
-                text="Connection to server unsuccessful.",
-            )
-            dialog.format_secondary_markup(
-                f"Connection to {server_address} resulted in the following "
-                f"error:\n\n{err}"
-            )
+    #     # Try to ping, and show a message box with whether or not it worked.
+    #     try:
+    #         server.ping()
+    #         dialog = Gtk.MessageDialog(
+    #             transient_for=self,
+    #             message_type=Gtk.MessageType.INFO,
+    #             buttons=Gtk.ButtonsType.OK,
+    #             text="Connection to server successful.",
+    #         )
+    #         dialog.format_secondary_markup(
+    #             f"Connection to {server_address} successful."
+    #         )
+    #     except Exception as err:
+    #         dialog = Gtk.MessageDialog(
+    #             transient_for=self,
+    #             message_type=Gtk.MessageType.ERROR,
+    #             buttons=Gtk.ButtonsType.OK,
+    #             text="Connection to server unsuccessful.",
+    #         )
+    #         dialog.format_secondary_markup(
+    #             f"Connection to {server_address} resulted in the following "
+    #             f"error:\n\n{err}"
+    #         )
 
-        dialog.run()
-        dialog.destroy()
+    #     dialog.run()
+    #     dialog.destroy()
 
     def on_open_in_browser_clicked(self, event: Any):
         subprocess.call(["xdg-open", self.data["server_address"].get_text()])

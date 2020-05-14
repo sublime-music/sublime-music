@@ -41,7 +41,6 @@ except Exception:
 
 from .adapters import AdapterManager, AlbumSearchQuery, Result
 from .adapters.api_objects import Playlist, PlayQueue, Song
-from .cache_manager import CacheManager
 from .config import AppConfiguration, ReplayGainType
 from .dbus import dbus_propagate, DBusManager
 from .players import ChromecastPlayer, MPVPlayer, PlayerEvent
@@ -880,7 +879,6 @@ class SublimeMusicApp(Gtk.Application):
         self.save_play_queue()
         if self.dbus_manager:
             self.dbus_manager.shutdown()
-        CacheManager.shutdown()
         AdapterManager.shutdown()
 
     # ########## HELPER METHODS ########## #
