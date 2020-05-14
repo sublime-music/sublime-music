@@ -3,7 +3,7 @@ from typing import Any, Optional, Set
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, Result, api_objects as API
+from sublime.adapters import AdapterManager, api_objects as API, Result
 from sublime.config import AppConfiguration
 from sublime.ui import albums, artists, browse, player_controls, playlists, util
 from sublime.ui.common import SpinnerImage

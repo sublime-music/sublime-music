@@ -4,6 +4,7 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 from time import sleep
 from typing import (
@@ -35,6 +36,7 @@ from .adapter_base import (
 from .api_objects import (
     Album,
     Artist,
+    Directory,
     Genre,
     Playlist,
     PlaylistDetails,
@@ -114,8 +116,9 @@ class Result(Generic[T]):
             assert 0, "AdapterManager.Result had neither _data nor _future member!"
         except Exception as e:
             if self._default_value:
-                self._data = self._default_value
-            raise e
+                return self._default_value
+            else:
+                raise e
 
     def add_done_callback(self, fn: Callable, *args):
         """Attaches the callable ``fn`` to the future."""
@@ -160,6 +163,7 @@ class AdapterManager:
         def __post_init__(self):
             self._download_dir = tempfile.TemporaryDirectory()
             self.download_path = Path(self._download_dir.name)
+            # TODO can we use the threadpool executor max workersfor this
             self.download_limiter_semaphore = threading.Semaphore(
                 self.concurrent_download_limit
             )
@@ -523,6 +527,10 @@ class AdapterManager:
         return AdapterManager._any_adapter_can_do("get_artist")
 
     @staticmethod
+    def can_get_directory() -> bool:
+        return AdapterManager._any_adapter_can_do("get_directory")
+
+    @staticmethod
     def can_get_play_queue() -> bool:
         return AdapterManager._ground_truth_can_do("get_play_queue")
 
@@ -850,8 +858,9 @@ class AdapterManager:
             return
 
         for song_id in song_ids:
+            song = AdapterManager.get_song_details(song_id).result()
             AdapterManager._instance.caching_adapter.delete_data(
-                CachingAdapter.CachedDataKey.SONG_FILE, (song_id,)
+                CachingAdapter.CachedDataKey.SONG_FILE, (song.id,)
             )
             on_song_delete(song_id)
 
@@ -895,27 +904,32 @@ class AdapterManager:
                 before_download=before_download,
                 cache_key=CachingAdapter.CachedDataKey.ARTISTS,
             ).result()
-
-            ignored_articles: Set[str] = set()
-            if AdapterManager._any_adapter_can_do("get_ignored_articles"):
-                try:
-                    ignored_articles = AdapterManager._get_from_cache_or_ground_truth(
-                        "get_ignored_articles",
-                        use_ground_truth_adapter=force,
-                        cache_key=CachingAdapter.CachedDataKey.IGNORED_ARTICLES,
-                    ).result()
-                except Exception:
-                    logging.exception("Failed to retrieve ignored_articles")
-
-            def strip_ignored_articles(artist: Artist) -> str:
-                name_parts = artist.name.split()
-                if name_parts[0] in ignored_articles:
-                    name_parts = name_parts[1:]
-                return " ".join(name_parts)
-
-            return sorted(artists, key=strip_ignored_articles)
+            return sorted(
+                artists, key=partial(AdapterManager._strip_ignored_articles, force)
+            )
 
         return Result(do_get_artists)
+
+    @staticmethod
+    def _get_ignored_articles(force: bool) -> Set[str]:
+        if not AdapterManager._any_adapter_can_do("get_ignored_articles"):
+            return set()
+        try:
+            return AdapterManager._get_from_cache_or_ground_truth(
+                "get_ignored_articles",
+                use_ground_truth_adapter=force,
+                cache_key=CachingAdapter.CachedDataKey.IGNORED_ARTICLES,
+            ).result()
+        except Exception:
+            logging.exception("Failed to retrieve ignored_articles")
+            return set()
+
+    @staticmethod
+    def _strip_ignored_articles(force: bool, artist: Artist) -> str:
+        first_word, rest = (name := artist.name).split(maxsplit=1)
+        if first_word in AdapterManager._get_ignored_articles(force):
+            return rest
+        return name
 
     @staticmethod
     def get_artist(
@@ -971,6 +985,21 @@ class AdapterManager:
             before_download=before_download,
             use_ground_truth_adapter=force,
             cache_key=CachingAdapter.CachedDataKey.ALBUM,
+        )
+
+    # Browse
+    @staticmethod
+    def get_directory(
+        directory_id: str,
+        before_download: Callable[[], None] = lambda: None,
+        force: bool = False,
+    ) -> Result[Directory]:
+        return AdapterManager._get_from_cache_or_ground_truth(
+            "get_directory",
+            directory_id,
+            before_download=before_download,
+            use_ground_truth_adapter=force,
+            cache_key=CachingAdapter.CachedDataKey.DIRECTORY,
         )
 
     @staticmethod

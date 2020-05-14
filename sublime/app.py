@@ -1075,24 +1075,29 @@ class SublimeMusicApp(Gtk.Application):
             # Download current song and prefetch songs. Only do this if
             # download_on_stream is True and always_stream is off.
             def on_song_download_complete(song_id: str):
-                if (
-                    order_token != self.song_playing_order_token
-                    or not self.app_config.state.playing
-                    or not self.app_config.state.current_song
-                    or self.app_config.state.current_song.id != song_id
-                ):
+                if order_token != self.song_playing_order_token:
                     return
 
-                # Switch to the local media if the player can hotswap without lag.
-                # For example, MPV can is barely noticable whereas there's quite a delay
-                # with Chromecast.
-                assert self.player
-                if self.player.can_hotswap_source:
-                    self.player.play_media(
-                        AdapterManager.get_song_filename_or_stream(song)[0],
-                        self.app_config.state.song_progress,
-                        song,
-                    )
+                # Hotswap to the downloaded song.
+                if (
+                    # TODO allow hotswap if not playing. This requires being able to
+                    # replace the currently playing URI with something different.
+                    self.app_config.state.playing
+                    and self.app_config.state.current_song
+                    and self.app_config.state.current_song.id == song_id
+                ):
+                    # Switch to the local media if the player can hotswap without lag.
+                    # For example, MPV can is barely noticable whereas there's quite a
+                    # delay with Chromecast.
+                    assert self.player
+                    if self.player.can_hotswap_source:
+                        self.player.play_media(
+                            AdapterManager.get_song_filename_or_stream(song)[0],
+                            self.app_config.state.song_progress,
+                            song,
+                        )
+
+                # Always update the window
                 self.update_window()
 
             if (

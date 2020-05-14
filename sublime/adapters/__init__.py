@@ -1,10 +1,10 @@
 from .adapter_base import (
     Adapter,
+    AlbumSearchQuery,
     CacheMissError,
     CachingAdapter,
     ConfigParamDescriptor,
     SongCacheStatus,
-    AlbumSearchQuery,
 )
 from .manager import AdapterManager, Result, SearchResult
 

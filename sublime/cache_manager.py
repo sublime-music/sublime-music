@@ -1,6 +1,3 @@
-import glob
-import hashlib
-import itertools
 import json
 import logging
 import os
@@ -10,26 +7,20 @@ import threading
 from collections import defaultdict
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime
-from enum import Enum, EnumMeta
-from functools import lru_cache
+from enum import EnumMeta
 from pathlib import Path
-from time import sleep
 from typing import (
     Any,
     Callable,
     DefaultDict,
     Dict,
     Generic,
-    Iterable,
     List,
     Optional,
     Set,
     TypeVar,
     Union,
 )
-
-import requests
-from fuzzywuzzy import fuzz
 
 try:
     import gi
@@ -46,12 +37,10 @@ except Exception:
     )
     networkmanager_imported = False
 
-from .adapters import AdapterManager, api_objects as API, Result as AdapterResult
 from .config import AppConfiguration
 from .server import Server
 from .server.api_object import APIObject
 from .server.api_objects import (
-    AlbumID3,
     AlbumWithSongsID3,
     Artist,
     ArtistID3,
@@ -80,96 +69,6 @@ class Singleton(type):
             return getattr(CacheManager._instance.server, name)
 
         return None
-
-
-class SongCacheStatus(Enum):
-    NOT_CACHED = 0
-    CACHED = 1
-    PERMANENTLY_CACHED = 2
-    DOWNLOADING = 3
-
-
-@lru_cache(maxsize=8192)
-def similarity_ratio(query: str, string: str) -> int:
-    """
-    Return the :class:`fuzzywuzzy.fuzz.partial_ratio` between the ``query`` and
-    the given ``string``.
-
-    This ends up being called quite a lot, so the result is cached in an LRU
-    cache using :class:`functools.lru_cache`.
-
-    :param query: the query string
-    :param string: the string to compare to the query string
-    """
-    return fuzz.partial_ratio(query.lower(), string.lower())
-
-
-class SearchResult:
-    """
-    An object representing the aggregate results of a search which can include
-    both server and local results.
-    """
-
-    _artist: Set[API.Artist] = set()
-    _album: Set[API.Album] = set()
-    _song: Set[API.Song] = set()
-    _playlist: Set[API.Playlist] = set()
-
-    def __init__(self, query: str):
-        self.query = query
-
-    def add_results(self, result_type: str, results: Iterable):
-        """Adds the ``results`` to the ``_result_type`` set."""
-        if results is None:
-            return
-
-        member = f"_{result_type}"
-        if getattr(self, member) is None:
-            setattr(self, member, set())
-
-        setattr(self, member, getattr(self, member, set()).union(set(results)))
-
-    S = TypeVar("S")
-
-    def _to_result(self, it: Iterable[S], transform: Callable[[S], str],) -> List[S]:
-        all_results = sorted(
-            ((similarity_ratio(self.query, transform(x)), x) for x in it),
-            key=lambda rx: rx[0],
-            reverse=True,
-        )
-        result: List[SearchResult.S] = []
-        for ratio, x in all_results:
-            if ratio > 60 and len(result) < 20:
-                result.append(x)
-            else:
-                # No use going on, all the rest are less.
-                break
-        return result
-
-    @property
-    def artist(self) -> Optional[List[API.Artist]]:
-        if self._artist is None:
-            return None
-        return self._to_result(self._artist, lambda a: a.name)
-
-    @property
-    def album(self) -> Optional[List[API.Album]]:
-        if self._album is None:
-            return None
-
-        return self._to_result(self._album, lambda a: f"{a.name} - {a.artist}")
-
-    @property
-    def song(self) -> Optional[List[API.Song]]:
-        if self._song is None:
-            return None
-        return self._to_result(self._song, lambda s: f"{s.title} - {s.artist}")
-
-    @property
-    def playlist(self) -> Optional[List[API.Playlist]]:
-        if self._playlist is None:
-            return None
-        return self._to_result(self._playlist, lambda p: p.name)
 
 
 T = TypeVar("T")
@@ -435,113 +334,10 @@ class CacheManager(metaclass=Singleton):
                 self.app_config.server.strhash(), *relative_paths
             )
 
-        def calculate_download_path(self, *relative_paths) -> Path:
-            """
-            Determine where to temporarily put the file as it is downloading.
-            """
-            assert self.app_config.server is not None
-            xdg_cache_home = os.environ.get("XDG_CACHE_HOME") or os.path.expanduser(
-                "~/.cache"
-            )
-            return Path(xdg_cache_home).joinpath(
-                "sublime-music", self.app_config.server.strhash(), *relative_paths,
-            )
-
-        def return_cached_or_download(
-            self,
-            relative_path: Union[Path, str],
-            download_fn: Callable[[], bytes],
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-            allow_download: bool = True,
-        ) -> "CacheManager.Result[str]":
-            abs_path = self.calculate_abs_path(relative_path)
-            abs_path_str = str(abs_path)
-            download_path = self.calculate_download_path(relative_path)
-
-            if abs_path.exists() and not force:
-                return CacheManager.Result.from_data(abs_path_str)
-
-            if not allow_download:
-                return CacheManager.Result.from_data("")
-
-            def do_download() -> str:
-                resource_downloading = False
-                with self.download_set_lock:
-                    if abs_path_str in self.current_downloads:
-                        resource_downloading = True
-
-                    self.current_downloads.add(abs_path_str)
-
-                if resource_downloading:
-                    logging.info(f"{abs_path} already being downloaded.")
-                    # The resource is already being downloaded. Busy loop until
-                    # it has completed. Then, just return the path to the
-                    # resource.
-                    while abs_path_str in self.current_downloads:
-                        sleep(0.2)
-                else:
-                    logging.info(f"{abs_path} not found. Downloading...")
-
-                    os.makedirs(download_path.parent, exist_ok=True)
-                    try:
-                        self.save_file(download_path, download_fn())
-                    except requests.exceptions.ConnectionError:
-                        with self.download_set_lock:
-                            self.current_downloads.discard(abs_path_str)
-
-                    # Move the file to its cache download location.
-                    os.makedirs(abs_path.parent, exist_ok=True)
-                    if download_path.exists():
-                        shutil.move(str(download_path), abs_path)
-
-                logging.info(f"{abs_path} downloaded. Returning.")
-                return abs_path_str
-
-            def after_download(path: str):
-                with self.download_set_lock:
-                    self.current_downloads.discard(path)
-
-            return CacheManager.Result.from_server(
-                do_download,
-                before_download=before_download,
-                after_download=after_download,
-            )
-
         @staticmethod
         def create_future(fn: Callable, *args) -> Future:
             """Creates a future on the CacheManager's executor."""
             return CacheManager.executor.submit(fn, *args)
-
-        def delete_cached_cover_art(self, id: int):
-            relative_path = f"cover_art/*{id}*"
-
-            abs_path = self.calculate_abs_path(relative_path)
-
-            for path in glob.glob(str(abs_path)):
-                Path(path).unlink()
-
-        def get_artist(
-            self,
-            artist_id: int,
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-        ) -> "CacheManager.Result[ArtistWithAlbumsID3]":
-            cache_name = "artist_details"
-
-            if artist_id in self.cache.get(cache_name, {}) and not force:
-                return CacheManager.Result.from_data(self.cache[cache_name][artist_id])
-
-            def after_download(artist: ArtistWithAlbumsID3):
-                with self.cache_lock:
-                    self.cache[cache_name][artist_id] = artist
-                self.save_cache_info()
-
-            return CacheManager.Result.from_server(
-                lambda: self.server.get_artist(artist_id),
-                before_download=before_download,
-                after_download=after_download,
-            )
 
         def get_indexes(
             self,
@@ -592,239 +388,6 @@ class CacheManager(metaclass=Singleton):
                 after_download=after_download,
             )
 
-        def get_artist_info(
-            self,
-            artist_id: int,
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-        ) -> "CacheManager.Result[ArtistInfo2]":
-            cache_name = "artist_infos"
-
-            if artist_id in self.cache.get(cache_name, {}) and not force:
-                return CacheManager.Result.from_data(self.cache[cache_name][artist_id])
-
-            def after_download(artist_info: ArtistInfo2):
-                if not artist_info:
-                    return
-
-                with self.cache_lock:
-                    self.cache[cache_name][artist_id] = artist_info
-                self.save_cache_info()
-
-            return CacheManager.Result.from_server(
-                lambda: (self.server.get_artist_info2(id=artist_id) or ArtistInfo2()),
-                before_download=before_download,
-                after_download=after_download,
-            )
-
-        def get_artist_artwork(
-            self,
-            artist: Union[Artist, ArtistID3],
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-        ) -> AdapterResult[str]:
-            def do_get_artist_artwork(artist_info: ArtistInfo2) -> AdapterResult[str]:
-                lastfm_url = "".join(artist_info.largeImageUrl or [])
-
-                is_placeholder = lastfm_url == ""
-                is_placeholder |= lastfm_url.endswith(
-                    "2a96cbd8b46e442fc41c2b86b821562f.png"
-                )
-                is_placeholder |= lastfm_url.endswith(
-                    "1024px-No_image_available.svg.png"
-                )
-
-                # If it is the placeholder LastFM image, try and use the cover
-                # art filename given by the server.
-                if is_placeholder:
-                    if isinstance(artist, (ArtistWithAlbumsID3, ArtistID3)):
-                        if artist.coverArt:
-                            return AdapterManager.get_cover_art_filename(
-                                artist.coverArt
-                            )
-                        elif (
-                            isinstance(artist, ArtistWithAlbumsID3)
-                            and artist.album
-                            and len(artist.album) > 0
-                        ):
-                            return AdapterManager.get_cover_art_filename(
-                                artist.album[0].coverArt
-                            )
-
-                    elif isinstance(artist, Directory) and len(artist.child) > 0:
-                        # Retrieve the first album's cover art
-                        return AdapterManager.get_cover_art_filename(
-                            artist.child[0].coverArt
-                        )
-
-                if lastfm_url == "":
-                    return CacheManager.Result.from_data("")
-
-                url_hash = hashlib.md5(lastfm_url.encode("utf-8")).hexdigest()
-                return self.return_cached_or_download(
-                    f"cover_art/artist.{url_hash}",
-                    lambda: requests.get(lastfm_url).content,
-                    before_download=before_download,
-                    force=force,
-                )
-
-            def download_fn(artist_info: CacheManager.Result[ArtistInfo2]) -> str:
-                # In this case, artist_info is a future, so we have to wait for
-                # its result before calculating. Then, immediately unwrap the
-                # result() because we are already within a future.
-                return do_get_artist_artwork(artist_info.result()).result()
-
-            artist_info = CacheManager.get_artist_info(artist.id)
-            if artist_info.is_future:
-                return CacheManager.Result.from_server(
-                    lambda: download_fn(artist_info), before_download=before_download,
-                )
-            else:
-                return do_get_artist_artwork(artist_info.result())
-
-        def get_album_list(
-            self,
-            type_: str,
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-            # Look at documentation for get_album_list in server.py:
-            **params,
-        ) -> "CacheManager.Result[List[AlbumID3]]":
-            cache_name = "albums"
-
-            if len(self.cache.get(cache_name, {}).get(type_, [])) > 0 and not force:
-                return CacheManager.Result.from_data(self.cache[cache_name][type_])
-
-            def do_get_album_list() -> List[AlbumID3]:
-                def get_page(offset: int, page_size: int = 500,) -> List[AlbumID3]:
-                    return (
-                        self.server.get_album_list2(
-                            type_, size=page_size, offset=offset, **params,
-                        ).album
-                        or []
-                    )
-
-                page_size = 40 if type_ == "random" else 500
-                offset = 0
-
-                next_page = get_page(offset, page_size=page_size)
-                albums = next_page
-
-                # If it returns 500 things, then there's more leftover.
-                while len(next_page) == 500:
-                    next_page = get_page(offset)
-                    albums.extend(next_page)
-                    offset += 500
-
-                return albums
-
-            def after_download(albums: List[AlbumID3]):
-                with self.cache_lock:
-                    if not self.cache[cache_name].get(type_):
-                        self.cache[cache_name][type_] = []
-                    self.cache[cache_name][type_] = albums
-                self.save_cache_info()
-
-            return CacheManager.Result.from_server(
-                do_get_album_list,
-                before_download=before_download,
-                after_download=after_download,
-            )
-
-        def get_album(
-            self,
-            album_id: int,
-            before_download: Callable[[], None] = lambda: None,
-            force: bool = False,
-        ) -> "CacheManager.Result[AlbumWithSongsID3]":
-            cache_name = "album_details"
-
-            if album_id in self.cache.get(cache_name, {}) and not force:
-                return CacheManager.Result.from_data(self.cache[cache_name][album_id])
-
-            def after_download(album: AlbumWithSongsID3):
-                with self.cache_lock:
-                    self.cache[cache_name][album_id] = album
-
-                    # Albums have the song details as well, so save those too.
-                    for song in album.get("song", []):
-                        self.cache["song_details"][song.id] = song
-                self.save_cache_info()
-
-            return CacheManager.Result.from_server(
-                lambda: self.server.get_album(album_id),
-                before_download=before_download,
-                after_download=after_download,
-            )
-
-        def search(
-            self,
-            query: str,
-            search_callback: Callable[[SearchResult, bool], None],
-            before_download: Callable[[], None] = lambda: None,
-        ) -> "CacheManager.Result":
-            if query == "":
-                search_callback(SearchResult(""), True)
-                return CacheManager.Result.from_data(None)
-
-            before_download()
-
-            # Keep track of if the result is cancelled and if it is, then don't
-            # do anything with any results.
-            cancelled = False
-
-            # This future actually does the search and calls the
-            # search_callback when each of the futures completes.
-            def do_search():
-                # Sleep for a little while before returning the local results.
-                # They are less expensive to retrieve (but they still incur
-                # some overhead due to the GTK UI main loop queue).
-                sleep(0.2)
-                if cancelled:
-                    return
-
-                # Local Results
-                search_result = SearchResult(query)
-                search_result.add_results(
-                    "album", itertools.chain(*self.cache["albums"].values())
-                )
-                search_result.add_results("artist", self.cache["artists"])
-                search_result.add_results("song", self.cache["song_details"].values())
-                search_result.add_results("playlist", self.cache["playlists"])
-                search_callback(search_result, False)
-
-                # Wait longer to see if the user types anything else so we
-                # don't peg the server with tons of requests.
-                sleep(0.2)
-                if cancelled:
-                    return
-
-                # Server Results
-                search_fn = self.server.search3
-                try:
-                    # Attempt to add the server search results to the
-                    # SearchResult. If it fails, that's fine, we will use the
-                    # finally to always return a final SearchResult to the UI.
-                    server_result = search_fn(query)
-                    search_result.add_results("album", server_result.album)
-                    search_result.add_results("artist", server_result.artist)
-                    search_result.add_results("song", server_result.song)
-                except Exception:
-                    # We really don't care about what the exception was (could
-                    # be connection error, could be invalid JSON, etc.) because
-                    # we will always have returned local results.
-                    return
-                finally:
-                    search_callback(search_result, True)
-
-            # When the future is cancelled (this will happen if a new search is
-            # created).
-            def on_cancel():
-                nonlocal cancelled
-                cancelled = True
-
-            return CacheManager.Result.from_server(do_search, on_cancel=on_cancel)
-
     _instance: Optional[__CacheManagerInternal] = None
 
     def __init__(self):
@@ -833,4 +396,3 @@ class CacheManager(metaclass=Singleton):
     @staticmethod
     def reset(app_config: AppConfiguration):
         CacheManager._instance = CacheManager.__CacheManagerInternal(app_config)
-        similarity_ratio.cache_clear()

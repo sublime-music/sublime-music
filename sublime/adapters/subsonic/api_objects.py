@@ -4,7 +4,7 @@ These are the API objects that are returned by Subsonic.
 
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dataclasses_json
 from dataclasses_json import (
@@ -122,12 +122,33 @@ class ArtistInfo:
                 self.artist_image_url = ""
 
 
-@dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class Directory(SublimeAPI.Directory):
+class Directory(DataClassJsonMixin, SublimeAPI.Directory):
     id: str
-    title: Optional[str] = None
-    parent: Optional["Directory"] = None
+    title: Optional[str] = field(default=None, metadata=config(field_name="name"))
+    parent: Optional["Directory"] = field(init=False)
+    _parent: Optional[str] = field(default=None, metadata=config(field_name="parent"))
+    _is_root: bool = False
+
+    children: List[Union["Directory", "Song"]] = field(default_factory=list, init=False)
+    _children: List[Union[Dict[str, Any], "Directory", "Song"]] = field(
+        default_factory=list, metadata=config(field_name="child")
+    )
+
+    def __post_init__(self):
+        self.parent = (
+            Directory(self._parent or "root", _is_root=(self._parent is None))
+            if not self._is_root
+            else None
+        )
+        self.children = (
+            self._children
+            if self._is_root
+            else [
+                Directory.from_dict(c) if c.get("isDir") else Song.from_dict(c)
+                for c in self._children
+            ]
+        )
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -247,6 +268,13 @@ class PlayQueue(SublimeAPI.PlayQueue):
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
+class Index:
+    name: str
+    artist: List[Directory] = field(default_factory=list)
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
 class IndexID3:
     name: str
     artist: List[ArtistAndArtistInfo] = field(default_factory=list)
@@ -269,6 +297,13 @@ class AlbumList2:
 @dataclass
 class Genres:
     genre: List[Genre] = field(default_factory=list)
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class Indexes:
+    ignored_articles: str
+    index: List[Index] = field(default_factory=list)
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -300,12 +335,19 @@ class Response(DataClassJsonMixin):
     )
     album: Optional[Album] = None
 
+    directory: Optional[Directory] = None
+
     genres: Optional[Genres] = None
+
+    indexes: Optional[Indexes] = None
+
     playlist: Optional[PlaylistWithSongs] = None
     playlists: Optional[Playlists] = None
+
     play_queue: Optional[PlayQueue] = field(
         default=None, metadata=config(field_name="playQueue")
     )
+
     song: Optional[Song] = None
 
     search_result: Optional[SearchResult3] = field(

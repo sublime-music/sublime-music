@@ -1,6 +1,8 @@
+from typing import Optional
+
 from peewee import (
+    AutoField,
     BooleanField,
-    CompositeKey,
     ForeignKeyField,
     IntegerField,
     Model,
@@ -26,9 +28,19 @@ class BaseModel(Model):
         database = database
 
 
-# class CachedFile(BaseModel):
-#     id = TextField(unique=True, primary_key=True)
-#     filename = TextField(null=True)
+class CacheInfo(BaseModel):
+    id = AutoField()
+    valid = BooleanField(default=True)
+    cache_key = CacheConstantsField()
+    params_hash = TextField()
+    last_ingestion_time = TzDateTimeField(null=False)
+    file_id = TextField(null=True)
+    file_hash = TextField(null=True)
+
+    # TODO some sort of expiry?
+
+    class Meta:
+        indexes = ((("cache_key", "params_hash"), True),)
 
 
 class Genre(BaseModel):
@@ -41,11 +53,19 @@ class Artist(BaseModel):
     id = TextField(unique=True, primary_key=True)
     name = TextField(null=True)
     album_count = IntegerField(null=True)
-    artist_image_url = TextField(null=True)
     starred = TzDateTimeField(null=True)
     biography = TextField(null=True)
     music_brainz_id = TextField(null=True)
     last_fm_url = TextField(null=True)
+
+    _artist_image_url = ForeignKeyField(CacheInfo, null=True)
+
+    @property
+    def artist_image_url(self) -> Optional[str]:
+        try:
+            return self._artist_image_url.file_id
+        except Exception:
+            return None
 
     @property
     def similar_artists(self) -> Query:
@@ -64,7 +84,6 @@ class SimilarArtist(BaseModel):
 
 class Album(BaseModel):
     id = TextField(unique=True, primary_key=True)
-    cover_art = TextField(null=True)
     created = TzDateTimeField(null=True)
     duration = DurationField(null=True)
     name = TextField(null=True)
@@ -75,6 +94,15 @@ class Album(BaseModel):
 
     artist = ForeignKeyField(Artist, null=True, backref="albums")
     genre = ForeignKeyField(Genre, null=True, backref="albums")
+
+    _cover_art = ForeignKeyField(CacheInfo, null=True)
+
+    @property
+    def cover_art(self) -> Optional[str]:
+        try:
+            return self._cover_art.file_id
+        except Exception:
+            return None
 
 
 class IgnoredArticle(BaseModel):
@@ -91,19 +119,32 @@ class Song(BaseModel):
     id = TextField(unique=True, primary_key=True)
     title = TextField()
     duration = DurationField()
+    path = TextField()
+
     album = ForeignKeyField(Album, null=True, backref="songs")
     artist = ForeignKeyField(Artist, null=True, backref="songs")
     parent = ForeignKeyField(Directory, null=True, backref="songs")
     genre = ForeignKeyField(Genre, null=True, backref="songs")
 
+    # figure out how to deal with different transcodings, etc.
+    file = ForeignKeyField(CacheInfo, null=True)
+
+    _cover_art = ForeignKeyField(CacheInfo, null=True)
+
+    @property
+    def cover_art(self) -> Optional[str]:
+        try:
+            return self._cover_art.file_id
+        except Exception:
+            return None
+
     track = IntegerField(null=True)
     year = IntegerField(null=True)
-    cover_art = TextField(null=True)  # TODO: fk?
-    path = TextField()
     play_count = TextField(null=True)
     created = TzDateTimeField(null=True)
     starred = TzDateTimeField(null=True)
 
+    # TODO do I need any of these?
     # size: Optional[int] = None
     # content_type: Optional[str] = None
     # suffix: Optional[str] = None
@@ -120,15 +161,9 @@ class Song(BaseModel):
     # original_height: Optional[int] = None
 
 
-class CacheInfo(BaseModel):
-    cache_key = CacheConstantsField()
-    params_hash = TextField()
-    last_ingestion_time = TzDateTimeField(null=False)
-
-    # TODO some sort of expiry?
-
-    class Meta:
-        primary_key = CompositeKey("cache_key", "params_hash")
+class DirectoryXChildren(BaseModel):
+    directory_id = TextField()
+    order = IntegerField()
 
 
 class Playlist(BaseModel):
@@ -141,11 +176,17 @@ class Playlist(BaseModel):
     created = TzDateTimeField(null=True)
     changed = TzDateTimeField(null=True)
     public = BooleanField(null=True)
-    cover_art = TextField(null=True)  # TODO: fk
-
-    # cover_art_file = ForeignKeyField(CachedFile, null=True)
 
     songs = SortedManyToManyField(Song, backref="playlists")
+
+    _cover_art = ForeignKeyField(CacheInfo, null=True)
+
+    @property
+    def cover_art(self) -> Optional[str]:
+        try:
+            return self._cover_art.file_id
+        except Exception:
+            return None
 
 
 class Version(BaseModel):
@@ -177,6 +218,7 @@ ALL_TABLES = (
     Artist,
     CacheInfo,
     Directory,
+    DirectoryXChildren,
     Genre,
     IgnoredArticle,
     Playlist,

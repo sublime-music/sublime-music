@@ -46,7 +46,8 @@ class ServerConfiguration:
         self.version = 0
 
     def strhash(self) -> str:
-        # TODO: needs to change to something better
+        # TODO: make this configurable by the adapters the combination of the hashes
+        # will be the hash dir
         """
         Returns the MD5 hash of the server's name, server address, and
         username. This should be used whenever it's necessary to uniquely

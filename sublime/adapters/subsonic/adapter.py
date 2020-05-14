@@ -5,6 +5,7 @@ import multiprocessing
 import os
 import pickle
 import random
+from dataclasses import asdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
@@ -24,7 +25,7 @@ from urllib.parse import urlencode, urlparse
 
 import requests
 
-from .api_objects import Response
+from .api_objects import Directory, Response, Song
 from .. import Adapter, AlbumSearchQuery, api_objects as API, ConfigParamDescriptor
 
 
@@ -61,6 +62,7 @@ class SubsonicAdapter(Adapter):
         self.hostname = config["server_address"]
         self.username = config["username"]
         self.password = config["password"]
+        # TODO: SSID stuff
         self.disable_cert_verify = config.get("disable_cert_verify")
 
         self.is_shutting_down = False
@@ -121,6 +123,7 @@ class SubsonicAdapter(Adapter):
     can_get_ignored_articles = True
     can_get_albums = True
     can_get_album = True
+    can_get_directory = True
     can_get_genres = True
     can_get_play_queue = True
     can_save_play_queue = True
@@ -184,7 +187,7 @@ class SubsonicAdapter(Adapter):
             )
 
             logging.info(
-                "SUBSONIC_ADAPTER_DEBUG_DELAY enabled. Pausing for {delay} seconds"
+                f"SUBSONIC_ADAPTER_DEBUG_DELAY enabled. Pausing for {delay} seconds"
             )
             sleep(delay)
 
@@ -235,7 +238,7 @@ class SubsonicAdapter(Adapter):
             )
             raise Exception(f"Subsonic API Error #{code}: {message}")
 
-        logging.debug(f"Response from {url}", subsonic_response)
+        logging.debug(f"Response from {url}: {subsonic_response}")
         return Response.from_dict(subsonic_response)
 
     # Helper Methods for Testing
@@ -421,6 +424,28 @@ class SubsonicAdapter(Adapter):
         album = self._get_json(self._make_url("getAlbum"), id=album_id).album
         assert album, f"Error getting album {album_id}"
         return album
+
+    def _get_indexes(self) -> API.Directory:
+        indexes = self._get_json(self._make_url("getIndexes")).indexes
+        assert indexes, "Error getting indexes"
+        with open(self.ignored_articles_cache_file, "wb+") as f:
+            pickle.dump(indexes.ignored_articles, f)
+
+        root_dir_items: List[Union[Dict[str, Any], Directory, Song]] = []
+        for index in indexes.index:
+            # TODO figure out a more efficient way of doing this.
+            root_dir_items += index.artist
+        return Directory(id="root", _children=root_dir_items, _is_root=True)
+
+    def get_directory(self, directory_id: str) -> API.Directory:
+        if directory_id == "root":
+            return self._get_indexes()
+
+        directory = self._get_json(
+            self._make_url("getMusicDirectory"), id=directory_id
+        ).directory
+        assert directory, f"Error getting directory {directory_id}"
+        return directory
 
     def get_genres(self) -> Sequence[API.Genre]:
         if genres := self._get_json(self._make_url("getGenres")).genres:

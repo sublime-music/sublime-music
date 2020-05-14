@@ -52,26 +52,28 @@ class SortedManyToManyQuery(ManyToManyQuery):
 
         accessor = self._accessor
         src_id = getattr(self._instance, self._src_attr)
-        if isinstance(value, SelectQuery):
-            raise NotImplementedError("Can't use a select query here")
-            # query = value.columns(Value(src_id), accessor.dest_fk.rel_field)
-            # accessor.through_model.insert_from(
-            #     fields=[accessor.src_fk, accessor.dest_fk],
-            #     query=query).execute()
-        else:
-            value = ensure_tuple(value)
-            if not value:
-                return
+        assert not isinstance(value, SelectQuery)
+        # TODO DEAD CODE
+        # if isinstance(value, SelectQuery):
+        #     raise NotImplementedError("Can't use a select query here")
+        #     # query = value.columns(Value(src_id), accessor.dest_fk.rel_field)
+        #     # accessor.through_model.insert_from(
+        #     #     fields=[accessor.src_fk, accessor.dest_fk],
+        #     #     query=query).execute()
+        # else:
+        value = ensure_tuple(value)
+        if not value:
+            return
 
-            inserts = [
-                {
-                    accessor.src_fk.name: src_id,
-                    accessor.dest_fk.name: rel_id,
-                    "position": i,
-                }
-                for i, rel_id in enumerate(self._id_list(value))
-            ]
-            accessor.through_model.insert_many(inserts).execute()
+        inserts = [
+            {
+                accessor.src_fk.name: src_id,
+                accessor.dest_fk.name: rel_id,
+                "position": i,
+            }
+            for i, rel_id in enumerate(self._id_list(value))
+        ]
+        accessor.through_model.insert_many(inserts).execute()
 
     # TODO probably don't need
     # def remove(self, value: Any) -> Any:

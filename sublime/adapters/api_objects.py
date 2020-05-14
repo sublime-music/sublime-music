@@ -16,6 +16,7 @@ from typing import (
     Optional,
     Sequence,
     TypeVar,
+    Union,
 )
 
 from fuzzywuzzy import fuzz
@@ -67,10 +68,10 @@ class Directory(abc.ABC):
     id: str
     title: Optional[str]
     parent: Optional["Directory"]
+    children: Sequence[Union["Directory", "Song"]]
 
 
 class Song(abc.ABC):
-    # TODO make these cross-reference the corresponding Album / Artist / Directory
     id: str
     title: str
     parent: Directory
@@ -97,7 +98,7 @@ class Song(abc.ABC):
     created: Optional[datetime]
     starred: Optional[datetime]
     type: Optional[MediaType]
-    # TODO trim down, make another data structure for directory?
+    # TODO trim down
 
 
 # TODO remove distinction between Playlist and PlaylistDetails

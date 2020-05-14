@@ -8,14 +8,21 @@ import pytest
 
 from peewee import SelectQuery
 
-from sublime import util
 from sublime.adapters import api_objects as SublimeAPI, CacheMissError
 from sublime.adapters.filesystem import FilesystemAdapter
 from sublime.adapters.subsonic import api_objects as SubsonicAPI
 
 MOCK_DATA_FILES = Path(__file__).parent.joinpath("mock_data")
 MOCK_ALBUM_ART = MOCK_DATA_FILES.joinpath("album-art.png")
+MOCK_ALBUM_ART2 = MOCK_DATA_FILES.joinpath("album-art2.png")
+MOCK_ALBUM_ART3 = MOCK_DATA_FILES.joinpath("album-art3.png")
 MOCK_SONG_FILE = MOCK_DATA_FILES.joinpath("test-song.mp3")
+MOCK_SONG_FILE2 = MOCK_DATA_FILES.joinpath("test-song2.mp3")
+MOCK_ALBUM_ART_HASH = "5d7bee4f3fe25b18cd2a66f1c9767e381bc64328"
+MOCK_ALBUM_ART2_HASH = "031a8a1ca01f64f851a22d5478e693825a00fb23"
+MOCK_ALBUM_ART3_HASH = "46a8af0f8fe370e59202a545803e8bbb3a4a41ee"
+MOCK_SONG_FILE_HASH = "fe12d0712dbfd6ff7f75ef3783856a7122a78b0a"
+MOCK_SONG_FILE2_HASH = "c32597c724e2e484dbf5856930b2e5bb80de13b7"
 
 MOCK_SUBSONIC_SONGS = [
     SubsonicAPI.Song(
@@ -28,7 +35,7 @@ MOCK_SUBSONIC_SONGS = [
         artist_id="art1",
         duration=timedelta(seconds=20.8),
         path="foo/song2.mp3",
-        cover_art="2",
+        cover_art="s2",
         _genre="Bar",
     ),
     SubsonicAPI.Song(
@@ -41,7 +48,7 @@ MOCK_SUBSONIC_SONGS = [
         artist_id="art2",
         duration=timedelta(seconds=10.2),
         path="foo/song1.mp3",
-        cover_art="1",
+        cover_art="s1",
         _genre="Foo",
     ),
     SubsonicAPI.Song(
@@ -54,7 +61,7 @@ MOCK_SUBSONIC_SONGS = [
         artist_id="art2",
         duration=timedelta(seconds=10.2),
         path="foo/song1.mp3",
-        cover_art="1",
+        cover_art="s1",
         _genre="Foo",
     ),
 ]
@@ -89,21 +96,16 @@ def mock_data_files(
 def verify_songs(
     actual_songs: Iterable[SublimeAPI.Song], expected_songs: Iterable[SubsonicAPI.Song]
 ):
+    actual_songs, expected_songs = (list(actual_songs), list(expected_songs))
+    assert len(actual_songs) == len(expected_songs)
     for actual, song in zip(actual_songs, expected_songs):
         for k, v in asdict(song).items():
-            ignore = (
-                "_genre",
-                "_album",
-                "_artist",
-                "_parent",
-                "album_id",
-                "artist_id",
-            )
-            if k in ignore:
+            if k in ("_genre", "_album", "_artist", "_parent", "album_id", "artist_id"):
                 continue
-            print(k)  # noqa: T001
+            print(k, "->", v)  # noqa: T001
 
             actual_value = getattr(actual, k, None)
+
             if k == "album":
                 assert ("a1", "foo") == (actual_value.id, actual_value.name)
             elif k == "genre":
@@ -292,7 +294,7 @@ def test_invalidate_playlist(cache_adapter: FilesystemAdapter):
         SubsonicAPI.PlaylistWithSongs("2", "test2", cover_art="pl_2", songs=[]),
     )
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("pl_2",), MOCK_ALBUM_ART,
+        FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("pl_2",), MOCK_ALBUM_ART2,
     )
 
     stale_uri_1 = cache_adapter.get_cover_art_uri("pl_test1", "file")
@@ -338,43 +340,31 @@ def test_invalidate_playlist(cache_adapter: FilesystemAdapter):
         assert e.partial_data == stale_uri_2
 
 
-def test_invalidate_song_data(cache_adapter: FilesystemAdapter):
+def test_invalidate_song_file(cache_adapter: FilesystemAdapter):
+    CACHE_KEYS = FilesystemAdapter.CachedDataKey
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.SONG_DETAILS, ("2",), MOCK_SUBSONIC_SONGS[0]
+        CACHE_KEYS.SONG_DETAILS, ("2",), MOCK_SUBSONIC_SONGS[0]
     )
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.SONG_DETAILS, ("1",), MOCK_SUBSONIC_SONGS[1]
+        CACHE_KEYS.SONG_DETAILS, ("1",), MOCK_SUBSONIC_SONGS[1]
     )
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("1",), MOCK_ALBUM_ART,
+        CACHE_KEYS.COVER_ART_FILE, ("s1", "song"), MOCK_ALBUM_ART,
     )
-    cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.SONG_FILE, ("1",), MOCK_SONG_FILE
-    )
-    cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.SONG_FILE, ("2",), MOCK_SONG_FILE
-    )
+    cache_adapter.ingest_new_data(CACHE_KEYS.SONG_FILE, ("1",), MOCK_SONG_FILE)
+    cache_adapter.ingest_new_data(CACHE_KEYS.SONG_FILE, ("2",), MOCK_SONG_FILE2)
 
-    stale_song_file = cache_adapter.get_song_uri("1", "file")
-    stale_cover_art_file = cache_adapter.get_cover_art_uri("1", "file")
-    cache_adapter.invalidate_data(FilesystemAdapter.CachedDataKey.SONG_FILE, ("1",))
+    cache_adapter.invalidate_data(CACHE_KEYS.SONG_FILE, ("1",))
+    cache_adapter.invalidate_data(CACHE_KEYS.COVER_ART_FILE, ("s1", "song"))
 
-    try:
+    with pytest.raises(CacheMissError):
         cache_adapter.get_song_uri("1", "file")
-        assert 0, "DID NOT raise CacheMissError"
-    except CacheMissError as e:
-        assert e.partial_data
-        assert e.partial_data == stale_song_file
 
-    try:
-        cache_adapter.get_cover_art_uri("1", "file")
-        assert 0, "DID NOT raise CacheMissError"
-    except CacheMissError as e:
-        assert e.partial_data
-        assert e.partial_data == stale_cover_art_file
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_cover_art_uri("s1", "file")
 
-    # Make sure it didn't delete the other ones.
-    assert cache_adapter.get_song_uri("2", "file").endswith("song2.mp3")
+    # Make sure it didn't delete the other song.
+    assert cache_adapter.get_song_uri("2", "file").endswith(MOCK_SONG_FILE2_HASH)
 
 
 def test_delete_playlists(cache_adapter: FilesystemAdapter):
@@ -410,11 +400,13 @@ def test_delete_playlists(cache_adapter: FilesystemAdapter):
 
     # Even if the cover art failed to be deleted, it should cache miss.
     shutil.copy(
-        MOCK_ALBUM_ART,
-        str(cache_adapter.cover_art_dir.joinpath(util.params_hash("pl_1"))),
+        MOCK_ALBUM_ART, str(cache_adapter.cover_art_dir.joinpath(MOCK_ALBUM_ART_HASH)),
     )
-    with pytest.raises(CacheMissError):
+    try:
         cache_adapter.get_cover_art_uri("pl_1", "file")
+        assert 0, "DID NOT raise CacheMissError"
+    except CacheMissError as e:
+        assert e.partial_data is None
 
 
 def test_delete_song_data(cache_adapter: FilesystemAdapter):
@@ -422,16 +414,17 @@ def test_delete_song_data(cache_adapter: FilesystemAdapter):
         FilesystemAdapter.CachedDataKey.SONG_DETAILS, ("1",), MOCK_SUBSONIC_SONGS[1]
     )
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("1",), MOCK_ALBUM_ART,
+        FilesystemAdapter.CachedDataKey.SONG_FILE, ("1",), MOCK_SONG_FILE
     )
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.SONG_FILE, ("1",), MOCK_SONG_FILE
+        FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("s1",), MOCK_ALBUM_ART,
     )
 
     music_file_path = cache_adapter.get_song_uri("1", "file")
-    cover_art_path = cache_adapter.get_cover_art_uri("1", "file")
+    cover_art_path = cache_adapter.get_cover_art_uri("s1", "file")
 
     cache_adapter.delete_data(FilesystemAdapter.CachedDataKey.SONG_FILE, ("1",))
+    cache_adapter.delete_data(FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("s1",))
 
     assert not Path(music_file_path).exists()
     assert not Path(cover_art_path).exists()
@@ -443,7 +436,7 @@ def test_delete_song_data(cache_adapter: FilesystemAdapter):
         assert e.partial_data is None
 
     try:
-        cache_adapter.get_cover_art_uri("1", "file")
+        cache_adapter.get_cover_art_uri("s1", "file")
         assert 0, "DID NOT raise CacheMissError"
     except CacheMissError as e:
         assert e.partial_data is None
@@ -648,7 +641,7 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
     )
 
     artist = cache_adapter.get_artist("1")
-    assert (
+    assert artist.artist_image_url and (
         artist.id,
         artist.name,
         artist.album_count,
@@ -686,7 +679,7 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
     )
 
     artist = cache_adapter.get_artist("1")
-    assert (
+    assert artist.artist_image_url and (
         artist.id,
         artist.name,
         artist.album_count,
@@ -728,7 +721,7 @@ def test_caching_get_album(cache_adapter: FilesystemAdapter):
     )
 
     album = cache_adapter.get_album("a1")
-    assert album
+    assert album and album.cover_art
     assert (
         album.id,
         album.name,
@@ -747,9 +740,9 @@ def test_caching_invalidate_artist(cache_adapter: FilesystemAdapter):
     # Simulate the artist details being retrieved from Subsonic.
     cache_adapter.ingest_new_data(
         FilesystemAdapter.CachedDataKey.ARTIST,
-        ("1",),
+        ("artist1",),
         SubsonicAPI.ArtistAndArtistInfo(
-            "1",
+            "artist1",
             "Bar",
             album_count=1,
             artist_image_url="image",
@@ -768,46 +761,39 @@ def test_caching_invalidate_artist(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(
         FilesystemAdapter.CachedDataKey.ALBUM,
         ("1",),
-        SubsonicAPI.Album("1", "Foo", artist_id="1", cover_art="1"),
+        SubsonicAPI.Album("1", "Foo", artist_id="artist1", cover_art="1"),
     )
     cache_adapter.ingest_new_data(
         FilesystemAdapter.CachedDataKey.ALBUM,
         ("2",),
-        SubsonicAPI.Album("2", "Bar", artist_id="1", cover_art="2"),
+        SubsonicAPI.Album("2", "Bar", artist_id="artist1", cover_art="2"),
     )
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("image",), MOCK_ALBUM_ART,
+        FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("image",), MOCK_ALBUM_ART3,
     )
     cache_adapter.ingest_new_data(
         FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("1",), MOCK_ALBUM_ART,
     )
     cache_adapter.ingest_new_data(
-        FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("2",), MOCK_ALBUM_ART,
+        FilesystemAdapter.CachedDataKey.COVER_ART_FILE, ("2",), MOCK_ALBUM_ART2,
     )
 
-    stale_artist = cache_adapter.get_artist("1")
+    stale_artist = cache_adapter.get_artist("artist1")
     stale_album_1 = cache_adapter.get_album("1")
     stale_album_2 = cache_adapter.get_album("2")
     stale_artist_artwork = cache_adapter.get_cover_art_uri("image", "file")
     stale_cover_art_1 = cache_adapter.get_cover_art_uri("1", "file")
     stale_cover_art_2 = cache_adapter.get_cover_art_uri("2", "file")
 
-    cache_adapter.invalidate_data(FilesystemAdapter.CachedDataKey.ARTIST, ("1",))
+    cache_adapter.invalidate_data(FilesystemAdapter.CachedDataKey.ARTIST, ("artist1",))
 
     # Test the cascade of cache invalidations.
     try:
-        cache_adapter.get_artist("1")
+        cache_adapter.get_artist("artist1")
         assert 0, "DID NOT raise CacheMissError"
     except CacheMissError as e:
         assert e.partial_data
         assert e.partial_data == stale_artist
-
-    try:
-        cache_adapter.get_cover_art_uri("image", "file")
-        assert 0, "DID NOT raise CacheMissError"
-    except CacheMissError as e:
-        assert e.partial_data
-        assert e.partial_data == stale_artist_artwork
 
     try:
         cache_adapter.get_album("1")
@@ -822,6 +808,13 @@ def test_caching_invalidate_artist(cache_adapter: FilesystemAdapter):
     except CacheMissError as e:
         assert e.partial_data
         assert e.partial_data == stale_album_2
+
+    try:
+        cache_adapter.get_cover_art_uri("image", "file")
+        assert 0, "DID NOT raise CacheMissError"
+    except CacheMissError as e:
+        assert e.partial_data
+        assert e.partial_data == stale_artist_artwork
 
     try:
         cache_adapter.get_cover_art_uri("1", "file")

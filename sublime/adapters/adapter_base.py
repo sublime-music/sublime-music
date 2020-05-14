@@ -18,6 +18,7 @@ from typing import (
 from .api_objects import (
     Album,
     Artist,
+    Directory,
     Genre,
     Playlist,
     PlaylistDetails,
@@ -398,7 +399,15 @@ class Adapter(abc.ABC):
         """
         return False
 
-    # Misc
+    # Browse directories
+    @property
+    def can_get_directory(self) -> bool:
+        """
+        Whether :class:`get_directory` can be called on the adapter right now.
+        """
+        return False
+
+    # Genres
     @property
     def can_get_genres(self) -> bool:
         """
@@ -594,6 +603,21 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("get_album")
 
+    def get_directory(self, directory_id: str) -> Directory:
+        """
+        Return a Directory object representing the song files and directories in the
+        given directory. This may not make sense for your adapter (for example, if
+        there's no actual underlying filesystem). In that case, make sure to set
+        :class:`can_get_directory` to ``False``.
+
+        :param directory_id: The directory to retrieve. If the special value ``"root"``
+            is given, the adapter should list all of the directories at the root of the
+            filesystem tree.
+        :returns: A list of the :class:`sublime.adapter.api_objects.Directory` and
+            :class:`sublime.adapter.api_objects.Song` objects in the given directory.
+        """
+        raise self._check_can_error("get_directory")
+
     def get_genres(self) -> Sequence[Genre]:
         """
         Get a list of the genres known to the adapter.
@@ -683,6 +707,7 @@ class CachingAdapter(Adapter):
         ARTIST = "artist"
         ARTISTS = "artists"
         COVER_ART_FILE = "cover_art_file"
+        DIRECTORY = "directory"
         GENRES = "genres"
         IGNORED_ARTICLES = "ignored_articles"
         PLAYLIST_DETAILS = "get_playlist_details"

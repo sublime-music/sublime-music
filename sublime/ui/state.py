@@ -3,8 +3,8 @@ from datetime import timedelta
 from enum import Enum
 from typing import Dict, Optional, Tuple
 
-from sublime.adapters.api_objects import Song
 from sublime.adapters import AlbumSearchQuery
+from sublime.adapters.api_objects import Genre, Song
 
 
 class RepeatType(Enum):
@@ -52,9 +52,13 @@ class UIState:
     selected_browse_element_id: Optional[str] = None
     selected_playlist_id: Optional[str] = None
 
+    class _DefaultGenre(Genre):
+        def __init__(self):
+            self.name = "Rock"
+
     # State for Album sort.
     current_album_search_query: AlbumSearchQuery = AlbumSearchQuery(
-        AlbumSearchQuery.Type.RANDOM, genre=None, year_range=(2010, 2020),
+        AlbumSearchQuery.Type.RANDOM, genre=_DefaultGenre(), year_range=(2010, 2020),
     )
 
     active_playlist_id: Optional[str] = None

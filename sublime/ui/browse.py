@@ -1,11 +1,10 @@
-from typing import Any, List, Optional, Tuple, Type, Union
+from functools import partial
+from typing import Any, List, Optional, Tuple, Union
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager
-from sublime.cache_manager import CacheManager
+from sublime.adapters import AdapterManager, api_objects as API, Result
 from sublime.config import AppConfiguration
-from sublime.server.api_objects import Artist, Child, Directory
 from sublime.ui import util
 from sublime.ui.common import IconButton, SongListColumn
 
@@ -33,7 +32,7 @@ class BrowsePanel(Gtk.Overlay):
         super().__init__()
         scrolled_window = Gtk.ScrolledWindow()
 
-        self.root_directory_listing = ListAndDrilldown(IndexList)
+        self.root_directory_listing = ListAndDrilldown()
         self.root_directory_listing.connect(
             "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
         )
@@ -53,38 +52,44 @@ class BrowsePanel(Gtk.Overlay):
         self.add_overlay(self.spinner)
 
     def update(self, app_config: AppConfiguration, force: bool = False):
-        if not CacheManager.ready:
+        if not AdapterManager.can_get_directory():
             return
 
         self.update_order_token += 1
 
-        def do_update(id_stack: List[int], update_order_token: int):
+        def do_update(update_order_token: int, id_stack: Result[List[int]]):
             if self.update_order_token != update_order_token:
                 return
 
+            # TODO pass order token here?
             self.root_directory_listing.update(
-                id_stack, app_config=app_config, force=force,
+                id_stack.result(), app_config, force=force,
             )
             self.spinner.hide()
 
-        def calculate_path(update_order_token: int) -> Tuple[List[str], int]:
+        def calculate_path() -> List[str]:
             if app_config.state.selected_browse_element_id is None:
-                return [], update_order_token
+                return []
 
             id_stack = []
-            directory = None
-            current_dir_id = app_config.state.selected_browse_element_id
-            while directory is None or directory.parent is not None:
-                directory = CacheManager.get_music_directory(
+            current_dir_id: Optional[str] = app_config.state.selected_browse_element_id
+            while current_dir_id and (
+                directory := AdapterManager.get_directory(
                     current_dir_id, before_download=self.spinner.show,
                 ).result()
+            ):
                 id_stack.append(directory.id)
-                current_dir_id = directory.parent  # Detect loops?
+                if directory.id == "root":
+                    break
+                # Detect loops?
+                current_dir_id = directory.parent.id if directory.parent else None
 
-            return id_stack, update_order_token
+            return id_stack
 
-        path_fut = CacheManager.create_future(calculate_path, self.update_order_token)
-        path_fut.add_done_callback(lambda f: GLib.idle_add(do_update, *f.result()))
+        path_result: Result[List[str]] = Result(calculate_path)
+        path_result.add_done_callback(
+            partial(GLib.idle_add, partial(do_update, self.update_order_token))
+        )
 
 
 class ListAndDrilldown(Gtk.Paned):
@@ -103,10 +108,10 @@ class ListAndDrilldown(Gtk.Paned):
 
     id_stack = None
 
-    def __init__(self, list_type: Type):
+    def __init__(self):
         Gtk.Paned.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
 
-        self.list = list_type()
+        self.list = MusicDirectoryList()
         self.list.connect(
             "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
         )
@@ -119,46 +124,45 @@ class ListAndDrilldown(Gtk.Paned):
         self.pack2(self.drilldown, True, False)
 
     def update(
-        self,
-        id_stack: List[int],
-        app_config: AppConfiguration,
-        force: bool = False,
-        directory_id: int = None,
+        self, id_stack: List[str], app_config: AppConfiguration, force: bool = False
     ):
+        dir_id = id_stack[-1]
+        selected_id = (
+            id_stack[-2]
+            if len(id_stack) > 2
+            else app_config.state.selected_browse_element_id
+        )
+
         self.list.update(
-            None if len(id_stack) == 0 else id_stack[-1],
-            app_config,
+            directory_id=dir_id,
+            selected_id=selected_id,
+            app_config=app_config,
             force=force,
-            directory_id=directory_id,
         )
 
         if self.id_stack == id_stack:
             # We always want to update, but in this case, we don't want to blow
             # away the drilldown.
             if isinstance(self.drilldown, ListAndDrilldown):
-                self.drilldown.update(
-                    id_stack[:-1], app_config, force=force, directory_id=id_stack[-1],
-                )
+                self.drilldown.update(id_stack[:-1], app_config, force=force)
             return
         self.id_stack = id_stack
 
-        if len(id_stack) > 0:
+        if len(id_stack) > 1:
             self.remove(self.drilldown)
-            self.drilldown = ListAndDrilldown(MusicDirectoryList)
+            self.drilldown = ListAndDrilldown()
             self.drilldown.connect(
                 "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
             )
             self.drilldown.connect(
                 "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
             )
-            self.drilldown.update(
-                id_stack[:-1], app_config, force=force, directory_id=id_stack[-1],
-            )
+            self.drilldown.update(id_stack[:-1], app_config, force=force)
             self.drilldown.show_all()
             self.pack2(self.drilldown, True, False)
 
 
-class DrilldownList(Gtk.Box):
+class MusicDirectoryList(Gtk.Box):
     __gsignals__ = {
         "song-clicked": (
             GObject.SignalFlags.RUN_FIRST,
@@ -172,16 +176,20 @@ class DrilldownList(Gtk.Box):
         ),
     }
 
+    update_order_token = 0
+    directory_id: Optional[str] = None
+    selected_id: Optional[str] = None
+
     class DrilldownElement(GObject.GObject):
         id = GObject.Property(type=str)
         name = GObject.Property(type=str)
         is_dir = GObject.Property(type=bool, default=True)
 
-        def __init__(self, element: Union[Child, Artist]):
+        def __init__(self, element: Union[API.Directory, API.Song]):
             GObject.GObject.__init__(self)
             self.id = element.id
-            self.name = element.name if isinstance(element, Artist) else element.title
-            self.is_dir = element.get("isDir", True)
+            self.is_dir = isinstance(element, API.Directory)
+            self.name = element.title
 
     def __init__(self):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
@@ -215,7 +223,7 @@ class DrilldownList(Gtk.Box):
 
         self.directory_song_list = Gtk.TreeView(
             model=self.directory_song_store,
-            name="album-songs-list",
+            name="directory-songs-list",
             headers_visible=False,
         )
         self.directory_song_list.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
@@ -240,6 +248,110 @@ class DrilldownList(Gtk.Box):
 
         self.scroll_window.add(scrollbox)
         self.pack_start(self.scroll_window, True, True, 0)
+
+    def update(
+        self,
+        app_config: AppConfiguration = None,
+        force: bool = False,
+        directory_id: str = None,
+        selected_id: str = None,
+    ):
+        self.directory_id = directory_id or self.directory_id
+        self.selected_id = selected_id or self.selected_id
+        self.update_store(
+            self.directory_id, force=force, order_token=self.update_order_token,
+        )
+
+    @util.async_callback(
+        AdapterManager.get_directory,
+        before_download=lambda self: self.loading_indicator.show(),
+        on_failure=lambda self, e: self.loading_indicator.hide(),
+    )
+    def update_store(
+        self,
+        directory: API.Directory,
+        app_config: AppConfiguration = None,
+        force: bool = False,
+        order_token: int = None,
+    ):
+        if order_token != self.update_order_token:
+            return
+
+        new_directories_store = []
+        new_songs_store = []
+        selected_dir_idx = None
+
+        for idx, el in enumerate(directory.children):
+            if isinstance(el, API.Directory):
+                new_directories_store.append(MusicDirectoryList.DrilldownElement(el))
+                if el.id == self.selected_id:
+                    selected_dir_idx = idx
+            else:
+                new_songs_store.append(
+                    [
+                        util.get_cached_status_icon(
+                            AdapterManager.get_cached_status(el)
+                        ),
+                        util.esc(el.title),
+                        util.format_song_duration(el.duration),
+                        el.id,
+                    ]
+                )
+
+        util.diff_model_store(self.drilldown_directories_store, new_directories_store)
+
+        util.diff_song_store(self.directory_song_store, new_songs_store)
+
+        if len(new_directories_store) == 0:
+            self.list.hide()
+        else:
+            self.list.show()
+
+        if len(new_songs_store) == 0:
+            self.directory_song_list.hide()
+            self.scroll_window.set_min_content_width(275)
+        else:
+            self.directory_song_list.show()
+            self.scroll_window.set_min_content_width(350)
+
+        # Preserve selection
+        if selected_dir_idx is not None:
+            row = self.list.get_row_at_index(selected_dir_idx)
+            self.list.select_row(row)
+
+        self.loading_indicator.hide()
+
+    def on_download_state_change(self, _):
+        self.update()
+
+    # Create Element Helper Functions
+    # ==================================================================================
+    def create_row(self, model: DrilldownElement) -> Gtk.ListBoxRow:
+        row = Gtk.ListBoxRow(
+            action_name="app.browse-to", action_target=GLib.Variant("s", model.id),
+        )
+        rowbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        rowbox.add(
+            Gtk.Label(
+                label=f"<b>{util.esc(model.name)}</b>",
+                use_markup=True,
+                margin=8,
+                halign=Gtk.Align.START,
+                ellipsize=Pango.EllipsizeMode.END,
+            )
+        )
+
+        icon = Gio.ThemedIcon(name="go-next-symbolic")
+        image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
+        rowbox.pack_end(image, False, False, 5)
+        row.add(rowbox)
+        row.show_all()
+        return row
+
+    # Event Handlers
+    # ==================================================================================
+    def on_refresh_clicked(self, _: Any):
+        self.update(force=True)
 
     def on_song_activated(self, treeview: Any, idx: Gtk.TreePath, column: Any):
         # The song ID is in the last column of the model.
@@ -284,153 +396,3 @@ class DrilldownList(Gtk.Box):
                 return True
 
         return False
-
-    def do_update_store(self, elements: Optional[List[Any]]):
-        new_directories_store = []
-        new_songs_store = []
-        selected_dir_idx = None
-
-        for idx, el in enumerate(elements or []):
-            if el.get("isDir", True):
-                new_directories_store.append(DrilldownList.DrilldownElement(el))
-                if el.id == self.selected_id:
-                    selected_dir_idx = idx
-            else:
-                new_songs_store.append(
-                    [
-                        util.get_cached_status_icon(
-                            AdapterManager.get_cached_status(el)
-                        ),
-                        util.esc(el.title),
-                        util.format_song_duration(el.duration),
-                        el.id,
-                    ]
-                )
-
-        util.diff_model_store(self.drilldown_directories_store, new_directories_store)
-
-        util.diff_song_store(self.directory_song_store, new_songs_store)
-
-        if len(new_directories_store) == 0:
-            self.list.hide()
-        else:
-            self.list.show()
-
-        if len(new_songs_store) == 0:
-            self.directory_song_list.hide()
-            self.scroll_window.set_min_content_width(275)
-        else:
-            self.directory_song_list.show()
-            self.scroll_window.set_min_content_width(350)
-
-        # Preserve selection
-        if selected_dir_idx is not None:
-            row = self.list.get_row_at_index(selected_dir_idx)
-            self.list.select_row(row)
-
-        self.loading_indicator.hide()
-
-    def create_row(self, model: "DrilldownList.DrilldownElement") -> Gtk.ListBoxRow:
-        row = Gtk.ListBoxRow(
-            action_name="app.browse-to", action_target=GLib.Variant("s", model.id),
-        )
-        rowbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        rowbox.add(
-            Gtk.Label(
-                label=f"<b>{util.esc(model.name)}</b>",
-                use_markup=True,
-                margin=8,
-                halign=Gtk.Align.START,
-                ellipsize=Pango.EllipsizeMode.END,
-            )
-        )
-
-        icon = Gio.ThemedIcon(name="go-next-symbolic")
-        image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
-        rowbox.pack_end(image, False, False, 5)
-        row.add(rowbox)
-        row.show_all()
-        return row
-
-
-class IndexList(DrilldownList):
-    update_order_token = 0
-
-    def update(
-        self,
-        selected_id: int,
-        app_config: AppConfiguration = None,
-        force: bool = False,
-        **kwargs,
-    ):
-        self.update_order_token += 1
-        self.selected_id = selected_id
-        self.update_store(
-            force=force, app_config=app_config, order_token=self.update_order_token,
-        )
-
-    def on_refresh_clicked(self, _: Any):
-        self.update(self.selected_id, force=True)
-
-    @util.async_callback(
-        lambda *a, **k: CacheManager.get_indexes(*a, **k),
-        before_download=lambda self: self.loading_indicator.show(),
-        on_failure=lambda self, e: self.loading_indicator.hide(),
-    )
-    def update_store(
-        self,
-        artists: List[Artist],
-        app_config: AppConfiguration = None,
-        force: bool = False,
-        order_token: int = None,
-    ):
-        if order_token != self.update_order_token:
-            return
-
-        self.do_update_store(artists)
-
-    def on_download_state_change(self):
-        self.update(self.selected_id)
-
-
-class MusicDirectoryList(DrilldownList):
-    update_order_token = 0
-
-    def update(
-        self,
-        selected_id: int,
-        app_config: AppConfiguration = None,
-        force: bool = False,
-        directory_id: int = None,
-    ):
-        self.directory_id = directory_id
-        self.selected_id = selected_id
-        self.update_store(
-            directory_id,
-            force=force,
-            app_config=app_config,
-            order_token=self.update_order_token,
-        )
-
-    def on_refresh_clicked(self, _: Any):
-        self.update(self.selected_id, force=True, directory_id=self.directory_id)
-
-    @util.async_callback(
-        lambda *a, **k: CacheManager.get_music_directory(*a, **k),
-        before_download=lambda self: self.loading_indicator.show(),
-        on_failure=lambda self, e: self.loading_indicator.hide(),
-    )
-    def update_store(
-        self,
-        directory: Directory,
-        app_config: AppConfiguration = None,
-        force: bool = False,
-        order_token: int = None,
-    ):
-        if order_token != self.update_order_token:
-            return
-
-        self.do_update_store(directory.child)
-
-    def on_download_state_change(self):
-        self.update(self.selected_id, directory_id=self.directory_id)
