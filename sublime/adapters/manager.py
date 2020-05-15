@@ -843,6 +843,19 @@ class AdapterManager:
         return Result(do_batch_download_songs, is_download=True, on_cancel=on_cancel)
 
     @staticmethod
+    def batch_permanently_cache_songs(
+        song_ids: Sequence[str],
+        before_download: Callable[[str], None],
+        on_song_download_complete: Callable[[str], None],
+    ) -> Result[None]:
+        assert AdapterManager._instance
+        # This only really makes sense if we have a caching_adapter.
+        if not AdapterManager._instance.caching_adapter:
+            return Result(None)
+        # TODO ACTUALLY IMPLEMENT THIS
+        raise NotImplementedError()
+
+    @staticmethod
     def batch_delete_cached_songs(
         song_ids: Sequence[str], on_song_delete: Callable[[str], None]
     ):

@@ -9,7 +9,7 @@ import pytest
 
 from peewee import SelectQuery
 
-from sublime.adapters import api_objects as SublimeAPI, CacheMissError
+from sublime.adapters import api_objects as SublimeAPI, CacheMissError, SongCacheStatus
 from sublime.adapters.filesystem import FilesystemAdapter
 from sublime.adapters.subsonic import api_objects as SubsonicAPI
 
@@ -372,6 +372,43 @@ def test_malformed_song_path(cache_adapter: FilesystemAdapter):
 
     song_uri2 = cache_adapter.get_song_uri("2", "file")
     assert song_uri2.endswith("fine/path/song2.mp3")
+
+
+def test_get_cached_status(cache_adapter: FilesystemAdapter):
+    print('ohea1')
+    cache_adapter.ingest_new_data(KEYS.SONG, ("1",), MOCK_SUBSONIC_SONGS[1])
+    assert (
+        cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
+        == SongCacheStatus.NOT_CACHED
+    )
+
+    print('ohea2')
+    cache_adapter.ingest_new_data(KEYS.SONG_FILE, ("1",), (None, MOCK_SONG_FILE))
+    assert (
+        cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
+        == SongCacheStatus.CACHED
+    )
+
+    print('ohea3')
+    cache_adapter.ingest_new_data(KEYS.SONG_FILE_PERMANENT, ("1",), None)
+    assert (
+        cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
+        == SongCacheStatus.PERMANENTLY_CACHED
+    )
+
+    print('ohea4')
+    cache_adapter.invalidate_data(KEYS.SONG_FILE, ("1",))
+    assert (
+        cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
+        == SongCacheStatus.CACHED_STALE
+    )
+
+    print('ohea5')
+    cache_adapter.delete_data(KEYS.SONG_FILE, ("1",))
+    assert (
+        cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
+        == SongCacheStatus.NOT_CACHED
+    )
 
 
 def test_delete_playlists(cache_adapter: FilesystemAdapter):

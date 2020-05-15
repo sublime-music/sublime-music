@@ -685,6 +685,7 @@ class FilesystemAdapter(CachingAdapter):
             cache_info_extra["file_id"] = params[0]
 
         elif data_key == KEYS.SONG_FILE_PERMANENT:
+            data_key = KEYS.SONG_FILE
             cache_info_extra["cache_permanently"] = True
 
         # Set the cache info.
@@ -711,7 +712,7 @@ class FilesystemAdapter(CachingAdapter):
             cache_info.save()
 
         # Special handling for Song
-        if data_key == KEYS.SONG_FILE:
+        if data_key == KEYS.SONG_FILE and data:
             path, buffer_filename = data
 
             if path:
