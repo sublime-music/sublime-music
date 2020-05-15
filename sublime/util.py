@@ -6,6 +6,7 @@ from sublime.adapters import AlbumSearchQuery
 
 
 def params_hash(*params: Any) -> str:
+    # TODO determine if we ever have more than one parameter.
     # Special handling for AlbumSearchQuery objects.
     # TODO figure out if I can optimize this
     if len(params) > 0 and isinstance(params[0], AlbumSearchQuery):

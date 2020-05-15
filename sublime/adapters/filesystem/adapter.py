@@ -155,15 +155,33 @@ class FilesystemAdapter(CachingAdapter):
 
         return obj
 
+    def _compute_song_filename(self, cache_info: models.CacheInfo) -> Path:
+        if path_str := cache_info.path:
+            # Make sure that the path is somewhere in the cache directory and a
+            # malicious server (or MITM attacker) isn't trying to override files in
+            # other parts of the system.
+            path = self.music_dir.joinpath(path_str)
+            if self.music_dir in path.parents:
+                return path
+
+        # Fall back to using the song file hash as the filename. This shouldn't happen
+        # with good servers, but just to be safe.
+        return self.music_dir.joinpath(cache_info.file_hash)
+
     # Data Retrieval Methods
     # ==================================================================================
     def get_cached_status(self, song: API.Song) -> SongCacheStatus:
         try:
             song_model = self.get_song_details(song.id)
             file = song_model.file
-            if file.valid and self.music_dir.joinpath(file.file_hash).exists():
-                # TODO (#74): check if path is permanently cached
-                return SongCacheStatus.CACHED
+            if self._compute_song_filename(file).exists():
+                if file.valid:
+                    if file.cache_permanently:
+                        return SongCacheStatus.PERMANENTLY_CACHED
+                    return SongCacheStatus.CACHED
+
+                # The file is on disk, but marked as stale.
+                return SongCacheStatus.CACHED_STALE
         except Exception:
             pass
 
@@ -204,7 +222,7 @@ class FilesystemAdapter(CachingAdapter):
 
         try:
             if (song_file := song.file) and (
-                filename := self.music_dir.joinpath(str(song_file.file_hash))
+                filename := self._compute_song_filename(song_file)
             ):
                 if song_file.valid and filename.exists():
                     return str(filename)
@@ -513,10 +531,10 @@ class FilesystemAdapter(CachingAdapter):
             song_data = {
                 "id": api_song.id,
                 "title": api_song.title,
-                "path": getattr(api_song, "path", None),
                 "track": getattr(api_song, "track", None),
                 "year": getattr(api_song, "year", None),
                 "duration": getattr(api_song, "duration", None),
+                "parent_id": api_song.parent_id,
                 # Ingest the FKs.
                 "genre": ingest_genre_data(g) if (g := api_song.genre) else None,
                 "artist": ingest_artist_data(ar) if (ar := api_song.artist) else None,
@@ -526,7 +544,11 @@ class FilesystemAdapter(CachingAdapter):
                 )
                 if api_song.cover_art
                 else None,
-                "parent_id": api_song.parent_id,
+                "file": self._do_ingest_new_data(
+                    KEYS.SONG_FILE, params=(api_song.id,), data=(api_song.path, None)
+                )
+                if api_song.path
+                else None,
             }
 
             song, created = models.Song.get_or_create(
@@ -662,13 +684,6 @@ class FilesystemAdapter(CachingAdapter):
         elif data_key == KEYS.SONG_FILE:
             cache_info_extra["file_id"] = params[0]
 
-            if data is not None:
-                file_hash = compute_file_hash(data)
-                cache_info_extra["file_hash"] = file_hash
-
-                # Copy the actual cover art file
-                shutil.copy(str(data), str(self.music_dir.joinpath(file_hash)))
-
         elif data_key == KEYS.SONG_FILE_PERMANENT:
             cache_info_extra["cache_permanently"] = True
 
@@ -697,9 +712,25 @@ class FilesystemAdapter(CachingAdapter):
 
         # Special handling for Song
         if data_key == KEYS.SONG_FILE:
-            song = models.Song.get_by_id(params[0])
-            song.file = cache_info
-            song.save()
+            path, buffer_filename = data
+
+            if path:
+                cache_info.path = path
+
+            if buffer_filename:
+                cache_info.file_hash = compute_file_hash(buffer_filename)
+
+                # Copy the actual song file from the download buffer dir to the cache
+                # dir.
+                filename = self._compute_song_filename(cache_info)
+                filename.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(str(buffer_filename), str(filename))
+
+            cache_info.save()
+
+            # song = models.Song.get_by_id(params[0])
+            # song.file = cache_info
+            # song.save()
 
         return return_val if return_val is not None else cache_info
 
@@ -752,16 +783,16 @@ class FilesystemAdapter(CachingAdapter):
         logging.debug(
             f"_do_delete_data params={params} params_hash={params_hash} data_key={data_key}"  # noqa: 502
         )
+        cache_info = models.CacheInfo.get_or_none(
+            models.CacheInfo.cache_key == data_key,
+            models.CacheInfo.params_hash == params_hash,
+        )
 
         if data_key == CachingAdapter.CachedDataKey.COVER_ART_FILE:
-            cache_info = models.CacheInfo.get_or_none(
-                models.CacheInfo.cache_key == data_key,
-                models.CacheInfo.params_hash == params_hash,
-            )
             if cache_info:
-                cover_art_file = self.cover_art_dir.joinpath(str(cache_info.file_hash))
-                cover_art_file.unlink(missing_ok=True)
-                cache_info.delete()
+                self.cover_art_dir.joinpath(str(cache_info.file_hash)).unlink(
+                    missing_ok=True
+                )
 
         elif data_key == CachingAdapter.CachedDataKey.PLAYLIST_DETAILS:
             # Delete the playlist and corresponding cover art.
@@ -774,16 +805,7 @@ class FilesystemAdapter(CachingAdapter):
                 playlist.delete_instance()
 
         elif data_key == CachingAdapter.CachedDataKey.SONG_FILE:
-            cache_info = models.CacheInfo.get_or_none(
-                models.CacheInfo.cache_key == data_key,
-                models.CacheInfo.params_hash == params_hash,
-            )
             if cache_info:
-                cover_art_file = self.music_dir.joinpath(str(cache_info.file_hash))
-                cover_art_file.unlink(missing_ok=True)
-                cache_info.delete()
+                self._compute_song_filename(cache_info).unlink(missing_ok=True)
 
-        models.CacheInfo.delete().where(
-            models.CacheInfo.cache_key == data_key,
-            models.CacheInfo.params_hash == params_hash,
-        ).execute()
+        cache_info.delete_instance()

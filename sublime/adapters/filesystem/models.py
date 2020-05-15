@@ -33,16 +33,17 @@ class CacheInfo(BaseModel):
     valid = BooleanField(default=False)
     cache_key = CacheConstantsField()
     params_hash = TextField()
+    # TODO (#2) actually use this for cache expiry.
     last_ingestion_time = TzDateTimeField(null=False)
-    file_id = TextField(null=True)
-    file_hash = TextField(null=True)
-    # TODO store path
-    cache_permanently = BooleanField(null=True)
-
-    # TODO some sort of expiry?
 
     class Meta:
         indexes = ((("cache_key", "params_hash"), True),)
+
+    # Used for cached files.
+    file_id = TextField(null=True)
+    file_hash = TextField(null=True)
+    path = TextField(null=True)
+    cache_permanently = BooleanField(null=True)
 
 
 class Genre(BaseModel):
@@ -132,9 +133,6 @@ class Song(BaseModel):
     title = TextField()
     duration = DurationField(null=True)
 
-    # TODO move path to file foreign key
-    path = TextField(null=True)
-
     parent_id = TextField(null=True)
     album = ForeignKeyField(Album, null=True, backref="songs")
     artist = ForeignKeyField(Artist, null=True)
@@ -142,6 +140,13 @@ class Song(BaseModel):
 
     # figure out how to deal with different transcodings, etc.
     file = ForeignKeyField(CacheInfo, null=True)
+
+    @property
+    def path(self) -> Optional[str]:
+        try:
+            return self.file.path
+        except Exception:
+            return None
 
     _cover_art = ForeignKeyField(CacheInfo, null=True)
 

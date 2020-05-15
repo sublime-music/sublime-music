@@ -341,8 +341,8 @@ def test_invalidate_song_file(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(
         KEYS.COVER_ART_FILE, ("s1", "song"), MOCK_ALBUM_ART,
     )
-    cache_adapter.ingest_new_data(KEYS.SONG_FILE, ("1",), MOCK_SONG_FILE)
-    cache_adapter.ingest_new_data(KEYS.SONG_FILE, ("2",), MOCK_SONG_FILE2)
+    cache_adapter.ingest_new_data(KEYS.SONG_FILE, ("1",), (None, MOCK_SONG_FILE))
+    cache_adapter.ingest_new_data(KEYS.SONG_FILE, ("2",), (None, MOCK_SONG_FILE2))
 
     cache_adapter.invalidate_data(KEYS.SONG_FILE, ("1",))
     cache_adapter.invalidate_data(KEYS.COVER_ART_FILE, ("s1", "song"))
@@ -354,7 +354,24 @@ def test_invalidate_song_file(cache_adapter: FilesystemAdapter):
         cache_adapter.get_cover_art_uri("s1", "file")
 
     # Make sure it didn't delete the other song.
-    assert cache_adapter.get_song_uri("2", "file").endswith(MOCK_SONG_FILE2_HASH)
+    assert cache_adapter.get_song_uri("2", "file").endswith("song2.mp3")
+
+
+def test_malformed_song_path(cache_adapter: FilesystemAdapter):
+    cache_adapter.ingest_new_data(KEYS.SONG, ("1",), MOCK_SUBSONIC_SONGS[1])
+    cache_adapter.ingest_new_data(KEYS.SONG, ("2",), MOCK_SUBSONIC_SONGS[0])
+    cache_adapter.ingest_new_data(
+        KEYS.SONG_FILE, ("1",), ("/malformed/path", MOCK_SONG_FILE)
+    )
+    cache_adapter.ingest_new_data(
+        KEYS.SONG_FILE, ("2",), ("fine/path/song2.mp3", MOCK_SONG_FILE2)
+    )
+
+    song_uri = cache_adapter.get_song_uri("1", "file")
+    assert song_uri.endswith(f"/music/{MOCK_SONG_FILE_HASH}")
+
+    song_uri2 = cache_adapter.get_song_uri("2", "file")
+    assert song_uri2.endswith("fine/path/song2.mp3")
 
 
 def test_delete_playlists(cache_adapter: FilesystemAdapter):
@@ -401,7 +418,7 @@ def test_delete_playlists(cache_adapter: FilesystemAdapter):
 
 def test_delete_song_data(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(KEYS.SONG, ("1",), MOCK_SUBSONIC_SONGS[1])
-    cache_adapter.ingest_new_data(KEYS.SONG_FILE, ("1",), MOCK_SONG_FILE)
+    cache_adapter.ingest_new_data(KEYS.SONG_FILE, ("1",), (None, MOCK_SONG_FILE))
     cache_adapter.ingest_new_data(
         KEYS.COVER_ART_FILE, ("s1",), MOCK_ALBUM_ART,
     )

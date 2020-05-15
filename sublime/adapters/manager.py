@@ -803,7 +803,7 @@ class AdapterManager:
                     AdapterManager._instance.caching_adapter.ingest_new_data(
                         CachingAdapter.CachedDataKey.SONG_FILE,
                         (song_id,),
-                        song_tmp_filename,
+                        (None, song_tmp_filename),
                     )
                     on_song_download_complete(song_id)
 
