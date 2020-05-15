@@ -89,7 +89,7 @@ class AlbumsPanel(Gtk.Box):
         )
         actionbar.pack_start(self.alphabetical_type_combo)
 
-        # TODO: Alphabetically?
+        # TODO: Sort genre combo box alphabetically?
         self.genre_combo, self.genre_combo_store = self.make_combobox(
             (), self.on_genre_change
         )
@@ -167,7 +167,8 @@ class AlbumsPanel(Gtk.Box):
                 self.updating_query = False
 
         # Never force. We invalidate the cache ourselves (force is used when
-        # sort params change). TODO
+        # sort params change). TODO I don't think taat is the case now probaly can just
+        # force=force here
         genres_future = AdapterManager.get_genres(force=False)
         genres_future.add_done_callback(lambda f: GLib.idle_add(get_genres_done, f))
 

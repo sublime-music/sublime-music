@@ -441,6 +441,7 @@ class SubsonicAdapter(Adapter):
         if directory_id == "root":
             return self._get_indexes()
 
+        # TODO (#187) make sure to filter out all non-song files
         directory = self._get_json(
             self._make_url("getMusicDirectory"), id=directory_id
         ).directory

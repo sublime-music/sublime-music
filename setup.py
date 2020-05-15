@@ -55,13 +55,11 @@ setup(
         "bottle",
         "dataclasses-json @ git+https://github.com/lidatong/dataclasses-json@master#egg=dataclasses-json",  # noqa: E501
         "deepdiff",
-        "Deprecated",
         "fuzzywuzzy",
         'osxmmkeys ; sys_platform=="darwin"',
         "peewee",
         "pychromecast",
         "PyGObject",
-        "python-dateutil",
         "python-Levenshtein",
         "python-mpv",
         "pyyaml",

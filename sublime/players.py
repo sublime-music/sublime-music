@@ -268,7 +268,7 @@ class ChromecastPlayer(Player):
                 # the local filesystem is disabled and set it to ("file", "http",
                 # "https") in the other case.
                 song = AdapterManager.get_song_details(self.song_id).result()
-                filename, _ = AdapterManager.get_song_filename_or_stream(song)
+                filename = AdapterManager.get_song_filename_or_stream(song)
                 with open(filename, "rb") as fin:
                     song_buffer = io.BytesIO(fin.read())
 
@@ -443,7 +443,7 @@ class ChromecastPlayer(Player):
                 self.server_thread.set_song_and_token(song.id, token)
                 file_or_url = f"http://{self.host_ip}:{self.port}/s/{token}"
             else:
-                file_or_url, _ = AdapterManager.get_song_filename_or_stream(
+                file_or_url = AdapterManager.get_song_filename_or_stream(
                     song, force_stream=True,
                 )
 

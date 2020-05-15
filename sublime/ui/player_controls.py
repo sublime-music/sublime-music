@@ -136,7 +136,7 @@ class PlayerControls(Gtk.ActionBar):
             )
 
             self.song_title.set_markup(util.esc(app_config.state.current_song.title))
-            # TODO use walrus once MYPY gets its act together
+            # TODO (#71): use walrus once MYPY gets its act together
             album = app_config.state.current_song.album
             artist = app_config.state.current_song.artist
             if album:
@@ -187,7 +187,7 @@ class PlayerControls(Gtk.ActionBar):
 
         def calculate_label(song_details: Song) -> str:
             title = util.esc(song_details.title)
-            # TODO: use walrus once MYPY works with this
+            # TODO (#71): use walrus once MYPY works with this
             # album = util.esc(album.name if (album := song_details.album) else None)
             # artist = util.esc(artist.name if (artist := song_details.artist) else None)  # noqa
             album = util.esc(song_details.album.name if song_details.album else None)

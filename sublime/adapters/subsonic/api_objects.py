@@ -160,6 +160,7 @@ class Song(SublimeAPI.Song, DataClassJsonMixin):
     title: str = field(metadata=config(field_name="name"))
     path: Optional[str] = None
     parent_id: Optional[str] = field(default=None, metadata=config(field_name="parent"))
+    duration: Optional[timedelta] = None
 
     # Artist
     artist: Optional[ArtistAndArtistInfo] = field(init=False)
@@ -175,25 +176,12 @@ class Song(SublimeAPI.Song, DataClassJsonMixin):
     genre: Optional[Genre] = field(init=False)
     _genre: Optional[str] = field(default=None, metadata=config(field_name="genre"))
 
-    # TODO deal with these
     track: Optional[int] = None
+    disc_number: Optional[int] = None
     year: Optional[int] = None
     cover_art: Optional[str] = None
-    size: Optional[int] = None
-    content_type: Optional[str] = None
-    suffix: Optional[str] = None
-    transcoded_content_type: Optional[str] = None
-    transcoded_suffix: Optional[str] = None
-    duration: Optional[timedelta] = None
-    bit_rate: Optional[int] = None
-    is_video: Optional[bool] = None
     user_rating: Optional[int] = None
-    average_rating: Optional[float] = None
-    play_count: Optional[int] = None
-    disc_number: Optional[int] = None
-    created: Optional[datetime] = None
     starred: Optional[datetime] = None
-    type: Optional[SublimeAPI.MediaType] = None
 
     def __post_init__(self):
         self.parent_id = (self.parent_id or "root") if self.id != "root" else None

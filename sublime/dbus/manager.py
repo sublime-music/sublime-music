@@ -298,8 +298,8 @@ class DBusManager:
             "mpris:trackid": trackid,
             "mpris:length": duration,
             "mpris:artUrl": cover_art,
-            # TODO use walrus once MYPY isn't retarded
-            "xesam:album": song.album.name if song.album else "",
+            # TODO (#71) use walrus once MYPY isn't retarded
+            "xesam:album": (song.album.name if song.album else ""),
             "xesam:albumArtist": [artist_name],
             "xesam:artist": artist_name,
             "xesam:title": song.title,

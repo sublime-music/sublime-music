@@ -15,13 +15,6 @@ try:
 except Exception:
     tap_imported = False
 
-try:
-    # import keyring
-
-    has_keyring = True
-except ImportError:
-    has_keyring = False
-
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
 
 try:
@@ -225,7 +218,7 @@ class SublimeMusicApp(Gtk.Application):
         self.player = self.mpv_player
 
         if self.app_config.state.current_device != "this device":
-            # TODO (#120)
+            # TODO (#120) attempt to connect to the previously connected device
             pass
 
         self.app_config.state.current_device = "this device"
@@ -670,21 +663,6 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     def on_server_list_changed(self, action: Any, servers: GLib.Variant):
-        # TODO do the save to the keyring here
-
-        # keyring.set_password(
-        #     'com.sumnerevans.SublimeMusic',
-        #     f'{self.username}@{self.server_address}',
-        #     password,
-        # )
-        # def get_password(self) -> str:
-        #     try:
-        #         return keyring.get_password(
-        #             'com.sumnerevans.SublimeMusic',
-        #             f'{self.username}@{self.server_address}',
-        #         )
-        #     except Exception:
-        #         return self.password
         self.app_config.servers = servers
         self.app_config.save()
 
@@ -989,7 +967,7 @@ class SublimeMusicApp(Gtk.Application):
             if order_token != self.song_playing_order_token:
                 return
 
-            uri, _ = AdapterManager.get_song_filename_or_stream(
+            uri = AdapterManager.get_song_filename_or_stream(
                 song, force_stream=self.app_config.always_stream,
             )
 
@@ -1081,8 +1059,8 @@ class SublimeMusicApp(Gtk.Application):
 
                 # Hotswap to the downloaded song.
                 if (
-                    # TODO allow hotswap if not playing. This requires being able to
-                    # replace the currently playing URI with something different.
+                    # TODO (#182) allow hotswap if not playing. This requires being able
+                    # to replace the currently playing URI with something different.
                     self.app_config.state.playing
                     and self.app_config.state.current_song
                     and self.app_config.state.current_song.id == song_id
@@ -1093,7 +1071,7 @@ class SublimeMusicApp(Gtk.Application):
                     assert self.player
                     if self.player.can_hotswap_source:
                         self.player.play_media(
-                            AdapterManager.get_song_filename_or_stream(song)[0],
+                            AdapterManager.get_song_filename_or_stream(song),
                             self.app_config.state.song_progress,
                             song,
                         )

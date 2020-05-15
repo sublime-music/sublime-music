@@ -31,12 +31,14 @@ class FilesystemAdapter(CachingAdapter):
     @staticmethod
     def get_config_parameters() -> Dict[str, ConfigParamDescriptor]:
         return {
-            # TODO: download on play?
+            # TODO (#188): directory path, whether or not to scan tags
         }
 
     @staticmethod
     def verify_configuration(config: Dict[str, Any]) -> Dict[str, Optional[str]]:
-        return {}
+        return {
+            # TODO (#188): verify that the path exists
+        }
 
     def __init__(
         self, config: dict, data_directory: Path, is_cache: bool = False,
@@ -73,7 +75,7 @@ class FilesystemAdapter(CachingAdapter):
     is_networked = False  # Can't be cached (there's no need).
     can_service_requests = True  # Can always be used to service requests.
 
-    # TODO make these dependent on cache state.
+    # TODO make these dependent on cache state. Need to do this kinda efficiently
     can_get_playlists = True
     can_get_playlist_details = True
     can_get_cover_art_uri = True
@@ -160,7 +162,7 @@ class FilesystemAdapter(CachingAdapter):
             song_model = self.get_song_details(song.id)
             file = song_model.file
             if file.valid and self.music_dir.joinpath(file.file_hash).exists():
-                # TODO check if path is permanently cached
+                # TODO (#74): check if path is permanently cached
                 return SongCacheStatus.CACHED
         except Exception:
             pass
@@ -457,7 +459,7 @@ class FilesystemAdapter(CachingAdapter):
 
         def ingest_artist_data(api_artist: API.Artist) -> models.Artist:
             # Ingest similar artists.
-            # TODO figure out which order to do this in to be msot efficient.
+            # TODO figure out which order to do this in to be most efficient.
             if api_artist.similar_artists:
                 models.SimilarArtist.delete().where(
                     models.SimilarArtist.similar_artist.not_in(

@@ -224,6 +224,7 @@ class Adapter(abc.ABC):
             directory is guaranteed to exist.
         """
 
+    @abc.abstractmethod
     def shutdown(self):
         """
         This function is called when the app is being closed or the server is changing.
@@ -320,7 +321,7 @@ class Adapter(abc.ABC):
         Examples of values that could be provided include ``http``, ``https``, ``file``,
         or ``ftp``.
         """
-        # TODO actually use this
+        # TODO (#189) actually use this
         return ()
 
     @property

@@ -153,35 +153,10 @@ class Song(BaseModel):
             return None
 
     track = IntegerField(null=True)
+    disc_number = IntegerField(null=True)
     year = IntegerField(null=True)
-    play_count = TextField(null=True)
-    created = TzDateTimeField(null=True)
+    user_rating = IntegerField(null=True)
     starred = TzDateTimeField(null=True)
-
-    # TODO do I need any of these?
-    # size: Optional[int] = None
-    # content_type: Optional[str] = None
-    # suffix: Optional[str] = None
-    # transcoded_content_type: Optional[str] = None
-    # transcoded_suffix: Optional[str] = None
-    # bit_rate: Optional[int] = None
-    # is_video: Optional[bool] = None
-    # user_rating: Optional[int] = None
-    # average_rating: Optional[float] = None
-    # disc_number: Optional[int] = None
-    # - type_: Optional[SublimeAPI.MediaType] = None
-    # bookmark_position: Optional[int] = None
-    # original_width: Optional[int] = None
-    # original_height: Optional[int] = None
-
-
-# class DirectoryXChildren(BaseModel):
-#     directory_id = ForeignKeyField(Entity)
-#     order = IntegerField()
-#     child_id = ForeignKeyField(Entity, null=True)
-
-#     class Meta:
-#         indexes = ((("directory_id", "order", "child_id"), True),)
 
 
 class Playlist(BaseModel):

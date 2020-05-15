@@ -164,7 +164,8 @@ class AdapterManager:
         def __post_init__(self):
             self._download_dir = tempfile.TemporaryDirectory()
             self.download_path = Path(self._download_dir.name)
-            # TODO can we use the threadpool executor max workersfor this
+            # TODO can we use the threadpool executor max workers for limiting
+            # downloads?
             self.download_limiter_semaphore = threading.Semaphore(
                 self.concurrent_download_limit
             )
@@ -321,7 +322,7 @@ class AdapterManager:
                     resource_downloading = True
                 AdapterManager.current_download_hashes.add(params_hash)
 
-            # TODO figure out how to retry if the other request failed.
+            # TODO (#122): figure out how to retry if the other request failed.
             if resource_downloading:
                 logging.info(f"{uri} already being downloaded.")
 
@@ -332,7 +333,7 @@ class AdapterManager:
                 while params_hash in AdapterManager.current_download_hashes and t < 20:
                     sleep(0.2)
                     t += 0.2
-                    # TODO handle the timeout
+                    # TODO (#122): handle the timeout
             else:
                 logging.info(f"{uri} not found. Downloading...")
                 try:
@@ -378,7 +379,7 @@ class AdapterManager:
 
     @staticmethod
     def _get_scheme() -> str:
-        # TODO eventually this will come from the players
+        # TODO (#189): eventually this will come from the players
         assert AdapterManager._instance
         scheme_priority = ("https", "http")
         schemes = sorted(
@@ -452,7 +453,7 @@ class AdapterManager:
         ):
             AdapterManager._instance.caching_adapter.invalidate_data(cache_key, args)
 
-        # TODO don't short circuit if not allow_download because it could be the
+        # TODO (#188): don't short circuit if not allow_download because it could be the
         # filesystem adapter.
         if not allow_download or not AdapterManager._ground_truth_can_do(function_name):
             logging.info(f"END: NO DOWNLOAD: {function_name}")
@@ -477,8 +478,6 @@ class AdapterManager:
         logging.info(f"END: {function_name}")
         logging.debug(result)
         return result
-
-    # TODO abstract more stuff
 
     # Usage and Availability Properties
     # ==================================================================================
@@ -626,7 +625,7 @@ class AdapterManager:
 
     @staticmethod
     def delete_playlist(playlist_id: str):
-        # TODO: make non-blocking?
+        # TODO (#190): make non-blocking?
         assert AdapterManager._instance
         AdapterManager._instance.ground_truth_adapter.delete_playlist(playlist_id)
 
@@ -635,7 +634,8 @@ class AdapterManager:
                 CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, (playlist_id,)
             )
 
-    # TODO allow this to take a set of schemes and unify with get_cover_art_filename
+    # TODO (#189): allow this to take a set of schemes and unify with
+    # get_cover_art_filename
     @staticmethod
     def get_cover_art_uri(cover_art_id: str = None) -> str:
         assert AdapterManager._instance
@@ -655,7 +655,7 @@ class AdapterManager:
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
         allow_download: bool = True,
-    ) -> Result[str]:  # TODO: convert to return bytes?
+    ) -> Result[str]:
         existing_cover_art_filename = str(
             Path(__file__).parent.joinpath("images/default-album-art.png")
         )
@@ -718,21 +718,18 @@ class AdapterManager:
 
         return future
 
-    # TODO allow this to take a set of schemes
+    # TODO (#189): allow this to take a set of schemes
     @staticmethod
     def get_song_filename_or_stream(
         song: Song, format: str = None, force_stream: bool = False,
-    ) -> Tuple[str, bool]:  # TODO probably don't need to return a tuple anymore
+    ) -> str:
         assert AdapterManager._instance
         cached_song_filename = None
         if AdapterManager._can_use_cache(force_stream, "get_song_uri"):
             assert AdapterManager._instance.caching_adapter
             try:
-                return (
-                    AdapterManager._instance.caching_adapter.get_song_uri(
-                        song.id, "file"
-                    ),
-                    False,
+                return AdapterManager._instance.caching_adapter.get_song_uri(
+                    song.id, "file"
                 )
             except CacheMissError as e:
                 if e.partial_data is not None:
@@ -746,7 +743,7 @@ class AdapterManager:
         if not AdapterManager._ground_truth_can_do("get_song_uri"):
             if force_stream or cached_song_filename is None:
                 raise Exception("Can't stream the song.")
-            return (cached_song_filename, False)
+            return cached_song_filename
 
         # TODO implement subsonic extension to get the hash of the song and compare
         # here. That way of the cache gets blown away, but not the song files, it will
@@ -755,11 +752,8 @@ class AdapterManager:
         if force_stream and not AdapterManager._ground_truth_can_do("stream"):
             raise Exception("Can't stream the song.")
 
-        return (
-            AdapterManager._instance.ground_truth_adapter.get_song_uri(
-                song.id, AdapterManager._get_scheme(), stream=True,
-            ),
-            True,
+        return AdapterManager._instance.ground_truth_adapter.get_song_uri(
+            song.id, AdapterManager._get_scheme(), stream=True,
         )
 
     @staticmethod

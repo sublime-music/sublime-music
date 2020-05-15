@@ -169,13 +169,7 @@ def test_get_playlist_details(adapter: SubsonicAdapter):
             year=2016,
             _genre="Christian & Gospel",
             cover_art="318",
-            size=8381640,
-            content_type="audio/mp4",
-            suffix="m4a",
-            transcoded_content_type="audio/mpeg",
-            transcoded_suffix="mp3",
             duration=timedelta(seconds=238),
-            bit_rate=256,
             path="/".join(
                 (
                     "Hillsong Worship",
@@ -183,11 +177,7 @@ def test_get_playlist_details(adapter: SubsonicAdapter):
                     "01 What a Beautiful Name.m4a",
                 )
             ),
-            is_video=False,
-            play_count=20,
             disc_number=1,
-            created=datetime(2020, 3, 27, 5, 17, 7, tzinfo=timezone.utc),
-            type=SubsonicAPI.SublimeAPI.MediaType.MUSIC,
         )
 
 
@@ -212,13 +202,7 @@ def test_create_playlist(adapter: SubsonicAdapter):
                     year=2016,
                     _genre="Christian & Gospel",
                     cover_art="318",
-                    size=8381640,
-                    content_type="audio/mp4",
-                    suffix="m4a",
-                    transcoded_content_type="audio/mpeg",
-                    transcoded_suffix="mp3",
                     duration=timedelta(seconds=238),
-                    bit_rate=256,
                     path="/".join(
                         (
                             "Hillsong Worship",
@@ -226,11 +210,7 @@ def test_create_playlist(adapter: SubsonicAdapter):
                             "01 What a Beautiful Name.m4a",
                         )
                     ),
-                    is_video=False,
-                    play_count=20,
                     disc_number=1,
-                    created=datetime(2020, 3, 27, 5, 17, 7, tzinfo=timezone.utc),
-                    type=SubsonicAPI.SublimeAPI.MediaType.MUSIC,
                 )
             ],
         )

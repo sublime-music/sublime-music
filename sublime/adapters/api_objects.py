@@ -23,13 +23,6 @@ from typing import (
 from fuzzywuzzy import fuzz
 
 
-class MediaType(Enum):
-    MUSIC = "music"
-    PODCAST = "podcast"
-    AUDIOBOOK = "audiobook"
-    VIDEO = "video"
-
-
 class Genre(abc.ABC):
     name: str
     song_count: Optional[int]
@@ -89,29 +82,15 @@ class Song(abc.ABC):
     genre: Optional[Genre]
 
     track: Optional[int]
+    disc_number: Optional[int]
     year: Optional[int]
     cover_art: Optional[str]
-
-    size: Optional[int]
-    content_type: Optional[str]
-    suffix: Optional[str]
-    transcoded_content_type: Optional[str]
-    transcoded_suffix: Optional[str]
-    bit_rate: Optional[int]
-    is_video: Optional[bool]
     user_rating: Optional[int]
-    average_rating: Optional[float]
-    play_count: Optional[int]
-    disc_number: Optional[int]
-    created: Optional[datetime]
     starred: Optional[datetime]
-    type: Optional[MediaType]
-    # TODO trim down
 
 
 # TODO remove distinction between Playlist and PlaylistDetails
 class Playlist(abc.ABC):
-    # TODO trim down
     id: str
     name: str
     song_count: Optional[int]
@@ -125,7 +104,6 @@ class Playlist(abc.ABC):
 
 
 class PlaylistDetails(abc.ABC):
-    # TODO trim down
     id: str
     name: str
     song_count: int
