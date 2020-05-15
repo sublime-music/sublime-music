@@ -4,7 +4,6 @@ Defines the objects that are returned by adapter methods.
 import abc
 import logging
 from datetime import datetime, timedelta
-from enum import Enum
 from functools import lru_cache, partial
 from typing import (
     Any,

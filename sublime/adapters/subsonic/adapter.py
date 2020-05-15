@@ -27,6 +27,21 @@ import requests
 from .api_objects import Directory, Response
 from .. import Adapter, AlbumSearchQuery, api_objects as API, ConfigParamDescriptor
 
+try:
+    import gi
+
+    gi.require_version("NM", "1.0")
+    from gi.repository import NM
+
+    networkmanager_imported = True
+except Exception:
+    # I really don't care what kind of exception it is, all that matters is the
+    # import failed for some reason.
+    logging.warning(
+        "Unable to import NM from GLib. Detection of SSID will be disabled."
+    )
+    networkmanager_imported = False
+
 SUBSONIC_ADAPTER_DEBUG_DELAY = None
 if delay_str := os.environ.get("SUBSONIC_ADAPTER_DEBUG_DELAY"):
     SUBSONIC_ADAPTER_DEBUG_DELAY = (
@@ -47,12 +62,24 @@ class SubsonicAdapter(Adapter):
     def get_config_parameters() -> Dict[str, ConfigParamDescriptor]:
         # TODO some way to test the connection to the server and a way to open the
         # server URL in a browser
-        return {
+        configs = {
             "server_address": ConfigParamDescriptor(str, "Server address"),
+            "disable_cert_verify": ConfigParamDescriptor("password", "Password", False),
             "username": ConfigParamDescriptor(str, "Username"),
             "password": ConfigParamDescriptor("password", "Password"),
-            "disable_cert_verify": ConfigParamDescriptor("password", "Password", False),
         }
+        if networkmanager_imported:
+            configs.update(
+                {
+                    "local_network_ssid": ConfigParamDescriptor(
+                        str, "Local Network SSID"
+                    ),
+                    "local_network_address": ConfigParamDescriptor(
+                        str, "Local Network Address"
+                    ),
+                }
+            )
+        return configs
 
     @staticmethod
     def verify_configuration(config: Dict[str, Any]) -> Dict[str, Optional[str]]:
@@ -66,10 +93,29 @@ class SubsonicAdapter(Adapter):
         self.ignored_articles_cache_file = self.data_directory.joinpath(
             "ignored_articles.pickle"
         )
+
         self.hostname = config["server_address"]
+        if ssid := config.get("local_network_ssid") and networkmanager_imported:
+            networkmanager_client = NM.Client.new()
+
+            # Only look at the active WiFi connections.
+            for ac in networkmanager_client.get_active_connections():
+                if ac.get_connection_type() != "802-11-wireless":
+                    continue
+                devs = ac.get_devices()
+                if len(devs) != 1:
+                    continue
+                if devs[0].get_device_type() != NM.DeviceType.WIFI:
+                    continue
+
+                # If connected to the Local Network SSID, then change the hostname to
+                # the Local Network Address.
+                if ssid == ac.get_id():
+                    self.hostname = config["local_network_address"]
+                    break
+
         self.username = config["username"]
         self.password = config["password"]
-        # TODO: SSID stuff
         self.disable_cert_verify = config.get("disable_cert_verify")
 
         self.is_shutting_down = False
@@ -81,7 +127,7 @@ class SubsonicAdapter(Adapter):
         while not self._first_ping_happened.value:
             sleep(0.1)
 
-        # TODO support XML | JSON
+        # TODO (#191): support XML?
 
     def shutdown(self):
         self.ping_process.terminate()
@@ -223,7 +269,7 @@ class SubsonicAdapter(Adapter):
         *Sonic ``<error>`` responses.
 
         :returns: a dictionary of the subsonic response.
-        :raises Exception: needs some work TODO
+        :raises Exception: needs some work
         """
         result = self._get(url, timeout=timeout, **params)
         subsonic_response = result.json().get("subsonic-response")
@@ -279,7 +325,7 @@ class SubsonicAdapter(Adapter):
 
     def get_playlist_details(self, playlist_id: str) -> API.PlaylistDetails:
         result = self._get_json(self._make_url("getPlaylist"), id=playlist_id).playlist
-        # TODO better error
+        # TODO (#122) better error (here and elsewhere)
         assert result, f"Error getting playlist {playlist_id}"
         return result
 
@@ -462,8 +508,8 @@ class SubsonicAdapter(Adapter):
         current_song_index: int = None,
         position: timedelta = None,
     ):
-        # TODO make an extension that allows you to save the play queue position by
-        # index instead of id.
+        # TODO (sonic-extensions-api/specification#1) make an extension that allows you
+        # to save the play queue position by index instead of id.
         self._get(
             self._make_url("savePlayQueue"),
             id=song_ids,
