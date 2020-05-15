@@ -479,7 +479,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         new_store = [
             [
-                util.get_cached_status_icon(AdapterManager.get_cached_status(song)),
+                util.get_cached_status_icon(song),
                 song.title,
                 album.name if (album := song.album) else None,
                 artist.name if (artist := song.artist) else None,

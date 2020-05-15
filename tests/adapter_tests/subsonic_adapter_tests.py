@@ -58,6 +58,7 @@ def mock_data_files(
                 num_files += 1
                 yield file, iter(parts)
 
+    # Make sure that is at least one test file
     assert num_files > 0
 
 
@@ -158,7 +159,7 @@ def test_get_playlist_details(adapter: SubsonicAdapter):
         # Make sure that at least the first song got decoded properly.
         assert playlist_details.songs[0] == SubsonicAPI.Song(
             id="202",
-            _parent="318",
+            parent_id="318",
             title="What a Beautiful Name",
             _album="What a Beautiful Name - Single",
             album_id="48",
@@ -201,7 +202,7 @@ def test_create_playlist(adapter: SubsonicAdapter):
             songs=[
                 SubsonicAPI.Song(
                     id="202",
-                    _parent="318",
+                    parent_id="318",
                     title="What a Beautiful Name",
                     _album="What a Beautiful Name - Single",
                     album_id="48",
@@ -263,8 +264,8 @@ def test_get_song_details(adapter: SubsonicAdapter):
             "544",
             timedelta(seconds=203),
         )
-        assert song.path.endswith("Sweet Caroline.mp3")
-        assert song.parent and song.parent.id == "544"
+        assert song.path and song.path.endswith("Sweet Caroline.mp3")
+        assert song.parent_id == "544"
         assert song.artist
         assert (song.artist.id, song.artist.name) == ("60", "Neil Diamond")
         assert song.album
@@ -425,3 +426,48 @@ def test_get_album(adapter: SubsonicAdapter):
             "Nothing Like You",
             "Better Together",
         ]
+
+
+def test_get_music_directory(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files("get_music_directory"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        directory = adapter.get_directory("3")
+        assert directory.id == "60"
+        assert directory.name == "Luke Bryan"
+        assert directory.parent_id == "root"
+        assert directory.children and len(directory.children) == 1
+        child = directory.children[0]
+        assert isinstance(child, SubsonicAPI.Directory)
+        assert child.id == "542"
+        assert child.name == "Crash My Party"
+        assert child.parent_id == "60"
+
+    for filename, data in mock_data_files("get_indexes"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        directory = adapter.get_directory("root")
+        assert directory.id == "root"
+        assert directory.parent_id is None
+        assert len(directory.children) == 7
+        child = directory.children[0]
+        assert isinstance(child, SubsonicAPI.Directory)
+        assert child.id == "73"
+        assert child.name == "The Afters"
+        assert child.parent_id == "root"
+
+
+def test_search(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files("search3"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        search_results = adapter.search("3")
+        assert len(search_results._songs) == 7
+        assert len(search_results._artists) == 2
+        assert len(search_results._albums) == 4

@@ -32,16 +32,22 @@ class SongCacheStatus(Enum):
     """
     Represents the cache state of a given song.
 
-    * :class:`SongCacheStatus.NOT_CACHED` -- indicates
-    * :class:`SongCacheStatus.CACHED` -- indicates
-    * :class:`SongCacheStatus.PERMANENTLY_CACHED` -- indicates
-    * :class:`SongCacheStatus.DOWNLOADING` -- indicates
+    * :class:`SongCacheStatus.NOT_CACHED` -- indicates that the song is not cached on
+      disk.
+    * :class:`SongCacheStatus.CACHED` -- indicates that the song is cached on disk.
+    * :class:`SongCacheStatus.PERMANENTLY_CACHED` -- indicates that the song is cached
+      on disk and will not be deleted when the cache gets too big.
+    * :class:`SongCacheStatus.DOWNLOADING` -- indicates that the song is being
+      downloaded.
+    * :class:`SongCacheStatus.CACHED_STALE` -- indicates that the song is cached on
+      disk, but has been invalidated.
     """
 
     NOT_CACHED = 0
     CACHED = 1
     PERMANENTLY_CACHED = 2
     DOWNLOADING = 3
+    CACHED_STALE = 4
 
 
 @dataclass(frozen=True)
@@ -713,7 +719,7 @@ class CachingAdapter(Adapter):
         PLAYLIST_DETAILS = "get_playlist_details"
         PLAYLISTS = "get_playlists"
         SEARCH_RESULTS = "search_results"
-        SONG_DETAILS = "song_details"
+        SONG = "song"
         SONG_FILE = "song_file"
         SONG_FILE_PERMANENT = "song_file_permanent"
 

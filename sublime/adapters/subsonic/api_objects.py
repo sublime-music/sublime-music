@@ -17,14 +17,22 @@ from dataclasses_json import (
 from .. import api_objects as SublimeAPI
 
 # Translation map
-extra_translation_map = {
+decoder_functions = {
     datetime: (lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%f%z") if s else None),
     timedelta: (lambda s: timedelta(seconds=s) if s else None),
 }
+encoder_functions = {
+    datetime: (lambda d: datetime.strftime(d, "%Y-%m-%dT%H:%M:%S.%f%z") if d else None),
+    timedelta: (lambda t: t.total_seconds() if t else None),
+}
 
-for type_, translation_function in extra_translation_map.items():
+for type_, translation_function in decoder_functions.items():
     dataclasses_json.cfg.global_config.decoders[type_] = translation_function
     dataclasses_json.cfg.global_config.decoders[Optional[type_]] = translation_function
+
+for type_, translation_function in encoder_functions.items():
+    dataclasses_json.cfg.global_config.encoders[type_] = translation_function
+    dataclasses_json.cfg.global_config.encoders[Optional[type_]] = translation_function
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -122,43 +130,36 @@ class ArtistInfo:
                 self.artist_image_url = ""
 
 
+@dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class Directory(DataClassJsonMixin, SublimeAPI.Directory):
+class Directory(SublimeAPI.Directory):
     id: str
-    title: Optional[str] = field(default=None, metadata=config(field_name="name"))
-    parent: Optional["Directory"] = field(init=False)
-    _parent: Optional[str] = field(default=None, metadata=config(field_name="parent"))
-    _is_root: bool = False
+    name: Optional[str] = None
+    title: Optional[str] = None
+    parent_id: Optional[str] = field(default=None, metadata=config(field_name="parent"))
 
-    children: List[Union["Directory", "Song"]] = field(default_factory=list, init=False)
-    _children: List[Union[Dict[str, Any], "Directory", "Song"]] = field(
+    children: List[Union["Directory", "Song"]] = field(init=False)
+    _children: List[Dict[str, Any]] = field(
         default_factory=list, metadata=config(field_name="child")
     )
 
     def __post_init__(self):
-        self.parent = (
-            Directory(self._parent or "root", _is_root=(self._parent is None))
-            if not self._is_root
-            else None
-        )
-        self.children = (
-            self._children
-            if self._is_root
-            else [
-                Directory.from_dict(c) if c.get("isDir") else Song.from_dict(c)
-                for c in self._children
-            ]
-        )
+        self.parent_id = (self.parent_id or "root") if self.id != "root" else None
+
+        self.name = self.name or self.title
+        self.children = [
+            Directory.from_dict(c) if c.get("isDir") else Song.from_dict(c)
+            for c in self._children
+        ]
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class Song(SublimeAPI.Song):
+class Song(SublimeAPI.Song, DataClassJsonMixin):
     id: str
-    title: str
-    path: str
-    parent: Directory = field(init=False)
-    _parent: Optional[str] = field(default=None, metadata=config(field_name="parent"))
+    title: str = field(metadata=config(field_name="name"))
+    path: Optional[str] = None
+    parent_id: Optional[str] = field(default=None, metadata=config(field_name="parent"))
 
     # Artist
     artist: Optional[ArtistAndArtistInfo] = field(init=False)
@@ -195,8 +196,7 @@ class Song(SublimeAPI.Song):
     type: Optional[SublimeAPI.MediaType] = None
 
     def __post_init__(self):
-        # Initialize the cross-references
-        self.parent = None if not self._parent else Directory(self._parent)
+        self.parent_id = (self.parent_id or "root") if self.id != "root" else None
         self.artist = (
             None
             if not self.artist_id
@@ -270,7 +270,7 @@ class PlayQueue(SublimeAPI.PlayQueue):
 @dataclass
 class Index:
     name: str
-    artist: List[Directory] = field(default_factory=list)
+    artist: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)

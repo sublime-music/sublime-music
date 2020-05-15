@@ -25,8 +25,7 @@ def main():
     parser.add_argument(
         "-c",
         "--config",
-        help="specify a configuration file. Defaults to "
-        "~/.config/sublime-music/config.json",
+        help="specify a configuration file. Defaults to ~/.config/sublime-music/config.json",  # noqa: 512
     )
 
     args, unknown_args = parser.parse_known_args()

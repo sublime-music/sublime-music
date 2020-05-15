@@ -5,7 +5,7 @@ import abc
 import logging
 from datetime import datetime, timedelta
 from enum import Enum
-from functools import lru_cache
+from functools import lru_cache, partial
 from typing import (
     Any,
     Callable,
@@ -15,6 +15,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Tuple,
     TypeVar,
     Union,
 )
@@ -65,16 +66,24 @@ class Artist(abc.ABC):
 
 
 class Directory(abc.ABC):
+    """
+    The special directory with ``name`` and ``id`` should be used to indicate the
+    top-level directory.
+    """
+
     id: str
-    title: Optional[str]
-    parent: Optional["Directory"]
+    name: Optional[str]
+    parent_id: Optional[str]
     children: Sequence[Union["Directory", "Song"]]
 
 
 class Song(abc.ABC):
     id: str
     title: str
-    parent: Directory
+    path: Optional[str]
+    parent_id: Optional[str]
+    duration: Optional[timedelta]
+
     album: Optional[Album]
     artist: Optional[Artist]
     genre: Optional[Genre]
@@ -82,14 +91,13 @@ class Song(abc.ABC):
     track: Optional[int]
     year: Optional[int]
     cover_art: Optional[str]
+
     size: Optional[int]
     content_type: Optional[str]
     suffix: Optional[str]
     transcoded_content_type: Optional[str]
     transcoded_suffix: Optional[str]
-    duration: Optional[timedelta]
     bit_rate: Optional[int]
-    path: str
     is_video: Optional[bool]
     user_rating: Optional[int]
     average_rating: Optional[float]
@@ -142,7 +150,7 @@ class PlayQueue(abc.ABC):
 
 
 @lru_cache(maxsize=8192)
-def similarity_ratio(query: str, string: str) -> int:
+def similarity_ratio(query: str, string: Optional[str]) -> int:
     """
     Return the :class:`fuzzywuzzy.fuzz.partial_ratio` between the ``query`` and
     the given ``string``.
@@ -153,6 +161,8 @@ def similarity_ratio(query: str, string: str) -> int:
     :param query: the query string
     :param string: the string to compare to the query string
     """
+    if not string:
+        return 0
     return fuzz.partial_ratio(query.lower(), string.lower())
 
 
@@ -186,10 +196,13 @@ class SearchResult:
     _S = TypeVar("_S")
 
     def _to_result(
-        self, it: Dict[str, _S], transform: Callable[[_S], str],
+        self, it: Dict[str, _S], transform: Callable[[_S], Tuple[Optional[str], ...]],
     ) -> List[_S]:
         all_results = sorted(
-            ((similarity_ratio(self.query, transform(x)), x) for id, x in it.items()),
+            (
+                (max(map(partial(similarity_ratio, self.query), transform(x))), x)
+                for x in it.values()
+            ),
             key=lambda rx: rx[0],
             reverse=True,
         )
@@ -206,16 +219,20 @@ class SearchResult:
 
     @property
     def artists(self) -> List[Artist]:
-        return self._to_result(self._artists, lambda a: a.name)
+        return self._to_result(self._artists, lambda a: (a.name,))
 
     @property
     def albums(self) -> List[Album]:
-        return self._to_result(self._albums, lambda a: f"{a.name}  •  {a.artist}")
+        return self._to_result(
+            self._albums, lambda a: (a.name, a.artist.name if a.artist else None)
+        )
 
     @property
     def songs(self) -> List[Song]:
-        return self._to_result(self._songs, lambda s: f"{s.title}  •  {s.artist}")
+        return self._to_result(
+            self._songs, lambda s: (s.title, s.artist.name if s.artist else None)
+        )
 
     @property
     def playlists(self) -> List[Playlist]:
-        return self._to_result(self._playlists, lambda p: p.name)
+        return self._to_result(self._playlists, lambda p: (p.name,))

@@ -563,11 +563,7 @@ class AlbumsGrid(Gtk.Overlay):
             )
 
         # Header for the widget
-        header_text = (
-            item.album.title if isinstance(item.album, API.Song) else item.album.name
-        )
-
-        header_label = make_label(header_text, "grid-header-label")
+        header_label = make_label(item.album.name, "grid-header-label")
         widget_box.pack_start(header_label, False, False, 0)
 
         # Extra info for the widget

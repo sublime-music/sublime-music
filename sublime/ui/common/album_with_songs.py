@@ -264,7 +264,7 @@ class AlbumWithSongs(Gtk.Box):
     ):
         new_store = [
             [
-                util.get_cached_status_icon(AdapterManager.get_cached_status(song)),
+                util.get_cached_status_icon(song),
                 util.esc(song.title),
                 util.format_song_duration(song.duration),
                 song.id,

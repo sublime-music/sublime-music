@@ -1,3 +1,4 @@
+import abc
 import base64
 import io
 import logging
@@ -22,6 +23,7 @@ from sublime.config import AppConfiguration
 
 
 class PlayerEvent:
+    # TODO standardize this
     name: str
     value: Any
 
@@ -30,9 +32,9 @@ class PlayerEvent:
         self.value = value
 
 
-class Player:
-    # TODO: convert to ABC and pull players out into different modules and actually
-    # document this API because it's kinda a bit strange tbh.
+class Player(abc.ABC):
+    # TODO: pull players out into different modules and actually document this API
+    # because it's kinda a bit strange tbh.
     _can_hotswap_source: bool
 
     def __init__(
@@ -97,7 +99,7 @@ class Player:
             "toggle_play must be implemented by implementor of Player"
         )
 
-    def seek(self, value: float):
+    def seek(self, value: timedelta):
         raise NotImplementedError("seek must be implemented by implementor of Player")
 
     def _get_timepos(self):
@@ -190,8 +192,8 @@ class MPVPlayer(Player):
     def toggle_play(self):
         self.mpv.cycle("pause")
 
-    def seek(self, value: float):
-        self.mpv.seek(str(value), "absolute")
+    def seek(self, value: timedelta):
+        self.mpv.seek(str(value.total_seconds()), "absolute")
 
     def _get_volume(self) -> float:
         return self._volume
@@ -480,9 +482,9 @@ class ChromecastPlayer(Player):
             self.chromecast.media_controller.play()
             self.wait_for_playing(self.start_time_incrementor)
 
-    def seek(self, value: float):
+    def seek(self, value: timedelta):
         do_pause = not self.playing
-        self.chromecast.media_controller.seek(value)
+        self.chromecast.media_controller.seek(value.total_seconds())
         if do_pause:
             self.pause()
 

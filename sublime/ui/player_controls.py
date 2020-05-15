@@ -141,12 +141,16 @@ class PlayerControls(Gtk.ActionBar):
             artist = app_config.state.current_song.artist
             if album:
                 self.album_name.set_markup(util.esc(album.name))
+                self.artist_name.show()
             else:
                 self.album_name.set_markup("")
+                self.album_name.hide()
             if artist:
                 self.artist_name.set_markup(util.esc(artist.name))
+                self.artist_name.show()
             else:
                 self.artist_name.set_markup("")
+                self.artist_name.hide()
         else:
             # Clear out the cover art and song tite if no song
             self.album_art.set_from_file(None)

@@ -17,7 +17,7 @@ from deepdiff import DeepDiff
 from gi.repository import Gdk, GLib, Gtk
 
 from sublime.adapters import AdapterManager, Result, SongCacheStatus
-from sublime.adapters.api_objects import Playlist
+from sublime.adapters.api_objects import Playlist, Song
 from sublime.config import AppConfiguration
 
 
@@ -116,14 +116,14 @@ def dot_join(*items: Any) -> str:
     return "  •  ".join(map(str, filter(lambda x: x is not None, items)))
 
 
-def get_cached_status_icon(cache_status: SongCacheStatus) -> str:
+def get_cached_status_icon(song: Song) -> str:
     cache_icon = {
         SongCacheStatus.NOT_CACHED: "",
         SongCacheStatus.CACHED: "folder-download-symbolic",
         SongCacheStatus.PERMANENTLY_CACHED: "view-pin-symbolic",
         SongCacheStatus.DOWNLOADING: "emblem-synchronizing-symbolic",
     }
-    return cache_icon[cache_status]
+    return cache_icon[AdapterManager.get_cached_status(song)]
 
 
 def _parse_diff_location(location: str) -> Tuple:
@@ -214,7 +214,7 @@ def show_song_popover(
         status = AdapterManager.get_cached_status(details)
         albums.add(album.id if (album := details.album) else None)
         artists.add(artist.id if (artist := details.artist) else None)
-        parents.add(parent.id if (parent := details.parent) else None)
+        parents.add(parent_id if (parent_id := details.parent_id) else None)
 
         if download_sensitive or status == SongCacheStatus.NOT_CACHED:
             download_sensitive = True

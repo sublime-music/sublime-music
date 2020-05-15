@@ -4,7 +4,6 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import timedelta
-from functools import partial
 from pathlib import Path
 from time import sleep
 from typing import (
@@ -12,6 +11,8 @@ from typing import (
     Callable,
     cast,
     Generic,
+    Iterable,
+    List,
     Optional,
     Sequence,
     Set,
@@ -877,7 +878,7 @@ class AdapterManager:
             allow_download=allow_download,
             before_download=before_download,
             use_ground_truth_adapter=force,
-            cache_key=CachingAdapter.CachedDataKey.SONG_DETAILS,
+            cache_key=CachingAdapter.CachedDataKey.SONG,
         )
 
     @staticmethod
@@ -898,26 +899,27 @@ class AdapterManager:
         force: bool = False, before_download: Callable[[], None] = lambda: None
     ) -> Result[Sequence[Artist]]:
         def do_get_artists() -> Sequence[Artist]:
-            artists: Sequence[Artist] = AdapterManager._get_from_cache_or_ground_truth(
-                "get_artists",
+            return AdapterManager.sort_by_ignored_articles(
+                AdapterManager._get_from_cache_or_ground_truth(
+                    "get_artists",
+                    use_ground_truth_adapter=force,
+                    before_download=before_download,
+                    cache_key=CachingAdapter.CachedDataKey.ARTISTS,
+                ).result(),
+                key=lambda a: a.name,
                 use_ground_truth_adapter=force,
-                before_download=before_download,
-                cache_key=CachingAdapter.CachedDataKey.ARTISTS,
-            ).result()
-            return sorted(
-                artists, key=partial(AdapterManager._strip_ignored_articles, force)
             )
 
         return Result(do_get_artists)
 
     @staticmethod
-    def _get_ignored_articles(force: bool) -> Set[str]:
+    def _get_ignored_articles(use_ground_truth_adapter: bool) -> Set[str]:
         if not AdapterManager._any_adapter_can_do("get_ignored_articles"):
             return set()
         try:
             return AdapterManager._get_from_cache_or_ground_truth(
                 "get_ignored_articles",
-                use_ground_truth_adapter=force,
+                use_ground_truth_adapter=use_ground_truth_adapter,
                 cache_key=CachingAdapter.CachedDataKey.IGNORED_ARTICLES,
             ).result()
         except Exception:
@@ -925,11 +927,26 @@ class AdapterManager:
             return set()
 
     @staticmethod
-    def _strip_ignored_articles(force: bool, artist: Artist) -> str:
-        first_word, rest = (name := artist.name).split(maxsplit=1)
-        if first_word in AdapterManager._get_ignored_articles(force):
-            return rest
-        return name
+    def _strip_ignored_articles(use_ground_truth_adapter: bool, string: str) -> str:
+        first_word, *rest = string.split(maxsplit=1)
+        if first_word in AdapterManager._get_ignored_articles(use_ground_truth_adapter):
+            return rest[0]
+        return string
+
+    _S = TypeVar("_S")
+
+    @staticmethod
+    def sort_by_ignored_articles(
+        it: Iterable[_S],
+        key: Callable[[_S], str],
+        use_ground_truth_adapter: bool = False,
+    ) -> List[_S]:
+        return sorted(
+            it,
+            key=lambda x: AdapterManager._strip_ignored_articles(
+                use_ground_truth_adapter, key(x)
+            ),
+        )
 
     @staticmethod
     def get_artist(
@@ -1002,6 +1019,7 @@ class AdapterManager:
             cache_key=CachingAdapter.CachedDataKey.DIRECTORY,
         )
 
+    # Play Queue
     @staticmethod
     def get_play_queue() -> Result[Optional[PlayQueue]]:
         assert AdapterManager._instance
@@ -1017,7 +1035,7 @@ class AdapterManager:
                 if play_queue := f.result():
                     for song in play_queue.songs:
                         AdapterManager._instance.caching_adapter.ingest_new_data(
-                            CachingAdapter.CachedDataKey.SONG_DETAILS, (song.id,), song
+                            CachingAdapter.CachedDataKey.SONG, (song.id,), song
                         )
 
             future.add_done_callback(future_finished)

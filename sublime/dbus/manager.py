@@ -10,7 +10,7 @@ from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
 
 from sublime.adapters import AdapterManager, CacheMissError
-from sublime.adapters.api_objects import PlaylistDetails, Song
+from sublime.adapters.api_objects import PlaylistDetails
 from sublime.config import AppConfiguration
 from sublime.players import Player
 from sublime.ui.state import RepeatType
@@ -271,10 +271,10 @@ class DBusManager:
         self, idx: int, play_queue: Tuple[str, ...]
     ) -> Dict[str, Any]:
         try:
-            song: Song = AdapterManager.get_song_details(
+            song = AdapterManager.get_song_details(
                 play_queue[idx], allow_download=False
             ).result()
-        except CacheMissError:
+        except Exception:
             return {}
 
         trackid = self.get_dbus_playlist(play_queue)[idx]

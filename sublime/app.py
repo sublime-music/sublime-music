@@ -43,7 +43,7 @@ from .adapters import AdapterManager, AlbumSearchQuery, Result
 from .adapters.api_objects import Playlist, PlayQueue, Song
 from .config import AppConfiguration, ReplayGainType
 from .dbus import dbus_propagate, DBusManager
-from .players import ChromecastPlayer, MPVPlayer, PlayerEvent
+from .players import ChromecastPlayer, MPVPlayer, Player, PlayerEvent
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.main import MainWindow
 from .ui.settings import SettingsDialog
@@ -58,10 +58,11 @@ class SublimeMusicApp(Gtk.Application):
 
         self.window: Optional[Gtk.Window] = None
         self.app_config = AppConfiguration.load_from_file(config_file)
-        self.player = None
         self.dbus_manager: Optional[DBusManager] = None
 
         self.connect("shutdown", self.on_app_shutdown)
+
+    player: Player
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
@@ -1004,7 +1005,9 @@ class SublimeMusicApp(Gtk.Application):
                 return
 
             self.player.play_media(
-                uri, 0 if reset else self.app_config.state.song_progress, song,
+                uri,
+                timedelta(0) if reset else self.app_config.state.song_progress,
+                song,
             )
             self.app_config.state.playing = True
             self.update_window()

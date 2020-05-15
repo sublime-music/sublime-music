@@ -5,7 +5,6 @@ import multiprocessing
 import os
 import pickle
 import random
-from dataclasses import asdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
@@ -25,8 +24,16 @@ from urllib.parse import urlencode, urlparse
 
 import requests
 
-from .api_objects import Directory, Response, Song
+from .api_objects import Directory, Response
 from .. import Adapter, AlbumSearchQuery, api_objects as API, ConfigParamDescriptor
+
+SUBSONIC_ADAPTER_DEBUG_DELAY = None
+if delay_str := os.environ.get("SUBSONIC_ADAPTER_DEBUG_DELAY"):
+    SUBSONIC_ADAPTER_DEBUG_DELAY = (
+        random.uniform(*map(float, delay_str.split(",")))
+        if "," in delay_str
+        else float(delay_str)
+    )
 
 
 class SubsonicAdapter(Adapter):
@@ -179,17 +186,11 @@ class SubsonicAdapter(Adapter):
         params = {**self._get_params(), **params}
         logging.info(f"[START] get: {url}")
 
-        if delay_str := os.environ.get("SUBSONIC_ADAPTER_DEBUG_DELAY"):
-            delay = (
-                random.uniform(*map(float, delay_str.split(",")))
-                if "," in delay_str
-                else float(delay_str)
-            )
-
+        if SUBSONIC_ADAPTER_DEBUG_DELAY:
             logging.info(
-                f"SUBSONIC_ADAPTER_DEBUG_DELAY enabled. Pausing for {delay} seconds"
+                f"SUBSONIC_ADAPTER_DEBUG_DELAY enabled. Pausing for {SUBSONIC_ADAPTER_DEBUG_DELAY} seconds"  # noqa: 512
             )
-            sleep(delay)
+            sleep(SUBSONIC_ADAPTER_DEBUG_DELAY)
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():
@@ -431,11 +432,10 @@ class SubsonicAdapter(Adapter):
         with open(self.ignored_articles_cache_file, "wb+") as f:
             pickle.dump(indexes.ignored_articles, f)
 
-        root_dir_items: List[Union[Dict[str, Any], Directory, Song]] = []
+        root_dir_items: List[Dict[str, Any]] = []
         for index in indexes.index:
-            # TODO figure out a more efficient way of doing this.
-            root_dir_items += index.artist
-        return Directory(id="root", _children=root_dir_items, _is_root=True)
+            root_dir_items.extend(map(lambda x: {**x, "isDir": True}, index.artist))
+        return Directory(id="root", _children=root_dir_items)
 
     def get_directory(self, directory_id: str) -> API.Directory:
         if directory_id == "root":

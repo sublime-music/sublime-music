@@ -3,7 +3,7 @@ from time import sleep
 
 import pytest
 
-from sublime.adapters import AdapterManager, Result
+from sublime.adapters import AdapterManager, Result, SearchResult
 from sublime.config import AppConfiguration, ServerConfiguration
 
 
@@ -114,3 +114,22 @@ def test_get_song_details(adapter_manager: AdapterManager):
     # assert 0
     # TODO
     pass
+
+
+def test_search(adapter_manager: AdapterManager):
+    # TODO
+    return
+    results = []
+
+    # TODO ingest data
+
+    def search_callback(result: SearchResult):
+        results.append((result.artists, result.albums, result.songs, result.playlists))
+
+    AdapterManager.search("ohea", search_callback=search_callback).result()
+
+    # TODO test getting results from the server and updating using that
+    while len(results) < 1:
+        sleep(0.1)
+
+    assert len(results) == 1

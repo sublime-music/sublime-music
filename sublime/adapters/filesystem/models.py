@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional, Union
 
 from peewee import (
     AutoField,
@@ -30,12 +30,14 @@ class BaseModel(Model):
 
 class CacheInfo(BaseModel):
     id = AutoField()
-    valid = BooleanField(default=True)
+    valid = BooleanField(default=False)
     cache_key = CacheConstantsField()
     params_hash = TextField()
     last_ingestion_time = TzDateTimeField(null=False)
     file_id = TextField(null=True)
     file_hash = TextField(null=True)
+    # TODO store path
+    cache_permanently = BooleanField(null=True)
 
     # TODO some sort of expiry?
 
@@ -112,18 +114,30 @@ class IgnoredArticle(BaseModel):
 class Directory(BaseModel):
     id = TextField(unique=True, primary_key=True)
     name = TextField(null=True)
-    parent = ForeignKeyField("self", null=True, backref="children")
+    parent_id = TextField(null=True)
+
+    _children: Optional[List[Union["Directory", "Song"]]] = None
+
+    @property
+    def children(self) -> List[Union["Directory", "Song"]]:
+        if not self._children:
+            self._children = list(
+                Directory.select().where(Directory.parent_id == self.id)
+            ) + list(Song.select().where(Song.parent_id == self.id))
+        return self._children
 
 
 class Song(BaseModel):
     id = TextField(unique=True, primary_key=True)
     title = TextField()
-    duration = DurationField()
-    path = TextField()
+    duration = DurationField(null=True)
 
+    # TODO move path to file foreign key
+    path = TextField(null=True)
+
+    parent_id = TextField(null=True)
     album = ForeignKeyField(Album, null=True, backref="songs")
-    artist = ForeignKeyField(Artist, null=True, backref="songs")
-    parent = ForeignKeyField(Directory, null=True, backref="songs")
+    artist = ForeignKeyField(Artist, null=True)
     genre = ForeignKeyField(Genre, null=True, backref="songs")
 
     # figure out how to deal with different transcodings, etc.
@@ -161,9 +175,13 @@ class Song(BaseModel):
     # original_height: Optional[int] = None
 
 
-class DirectoryXChildren(BaseModel):
-    directory_id = TextField()
-    order = IntegerField()
+# class DirectoryXChildren(BaseModel):
+#     directory_id = ForeignKeyField(Entity)
+#     order = IntegerField()
+#     child_id = ForeignKeyField(Entity, null=True)
+
+#     class Meta:
+#         indexes = ((("directory_id", "order", "child_id"), True),)
 
 
 class Playlist(BaseModel):
@@ -218,7 +236,6 @@ ALL_TABLES = (
     Artist,
     CacheInfo,
     Directory,
-    DirectoryXChildren,
     Genre,
     IgnoredArticle,
     Playlist,

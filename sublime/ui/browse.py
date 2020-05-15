@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, cast, Optional, Tuple
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
@@ -25,7 +25,6 @@ class BrowsePanel(Gtk.Overlay):
         ),
     }
 
-    id_stack = None
     update_order_token = 0
 
     def __init__(self):
@@ -57,7 +56,7 @@ class BrowsePanel(Gtk.Overlay):
 
         self.update_order_token += 1
 
-        def do_update(update_order_token: int, id_stack: Result[List[int]]):
+        def do_update(update_order_token: int, id_stack: Result[Tuple[str, ...]]):
             if self.update_order_token != update_order_token:
                 return
 
@@ -67,26 +66,23 @@ class BrowsePanel(Gtk.Overlay):
             )
             self.spinner.hide()
 
-        def calculate_path() -> List[str]:
-            if app_config.state.selected_browse_element_id is None:
-                return []
+        def calculate_path() -> Tuple[str, ...]:
+            if (current_dir_id := app_config.state.selected_browse_element_id) is None:
+                return ("root",)
 
             id_stack = []
-            current_dir_id: Optional[str] = app_config.state.selected_browse_element_id
             while current_dir_id and (
                 directory := AdapterManager.get_directory(
                     current_dir_id, before_download=self.spinner.show,
                 ).result()
             ):
                 id_stack.append(directory.id)
-                if directory.id == "root":
-                    break
-                # Detect loops?
-                current_dir_id = directory.parent.id if directory.parent else None
+                current_dir_id = directory.parent_id
 
-            return id_stack
+            return tuple(id_stack)
 
-        path_result: Result[List[str]] = Result(calculate_path)
+        # TODO figure out why this updates so many times on startup
+        path_result: Result[Tuple[str, ...]] = Result(calculate_path)
         path_result.add_done_callback(
             partial(GLib.idle_add, partial(do_update, self.update_order_token))
         )
@@ -124,14 +120,14 @@ class ListAndDrilldown(Gtk.Paned):
         self.pack2(self.drilldown, True, False)
 
     def update(
-        self, id_stack: List[str], app_config: AppConfiguration, force: bool = False
+        self,
+        id_stack: Tuple[str, ...],
+        app_config: AppConfiguration,
+        force: bool = False,
     ):
-        dir_id = id_stack[-1]
-        selected_id = (
-            id_stack[-2]
-            if len(id_stack) > 2
-            else app_config.state.selected_browse_element_id
-        )
+        *rest, dir_id = id_stack
+        child_id_stack = tuple(rest)
+        selected_id = child_id_stack[-1] if len(child_id_stack) > 0 else None
 
         self.list.update(
             directory_id=dir_id,
@@ -144,11 +140,11 @@ class ListAndDrilldown(Gtk.Paned):
             # We always want to update, but in this case, we don't want to blow
             # away the drilldown.
             if isinstance(self.drilldown, ListAndDrilldown):
-                self.drilldown.update(id_stack[:-1], app_config, force=force)
+                self.drilldown.update(child_id_stack, app_config, force=force)
             return
         self.id_stack = id_stack
 
-        if len(id_stack) > 1:
+        if len(child_id_stack) > 0:
             self.remove(self.drilldown)
             self.drilldown = ListAndDrilldown()
             self.drilldown.connect(
@@ -157,7 +153,7 @@ class ListAndDrilldown(Gtk.Paned):
             self.drilldown.connect(
                 "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
             )
-            self.drilldown.update(id_stack[:-1], app_config, force=force)
+            self.drilldown.update(child_id_stack, app_config, force=force)
             self.drilldown.show_all()
             self.pack2(self.drilldown, True, False)
 
@@ -183,13 +179,11 @@ class MusicDirectoryList(Gtk.Box):
     class DrilldownElement(GObject.GObject):
         id = GObject.Property(type=str)
         name = GObject.Property(type=str)
-        is_dir = GObject.Property(type=bool, default=True)
 
-        def __init__(self, element: Union[API.Directory, API.Song]):
+        def __init__(self, element: API.Directory):
             GObject.GObject.__init__(self)
             self.id = element.id
-            self.is_dir = isinstance(element, API.Directory)
-            self.name = element.title
+            self.name = element.name
 
     def __init__(self):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
@@ -197,7 +191,7 @@ class MusicDirectoryList(Gtk.Box):
         list_actions = Gtk.ActionBar()
 
         refresh = IconButton("view-refresh-symbolic", "Refresh folder")
-        refresh.connect("clicked", self.on_refresh_clicked)
+        refresh.connect("clicked", lambda *a: self.update(force=True))
         list_actions.pack_end(refresh)
 
         self.add(list_actions)
@@ -218,7 +212,7 @@ class MusicDirectoryList(Gtk.Box):
         scrollbox.add(self.list)
 
         self.directory_song_store = Gtk.ListStore(
-            str, str, str, str,  # cache status  # title  # duration  # song ID
+            str, str, str, str,  # cache status, title, duration, song ID
         )
 
         self.directory_song_list = Gtk.TreeView(
@@ -262,6 +256,8 @@ class MusicDirectoryList(Gtk.Box):
             self.directory_id, force=force, order_token=self.update_order_token,
         )
 
+    # TODO this causes probalems because the callback may try and call an object that
+    # doesn't exist anymore since we delete these panels a lot.
     @util.async_callback(
         AdapterManager.get_directory,
         before_download=lambda self: self.loading_indicator.show(),
@@ -281,25 +277,37 @@ class MusicDirectoryList(Gtk.Box):
         new_songs_store = []
         selected_dir_idx = None
 
-        for idx, el in enumerate(directory.children):
-            if isinstance(el, API.Directory):
-                new_directories_store.append(MusicDirectoryList.DrilldownElement(el))
-                if el.id == self.selected_id:
-                    selected_dir_idx = idx
+        for el in directory.children:
+            if hasattr(el, "children"):
+                new_directories_store.append(
+                    MusicDirectoryList.DrilldownElement(cast(API.Directory, el))
+                )
             else:
+                song = cast(API.Song, el)
                 new_songs_store.append(
                     [
-                        util.get_cached_status_icon(
-                            AdapterManager.get_cached_status(el)
-                        ),
-                        util.esc(el.title),
-                        util.format_song_duration(el.duration),
-                        el.id,
+                        util.get_cached_status_icon(song),
+                        util.esc(song.title),
+                        util.format_song_duration(song.duration),
+                        song.id,
                     ]
                 )
 
-        util.diff_model_store(self.drilldown_directories_store, new_directories_store)
+        # TODO figure out a way to push the sorting into the AdapterManager.
+        # start = time()
+        new_directories_store = AdapterManager.sort_by_ignored_articles(
+            new_directories_store, key=lambda d: d.name, use_ground_truth_adapter=force
+        )
+        new_songs_store = AdapterManager.sort_by_ignored_articles(
+            new_songs_store, key=lambda s: s[1], use_ground_truth_adapter=force
+        )
+        # print("CONSTRUCTING STORE TOOK", time() - start, force)
 
+        for idx, el in enumerate(new_directories_store):
+            if el.id == self.selected_id:
+                selected_dir_idx = idx
+
+        util.diff_model_store(self.drilldown_directories_store, new_directories_store)
         util.diff_song_store(self.directory_song_store, new_songs_store)
 
         if len(new_directories_store) == 0:
@@ -350,9 +358,6 @@ class MusicDirectoryList(Gtk.Box):
 
     # Event Handlers
     # ==================================================================================
-    def on_refresh_clicked(self, _: Any):
-        self.update(force=True)
-
     def on_song_activated(self, treeview: Any, idx: Gtk.TreePath, column: Any):
         # The song ID is in the last column of the model.
         self.emit(
