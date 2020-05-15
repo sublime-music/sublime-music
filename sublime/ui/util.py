@@ -103,6 +103,8 @@ def esc(string: Optional[str]) -> str:
     """
     >>> esc("test & <a href='ohea' target='_blank'>test</a>")
     "test &amp; <a href='ohea'>test</a>"
+    >>> esc(None)
+    ''
     """
     if string is None:
         return ""
@@ -112,6 +114,9 @@ def esc(string: Optional[str]) -> str:
 def dot_join(*items: Any) -> str:
     """
     Joins the given strings with a dot character. Filters out ``None`` values.
+
+    >>> dot_join(None, "foo", "bar", None, "baz")
+    'foo  •  bar  •  baz'
     """
     return "  •  ".join(map(str, filter(lambda x: x is not None, items)))
 
@@ -127,6 +132,16 @@ def get_cached_status_icon(song: Song) -> str:
 
 
 def _parse_diff_location(location: str) -> Tuple:
+    """
+    Parses a diff location as returned by deepdiff.
+
+    >>> _parse_diff_location("root[22]")
+    ('22',)
+    >>> _parse_diff_location("root[22][4]")
+    ('22', '4')
+    >>> _parse_diff_location("root[22].foo")
+    ('22', 'foo')
+    """
     match = re.match(r"root\[(\d*)\](?:\[(\d*)\]|\.(.*))?", location)
     return tuple(g for g in cast(Match, match).groups() if g is not None)
 
@@ -161,6 +176,7 @@ def diff_model_store(store_to_edit: Any, new_store: Iterable[Any]):
     The diff here is that if there are any differences, then we refresh the
     entire list. This is because it is too hard to do editing.
     """
+    # TODO: figure out if there's a way to do editing.
     old_store = store_to_edit[:]
 
     diff = DeepDiff(old_store, new_store)

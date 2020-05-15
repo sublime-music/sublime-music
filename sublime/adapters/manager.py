@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import tempfile
 import threading
@@ -16,7 +17,6 @@ from typing import (
     Optional,
     Sequence,
     Set,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -24,7 +24,6 @@ from typing import (
 
 import requests
 
-from sublime import util
 from sublime.config import AppConfiguration
 
 from .adapter_base import (
@@ -149,7 +148,7 @@ class Result(Generic[T]):
 
 class AdapterManager:
     available_adapters: Set[Any] = {FilesystemAdapter, SubsonicAdapter}
-    current_download_hashes: Set[str] = set()
+    current_download_uris: Set[str] = set()
     download_set_lock = threading.Lock()
     executor: ThreadPoolExecutor = ThreadPoolExecutor()
     download_executor: ThreadPoolExecutor = ThreadPoolExecutor()
@@ -286,7 +285,10 @@ class AdapterManager:
 
     @staticmethod
     def _create_ground_truth_result(
-        function_name: str, *args, before_download: Callable[[], None] = None, **kwargs
+        function_name: str,
+        *params: Any,
+        before_download: Callable[[], None] = None,
+        **kwargs,
     ) -> Result:
         """
         Creates a Result using the given ``function_name`` on the ground truth adapter.
@@ -296,14 +298,13 @@ class AdapterManager:
             assert AdapterManager._instance
             if before_download:
                 before_download()
-            return getattr(
-                AdapterManager._instance.ground_truth_adapter, function_name
-            )(*args, **kwargs)
+            fn = getattr(AdapterManager._instance.ground_truth_adapter, function_name)
+            return fn(*params, **kwargs)
 
         return Result(future_fn)
 
     @staticmethod
-    def _create_download_fn(uri: str, params_hash: str) -> Callable[[], str]:
+    def _create_download_fn(uri: str) -> Callable[[], str]:
         """
         Create a function to download the given URI to a temporary file, and return the
         filename. The returned function will spin-loop if the resource is already being
@@ -313,14 +314,14 @@ class AdapterManager:
         def download_fn() -> str:
             assert AdapterManager._instance
             download_tmp_filename = AdapterManager._instance.download_path.joinpath(
-                params_hash
+                hashlib.sha1(bytes(uri, "utf8")).hexdigest()
             )
 
             resource_downloading = False
             with AdapterManager.download_set_lock:
-                if params_hash in AdapterManager.current_download_hashes:
+                if uri in AdapterManager.current_download_uris:
                     resource_downloading = True
-                AdapterManager.current_download_hashes.add(params_hash)
+                AdapterManager.current_download_uris.add(uri)
 
             # TODO (#122): figure out how to retry if the other request failed.
             if resource_downloading:
@@ -330,7 +331,7 @@ class AdapterManager:
                 # it has completed. Then, just return the path to the
                 # resource.
                 t = 0.0
-                while params_hash in AdapterManager.current_download_hashes and t < 20:
+                while uri in AdapterManager.current_download_uris and t < 20:
                     sleep(0.2)
                     t += 0.2
                     # TODO (#122): handle the timeout
@@ -350,7 +351,7 @@ class AdapterManager:
                 finally:
                     # Always release the download set lock, even if there's an error.
                     with AdapterManager.download_set_lock:
-                        AdapterManager.current_download_hashes.discard(params_hash)
+                        AdapterManager.current_download_uris.discard(uri)
 
             logging.info(f"{uri} downloaded. Returning.")
             return str(download_tmp_filename)
@@ -359,7 +360,7 @@ class AdapterManager:
 
     @staticmethod
     def _create_caching_done_callback(
-        cache_key: CachingAdapter.CachedDataKey, params: Tuple[Any, ...]
+        cache_key: CachingAdapter.CachedDataKey, param: Optional[str]
     ) -> Callable[[Result], None]:
         """
         Create a function to let the caching_adapter ingest new data.
@@ -372,7 +373,7 @@ class AdapterManager:
             assert AdapterManager._instance
             assert AdapterManager._instance.caching_adapter
             AdapterManager._instance.caching_adapter.ingest_new_data(
-                cache_key, params, f.result(),
+                cache_key, param, f.result(),
             )
 
         return future_finished
@@ -409,7 +410,7 @@ class AdapterManager:
     @staticmethod
     def _get_from_cache_or_ground_truth(
         function_name: str,
-        *args: Any,
+        param: Optional[str],
         cache_key: CachingAdapter.CachedDataKey = None,
         before_download: Callable[[], None] = None,
         use_ground_truth_adapter: bool = False,
@@ -421,8 +422,8 @@ class AdapterManager:
         Get data from one of the adapters.
 
         :param function_name: The function to call on the adapter.
-        :param args: The arguments to pass to the adapter function (also used for the
-            cache parameter tuple to uniquely identify the request).
+        :param param: The parameter to pass to the adapter function (also used for the
+            cache parameter to uniquely identify the request).
         :param cache_key: The cache key to use to invalidate caches and ingest caches.
         :param before_download: Function to call before doing a network request.
         :param allow_download: Whether or not to allow a network request to retrieve the
@@ -439,7 +440,7 @@ class AdapterManager:
             assert (caching_adapter := AdapterManager._instance.caching_adapter)
             try:
                 logging.info(f"END: {function_name}: serving from cache")
-                return Result(getattr(caching_adapter, function_name)(*args, **kwargs))
+                return Result(getattr(caching_adapter, function_name)(param, **kwargs))
             except CacheMissError as e:
                 partial_data = e.partial_data
                 logging.info(f"Cache Miss on {function_name}.")
@@ -451,7 +452,7 @@ class AdapterManager:
             and AdapterManager._instance.caching_adapter
             and use_ground_truth_adapter
         ):
-            AdapterManager._instance.caching_adapter.invalidate_data(cache_key, args)
+            AdapterManager._instance.caching_adapter.invalidate_data(cache_key, param)
 
         # TODO (#188): don't short circuit if not allow_download because it could be the
         # filesystem adapter.
@@ -463,13 +464,16 @@ class AdapterManager:
             raise Exception(f"No adapters can service {function_name} at the moment.")
 
         result: Result[AdapterManager.R] = AdapterManager._create_ground_truth_result(
-            function_name, *args, before_download=before_download, **kwargs,
+            function_name,
+            *((param,) if param is not None else ()),
+            before_download=before_download,
+            **kwargs,
         )
 
         if AdapterManager._instance.caching_adapter:
             if cache_key:
                 result.add_done_callback(
-                    AdapterManager._create_caching_done_callback(cache_key, args)
+                    AdapterManager._create_caching_done_callback(cache_key, param)
                 )
 
             if on_result_finished:
@@ -552,6 +556,7 @@ class AdapterManager:
     ) -> Result[Sequence[Playlist]]:
         return AdapterManager._get_from_cache_or_ground_truth(
             "get_playlists",
+            None,
             cache_key=CachingAdapter.CachedDataKey.PLAYLISTS,
             before_download=before_download,
             use_ground_truth_adapter=force,
@@ -584,12 +589,12 @@ class AdapterManager:
             if playlist := f.result():
                 AdapterManager._instance.caching_adapter.ingest_new_data(
                     CachingAdapter.CachedDataKey.PLAYLIST_DETAILS,
-                    (playlist.id,),
+                    playlist.id,
                     playlist,
                 )
             else:
                 AdapterManager._instance.caching_adapter.invalidate_data(
-                    CachingAdapter.CachedDataKey.PLAYLISTS, ()
+                    CachingAdapter.CachedDataKey.PLAYLISTS, None
                 )
 
         return AdapterManager._get_from_cache_or_ground_truth(
@@ -631,7 +636,7 @@ class AdapterManager:
 
         if AdapterManager._instance.caching_adapter:
             AdapterManager._instance.caching_adapter.delete_data(
-                CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, (playlist_id,)
+                CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, playlist_id
             )
 
     # TODO (#189): allow this to take a set of schemes and unify with
@@ -688,7 +693,7 @@ class AdapterManager:
 
         if AdapterManager._instance.caching_adapter and force:
             AdapterManager._instance.caching_adapter.invalidate_data(
-                CachingAdapter.CachedDataKey.COVER_ART_FILE, (cover_art_id,)
+                CachingAdapter.CachedDataKey.COVER_ART_FILE, cover_art_id
             )
 
         if not AdapterManager._ground_truth_can_do("get_cover_art_uri"):
@@ -703,7 +708,6 @@ class AdapterManager:
                 AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
                     cover_art_id, AdapterManager._get_scheme()
                 ),
-                util.params_hash("cover_art", cover_art_id),
             ),
             is_download=True,
             default_value=existing_cover_art_filename,
@@ -712,7 +716,7 @@ class AdapterManager:
         if AdapterManager._instance.caching_adapter:
             future.add_done_callback(
                 AdapterManager._create_caching_done_callback(
-                    CachingAdapter.CachedDataKey.COVER_ART_FILE, (cover_art_id,),
+                    CachingAdapter.CachedDataKey.COVER_ART_FILE, cover_art_id
                 )
             )
 
@@ -798,11 +802,10 @@ class AdapterManager:
                         AdapterManager._instance.ground_truth_adapter.get_song_uri(
                             song_id, AdapterManager._get_scheme()
                         ),
-                        util.params_hash("song", song_id),
                     )()
                     AdapterManager._instance.caching_adapter.ingest_new_data(
                         CachingAdapter.CachedDataKey.SONG_FILE,
-                        (song_id,),
+                        song_id,
                         (None, song_tmp_filename),
                     )
                     on_song_download_complete(song_id)
@@ -868,7 +871,7 @@ class AdapterManager:
         for song_id in song_ids:
             song = AdapterManager.get_song_details(song_id).result()
             AdapterManager._instance.caching_adapter.delete_data(
-                CachingAdapter.CachedDataKey.SONG_FILE, (song.id,)
+                CachingAdapter.CachedDataKey.SONG_FILE, song.id
             )
             on_song_delete(song_id)
 
@@ -892,6 +895,7 @@ class AdapterManager:
     def get_genres(force: bool = False) -> Result[Sequence[Genre]]:
         return AdapterManager._get_from_cache_or_ground_truth(
             "get_genres",
+            None,
             use_ground_truth_adapter=force,
             cache_key=CachingAdapter.CachedDataKey.GENRES,
         )
@@ -909,6 +913,7 @@ class AdapterManager:
             return AdapterManager.sort_by_ignored_articles(
                 AdapterManager._get_from_cache_or_ground_truth(
                     "get_artists",
+                    None,
                     use_ground_truth_adapter=force,
                     before_download=before_download,
                     cache_key=CachingAdapter.CachedDataKey.ARTISTS,
@@ -921,11 +926,13 @@ class AdapterManager:
 
     @staticmethod
     def _get_ignored_articles(use_ground_truth_adapter: bool) -> Set[str]:
+        # TODO get this at first startup.
         if not AdapterManager._any_adapter_can_do("get_ignored_articles"):
             return set()
         try:
             return AdapterManager._get_from_cache_or_ground_truth(
                 "get_ignored_articles",
+                None,
                 use_ground_truth_adapter=use_ground_truth_adapter,
                 cache_key=CachingAdapter.CachedDataKey.IGNORED_ARTICLES,
             ).result()
@@ -970,7 +977,7 @@ class AdapterManager:
             if artist := f.result():
                 for album in artist.albums or []:
                     AdapterManager._instance.caching_adapter.invalidate_data(
-                        CachingAdapter.CachedDataKey.ALBUM, (album.id,)
+                        CachingAdapter.CachedDataKey.ALBUM, album.id
                     )
 
         return AdapterManager._get_from_cache_or_ground_truth(
@@ -991,7 +998,7 @@ class AdapterManager:
     ) -> Result[Sequence[Album]]:
         return AdapterManager._get_from_cache_or_ground_truth(
             "get_albums",
-            query,
+            query.strhash(),
             cache_key=CachingAdapter.CachedDataKey.ALBUMS,
             before_download=before_download,
             use_ground_truth_adapter=force,
@@ -1042,7 +1049,7 @@ class AdapterManager:
                 if play_queue := f.result():
                     for song in play_queue.songs:
                         AdapterManager._instance.caching_adapter.ingest_new_data(
-                            CachingAdapter.CachedDataKey.SONG, (song.id,), song
+                            CachingAdapter.CachedDataKey.SONG, song.id, song
                         )
 
             future.add_done_callback(future_finished)
@@ -1133,7 +1140,7 @@ class AdapterManager:
             if AdapterManager._instance.caching_adapter:
                 AdapterManager._instance.caching_adapter.ingest_new_data(
                     CachingAdapter.CachedDataKey.SEARCH_RESULTS,
-                    (),
+                    None,
                     ground_truth_search_results,
                 )
 
@@ -1155,7 +1162,7 @@ class AdapterManager:
         if not AdapterManager._instance.caching_adapter:
             return SongCacheStatus.NOT_CACHED
 
-        if util.params_hash("song", song.id) in AdapterManager.current_download_hashes:
+        if song.id in AdapterManager.current_download_uris:
             return SongCacheStatus.DOWNLOADING
 
         return AdapterManager._instance.caching_adapter.get_cached_status(song)

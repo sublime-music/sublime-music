@@ -8,7 +8,6 @@ from typing import Any, cast, Dict, Optional, Sequence, Set, Tuple, Union
 
 from peewee import fn
 
-from sublime import util
 from sublime.adapters import api_objects as API
 
 from . import models
@@ -146,7 +145,7 @@ class FilesystemAdapter(CachingAdapter):
         # raise a CacheMissError with the partial data.
         cache_info = models.CacheInfo.get_or_none(
             models.CacheInfo.cache_key == cache_key,
-            models.CacheInfo.params_hash == util.params_hash(id),
+            models.CacheInfo.parameter == id,
             models.CacheInfo.valid == True,  # noqa: 712
             *cache_where_clause,
         )
@@ -202,7 +201,7 @@ class FilesystemAdapter(CachingAdapter):
     def get_cover_art_uri(self, cover_art_id: str, scheme: str) -> str:
         cover_art = models.CacheInfo.get_or_none(
             models.CacheInfo.cache_key == CachingAdapter.CachedDataKey.COVER_ART_FILE,
-            models.CacheInfo.params_hash == util.params_hash(cover_art_id),
+            models.CacheInfo.parameter == cover_art_id,
         )
         if cover_art:
             filename = self.cover_art_dir.joinpath(str(cover_art.file_hash))
@@ -281,7 +280,7 @@ class FilesystemAdapter(CachingAdapter):
             # not, cache miss.
             if not models.CacheInfo.get_or_none(
                 models.CacheInfo.cache_key == CachingAdapter.CachedDataKey.ALBUMS,
-                models.CacheInfo.params_hash == util.params_hash(query),
+                models.CacheInfo.parameter == query.strhash(),
                 models.CacheInfo.valid == True,  # noqa: 712
             ):
                 raise CacheMissError(partial_data=sql_query)
@@ -334,42 +333,37 @@ class FilesystemAdapter(CachingAdapter):
     # Data Ingestion Methods
     # ==================================================================================
     def ingest_new_data(
-        self,
-        data_key: CachingAdapter.CachedDataKey,
-        params: Tuple[Any, ...],
-        data: Any,
+        self, data_key: CachingAdapter.CachedDataKey, param: Optional[str], data: Any,
     ):
         assert self.is_cache, "FilesystemAdapter is not in cache mode!"
 
         # Wrap the actual ingestion function in a database lock, and an atomic
         # transaction.
         with self.db_write_lock, models.database.atomic():
-            self._do_ingest_new_data(data_key, params, data)
+            self._do_ingest_new_data(data_key, param, data)
 
     def invalidate_data(
-        self, function: CachingAdapter.CachedDataKey, params: Tuple[Any, ...]
+        self, function: CachingAdapter.CachedDataKey, param: Optional[str]
     ):
         assert self.is_cache, "FilesystemAdapter is not in cache mode!"
 
         # Wrap the actual ingestion function in a database lock, and an atomic
         # transaction.
         with self.db_write_lock, models.database.atomic():
-            self._do_invalidate_data(function, params)
+            self._do_invalidate_data(function, param)
 
-    def delete_data(
-        self, function: CachingAdapter.CachedDataKey, params: Tuple[Any, ...]
-    ):
+    def delete_data(self, function: CachingAdapter.CachedDataKey, param: Optional[str]):
         assert self.is_cache, "FilesystemAdapter is not in cache mode!"
 
         # Wrap the actual ingestion function in a database lock, and an atomic
         # transaction.
         with self.db_write_lock, models.database.atomic():
-            self._do_delete_data(function, params)
+            self._do_delete_data(function, param)
 
     def _do_ingest_new_data(
         self,
         data_key: CachingAdapter.CachedDataKey,
-        params: Tuple[Any, ...],
+        param: Optional[str],
         data: Any,
         partial: bool = False,
     ) -> Any:
@@ -379,11 +373,10 @@ class FilesystemAdapter(CachingAdapter):
 
         # TODO refactor to to be a recursive function like invalidate_data?
 
-        params_hash = util.params_hash(*params)
         cache_info_extra: Dict[str, Any] = {}
 
         logging.debug(
-            f"_do_ingest_new_data params={params} params_hash={params_hash} data_key={data_key} data={data}"  # noqa: 502
+            f"_do_ingest_new_data param={param} data_key={data_key} data={data}"
         )
 
         KEYS = CachingAdapter.CachedDataKey
@@ -407,12 +400,12 @@ class FilesystemAdapter(CachingAdapter):
                     if hasattr(c, "children"):  # directory
                         directory_data["directory_children"].append(
                             self._do_ingest_new_data(
-                                KEYS.DIRECTORY, (c.id,), c, partial=True
+                                KEYS.DIRECTORY, c.id, c, partial=True
                             )
                         )
                     else:
                         directory_data["song_children"].append(
-                            self._do_ingest_new_data(KEYS.SONG, (c.id,), c)
+                            self._do_ingest_new_data(KEYS.SONG, c.id, c)
                         )
 
             directory, created = models.Directory.get_or_create(
@@ -459,7 +452,7 @@ class FilesystemAdapter(CachingAdapter):
                     ingest_song_data(s, fill_album=False) for s in api_album.songs or []
                 ],
                 "_cover_art": self._do_ingest_new_data(
-                    KEYS.COVER_ART_FILE, params=(api_album.cover_art,), data=None,
+                    KEYS.COVER_ART_FILE, api_album.cover_art, data=None,
                 )
                 if api_album.cover_art
                 else None,
@@ -505,9 +498,7 @@ class FilesystemAdapter(CachingAdapter):
                     for a in api_artist.albums or []
                 ],
                 "_artist_image_url": self._do_ingest_new_data(
-                    KEYS.COVER_ART_FILE,
-                    params=(api_artist.artist_image_url,),
-                    data=None,
+                    KEYS.COVER_ART_FILE, api_artist.artist_image_url, data=None,
                 )
                 if api_artist.artist_image_url
                 else None,
@@ -540,12 +531,12 @@ class FilesystemAdapter(CachingAdapter):
                 "artist": ingest_artist_data(ar) if (ar := api_song.artist) else None,
                 "album": ingest_album_data(al) if (al := api_song.album) else None,
                 "_cover_art": self._do_ingest_new_data(
-                    KEYS.COVER_ART_FILE, params=(api_song.cover_art,), data=None,
+                    KEYS.COVER_ART_FILE, api_song.cover_art, data=None,
                 )
                 if api_song.cover_art
                 else None,
                 "file": self._do_ingest_new_data(
-                    KEYS.SONG_FILE, params=(api_song.id,), data=(api_song.path, None)
+                    KEYS.SONG_FILE, api_song.id, data=(api_song.path, None)
                 )
                 if api_song.path
                 else None,
@@ -575,7 +566,7 @@ class FilesystemAdapter(CachingAdapter):
                 "owner": getattr(api_playlist, "owner", None),
                 "public": getattr(api_playlist, "public", None),
                 "songs": [
-                    self._do_ingest_new_data(KEYS.SONG, (s.id,), s)
+                    self._do_ingest_new_data(KEYS.SONG, s.id, s)
                     for s in (
                         cast(API.PlaylistDetails, api_playlist).songs
                         if hasattr(api_playlist, "songs")
@@ -583,7 +574,7 @@ class FilesystemAdapter(CachingAdapter):
                     )
                 ],
                 "_cover_art": self._do_ingest_new_data(
-                    KEYS.COVER_ART_FILE, (api_playlist.cover_art,), None
+                    KEYS.COVER_ART_FILE, api_playlist.cover_art, None
                 )
                 if api_playlist.cover_art
                 else None,
@@ -630,7 +621,7 @@ class FilesystemAdapter(CachingAdapter):
             ).execute()
 
         elif data_key == KEYS.COVER_ART_FILE:
-            cache_info_extra["file_id"] = params[0]
+            cache_info_extra["file_id"] = param
 
             if data is not None:
                 file_hash = compute_file_hash(data)
@@ -682,7 +673,7 @@ class FilesystemAdapter(CachingAdapter):
             return_val = ingest_song_data(data)
 
         elif data_key == KEYS.SONG_FILE:
-            cache_info_extra["file_id"] = params[0]
+            cache_info_extra["file_id"] = param
 
         elif data_key == KEYS.SONG_FILE_PERMANENT:
             data_key = KEYS.SONG_FILE
@@ -692,10 +683,10 @@ class FilesystemAdapter(CachingAdapter):
         now = datetime.now()
         cache_info, cache_info_created = models.CacheInfo.get_or_create(
             cache_key=data_key,
-            params_hash=params_hash,
+            parameter=param,
             defaults={
                 "cache_key": data_key,
-                "params_hash": params_hash,
+                "parameter": param,
                 "last_ingestion_time": now,
                 # If it's partial data, then set it to be invalid so it will only be
                 # used in the event that the ground truth adapter can't service the
@@ -736,57 +727,47 @@ class FilesystemAdapter(CachingAdapter):
         return return_val if return_val is not None else cache_info
 
     def _do_invalidate_data(
-        self, data_key: CachingAdapter.CachedDataKey, params: Tuple[Any, ...],
+        self, data_key: CachingAdapter.CachedDataKey, param: Optional[str],
     ):
-        params_hash = util.params_hash(*params)
-        logging.debug(
-            f"_do_invalidate_data params={params} params_hash={params_hash} data_key={data_key}"  # noqa: 502
-        )
+        logging.debug(f"_do_invalidate_data param={param} data_key={data_key}")
         models.CacheInfo.update({"valid": False}).where(
-            models.CacheInfo.cache_key == data_key,
-            models.CacheInfo.params_hash == params_hash,
+            models.CacheInfo.cache_key == data_key, models.CacheInfo.parameter == param
         ).execute()
 
         cover_art_cache_key = CachingAdapter.CachedDataKey.COVER_ART_FILE
 
         if data_key == CachingAdapter.CachedDataKey.ALBUM:
-            album = models.Album.get_or_none(models.Album.id == params[0])
+            album = models.Album.get_or_none(models.Album.id == param)
             if album:
-                self._do_invalidate_data(cover_art_cache_key, (album.cover_art,))
+                self._do_invalidate_data(cover_art_cache_key, album.cover_art)
 
         elif data_key == CachingAdapter.CachedDataKey.ARTIST:
             # Invalidate the corresponding cover art.
-            if artist := models.Artist.get_or_none(models.Artist.id == params[0]):
-                self._do_invalidate_data(
-                    cover_art_cache_key, (artist.artist_image_url,)
-                )
+            if artist := models.Artist.get_or_none(models.Artist.id == param):
+                self._do_invalidate_data(cover_art_cache_key, artist.artist_image_url)
                 for album in artist.albums or []:
                     self._do_invalidate_data(
-                        CachingAdapter.CachedDataKey.ALBUM, (album.id,)
+                        CachingAdapter.CachedDataKey.ALBUM, album.id
                     )
 
         elif data_key == CachingAdapter.CachedDataKey.PLAYLIST_DETAILS:
             # Invalidate the corresponding cover art.
-            if playlist := models.Playlist.get_or_none(models.Playlist.id == params[0]):
-                self._do_invalidate_data(cover_art_cache_key, (playlist.cover_art,))
+            if playlist := models.Playlist.get_or_none(models.Playlist.id == param):
+                self._do_invalidate_data(cover_art_cache_key, playlist.cover_art)
 
         elif data_key == CachingAdapter.CachedDataKey.SONG_FILE:
             # Invalidate the corresponding cover art.
-            if song := models.Song.get_or_none(models.Song.id == params[0]):
+            if song := models.Song.get_or_none(models.Song.id == param):
                 self._do_invalidate_data(
-                    CachingAdapter.CachedDataKey.COVER_ART_FILE, (song.cover_art,)
+                    CachingAdapter.CachedDataKey.COVER_ART_FILE, song.cover_art
                 )
 
     def _do_delete_data(
-        self, data_key: CachingAdapter.CachedDataKey, params: Tuple[Any, ...],
+        self, data_key: CachingAdapter.CachedDataKey, param: Optional[str]
     ):
-        params_hash = util.params_hash(*params)
-        logging.debug(
-            f"_do_delete_data params={params} params_hash={params_hash} data_key={data_key}"  # noqa: 502
-        )
+        logging.debug(f"_do_delete_data param={param} data_key={data_key}")
         cache_info = models.CacheInfo.get_or_none(
-            models.CacheInfo.cache_key == data_key,
-            models.CacheInfo.params_hash == params_hash,
+            models.CacheInfo.cache_key == data_key, models.CacheInfo.parameter == param,
         )
 
         if data_key == CachingAdapter.CachedDataKey.COVER_ART_FILE:
@@ -797,10 +778,10 @@ class FilesystemAdapter(CachingAdapter):
 
         elif data_key == CachingAdapter.CachedDataKey.PLAYLIST_DETAILS:
             # Delete the playlist and corresponding cover art.
-            if playlist := models.Playlist.get_or_none(models.Playlist.id == params[0]):
+            if playlist := models.Playlist.get_or_none(models.Playlist.id == param):
                 if cover_art := playlist.cover_art:
                     self._do_delete_data(
-                        CachingAdapter.CachedDataKey.COVER_ART_FILE, (cover_art,),
+                        CachingAdapter.CachedDataKey.COVER_ART_FILE, cover_art
                     )
 
                 playlist.delete_instance()

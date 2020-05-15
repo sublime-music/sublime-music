@@ -1,4 +1,6 @@
 import abc
+import hashlib
+import json
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
@@ -102,6 +104,22 @@ class AlbumSearchQuery:
     type: Type
     year_range: Tuple[int, int] = (2010, 2020)
     genre: Genre = _Genre("Rock")
+
+    def strhash(self) -> str:
+        """
+        Returns a deterministic hash of the query as a string.
+
+        >>> query = AlbumSearchQuery(
+        ...     AlbumSearchQuery.Type.YEAR_RANGE, year_range=(2018, 2019)
+        ... )
+        >>> query.strhash()
+        'a6571bb7be65984c6627f545cab9fc767fce6d07'
+        """
+        return hashlib.sha1(
+            bytes(
+                json.dumps((self.type.value, self.year_range, self.genre.name)), "utf8"
+            )
+        ).hexdigest()
 
 
 class CacheMissError(Exception):
@@ -725,25 +743,25 @@ class CachingAdapter(Adapter):
         SONG_FILE_PERMANENT = "song_file_permanent"
 
     @abc.abstractmethod
-    def ingest_new_data(
-        self, data_key: CachedDataKey, params: Tuple[Any, ...], data: Any
-    ):
+    def ingest_new_data(self, data_key: CachedDataKey, param: Optional[str], data: Any):
         """
         This function will be called after the fallback, ground-truth adapter returns
         new data. This normally will happen if this adapter has a cache miss or if the
         UI forces retrieval from the ground-truth adapter.
 
         :param data_key: the type of data to be ingested.
-        :param params: the parameters that uniquely identify the data to be ingested.
-            For example, with playlist details, this will be a tuple containing a single
-            element: the playlist ID. If that playlist ID is requested again, the
-            adapter should service that request, but it should not service a request for
-            a different playlist ID.
+        :param param: a string that uniquely identify the data to be ingested. For
+            example, with playlist details, this will be the playlist ID. If that
+            playlist ID is requested again, the adapter should service that request, but
+            it should not service a request for a different playlist ID.
+
+            For the playlist list, this will be none since there are no parameters to
+            that request.
         :param data: the data that was returned by the ground truth adapter.
         """
 
     @abc.abstractmethod
-    def invalidate_data(self, data_key: CachedDataKey, params: Tuple[Any, ...]):
+    def invalidate_data(self, data_key: CachedDataKey, param: Optional[str]):
         """
         This function will be called if the adapter should invalidate some of its data.
         This should not destroy the invalidated data. If invalid data is requested, a
@@ -752,12 +770,14 @@ class CachingAdapter(Adapter):
 
         :param data_key: the type of data to be invalidated.
         :param params: the parameters that uniquely identify the data to be invalidated.
-            For example, with playlist details, this will be a tuple containing a single
-            element: the playlist ID.
+            For example, with playlist details, this will be the playlist ID.
+
+            For the playlist list, this will be none since there are no parameters to
+            that request.
         """
 
     @abc.abstractmethod
-    def delete_data(self, data_key: CachedDataKey, params: Tuple[Any, ...]):
+    def delete_data(self, data_key: CachedDataKey, param: Optional[str]):
         """
         This function will be called if the adapter should delete some of its data.
         This should destroy the data. If the deleted data is requested, a
@@ -765,8 +785,10 @@ class CachingAdapter(Adapter):
 
         :param data_key: the type of data to be deleted.
         :param params: the parameters that uniquely identify the data to be invalidated.
-            For example, with playlist details, this will be a tuple containing a single
-            element: the playlist ID.
+            For example, with playlist details, this will be the playlist ID.
+
+            For the playlist list, this will be none since there are no parameters to
+            that request.
         """
 
     # Cache-Specific Methods

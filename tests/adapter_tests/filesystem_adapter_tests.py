@@ -124,7 +124,7 @@ def test_caching_get_playlists(cache_adapter: FilesystemAdapter):
         cache_adapter.get_playlists()
 
     # Ingest an empty list (for example, no playlists added yet to server).
-    cache_adapter.ingest_new_data(KEYS.PLAYLISTS, (), [])
+    cache_adapter.ingest_new_data(KEYS.PLAYLISTS, None, [])
 
     # After the first cache miss of get_playlists, even if an empty list is
     # returned, the next one should not be a cache miss.
@@ -133,7 +133,7 @@ def test_caching_get_playlists(cache_adapter: FilesystemAdapter):
     # Ingest two playlists.
     cache_adapter.ingest_new_data(
         KEYS.PLAYLISTS,
-        (),
+        None,
         [
             SubsonicAPI.Playlist("1", "test1", comment="comment"),
             SubsonicAPI.Playlist("2", "test2"),
@@ -152,7 +152,7 @@ def test_caching_get_playlists(cache_adapter: FilesystemAdapter):
     # Ingest a new playlist list with one of them deleted.
     cache_adapter.ingest_new_data(
         KEYS.PLAYLISTS,
-        (),
+        None,
         [
             SubsonicAPI.Playlist("1", "test1", comment="comment"),
             SubsonicAPI.Playlist("3", "test3"),
@@ -188,7 +188,7 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
     # Simulate the playlist being retrieved from Subsonic.
     cache_adapter.ingest_new_data(
         KEYS.PLAYLIST_DETAILS,
-        ("1",),
+        "1",
         SubsonicAPI.PlaylistWithSongs("1", "test1", songs=MOCK_SUBSONIC_SONGS[:2]),
     )
 
@@ -202,7 +202,7 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
     # "Force refresh" the playlist and add a new song (duplicate).
     cache_adapter.ingest_new_data(
         KEYS.PLAYLIST_DETAILS,
-        ("1",),
+        "1",
         SubsonicAPI.PlaylistWithSongs("1", "foo", songs=MOCK_SUBSONIC_SONGS),
     )
 
@@ -233,7 +233,7 @@ def test_caching_get_playlist_then_details(cache_adapter: FilesystemAdapter):
     # Ingest a list of playlists (like the sidebar, without songs)
     cache_adapter.ingest_new_data(
         KEYS.PLAYLISTS,
-        (),
+        None,
         [SubsonicAPI.Playlist("1", "test1"), SubsonicAPI.Playlist("2", "test2")],
     )
 
@@ -249,12 +249,12 @@ def test_caching_get_playlist_then_details(cache_adapter: FilesystemAdapter):
 
     # Simulate getting playlist details for id=1, then id=2
     cache_adapter.ingest_new_data(
-        KEYS.PLAYLIST_DETAILS, ("1",), SubsonicAPI.PlaylistWithSongs("1", "test1"),
+        KEYS.PLAYLIST_DETAILS, "1", SubsonicAPI.PlaylistWithSongs("1", "test1"),
     )
 
     cache_adapter.ingest_new_data(
         KEYS.PLAYLIST_DETAILS,
-        ("2",),
+        "2",
         SubsonicAPI.PlaylistWithSongs("2", "test2", songs=MOCK_SUBSONIC_SONGS),
     )
 
@@ -270,9 +270,7 @@ def test_cache_cover_art(cache_adapter: FilesystemAdapter):
         cache_adapter.get_cover_art_uri("pl_test1", "file")
 
     # After ingesting the data, reading from the cache should give the exact same file.
-    cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, ("pl_test1",), MOCK_ALBUM_ART,
-    )
+    cache_adapter.ingest_new_data(KEYS.COVER_ART_FILE, "pl_test1", MOCK_ALBUM_ART)
     with open(cache_adapter.get_cover_art_uri("pl_test1", "file"), "wb+") as cached:
         with open(MOCK_ALBUM_ART, "wb+") as expected:
             assert cached.read() == expected.read()
@@ -281,27 +279,27 @@ def test_cache_cover_art(cache_adapter: FilesystemAdapter):
 def test_invalidate_playlist(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(
         KEYS.PLAYLISTS,
-        (),
+        None,
         [SubsonicAPI.Playlist("1", "test1"), SubsonicAPI.Playlist("2", "test2")],
     )
     cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, ("pl_test1",), MOCK_ALBUM_ART,
+        KEYS.COVER_ART_FILE, "pl_test1", MOCK_ALBUM_ART,
     )
     cache_adapter.ingest_new_data(
         KEYS.PLAYLIST_DETAILS,
-        ("2",),
+        "2",
         SubsonicAPI.PlaylistWithSongs("2", "test2", cover_art="pl_2", songs=[]),
     )
     cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, ("pl_2",), MOCK_ALBUM_ART2,
+        KEYS.COVER_ART_FILE, "pl_2", MOCK_ALBUM_ART2,
     )
 
     stale_uri_1 = cache_adapter.get_cover_art_uri("pl_test1", "file")
     stale_uri_2 = cache_adapter.get_cover_art_uri("pl_2", "file")
 
-    cache_adapter.invalidate_data(KEYS.PLAYLISTS, ())
-    cache_adapter.invalidate_data(KEYS.PLAYLIST_DETAILS, ("2",))
-    cache_adapter.invalidate_data(KEYS.COVER_ART_FILE, ("pl_test1",))
+    cache_adapter.invalidate_data(KEYS.PLAYLISTS, None)
+    cache_adapter.invalidate_data(KEYS.PLAYLIST_DETAILS, "2")
+    cache_adapter.invalidate_data(KEYS.COVER_ART_FILE, "pl_test1")
 
     # After invalidating the data, it should cache miss, but still have the old, stale,
     # data.
@@ -336,16 +334,16 @@ def test_invalidate_playlist(cache_adapter: FilesystemAdapter):
 
 
 def test_invalidate_song_file(cache_adapter: FilesystemAdapter):
-    cache_adapter.ingest_new_data(KEYS.SONG, ("2",), MOCK_SUBSONIC_SONGS[0])
-    cache_adapter.ingest_new_data(KEYS.SONG, ("1",), MOCK_SUBSONIC_SONGS[1])
+    cache_adapter.ingest_new_data(KEYS.SONG, "2", MOCK_SUBSONIC_SONGS[0])
+    cache_adapter.ingest_new_data(KEYS.SONG, "1", MOCK_SUBSONIC_SONGS[1])
     cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, ("s1", "song"), MOCK_ALBUM_ART,
+        KEYS.COVER_ART_FILE, "s1", MOCK_ALBUM_ART,
     )
-    cache_adapter.ingest_new_data(KEYS.SONG_FILE, ("1",), (None, MOCK_SONG_FILE))
-    cache_adapter.ingest_new_data(KEYS.SONG_FILE, ("2",), (None, MOCK_SONG_FILE2))
+    cache_adapter.ingest_new_data(KEYS.SONG_FILE, "1", (None, MOCK_SONG_FILE))
+    cache_adapter.ingest_new_data(KEYS.SONG_FILE, "2", (None, MOCK_SONG_FILE2))
 
-    cache_adapter.invalidate_data(KEYS.SONG_FILE, ("1",))
-    cache_adapter.invalidate_data(KEYS.COVER_ART_FILE, ("s1", "song"))
+    cache_adapter.invalidate_data(KEYS.SONG_FILE, "1")
+    cache_adapter.invalidate_data(KEYS.COVER_ART_FILE, "s1")
 
     with pytest.raises(CacheMissError):
         cache_adapter.get_song_uri("1", "file")
@@ -358,13 +356,13 @@ def test_invalidate_song_file(cache_adapter: FilesystemAdapter):
 
 
 def test_malformed_song_path(cache_adapter: FilesystemAdapter):
-    cache_adapter.ingest_new_data(KEYS.SONG, ("1",), MOCK_SUBSONIC_SONGS[1])
-    cache_adapter.ingest_new_data(KEYS.SONG, ("2",), MOCK_SUBSONIC_SONGS[0])
+    cache_adapter.ingest_new_data(KEYS.SONG, "1", MOCK_SUBSONIC_SONGS[1])
+    cache_adapter.ingest_new_data(KEYS.SONG, "2", MOCK_SUBSONIC_SONGS[0])
     cache_adapter.ingest_new_data(
-        KEYS.SONG_FILE, ("1",), ("/malformed/path", MOCK_SONG_FILE)
+        KEYS.SONG_FILE, "1", ("/malformed/path", MOCK_SONG_FILE)
     )
     cache_adapter.ingest_new_data(
-        KEYS.SONG_FILE, ("2",), ("fine/path/song2.mp3", MOCK_SONG_FILE2)
+        KEYS.SONG_FILE, "2", ("fine/path/song2.mp3", MOCK_SONG_FILE2)
     )
 
     song_uri = cache_adapter.get_song_uri("1", "file")
@@ -375,36 +373,31 @@ def test_malformed_song_path(cache_adapter: FilesystemAdapter):
 
 
 def test_get_cached_status(cache_adapter: FilesystemAdapter):
-    print('ohea1')
-    cache_adapter.ingest_new_data(KEYS.SONG, ("1",), MOCK_SUBSONIC_SONGS[1])
+    cache_adapter.ingest_new_data(KEYS.SONG, "1", MOCK_SUBSONIC_SONGS[1])
     assert (
         cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
         == SongCacheStatus.NOT_CACHED
     )
 
-    print('ohea2')
-    cache_adapter.ingest_new_data(KEYS.SONG_FILE, ("1",), (None, MOCK_SONG_FILE))
+    cache_adapter.ingest_new_data(KEYS.SONG_FILE, "1", (None, MOCK_SONG_FILE))
     assert (
         cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
         == SongCacheStatus.CACHED
     )
 
-    print('ohea3')
-    cache_adapter.ingest_new_data(KEYS.SONG_FILE_PERMANENT, ("1",), None)
+    cache_adapter.ingest_new_data(KEYS.SONG_FILE_PERMANENT, "1", None)
     assert (
         cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
         == SongCacheStatus.PERMANENTLY_CACHED
     )
 
-    print('ohea4')
-    cache_adapter.invalidate_data(KEYS.SONG_FILE, ("1",))
+    cache_adapter.invalidate_data(KEYS.SONG_FILE, "1")
     assert (
         cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
         == SongCacheStatus.CACHED_STALE
     )
 
-    print('ohea5')
-    cache_adapter.delete_data(KEYS.SONG_FILE, ("1",))
+    cache_adapter.delete_data(KEYS.SONG_FILE, "1")
     assert (
         cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
         == SongCacheStatus.NOT_CACHED
@@ -414,20 +407,20 @@ def test_get_cached_status(cache_adapter: FilesystemAdapter):
 def test_delete_playlists(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(
         KEYS.PLAYLIST_DETAILS,
-        ("1",),
+        "1",
         SubsonicAPI.PlaylistWithSongs("1", "test1", cover_art="pl_1", songs=[]),
     )
     cache_adapter.ingest_new_data(
         KEYS.PLAYLIST_DETAILS,
-        ("2",),
+        "2",
         SubsonicAPI.PlaylistWithSongs("2", "test1", cover_art="pl_2", songs=[]),
     )
     cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, ("pl_1",), MOCK_ALBUM_ART,
+        KEYS.COVER_ART_FILE, "pl_1", MOCK_ALBUM_ART,
     )
 
     # Deleting a playlist should get rid of it entirely.
-    cache_adapter.delete_data(KEYS.PLAYLIST_DETAILS, ("2",))
+    cache_adapter.delete_data(KEYS.PLAYLIST_DETAILS, "2")
     try:
         cache_adapter.get_playlist_details("2")
         assert 0, "DID NOT raise CacheMissError"
@@ -435,7 +428,7 @@ def test_delete_playlists(cache_adapter: FilesystemAdapter):
         assert e.partial_data is None
 
     # Deleting a playlist with associated cover art should get rid the cover art too.
-    cache_adapter.delete_data(KEYS.PLAYLIST_DETAILS, ("1",))
+    cache_adapter.delete_data(KEYS.PLAYLIST_DETAILS, "1")
     try:
         cache_adapter.get_cover_art_uri("pl_1", "file")
         assert 0, "DID NOT raise CacheMissError"
@@ -454,17 +447,17 @@ def test_delete_playlists(cache_adapter: FilesystemAdapter):
 
 
 def test_delete_song_data(cache_adapter: FilesystemAdapter):
-    cache_adapter.ingest_new_data(KEYS.SONG, ("1",), MOCK_SUBSONIC_SONGS[1])
-    cache_adapter.ingest_new_data(KEYS.SONG_FILE, ("1",), (None, MOCK_SONG_FILE))
+    cache_adapter.ingest_new_data(KEYS.SONG, "1", MOCK_SUBSONIC_SONGS[1])
+    cache_adapter.ingest_new_data(KEYS.SONG_FILE, "1", (None, MOCK_SONG_FILE))
     cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, ("s1",), MOCK_ALBUM_ART,
+        KEYS.COVER_ART_FILE, "s1", MOCK_ALBUM_ART,
     )
 
     music_file_path = cache_adapter.get_song_uri("1", "file")
     cover_art_path = cache_adapter.get_cover_art_uri("s1", "file")
 
-    cache_adapter.delete_data(KEYS.SONG_FILE, ("1",))
-    cache_adapter.delete_data(KEYS.COVER_ART_FILE, ("s1",))
+    cache_adapter.delete_data(KEYS.SONG_FILE, "1")
+    cache_adapter.delete_data(KEYS.COVER_ART_FILE, "s1")
 
     assert not Path(music_file_path).exists()
     assert not Path(cover_art_path).exists()
@@ -486,8 +479,8 @@ def test_caching_get_genres(cache_adapter: FilesystemAdapter):
     with pytest.raises(CacheMissError):
         cache_adapter.get_genres()
 
-    cache_adapter.ingest_new_data(KEYS.SONG, ("2",), MOCK_SUBSONIC_SONGS[0])
-    cache_adapter.ingest_new_data(KEYS.SONG, ("1",), MOCK_SUBSONIC_SONGS[1])
+    cache_adapter.ingest_new_data(KEYS.SONG, "2", MOCK_SUBSONIC_SONGS[0])
+    cache_adapter.ingest_new_data(KEYS.SONG, "1", MOCK_SUBSONIC_SONGS[1])
 
     # Getting genres now should look at what's on the songs. This sould cache miss, but
     # still give some data.
@@ -500,7 +493,7 @@ def test_caching_get_genres(cache_adapter: FilesystemAdapter):
     # After we actually ingest the actual list, it should be returned instead.
     cache_adapter.ingest_new_data(
         KEYS.GENRES,
-        (),
+        None,
         [
             SubsonicAPI.Genre("Bar", 10, 20),
             SubsonicAPI.Genre("Baz", 10, 20),
@@ -515,7 +508,7 @@ def test_caching_get_song_details(cache_adapter: FilesystemAdapter):
         cache_adapter.get_song_details("1")
 
     # Simulate the song details being retrieved from Subsonic.
-    cache_adapter.ingest_new_data(KEYS.SONG, ("1",), MOCK_SUBSONIC_SONGS[1])
+    cache_adapter.ingest_new_data(KEYS.SONG, "1", MOCK_SUBSONIC_SONGS[1])
 
     song = cache_adapter.get_song_details("1")
     assert song.id == "1"
@@ -531,7 +524,7 @@ def test_caching_get_song_details(cache_adapter: FilesystemAdapter):
     # "Force refresh" the song details
     cache_adapter.ingest_new_data(
         KEYS.SONG,
-        ("1",),
+        "1",
         SubsonicAPI.Song(
             "1",
             title="Song 1",
@@ -564,7 +557,7 @@ def test_caching_get_song_details(cache_adapter: FilesystemAdapter):
 def test_caching_less_info(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(
         KEYS.SONG,
-        ("1",),
+        "1",
         SubsonicAPI.Song(
             "1",
             title="Song 1",
@@ -580,7 +573,7 @@ def test_caching_less_info(cache_adapter: FilesystemAdapter):
     )
     cache_adapter.ingest_new_data(
         KEYS.SONG,
-        ("1",),
+        "1",
         SubsonicAPI.Song(
             "1",
             title="Song 1",
@@ -603,7 +596,7 @@ def test_caching_get_artists(cache_adapter: FilesystemAdapter):
     # Ingest artists.
     cache_adapter.ingest_new_data(
         KEYS.ARTISTS,
-        (),
+        None,
         [
             SubsonicAPI.ArtistAndArtistInfo("1", "test1", album_count=3, albums=[]),
             SubsonicAPI.ArtistAndArtistInfo("2", "test2", album_count=4),
@@ -618,7 +611,7 @@ def test_caching_get_artists(cache_adapter: FilesystemAdapter):
     # Ingest a new artists list with one of them deleted.
     cache_adapter.ingest_new_data(
         KEYS.ARTISTS,
-        (),
+        None,
         [
             SubsonicAPI.ArtistAndArtistInfo("1", "test1", album_count=3),
             SubsonicAPI.ArtistAndArtistInfo("3", "test3", album_count=8),
@@ -637,12 +630,12 @@ def test_caching_get_ignored_articles(cache_adapter: FilesystemAdapter):
         cache_adapter.get_ignored_articles()
 
     # Ingest ignored_articles.
-    cache_adapter.ingest_new_data(KEYS.IGNORED_ARTICLES, (), {"Foo", "Bar"})
+    cache_adapter.ingest_new_data(KEYS.IGNORED_ARTICLES, None, {"Foo", "Bar"})
     artists = cache_adapter.get_ignored_articles()
     assert {"Foo", "Bar"} == artists
 
     # Ingest a new artists list with one of them deleted.
-    cache_adapter.ingest_new_data(KEYS.IGNORED_ARTICLES, (), {"Foo", "Baz"})
+    cache_adapter.ingest_new_data(KEYS.IGNORED_ARTICLES, None, {"Foo", "Baz"})
     artists = cache_adapter.get_ignored_articles()
     assert {"Foo", "Baz"} == artists
 
@@ -654,7 +647,7 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
     # Simulate the artist details being retrieved from Subsonic.
     cache_adapter.ingest_new_data(
         KEYS.ARTIST,
-        ("1",),
+        "1",
         SubsonicAPI.ArtistAndArtistInfo(
             "1",
             "Bar",
@@ -689,7 +682,7 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
     # Simulate "force refreshing" the artist details being retrieved from Subsonic.
     cache_adapter.ingest_new_data(
         KEYS.ARTIST,
-        ("1",),
+        "1",
         SubsonicAPI.ArtistAndArtistInfo(
             "1",
             "Foo",
@@ -735,7 +728,7 @@ def test_caching_get_album(cache_adapter: FilesystemAdapter):
     # Simulate the artist details being retrieved from Subsonic.
     cache_adapter.ingest_new_data(
         KEYS.ALBUM,
-        ("a1",),
+        "a1",
         SubsonicAPI.Album(
             "a1",
             "foo",
@@ -770,7 +763,7 @@ def test_caching_invalidate_artist(cache_adapter: FilesystemAdapter):
     # Simulate the artist details being retrieved from Subsonic.
     cache_adapter.ingest_new_data(
         KEYS.ARTIST,
-        ("artist1",),
+        "artist1",
         SubsonicAPI.ArtistAndArtistInfo(
             "artist1",
             "Bar",
@@ -790,23 +783,17 @@ def test_caching_invalidate_artist(cache_adapter: FilesystemAdapter):
     )
     cache_adapter.ingest_new_data(
         KEYS.ALBUM,
-        ("1",),
+        "1",
         SubsonicAPI.Album("1", "Foo", artist_id="artist1", cover_art="1"),
     )
     cache_adapter.ingest_new_data(
         KEYS.ALBUM,
-        ("2",),
+        "2",
         SubsonicAPI.Album("2", "Bar", artist_id="artist1", cover_art="2"),
     )
-    cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, ("image",), MOCK_ALBUM_ART3,
-    )
-    cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, ("1",), MOCK_ALBUM_ART,
-    )
-    cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, ("2",), MOCK_ALBUM_ART2,
-    )
+    cache_adapter.ingest_new_data(KEYS.COVER_ART_FILE, "image", MOCK_ALBUM_ART3)
+    cache_adapter.ingest_new_data(KEYS.COVER_ART_FILE, "1", MOCK_ALBUM_ART)
+    cache_adapter.ingest_new_data(KEYS.COVER_ART_FILE, "2", MOCK_ALBUM_ART2)
 
     stale_artist = cache_adapter.get_artist("artist1")
     stale_album_1 = cache_adapter.get_album("1")
@@ -815,7 +802,7 @@ def test_caching_invalidate_artist(cache_adapter: FilesystemAdapter):
     stale_cover_art_1 = cache_adapter.get_cover_art_uri("1", "file")
     stale_cover_art_2 = cache_adapter.get_cover_art_uri("2", "file")
 
-    cache_adapter.invalidate_data(KEYS.ARTIST, ("artist1",))
+    cache_adapter.invalidate_data(KEYS.ARTIST, "artist1")
 
     # Test the cascade of cache invalidations.
     try:
@@ -869,7 +856,7 @@ def test_get_music_directory(cache_adapter: FilesystemAdapter):
     # Simulate the directory details being retrieved from Subsonic.
     cache_adapter.ingest_new_data(
         KEYS.DIRECTORY,
-        (dir_id,),
+        dir_id,
         SubsonicAPI.Directory(
             dir_id,
             title="foo",

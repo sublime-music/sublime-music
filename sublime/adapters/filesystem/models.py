@@ -32,12 +32,12 @@ class CacheInfo(BaseModel):
     id = AutoField()
     valid = BooleanField(default=False)
     cache_key = CacheConstantsField()
-    params_hash = TextField()
+    parameter = TextField(null=True, default="")
     # TODO (#2) actually use this for cache expiry.
     last_ingestion_time = TzDateTimeField(null=False)
 
     class Meta:
-        indexes = ((("cache_key", "params_hash"), True),)
+        indexes = ((("cache_key", "parameter"), True),)
 
     # Used for cached files.
     file_id = TextField(null=True)
