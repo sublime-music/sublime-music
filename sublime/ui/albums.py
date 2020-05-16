@@ -1,5 +1,6 @@
 import datetime
-from typing import Any, Callable, cast, Iterable, Optional, Tuple
+from time import time
+from typing import Any, Callable, cast, Iterable, List, Optional, Tuple
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
@@ -359,9 +360,6 @@ class AlbumsGrid(Gtk.Overlay):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # This is the master list.
-        self.list_store = Gio.ListStore()
-
         self.items_per_row = 4
 
         scrolled_window = Gtk.ScrolledWindow()
@@ -487,22 +485,22 @@ class AlbumsGrid(Gtk.Overlay):
             )
             self.latest_applied_order_ratchet = self.order_ratchet
 
-            self.list_store.remove_all()
-
             selected_index = None
+            models = []
             for i, album in enumerate(albums):
                 model = AlbumsGrid._AlbumModel(album)
 
                 if model.id == self.currently_selected_id:
                     selected_index = i
 
-                self.list_store.append(model)
+                models.append(model)
 
             selection_changed = selected_index != self.currently_selected_index
             self.currently_selected_index = selected_index
             self.reflow_grids(
                 force_reload_from_master=should_reload,
                 selection_changed=selection_changed,
+                models=models,
             )
             self.spinner.hide()
 
@@ -517,14 +515,15 @@ class AlbumsGrid(Gtk.Overlay):
     # =========================================================================
     def on_child_activated(self, flowbox: Gtk.FlowBox, child: Gtk.Widget):
         click_top = flowbox == self.grid_top
-        selected_index = child.get_index() + (
-            0 if click_top else len(self.list_store_top)
-        )
+        selected_index = child.get_index()
 
-        if click_top and selected_index == self.currently_selected_index:
-            self.emit("cover-clicked", None)
+        if click_top:
+            if selected_index == self.currently_selected_index:
+                self.emit("cover-clicked", None)
+            else:
+                self.emit("cover-clicked", self.list_store_top[selected_index].id)
         else:
-            self.emit("cover-clicked", self.list_store[selected_index].id)
+            self.emit("cover-clicked", self.list_store_bottom[selected_index].id)
 
     def on_grid_resize(self, flowbox: Gtk.FlowBox, rect: Gdk.Rectangle):
         # TODO (#124): this doesn't work with themes that add extra padding.
@@ -594,10 +593,14 @@ class AlbumsGrid(Gtk.Overlay):
         return widget_box
 
     def reflow_grids(
-        self, force_reload_from_master: bool = False, selection_changed: bool = False,
+        self,
+        force_reload_from_master: bool = False,
+        selection_changed: bool = False,
+        models: List[_AlbumModel] = None,
     ):
         # Determine where the cuttoff is between the top and bottom grids.
-        entries_before_fold = len(self.list_store)
+        store = models if models is not None else self.list_store_top
+        entries_before_fold = len(store)
         if self.currently_selected_index is not None and self.items_per_row:
             entries_before_fold = (
                 (self.currently_selected_index // self.items_per_row) + 1
@@ -608,31 +611,28 @@ class AlbumsGrid(Gtk.Overlay):
             # TODO (#114): make this smarter somehow to avoid flicker. Maybe
             # change this so that it removes one by one and adds back one by
             # one.
-            self.list_store_top.remove_all()
-            self.list_store_bottom.remove_all()
-
-            for e in self.list_store[:entries_before_fold]:
-                self.list_store_top.append(e)
-
-            for e in self.list_store[entries_before_fold:]:
-                self.list_store_bottom.append(e)
+            self.list_store_top.splice(
+                0, len(self.list_store_top), store[:entries_before_fold]
+            )
+            self.list_store_bottom.splice(
+                0, len(self.list_store_bottom), store[entries_before_fold:]
+            )
         else:
-            top_diff = len(self.list_store_top) - entries_before_fold
+            top_store_len = len(self.list_store_top)
+            bottom_store_len = len(self.list_store_bottom)
+            diff = abs(entries_before_fold - top_store_len)
 
-            if top_diff < 0:
-                # Move entries from the bottom store.
-                for e in self.list_store_bottom[:-top_diff]:
-                    self.list_store_top.append(e)
-                for _ in range(-top_diff):
-                    if len(self.list_store_bottom) == 0:
-                        break
-                    del self.list_store_bottom[0]
-            else:
-                # Move entries to the bottom store.
-                for e in reversed(self.list_store_top[entries_before_fold:]):
-                    self.list_store_bottom.insert(0, e)
-                for _ in range(top_diff):
-                    del self.list_store_top[-1]
+            if diff > 0:
+                if entries_before_fold - top_store_len > 0:
+                    # Move entries from the bottom store.
+                    self.list_store_top.splice(
+                        top_store_len, 0, self.list_store_bottom[:diff]
+                    )
+                    self.list_store_bottom.splice(0, min(diff, bottom_store_len), [])
+                else:
+                    # Move entries to the bottom store.
+                    self.list_store_bottom.splice(0, 0, self.list_store_top[-diff:])
+                    self.list_store_top.splice(top_store_len - diff, diff, [])
 
         if self.currently_selected_index is not None:
             to_select = self.grid_top.get_child_at_index(self.currently_selected_index)
@@ -646,7 +646,7 @@ class AlbumsGrid(Gtk.Overlay):
             for c in self.detail_box_inner.get_children():
                 self.detail_box_inner.remove(c)
 
-            model = self.list_store[self.currently_selected_index]
+            model = self.list_store_top[self.currently_selected_index]
             detail_element = AlbumWithSongs(model.album, cover_art_size=300)
             detail_element.connect(
                 "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
