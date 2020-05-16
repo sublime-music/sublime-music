@@ -447,7 +447,7 @@ class ChromecastPlayer(Player):
                     song, force_stream=True,
                 )
 
-        cover_art_url = AdapterManager.get_cover_art_uri(song.cover_art)
+        cover_art_url = AdapterManager.get_cover_art_uri(song.cover_art, size=1000)
         self.chromecast.media_controller.play_media(
             file_or_url,
             # Just pretend that whatever we send it is mp3, even if it isn't.
@@ -457,8 +457,8 @@ class ChromecastPlayer(Player):
             thumb=cover_art_url,
             metadata={
                 "metadataType": 3,
-                "albumName": song.album,
-                "artist": song.artist,
+                "albumName": song.album.name if song.album else None,
+                "artist": song.artist.name if song.artist else None,
                 "trackNumber": song.track,
             },
         )

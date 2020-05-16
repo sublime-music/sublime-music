@@ -169,6 +169,7 @@ class SubsonicAdapter(Adapter):
     can_delete_playlist = True
     can_get_cover_art_uri = True
     can_get_song_uri = True
+    can_stream = True
     can_get_song_details = True
     can_scrobble_song = True
     can_get_artists = True
@@ -372,7 +373,7 @@ class SubsonicAdapter(Adapter):
     def delete_playlist(self, playlist_id: str):
         self._get_json(self._make_url("deletePlaylist"), id=playlist_id)
 
-    def get_cover_art_uri(self, cover_art_id: str, scheme: str, size: int = 300) -> str:
+    def get_cover_art_uri(self, cover_art_id: str, scheme: str, size: int) -> str:
         params = {"id": cover_art_id, "size": size, **self._get_params()}
         return self._make_url("getCoverArt") + "?" + urlencode(params)
 

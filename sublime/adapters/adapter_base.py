@@ -538,7 +538,7 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("delete_playlist")
 
-    def get_cover_art_uri(self, cover_art_id: str, scheme: str) -> str:
+    def get_cover_art_uri(self, cover_art_id: str, scheme: str, size: int) -> str:
         """
         Get a URI for a given ``cover_art_id``.
 
@@ -546,6 +546,8 @@ class Adapter(abc.ABC):
         :param scheme: The URI scheme that should be returned. It is guaranteed that
             ``scheme`` will be one of the schemes returned by
             :class:`supported_schemes`.
+        :param size: The size of image to return. Denotes the max width or max height
+            (whichever is larger).
         :returns: The URI as a string.
         """
         raise self._check_can_error("get_cover_art_uri")

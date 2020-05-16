@@ -199,7 +199,7 @@ class FilesystemAdapter(CachingAdapter):
             models.Playlist, playlist_id, CachingAdapter.CachedDataKey.PLAYLIST_DETAILS
         )
 
-    def get_cover_art_uri(self, cover_art_id: str, scheme: str) -> str:
+    def get_cover_art_uri(self, cover_art_id: str, scheme: str, size: int) -> str:
         cover_art = models.CacheInfo.get_or_none(
             models.CacheInfo.cache_key == CachingAdapter.CachedDataKey.COVER_ART_FILE,
             models.CacheInfo.parameter == cover_art_id,

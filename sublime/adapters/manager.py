@@ -652,7 +652,7 @@ class AdapterManager:
     # TODO (#189): allow this to take a set of schemes and unify with
     # get_cover_art_filename
     @staticmethod
-    def get_cover_art_uri(cover_art_id: str = None) -> str:
+    def get_cover_art_uri(cover_art_id: str = None, size: int = 300) -> str:
         assert AdapterManager._instance
         if (
             not AdapterManager._ground_truth_can_do("get_cover_art_uri")
@@ -661,7 +661,7 @@ class AdapterManager:
             return ""
 
         return AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
-            cover_art_id, AdapterManager._get_scheme()
+            cover_art_id, AdapterManager._get_scheme(), size=size
         )
 
     @staticmethod
@@ -686,7 +686,7 @@ class AdapterManager:
             try:
                 return Result(
                     AdapterManager._instance.caching_adapter.get_cover_art_uri(
-                        cover_art_id, "file"
+                        cover_art_id, "file", size=300
                     )
                 )
             except CacheMissError as e:
@@ -1007,7 +1007,7 @@ class AdapterManager:
         query: AlbumSearchQuery,
         sort_direction: str = "ascending",
         before_download: Callable[[], None] = lambda: None,
-        force: bool = False,
+        use_ground_truth_adapter: bool = False,
     ) -> Result[Sequence[Album]]:
         return AdapterManager._get_from_cache_or_ground_truth(
             "get_albums",
@@ -1015,7 +1015,7 @@ class AdapterManager:
             sort_direction=sort_direction,
             cache_key=CachingAdapter.CachedDataKey.ALBUMS,
             before_download=before_download,
-            use_ground_truth_adapter=force,
+            use_ground_truth_adapter=use_ground_truth_adapter,
         )
 
     @staticmethod

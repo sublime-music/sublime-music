@@ -51,8 +51,8 @@ class UIState:
     selected_artist_id: Optional[str] = None
     selected_browse_element_id: Optional[str] = None
     selected_playlist_id: Optional[str] = None
-    album_sort: str = "ascending"
-    album_page_count: int = 30
+    album_sort_direction: str = "ascending"
+    album_page_size: int = 30
     album_page: int = 0
 
     class _DefaultGenre(Genre):

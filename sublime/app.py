@@ -618,11 +618,15 @@ class SublimeMusicApp(Gtk.Application):
 
         if year := album.year:
             self.app_config.state.current_album_search_query = AlbumSearchQuery(
-                AlbumSearchQuery.Type.YEAR_RANGE, year_range=(year, year)
+                AlbumSearchQuery.Type.YEAR_RANGE,
+                genre=self.app_config.state.current_album_search_query.genre,
+                year_range=(year, year),
             )
         elif genre := album.genre:
             self.app_config.state.current_album_search_query = AlbumSearchQuery(
-                AlbumSearchQuery.Type.GENRE, genre=genre
+                AlbumSearchQuery.Type.GENRE,
+                genre=genre,
+                year_range=self.app_config.state.current_album_search_query.year_range,
             )
         else:
             # TODO (#167) change this to not be a modal dialog.
