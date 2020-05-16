@@ -130,6 +130,8 @@ class AlbumsPanel(Gtk.Box):
         page_widget.add(self.prev_page)
         page_widget.add(Gtk.Label(label="Page"))
         self.page_entry = Gtk.Entry()
+        self.page_entry.set_width_chars(1)
+        self.page_entry.set_max_width_chars(1)
         self.page_entry.connect("changed", self.on_page_entry_changed)
         self.page_entry.connect("insert-text", self.on_page_entry_insert_text)
         page_widget.add(self.page_entry)
@@ -422,6 +424,8 @@ class AlbumsPanel(Gtk.Box):
     def on_page_entry_insert_text(
         self, entry: Gtk.Entry, text: str, length: int, position: int
     ) -> bool:
+        if self.updating_query:
+            return False
         if not text.isdigit():
             entry.emit_stop_by_name("insert-text")
             return True
@@ -781,15 +785,15 @@ class AlbumsGrid(Gtk.Overlay):
             widget_box.pack_start(info_label, False, False, 0)
 
         # Download the cover art.
-        def on_artwork_downloaded(filename: str):
-            artwork.set_from_file(filename)
+        def on_artwork_downloaded(filename: Result[str]):
+            artwork.set_from_file(filename.result())
             artwork.set_loading(False)
 
         cover_art_filename_future = AdapterManager.get_cover_art_filename(
             item.album.cover_art
         )
         if cover_art_filename_future.data_is_available:
-            on_artwork_downloaded(cover_art_filename_future.result())
+            on_artwork_downloaded(cover_art_filename_future)
         else:
             artwork.set_loading(True)
             cover_art_filename_future.add_done_callback(
