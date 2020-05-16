@@ -185,7 +185,6 @@ class FilesystemAdapter(CachingAdapter):
 
     def get_playlists(self, ignore_cache_miss: bool = False) -> Sequence[API.Playlist]:
         if self._playlists is not None:
-            print('Serving out of RAM')
             return self._playlists
 
         self._playlists = self._get_list(
