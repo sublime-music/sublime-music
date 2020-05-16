@@ -108,6 +108,11 @@ class Album(BaseModel):
             return None
 
 
+class AlbumQueryResult(BaseModel):
+    query_hash = TextField(primary_key=True)
+    albums = SortedManyToManyField(Album)
+
+
 class IgnoredArticle(BaseModel):
     name = TextField(unique=True, primary_key=True)
 
@@ -213,6 +218,8 @@ class Version(BaseModel):
 
 ALL_TABLES = (
     Album,
+    AlbumQueryResult,
+    AlbumQueryResult.albums.get_through_model(),
     Artist,
     CacheInfo,
     Directory,

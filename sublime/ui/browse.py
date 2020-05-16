@@ -102,8 +102,6 @@ class ListAndDrilldown(Gtk.Paned):
         ),
     }
 
-    id_stack = None
-
     def __init__(self):
         Gtk.Paned.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
 
@@ -116,8 +114,8 @@ class ListAndDrilldown(Gtk.Paned):
         )
         self.pack1(self.list, False, False)
 
-        self.drilldown = Gtk.Box()
-        self.pack2(self.drilldown, True, False)
+        self.box = Gtk.Box()
+        self.pack2(self.box, True, False)
 
     def update(
         self,
@@ -125,8 +123,7 @@ class ListAndDrilldown(Gtk.Paned):
         app_config: AppConfiguration,
         force: bool = False,
     ):
-        *rest, dir_id = id_stack
-        child_id_stack = tuple(rest)
+        *child_id_stack, dir_id = id_stack
         selected_id = child_id_stack[-1] if len(child_id_stack) > 0 else None
 
         self.list.update(
@@ -136,26 +133,26 @@ class ListAndDrilldown(Gtk.Paned):
             force=force,
         )
 
-        if self.id_stack == id_stack:
-            # We always want to update, but in this case, we don't want to blow
-            # away the drilldown.
-            if isinstance(self.drilldown, ListAndDrilldown):
-                self.drilldown.update(child_id_stack, app_config, force=force)
-            return
-        self.id_stack = id_stack
+        children = self.box.get_children()
+        if len(child_id_stack) == 0:
+            if len(children) > 0:
+                self.box.remove(children[0])
+        else:
+            if len(children) == 0:
+                drilldown = ListAndDrilldown()
+                drilldown.connect(
+                    "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+                )
+                drilldown.connect(
+                    "refresh-window",
+                    lambda _, *args: self.emit("refresh-window", *args),
+                )
+                self.box.add(drilldown)
+                self.box.show_all()
 
-        if len(child_id_stack) > 0:
-            self.remove(self.drilldown)
-            self.drilldown = ListAndDrilldown()
-            self.drilldown.connect(
-                "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+            self.box.get_children()[0].update(
+                tuple(child_id_stack), app_config, force=force
             )
-            self.drilldown.connect(
-                "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
-            )
-            self.drilldown.update(child_id_stack, app_config, force=force)
-            self.drilldown.show_all()
-            self.pack2(self.drilldown, True, False)
 
 
 class MusicDirectoryList(Gtk.Box):

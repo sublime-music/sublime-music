@@ -4,7 +4,7 @@ import shutil
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast, Dict, Optional, Sequence, Set, Tuple, Union
+from typing import Any, cast, Dict, Optional, Sequence, Set, Union
 
 from peewee import fn
 
@@ -109,12 +109,8 @@ class FilesystemAdapter(CachingAdapter):
         model: Any,
         cache_key: CachingAdapter.CachedDataKey,
         ignore_cache_miss: bool = False,
-        where_clause: Optional[Tuple[Any, ...]] = None,
     ) -> Sequence:
-        query = model.select()
-        if where_clause:
-            query = query.where(*where_clause)
-        result = list(query)
+        result = list(model.select())
         if self.is_cache and not ignore_cache_miss:
             # Determine if the adapter has ingested data for this key before, and if
             # not, cache miss.
@@ -130,10 +126,10 @@ class FilesystemAdapter(CachingAdapter):
         model: Any,
         id: str,
         cache_key: CachingAdapter.CachedDataKey,
-        where_clause: Tuple[Any, ...] = (),
-        cache_where_clause: Tuple[Any, ...] = (),
+        # where_clause: Tuple[Any, ...] = (),
+        # cache_where_clause: Tuple[Any, ...] = (),
     ) -> Any:
-        obj = model.get_or_none(model.id == id, *where_clause)
+        obj = model.get_or_none(model.id == id)
 
         # Handle the case that this is the ground truth adapter.
         if not self.is_cache:
@@ -147,7 +143,6 @@ class FilesystemAdapter(CachingAdapter):
             models.CacheInfo.cache_key == cache_key,
             models.CacheInfo.parameter == id,
             models.CacheInfo.valid == True,  # noqa: 712
-            *cache_where_clause,
         )
         if not cache_info:
             raise CacheMissError(partial_data=obj)
@@ -186,12 +181,19 @@ class FilesystemAdapter(CachingAdapter):
 
         return SongCacheStatus.NOT_CACHED
 
+    _playlists = None
+
     def get_playlists(self, ignore_cache_miss: bool = False) -> Sequence[API.Playlist]:
-        return self._get_list(
+        if self._playlists is not None:
+            print('Serving out of RAM')
+            return self._playlists
+
+        self._playlists = self._get_list(
             models.Playlist,
             CachingAdapter.CachedDataKey.PLAYLISTS,
             ignore_cache_miss=ignore_cache_miss,
         )
+        return self._playlists
 
     def get_playlist_details(self, playlist_id: str) -> API.PlaylistDetails:
         return self._get_object_details(
@@ -237,7 +239,6 @@ class FilesystemAdapter(CachingAdapter):
         )
 
     def get_artists(self, ignore_cache_miss: bool = False) -> Sequence[API.Artist]:
-        # TODO order_by
         return self._get_list(
             models.Artist,
             CachingAdapter.CachedDataKey.ARTISTS,
@@ -250,11 +251,27 @@ class FilesystemAdapter(CachingAdapter):
         )
 
     def get_albums(self, query: AlbumSearchQuery) -> Sequence[API.Album]:
-        # TODO: deal with ordering
-        # TODO: deal with paging
-        # TODO: deal with cache invalidation
+        strhash = query.strhash()
+        query_result = models.AlbumQueryResult.get_or_none(
+            models.AlbumQueryResult.query_hash == strhash
+        )
+        # If we've cached the query result, then just return it. If it's stale, then
+        # return the old value as a cache miss error.
+        if query_result and (
+            cache_info := models.CacheInfo.get_or_none(
+                models.CacheInfo.cache_key == CachingAdapter.CachedDataKey.ALBUMS,
+                models.CacheInfo.parameter == strhash,
+            )
+        ):
+            if cache_info.valid:
+                return query_result.albums
+            else:
+                raise CacheMissError(partial_data=query_result.albums)
+
+        # If we haven't ever cached the query result, try to construct one, and return
+        # it as a CacheMissError result.
+
         sql_query = models.Album.select()
-        # TODO use the new ``where_clause`` from get_list
 
         Type = AlbumSearchQuery.Type
         if query.type == Type.GENRE:
@@ -265,27 +282,20 @@ class FilesystemAdapter(CachingAdapter):
             Type.RANDOM: sql_query.order_by(fn.Random()),
             Type.NEWEST: sql_query.order_by(models.Album.created.desc()),
             Type.FREQUENT: sql_query.order_by(models.Album.play_count.desc()),
-            Type.RECENT: sql_query,  # TODO IMPLEMENT
-            Type.STARRED: sql_query.where(models.Album.starred.is_null(False)),
+            Type.STARRED: sql_query.where(models.Album.starred.is_null(False)).order_by(
+                models.Album.name
+            ),
             Type.ALPHABETICAL_BY_NAME: sql_query.order_by(models.Album.name),
             Type.ALPHABETICAL_BY_ARTIST: sql_query.order_by(models.Album.artist.name),
             Type.YEAR_RANGE: sql_query.where(
                 models.Album.year.between(*query.year_range)
-            ).order_by(models.Album.year),
-            Type.GENRE: sql_query.where(models.Album.genre == genre_name),
-        }[query.type]
+            ).order_by(models.Album.year, models.Album.name),
+            Type.GENRE: sql_query.where(models.Album.genre == genre_name).order_by(
+                models.Album.name
+            ),
+        }.get(query.type)
 
-        if self.is_cache:
-            # Determine if the adapter has ingested data for this key before, and if
-            # not, cache miss.
-            if not models.CacheInfo.get_or_none(
-                models.CacheInfo.cache_key == CachingAdapter.CachedDataKey.ALBUMS,
-                models.CacheInfo.parameter == query.strhash(),
-                models.CacheInfo.valid == True,  # noqa: 712
-            ):
-                raise CacheMissError(partial_data=sql_query)
-
-        return sql_query
+        raise CacheMissError(partial_data=sql_query)
 
     def get_all_albums(self) -> Sequence[API.Album]:
         return self._get_list(
@@ -316,7 +326,7 @@ class FilesystemAdapter(CachingAdapter):
         return self._get_list(models.Genre, CachingAdapter.CachedDataKey.GENRES)
 
     def search(self, query: str) -> API.SearchResult:
-        search_result = API.SearchResult()
+        search_result = API.SearchResult(query)
         search_result.add_results("albums", self.get_all_albums())
         search_result.add_results("artists", self.get_artists(ignore_cache_miss=True))
         search_result.add_results(
@@ -503,8 +513,6 @@ class FilesystemAdapter(CachingAdapter):
                 if api_artist.artist_image_url
                 else None,
             }
-            # del artist_data["artist_image_url"]
-            # del artist_data["similar_artists"]
 
             artist, created = models.Artist.get_or_create(
                 id=api_artist.id, defaults=artist_data
@@ -605,10 +613,18 @@ class FilesystemAdapter(CachingAdapter):
             return_val = ingest_album_data(data)
 
         elif data_key == KEYS.ALBUMS:
-            for a in data:
-                ingest_album_data(a)
-            # TODO deal with sorting here
-            # TODO need some other way of deleting stale albums
+            albums = [ingest_album_data(a) for a in data]
+            album_query_result, created = models.AlbumQueryResult.get_or_create(
+                query_hash=param, defaults={"query_hash": param, "albums": albums}
+            )
+
+            if not created:
+                album_query_result.albums = albums
+                try:
+                    album_query_result.save()
+                except ValueError:
+                    # No save necessary.
+                    pass
 
         elif data_key == KEYS.ARTIST:
             return_val = ingest_artist_data(data)
@@ -649,6 +665,7 @@ class FilesystemAdapter(CachingAdapter):
             return_val = ingest_playlist(data)
 
         elif data_key == KEYS.PLAYLISTS:
+            self._playlists = None
             for p in data:
                 ingest_playlist(p)
             models.Playlist.delete().where(
@@ -719,10 +736,6 @@ class FilesystemAdapter(CachingAdapter):
                 shutil.copy(str(buffer_filename), str(filename))
 
             cache_info.save()
-
-            # song = models.Song.get_by_id(params[0])
-            # song.file = cache_info
-            # song.save()
 
         return return_val if return_val is not None else cache_info
 

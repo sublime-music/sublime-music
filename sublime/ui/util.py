@@ -226,6 +226,7 @@ def show_song_popover(
     download_sensitive, remove_download_sensitive = False, False
     albums, artists, parents = set(), set(), set()
     for song_id in song_ids:
+        # TODO lazy load these
         details = AdapterManager.get_song_details(song_id).result()
         status = AdapterManager.get_cached_status(details)
         albums.add(album.id if (album := details.album) else None)

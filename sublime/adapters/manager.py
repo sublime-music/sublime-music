@@ -148,7 +148,7 @@ class Result(Generic[T]):
 
 class AdapterManager:
     available_adapters: Set[Any] = {FilesystemAdapter, SubsonicAdapter}
-    current_download_uris: Set[str] = set()
+    current_download_ids: Set[str] = set()
     download_set_lock = threading.Lock()
     executor: ThreadPoolExecutor = ThreadPoolExecutor()
     download_executor: ThreadPoolExecutor = ThreadPoolExecutor()
@@ -304,7 +304,7 @@ class AdapterManager:
         return Result(future_fn)
 
     @staticmethod
-    def _create_download_fn(uri: str) -> Callable[[], str]:
+    def _create_download_fn(uri: str, id: str) -> Callable[[], str]:
         """
         Create a function to download the given URI to a temporary file, and return the
         filename. The returned function will spin-loop if the resource is already being
@@ -319,9 +319,9 @@ class AdapterManager:
 
             resource_downloading = False
             with AdapterManager.download_set_lock:
-                if uri in AdapterManager.current_download_uris:
+                if id in AdapterManager.current_download_ids:
                     resource_downloading = True
-                AdapterManager.current_download_uris.add(uri)
+                AdapterManager.current_download_ids.add(id)
 
             # TODO (#122): figure out how to retry if the other request failed.
             if resource_downloading:
@@ -331,7 +331,7 @@ class AdapterManager:
                 # it has completed. Then, just return the path to the
                 # resource.
                 t = 0.0
-                while uri in AdapterManager.current_download_uris and t < 20:
+                while id in AdapterManager.current_download_ids and t < 20:
                     sleep(0.2)
                     t += 0.2
                     # TODO (#122): handle the timeout
@@ -351,7 +351,7 @@ class AdapterManager:
                 finally:
                     # Always release the download set lock, even if there's an error.
                     with AdapterManager.download_set_lock:
-                        AdapterManager.current_download_uris.discard(uri)
+                        AdapterManager.current_download_ids.discard(id)
 
             logging.info(f"{uri} downloaded. Returning.")
             return str(download_tmp_filename)
@@ -410,7 +410,7 @@ class AdapterManager:
     @staticmethod
     def _get_from_cache_or_ground_truth(
         function_name: str,
-        param: Optional[str],
+        param: Optional[Union[str, AlbumSearchQuery]],
         cache_key: CachingAdapter.CachedDataKey = None,
         before_download: Callable[[], None] = None,
         use_ground_truth_adapter: bool = False,
@@ -440,6 +440,8 @@ class AdapterManager:
             assert (caching_adapter := AdapterManager._instance.caching_adapter)
             try:
                 logging.info(f"END: {function_name}: serving from cache")
+                if param is None:
+                    return Result(getattr(caching_adapter, function_name)(**kwargs))
                 return Result(getattr(caching_adapter, function_name)(param, **kwargs))
             except CacheMissError as e:
                 partial_data = e.partial_data
@@ -447,12 +449,18 @@ class AdapterManager:
             except Exception:
                 logging.exception(f"Error on {function_name} retrieving from cache.")
 
+        param_str = param.strhash() if isinstance(param, AlbumSearchQuery) else param
         if (
             cache_key
             and AdapterManager._instance.caching_adapter
             and use_ground_truth_adapter
         ):
-            AdapterManager._instance.caching_adapter.invalidate_data(cache_key, param)
+            AdapterManager._instance.caching_adapter.invalidate_data(
+                cache_key, param_str
+            )
+
+        # TODO If any of the following fails, do we want to return what the caching
+        # adapter has?
 
         # TODO (#188): don't short circuit if not allow_download because it could be the
         # filesystem adapter.
@@ -473,7 +481,7 @@ class AdapterManager:
         if AdapterManager._instance.caching_adapter:
             if cache_key:
                 result.add_done_callback(
-                    AdapterManager._create_caching_done_callback(cache_key, param)
+                    AdapterManager._create_caching_done_callback(cache_key, param_str)
                 )
 
             if on_result_finished:
@@ -708,6 +716,7 @@ class AdapterManager:
                 AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
                     cover_art_id, AdapterManager._get_scheme()
                 ),
+                cover_art_id,
             ),
             is_download=True,
             default_value=existing_cover_art_filename,
@@ -802,6 +811,7 @@ class AdapterManager:
                         AdapterManager._instance.ground_truth_adapter.get_song_uri(
                             song_id, AdapterManager._get_scheme()
                         ),
+                        song_id,
                     )()
                     AdapterManager._instance.caching_adapter.ingest_new_data(
                         CachingAdapter.CachedDataKey.SONG_FILE,
@@ -998,7 +1008,7 @@ class AdapterManager:
     ) -> Result[Sequence[Album]]:
         return AdapterManager._get_from_cache_or_ground_truth(
             "get_albums",
-            query.strhash(),
+            query,
             cache_key=CachingAdapter.CachedDataKey.ALBUMS,
             before_download=before_download,
             use_ground_truth_adapter=force,
@@ -1162,7 +1172,7 @@ class AdapterManager:
         if not AdapterManager._instance.caching_adapter:
             return SongCacheStatus.NOT_CACHED
 
-        if song.id in AdapterManager.current_download_uris:
+        if song.id in AdapterManager.current_download_ids:
             return SongCacheStatus.DOWNLOADING
 
         return AdapterManager._instance.caching_adapter.get_cached_status(song)

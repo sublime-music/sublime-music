@@ -182,7 +182,7 @@ class DBusManager:
             if get_playlists_result.data_is_available:
                 playlist_count = len(get_playlists_result.result())
         except Exception:
-            logging.exception("Couldn't get playlists")
+            pass
 
         return {
             "org.mpris.MediaPlayer2": {

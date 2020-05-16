@@ -181,6 +181,8 @@ class PlayerControls(Gtk.ActionBar):
                 f"<b>Play Queue:</b> {play_queue_len} {song_label}"
             )
 
+        # TODO this is super freaking stupid inefficient.
+        # IDEAS: batch it, don't get the queue until requested
         self.editing_play_queue_song_list = True
 
         new_store = []

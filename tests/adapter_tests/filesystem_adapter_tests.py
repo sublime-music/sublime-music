@@ -885,6 +885,39 @@ def test_get_music_directory(cache_adapter: FilesystemAdapter):
     assert dir_child.name == "Crash My Party"
 
 
-def test_search(adapter: FilesystemAdapter):
-    # TODO
-    pass
+def test_search(cache_adapter: FilesystemAdapter):
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_artist("artist1")
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_album("album1")
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_song_details("s1")
+
+    search_result = SublimeAPI.SearchResult()
+    search_result.add_results(
+        "albums",
+        [
+            SubsonicAPI.Album("album1", "Foo", artist_id="artist1", cover_art="cal1"),
+            SubsonicAPI.Album("album2", "Boo", artist_id="artist1", cover_art="cal2"),
+        ],
+    )
+    search_result.add_results(
+        "artists",
+        [
+            SubsonicAPI.ArtistAndArtistInfo("artist1", "foo", cover_art="car1"),
+            SubsonicAPI.ArtistAndArtistInfo("artist2", "better boo", cover_art="car2"),
+        ],
+    )
+    search_result.add_results(
+        "songs",
+        [
+            SubsonicAPI.Song("s1", "amazing boo", cover_art="s1"),
+            SubsonicAPI.Song("s2", "foo of all foo", cover_art="s2"),
+        ],
+    )
+    cache_adapter.ingest_new_data(KEYS.SEARCH_RESULTS, None, search_result)
+
+    search_result = cache_adapter.search("foo")
+    assert [s.title for s in search_result.songs] == ["foo of all foo", "amazing boo"]
+    assert [a.name for a in search_result.artists] == ["foo", "better boo"]
+    assert [a.name for a in search_result.albums] == ["Foo", "Boo"]

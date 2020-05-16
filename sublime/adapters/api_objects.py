@@ -127,7 +127,7 @@ class PlayQueue(abc.ABC):
 
 
 @lru_cache(maxsize=8192)
-def similarity_ratio(query: str, string: Optional[str]) -> int:
+def similarity_ratio(query: str, string: str) -> int:
     """
     Return the :class:`fuzzywuzzy.fuzz.partial_ratio` between the ``query`` and
     the given ``string``.
@@ -138,9 +138,7 @@ def similarity_ratio(query: str, string: Optional[str]) -> int:
     :param query: the query string
     :param string: the string to compare to the query string
     """
-    if not string:
-        return 0
-    return fuzz.partial_ratio(query.lower(), string.lower())
+    return fuzz.partial_ratio(query, string)
 
 
 class SearchResult:
@@ -164,20 +162,29 @@ class SearchResult:
         member = f"_{result_type}"
         cast(Dict[str, Any], getattr(self, member)).update({r.id: r for r in results})
 
-    def update(self, search_result: "SearchResult"):
-        self._artists.update(search_result._artists)
-        self._albums.update(search_result._albums)
-        self._songs.update(search_result._songs)
-        self._playlists.update(search_result._playlists)
+    def update(self, other: "SearchResult"):
+        assert self.query == other.query
+        self._artists.update(other._artists)
+        self._albums.update(other._albums)
+        self._songs.update(other._songs)
+        self._playlists.update(other._playlists)
 
     _S = TypeVar("_S")
 
     def _to_result(
         self, it: Dict[str, _S], transform: Callable[[_S], Tuple[Optional[str], ...]],
     ) -> List[_S]:
+        assert self.query
         all_results = sorted(
             (
-                (max(map(partial(similarity_ratio, self.query), transform(x))), x)
+                (
+                    max(
+                        partial(similarity_ratio, self.query.lower())(t.lower())
+                        for t in transform(x)
+                        if t is not None
+                    ),
+                    x,
+                )
                 for x in it.values()
             ),
             key=lambda rx: rx[0],

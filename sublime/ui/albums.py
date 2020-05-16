@@ -469,7 +469,7 @@ class AlbumsGrid(Gtk.Overlay):
                 )
                 self.error_dialog.format_secondary_markup(
                     # TODO make this error better
-                    f"Getting albums by {self.current_query.type} failed due to the"
+                    f"Getting albums by {self.current_query.type} failed due to the "
                     f"following error\n\n{e}"
                 )
                 self.error_dialog.run()
