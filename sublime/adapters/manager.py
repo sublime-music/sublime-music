@@ -716,7 +716,7 @@ class AdapterManager:
         future: Result[str] = Result(
             AdapterManager._create_download_fn(
                 AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
-                    cover_art_id, AdapterManager._get_scheme()
+                    cover_art_id, AdapterManager._get_scheme(), size=300
                 ),
                 cover_art_id,
             ),

@@ -1,5 +1,6 @@
 import datetime
 import itertools
+import math
 from typing import Any, Callable, cast, Iterable, List, Optional, Tuple
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
@@ -62,6 +63,7 @@ class AlbumsPanel(Gtk.Box):
     album_sort_direction: str = "ascending"
     album_page_size: int = 30
     album_page: int = 0
+    grid_pages_count: int = 0
 
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
@@ -119,7 +121,31 @@ class AlbumsPanel(Gtk.Box):
         self.sort_toggle.connect("clicked", self.on_sort_toggle_clicked)
         actionbar.pack_start(self.sort_toggle)
 
-        refresh = IconButton("view-refresh-symbolic", "Refresh list of albums")
+        # Add the page widget.
+        page_widget = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+        self.prev_page = IconButton(
+            "go-previous-symbolic", "Go to the previous page", sensitive=False
+        )
+        self.prev_page.connect("clicked", self.on_prev_page_clicked)
+        page_widget.add(self.prev_page)
+        page_widget.add(Gtk.Label(label="Page"))
+        self.page_entry = Gtk.Entry()
+        self.page_entry.connect("changed", self.on_page_entry_changed)
+        self.page_entry.connect("insert-text", self.on_page_entry_insert_text)
+        page_widget.add(self.page_entry)
+        page_widget.add(Gtk.Label(label="of"))
+        self.page_count_label = Gtk.Label(label="-")
+        page_widget.add(self.page_count_label)
+        self.next_page = IconButton(
+            "go-next-symbolic", "Go to the next page", sensitive=False
+        )
+        self.next_page.connect("clicked", self.on_next_page_clicked)
+        page_widget.add(self.next_page)
+        actionbar.set_center_widget(page_widget)
+
+        refresh = IconButton(
+            "view-refresh-symbolic", "Refresh list of albums", relief=True
+        )
         refresh.connect("clicked", self.on_refresh_clicked)
         actionbar.pack_end(refresh)
 
@@ -142,6 +168,7 @@ class AlbumsPanel(Gtk.Box):
             "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
         )
         self.grid.connect("cover-clicked", self.on_grid_cover_clicked)
+        self.grid.connect("num-pages-changed", self.on_grid_num_pages_changed)
         scrolled_window.add(self.grid)
         self.add(scrolled_window)
 
@@ -215,6 +242,15 @@ class AlbumsPanel(Gtk.Box):
             self.from_year_spin_button.set_value(year_range[0])
             self.to_year_spin_button.set_value(year_range[1])
 
+        # Update the page display
+        if app_config:
+            self.album_page = app_config.state.album_page
+            self.album_page_size = app_config.state.album_page_size
+
+        self.prev_page.set_sensitive(self.album_page > 0)
+        self.page_entry.set_text(str(self.album_page + 1))
+
+        # Has to be last because it resets self.updating_query
         self.populate_genre_combo(app_config, force=force)
 
         # Show/hide the combo boxes.
@@ -277,7 +313,9 @@ class AlbumsPanel(Gtk.Box):
             {
                 "album_sort_direction": self._get_opposite_sort_dir(
                     self.album_sort_direction
-                )
+                ),
+                "album_page": 0,
+                "selected_album_id": None,
             },
             False,
         )
@@ -288,6 +326,15 @@ class AlbumsPanel(Gtk.Box):
     class _Genre(API.Genre):
         def __init__(self, name: str):
             self.name = name
+
+    def on_grid_num_pages_changed(self, grid: Any, pages: int):
+        self.grid_pages_count = pages
+        pages_str = str(self.grid_pages_count)
+        self.page_count_label.set_text(pages_str)
+        self.next_page.set_sensitive(self.album_page < self.grid_pages_count - 1)
+        num_digits = len(pages_str)
+        self.page_entry.set_width_chars(num_digits)
+        self.page_entry.set_max_width_chars(num_digits)
 
     def on_type_combo_changed(self, combo: Gtk.ComboBox):
         id = self.get_id(combo)
@@ -302,6 +349,7 @@ class AlbumsPanel(Gtk.Box):
                     self.current_query.year_range,
                     self.current_query.genre,
                 ),
+                "album_page": 0,
                 "selected_album_id": None,
             },
             False,
@@ -317,6 +365,7 @@ class AlbumsPanel(Gtk.Box):
                     self.current_query.year_range,
                     self.current_query.genre,
                 ),
+                "album_page": 0,
                 "selected_album_id": None,
             },
             False,
@@ -333,6 +382,7 @@ class AlbumsPanel(Gtk.Box):
                     self.current_query.year_range,
                     AlbumsPanel._Genre(genre),
                 ),
+                "album_page": 0,
                 "selected_album_id": None,
             },
             False,
@@ -352,12 +402,48 @@ class AlbumsPanel(Gtk.Box):
                 "current_album_search_query": AlbumSearchQuery(
                     self.current_query.type, new_year_tuple, self.current_query.genre
                 ),
+                "album_page": 0,
                 "selected_album_id": None,
             },
             False,
         )
 
         return False
+
+    def on_page_entry_changed(self, entry: Gtk.Entry) -> bool:
+        if len(text := entry.get_text()) > 0:
+            self.emit_if_not_updating(
+                "refresh-window",
+                {"album_page": int(text) - 1, "selected_album_id": None},
+                False,
+            )
+        return False
+
+    def on_page_entry_insert_text(
+        self, entry: Gtk.Entry, text: str, length: int, position: int
+    ) -> bool:
+        if not text.isdigit():
+            entry.emit_stop_by_name("insert-text")
+            return True
+        page_num = int(entry.get_text() + text)
+        if self.grid_pages_count is None or self.grid_pages_count < page_num:
+            entry.emit_stop_by_name("insert-text")
+            return True
+        return False
+
+    def on_prev_page_clicked(self, _):
+        self.emit_if_not_updating(
+            "refresh-window",
+            {"album_page": self.album_page - 1, "selected_album_id": None},
+            False,
+        )
+
+    def on_next_page_clicked(self, _):
+        self.emit_if_not_updating(
+            "refresh-window",
+            {"album_page": self.album_page + 1, "selected_album_id": None},
+            False,
+        )
 
     def on_grid_cover_clicked(self, grid: Any, id: str):
         self.emit(
@@ -367,7 +453,7 @@ class AlbumsPanel(Gtk.Box):
     def on_show_count_dropdown_change(self, combo: Gtk.ComboBox):
         show_count = int(self.get_id(combo) or 30)
         self.emit(
-            "refresh-window", {"album_page_size": show_count}, False,
+            "refresh-window", {"album_page_size": show_count, "album_page": 0}, False,
         )
 
     def emit_if_not_updating(self, *args):
@@ -391,6 +477,7 @@ class AlbumsGrid(Gtk.Overlay):
             GObject.TYPE_NONE,
             (int, object, object),
         ),
+        "num-pages-changed": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (int,)),
     }
 
     class _AlbumModel(GObject.Object):
@@ -415,6 +502,7 @@ class AlbumsGrid(Gtk.Overlay):
     sort_dir: str = ""
     page_size: int = 30
     page: int = 0
+    num_pages: Optional[int] = None
     next_page_fn = None
     server_hash: Optional[str] = None
 
@@ -433,17 +521,23 @@ class AlbumsGrid(Gtk.Overlay):
         scrolled_window = Gtk.ScrolledWindow()
         grid_detail_grid_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-        self.grid_top = Gtk.FlowBox(
-            hexpand=True,
-            row_spacing=5,
-            column_spacing=5,
-            margin_top=12,
-            margin_bottom=12,
-            homogeneous=True,
-            valign=Gtk.Align.START,
-            halign=Gtk.Align.CENTER,
-            selection_mode=Gtk.SelectionMode.SINGLE,
-        )
+        def create_flowbox(**kwargs) -> Gtk.FlowBox:
+            flowbox = Gtk.FlowBox(
+                **kwargs,
+                hexpand=True,
+                row_spacing=5,
+                column_spacing=5,
+                margin_top=12,
+                margin_bottom=12,
+                homogeneous=True,
+                valign=Gtk.Align.START,
+                halign=Gtk.Align.CENTER,
+                selection_mode=Gtk.SelectionMode.SINGLE,
+            )
+            flowbox.set_max_children_per_line(10)
+            return flowbox
+
+        self.grid_top = create_flowbox()
         self.grid_top.connect("child-activated", self.on_child_activated)
         self.grid_top.connect("size-allocate", self.on_grid_resize)
 
@@ -461,18 +555,7 @@ class AlbumsGrid(Gtk.Overlay):
         self.detail_box.pack_start(Gtk.Box(), True, True, 0)
         grid_detail_grid_box.add(self.detail_box)
 
-        self.grid_bottom = Gtk.FlowBox(
-            vexpand=True,
-            hexpand=True,
-            row_spacing=5,
-            column_spacing=5,
-            margin_top=12,
-            margin_bottom=12,
-            homogeneous=True,
-            valign=Gtk.Align.START,
-            halign=Gtk.Align.CENTER,
-            selection_mode=Gtk.SelectionMode.SINGLE,
-        )
+        self.grid_bottom = create_flowbox(vexpand=True)
         self.grid_bottom.connect("child-activated", self.on_child_activated)
 
         self.list_store_bottom = Gio.ListStore()
@@ -541,7 +624,16 @@ class AlbumsGrid(Gtk.Overlay):
             self.spinner.hide()
             return
 
+        force_grid_reload_from_master = (
+            force_grid_reload_from_master
+            or use_ground_truth_adapter
+            or self.latest_applied_order_ratchet < self.order_ratchet
+        )
+
         def do_update_grid(selected_index: Optional[int]):
+            if self.sort_dir == "descending" and selected_index:
+                selected_index = len(self.current_models) - selected_index - 1
+
             selection_changed = selected_index != self.currently_selected_index
             self.currently_selected_index = selected_index
             self.reflow_grids(
@@ -590,6 +682,10 @@ class AlbumsGrid(Gtk.Overlay):
 
                 self.current_models.append(model)
 
+            self.emit(
+                "num-pages-changed",
+                math.ceil(len(self.current_models) / self.page_size),
+            )
             do_update_grid(selected_index)
 
         if (
@@ -612,6 +708,10 @@ class AlbumsGrid(Gtk.Overlay):
             for i, album in enumerate(self.current_models):
                 if album.id == self.currently_selected_id:
                     selected_index = i
+            self.emit(
+                "num-pages-changed",
+                math.ceil(len(self.current_models) / self.page_size),
+            )
             do_update_grid(selected_index)
 
     # Event Handlers
@@ -621,7 +721,10 @@ class AlbumsGrid(Gtk.Overlay):
         selected_index = child.get_index()
 
         if click_top:
-            if selected_index == self.currently_selected_index:
+            page_offset = self.page_size * self.page
+            if self.currently_selected_index is not None and (
+                selected_index == self.currently_selected_index - page_offset
+            ):
                 self.emit("cover-clicked", None)
             else:
                 self.emit("cover-clicked", self.list_store_top[selected_index].id)
@@ -632,7 +735,7 @@ class AlbumsGrid(Gtk.Overlay):
         # TODO (#124): this doesn't work with themes that add extra padding.
         # 200     + (10      * 2) + (5      * 2) = 230
         # picture + (padding * 2) + (margin * 2)
-        new_items_per_row = min((rect.width // 230), 7)
+        new_items_per_row = min((rect.width // 230), 10)
         if new_items_per_row != self.items_per_row:
             self.items_per_row = new_items_per_row
             self.detail_box_inner.set_size_request(
@@ -718,15 +821,17 @@ class AlbumsGrid(Gtk.Overlay):
             window = models[page_offset : (page_offset + self.page_size)]
         else:
             reverse_sorted_models = reversed(models)
-            itertools.islice(reverse_sorted_models, page_offset)  # remove to the offset
+            # remove to the offset
+            for _ in range(page_offset):
+                next(reverse_sorted_models, page_offset)
             window = list(itertools.islice(reverse_sorted_models, self.page_size))
 
         # Determine where the cuttoff is between the top and bottom grids.
         entries_before_fold = self.page_size
         if self.currently_selected_index is not None and self.items_per_row:
+            relative_selected_index = self.currently_selected_index - page_offset
             entries_before_fold = (
-                ((self.currently_selected_index - page_offset) // self.items_per_row)
-                + 1
+                (relative_selected_index // self.items_per_row) + 1
             ) * self.items_per_row
 
         if force_reload_from_master:
@@ -759,7 +864,8 @@ class AlbumsGrid(Gtk.Overlay):
                     self.list_store_top.splice(top_store_len - diff, diff, [])
 
         if self.currently_selected_index is not None:
-            to_select = self.grid_top.get_child_at_index(self.currently_selected_index)
+            relative_selected_index = self.currently_selected_index - page_offset
+            to_select = self.grid_top.get_child_at_index(relative_selected_index)
             if not to_select:
                 return
             self.grid_top.select_child(to_select)
@@ -770,7 +876,7 @@ class AlbumsGrid(Gtk.Overlay):
             for c in self.detail_box_inner.get_children():
                 self.detail_box_inner.remove(c)
 
-            model = self.list_store_top[self.currently_selected_index]
+            model = self.list_store_top[relative_selected_index]
             detail_element = AlbumWithSongs(model.album, cover_art_size=300)
             detail_element.connect(
                 "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
