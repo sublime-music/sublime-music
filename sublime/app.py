@@ -612,36 +612,12 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     def on_go_to_album(self, action: Any, album_id: GLib.Variant):
-        # Switch to the By Year view (or genre, if year is not available) to
-        # guarantee that the album is there.
-        album = AdapterManager.get_album(album_id.get_string()).result()
-
-        if year := album.year:
-            self.app_config.state.current_album_search_query = AlbumSearchQuery(
-                AlbumSearchQuery.Type.YEAR_RANGE,
-                genre=self.app_config.state.current_album_search_query.genre,
-                year_range=(year, year),
-            )
-        elif genre := album.genre:
-            self.app_config.state.current_album_search_query = AlbumSearchQuery(
-                AlbumSearchQuery.Type.GENRE,
-                genre=genre,
-                year_range=self.app_config.state.current_album_search_query.year_range,
-            )
-        else:
-            # TODO (#167) change this to not be a modal dialog.
-            dialog = Gtk.MessageDialog(
-                transient_for=self.window,
-                message_type=Gtk.MessageType.ERROR,
-                buttons=Gtk.ButtonsType.OK,
-                text="Could not go to album",
-            )
-            dialog.format_secondary_markup(
-                "Could not go to the album because it does not have a year or genre."
-            )
-            dialog.run()
-            dialog.destroy()
-            return
+        # Switch to the Alphabetical by Name view to guarantee that the album is there.
+        self.app_config.state.current_album_search_query = AlbumSearchQuery(
+            AlbumSearchQuery.Type.ALPHABETICAL_BY_NAME,
+            genre=self.app_config.state.current_album_search_query.genre,
+            year_range=self.app_config.state.current_album_search_query.year_range,
+        )
 
         self.app_config.state.current_tab = "albums"
         self.app_config.state.selected_album_id = album_id.get_string()
