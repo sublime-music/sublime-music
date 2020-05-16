@@ -421,7 +421,9 @@ class SubsonicAdapter(Adapter):
 
         return set(ignored_articles.split())
 
-    def get_albums(self, query: AlbumSearchQuery) -> Sequence[API.Album]:
+    def get_albums(
+        self, query: AlbumSearchQuery, sort_direction: str = "ascending"
+    ) -> Sequence[API.Album]:
         type_ = {
             AlbumSearchQuery.Type.RANDOM: "random",
             AlbumSearchQuery.Type.NEWEST: "newest",
@@ -459,6 +461,7 @@ class SubsonicAdapter(Adapter):
             ).albums
             return album_list.album if album_list else []
 
+        # Get all pages.
         while len(next_page := get_page(offset)) > 0:
             albums.extend(next_page)
             if query.type == AlbumSearchQuery.Type.RANDOM:

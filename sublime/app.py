@@ -676,7 +676,6 @@ class SublimeMusicApp(Gtk.Application):
         if self.app_config.state.playing:
             self.on_play_pause()
         self.loading_state = True
-        self.app_config.state.load()
         self.player.reset()
         self.loading_state = False
 

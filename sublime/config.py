@@ -30,7 +30,7 @@ class ReplayGainType(Enum):
         }[replay_gain_type.lower()]
 
 
-@dataclass(unsafe_hash=True)
+@dataclass
 class ServerConfiguration:
     name: str = "Default"
     server_address: str = "http://yourhost"
@@ -44,6 +44,8 @@ class ServerConfiguration:
 
     def migrate(self):
         self.version = 0
+
+    _strhash: Optional[str] = None
 
     def strhash(self) -> str:
         # TODO: make this configurable by the adapters the combination of the hashes
@@ -62,8 +64,10 @@ class ServerConfiguration:
         >>> sc.strhash()
         '6df23dc03f9b54cc38a0fc1483df6e21'
         """
-        server_info = self.name + self.server_address + self.username
-        return hashlib.md5(server_info.encode("utf-8")).hexdigest()
+        if not self._strhash:
+            server_info = self.name + self.server_address + self.username
+            self._strhash = hashlib.md5(server_info.encode("utf-8")).hexdigest()
+        return self._strhash
 
 
 @dataclass

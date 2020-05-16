@@ -467,6 +467,7 @@ class AdapterManager:
         if not allow_download or not AdapterManager._ground_truth_can_do(function_name):
             logging.info(f"END: NO DOWNLOAD: {function_name}")
             if partial_data:
+                # TODO indicate that this is partial data. Probably just re-throw here?
                 logging.debug("partial_data exists, returning", partial_data)
                 return Result(cast(AdapterManager.R, partial_data))
             raise Exception(f"No adapters can service {function_name} at the moment.")
@@ -485,6 +486,7 @@ class AdapterManager:
                 )
 
             if on_result_finished:
+                # TODO: figure out a way to pass partial data here
                 result.add_done_callback(on_result_finished)
 
         logging.info(f"END: {function_name}")
@@ -1003,12 +1005,14 @@ class AdapterManager:
     @staticmethod
     def get_albums(
         query: AlbumSearchQuery,
+        sort_direction: str = "ascending",
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,
     ) -> Result[Sequence[Album]]:
         return AdapterManager._get_from_cache_or_ground_truth(
             "get_albums",
             query,
+            sort_direction=sort_direction,
             cache_key=CachingAdapter.CachedDataKey.ALBUMS,
             before_download=before_download,
             use_ground_truth_adapter=force,

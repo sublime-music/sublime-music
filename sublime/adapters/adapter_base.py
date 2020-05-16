@@ -52,7 +52,7 @@ class SongCacheStatus(Enum):
     CACHED_STALE = 4
 
 
-@dataclass(frozen=True)
+@dataclass
 class AlbumSearchQuery:
     """
     Represents a query for getting albums from an adapter. The UI will request the
@@ -105,6 +105,8 @@ class AlbumSearchQuery:
     year_range: Tuple[int, int] = (2010, 2020)
     genre: Genre = _Genre("Rock")
 
+    _strhash: Optional[str] = None
+
     def strhash(self) -> str:
         """
         Returns a deterministic hash of the query as a string.
@@ -115,11 +117,14 @@ class AlbumSearchQuery:
         >>> query.strhash()
         'a6571bb7be65984c6627f545cab9fc767fce6d07'
         """
-        return hashlib.sha1(
-            bytes(
-                json.dumps((self.type.value, self.year_range, self.genre.name)), "utf8"
-            )
-        ).hexdigest()
+        if not self._strhash:
+            self._strhash = hashlib.sha1(
+                bytes(
+                    json.dumps((self.type.value, self.year_range, self.genre.name)),
+                    "utf8",
+                )
+            ).hexdigest()
+        return self._strhash
 
 
 class CacheMissError(Exception):
@@ -603,7 +608,9 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("get_ignored_articles")
 
-    def get_albums(self, query: AlbumSearchQuery) -> Sequence[Album]:
+    def get_albums(
+        self, query: AlbumSearchQuery, sort_direction: str = "ascending"
+    ) -> Sequence[Album]:
         """
         Get a list of all of the albums known to the adapter for the given query.
 

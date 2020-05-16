@@ -249,7 +249,9 @@ class FilesystemAdapter(CachingAdapter):
             models.Artist, artist_id, CachingAdapter.CachedDataKey.ARTIST
         )
 
-    def get_albums(self, query: AlbumSearchQuery) -> Sequence[API.Album]:
+    def get_albums(
+        self, query: AlbumSearchQuery, sort_direction: str = "ascending"
+    ) -> Sequence[API.Album]:
         strhash = query.strhash()
         query_result = models.AlbumQueryResult.get_or_none(
             models.AlbumQueryResult.query_hash == strhash

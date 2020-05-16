@@ -183,9 +183,7 @@ def diff_model_store(store_to_edit: Any, new_store: Iterable[Any]):
     if diff == {}:
         return
 
-    store_to_edit.remove_all()
-    for model in new_store:
-        store_to_edit.append(model)
+    store_to_edit.splice(0, len(store_to_edit), new_store)
 
 
 def show_song_popover(

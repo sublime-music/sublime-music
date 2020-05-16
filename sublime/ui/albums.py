@@ -1,5 +1,4 @@
 import datetime
-from time import time
 from typing import Any, Callable, cast, Iterable, List, Optional, Tuple
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
@@ -59,6 +58,9 @@ class AlbumsPanel(Gtk.Box):
 
     populating_genre_combo = False
     grid_order_token: int = 0
+    album_sort: str = "ascending"
+    album_page_count: int = 30
+    album_page: int = 0
 
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
@@ -96,7 +98,7 @@ class AlbumsPanel(Gtk.Box):
         )
         actionbar.pack_start(self.genre_combo)
 
-        next_decade = datetime.datetime.now().year + 10
+        next_decade = (datetime.datetime.now().year // 10) * 10 + 10
 
         self.from_year_label = Gtk.Label(label="from")
         actionbar.pack_start(self.from_year_label)
@@ -110,9 +112,23 @@ class AlbumsPanel(Gtk.Box):
         self.to_year_spin_button.connect("value-changed", self.on_year_changed)
         actionbar.pack_start(self.to_year_spin_button)
 
+        self.sort_toggle = IconButton(
+            "view-sort-descending-symbolic", "Sort descending", relief=True
+        )
+        self.sort_toggle.connect("clicked", self.on_sort_toggle_clicked)
+        actionbar.pack_start(self.sort_toggle)
+
         refresh = IconButton("view-refresh-symbolic", "Refresh list of albums")
         refresh.connect("clicked", self.on_refresh_clicked)
         actionbar.pack_end(refresh)
+
+        actionbar.pack_end(Gtk.Label(label="albums per page"))
+        self.show_count_dropdown, _ = self.make_combobox(
+            ((x, x, True) for x in ("20", "30", "40", "50")),
+            self.on_show_count_dropdown_change,
+        )
+        actionbar.pack_end(self.show_count_dropdown)
+        actionbar.pack_end(Gtk.Label(label="Show"))
 
         self.add(actionbar)
 
@@ -120,6 +136,9 @@ class AlbumsPanel(Gtk.Box):
         self.grid = AlbumsGrid()
         self.grid.connect(
             "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+        )
+        self.grid.connect(
+            "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
         )
         self.grid.connect("cover-clicked", self.on_grid_cover_clicked)
         scrolled_window.add(self.grid)
@@ -168,7 +187,7 @@ class AlbumsPanel(Gtk.Box):
                 self.updating_query = False
 
         # Never force. We invalidate the cache ourselves (force is used when
-        # sort params change). TODO I don't think taat is the case now probaly can just
+        # sort params change). TODO I don't think that is the case now probaly can just
         # force=force here
         genres_future = AdapterManager.get_genres(force=False)
         genres_future.add_done_callback(lambda f: GLib.idle_add(get_genres_done, f))
@@ -221,6 +240,23 @@ class AlbumsPanel(Gtk.Box):
             self.to_year_spin_button,
         )
 
+        # (En|Dis)able the sort button
+        self.sort_toggle.set_sensitive(
+            self.current_query.type != AlbumSearchQuery.Type.RANDOM
+        )
+
+        if app_config:
+            self.album_sort = app_config.state.album_sort
+            self.sort_toggle.set_icon(f"view-sort-{self.album_sort}-symbolic")
+            self.sort_toggle.set_tooltip_text(
+                "Change sort order to "
+                + ("descending" if self.album_sort == "ascending" else "ascending")
+            )
+
+            self.show_count_dropdown.set_active_id(
+                str(app_config.state.album_page_count)
+            )
+
         # At this point, the current query should be totally updated.
         self.grid_order_token = self.grid.update_params(self.current_query)
         self.grid.update(self.grid_order_token, app_config, force=force)
@@ -231,7 +267,18 @@ class AlbumsPanel(Gtk.Box):
             return combo.get_model()[tree_iter][0]
         return None
 
-    def on_refresh_clicked(self, button: Any):
+    def on_sort_toggle_clicked(self, _):
+        self.emit(
+            "refresh-window",
+            {
+                "album_sort": "ascending"
+                if self.album_sort == "descending"
+                else "descending"
+            },
+            False,
+        )
+
+    def on_refresh_clicked(self, _):
         self.emit("refresh-window", {}, True)
 
     class _Genre(API.Genre):
@@ -309,6 +356,12 @@ class AlbumsPanel(Gtk.Box):
             "refresh-window", {"selected_album_id": id}, False,
         )
 
+    def on_show_count_dropdown_change(self, combo: Gtk.ComboBox):
+        show_count = int(self.get_id(combo) or 30)
+        self.emit(
+            "refresh-window", {"album_page_count": show_count}, False,
+        )
+
     def emit_if_not_updating(self, *args):
         if self.updating_query:
             return
@@ -319,23 +372,18 @@ class AlbumsGrid(Gtk.Overlay):
     """Defines the albums panel."""
 
     __gsignals__ = {
+        "cover-clicked": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (object,),),
+        "refresh-window": (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, bool),
+        ),
         "song-clicked": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (int, object, object),
         ),
-        "cover-clicked": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (object,),),
     }
-
-    current_query: AlbumSearchQuery = AlbumSearchQuery(AlbumSearchQuery.Type.RANDOM)
-    latest_applied_order_ratchet: int = 0
-    order_ratchet: int = 0
-
-    currently_selected_index: Optional[int] = None
-    currently_selected_id: Optional[str] = None
-    next_page_fn = None
-    current_min_size_request = 30
-    # server_hash = None
 
     class _AlbumModel(GObject.Object):
         def __init__(self, album: API.Album):
@@ -349,9 +397,21 @@ class AlbumsGrid(Gtk.Overlay):
         def __repr__(self) -> str:
             return f"<AlbumsGrid.AlbumModel {self.album}>"
 
+    current_query: AlbumSearchQuery = AlbumSearchQuery(AlbumSearchQuery.Type.RANDOM)
+    current_models: List[_AlbumModel] = []
+    latest_applied_order_ratchet: int = 0
+    order_ratchet: int = 0
+
+    currently_selected_index: Optional[int] = None
+    currently_selected_id: Optional[str] = None
+    page: int = 0
+    next_page_fn = None
+    current_min_size_request = 30
+    server_hash: Optional[str] = None
+
     def update_params(self, query: AlbumSearchQuery) -> int:
         # If there's a diff, increase the ratchet.
-        if hash(self.current_query) != hash(query):
+        if self.current_query.strhash() != query.strhash():
             self.order_ratchet += 1
         self.current_query = query
         self.current_min_size_request = 30
@@ -380,7 +440,7 @@ class AlbumsGrid(Gtk.Overlay):
         self.grid_top.connect("size-allocate", self.on_grid_resize)
 
         self.list_store_top = Gio.ListStore()
-        self.grid_top.bind_model(self.list_store_top, self.create_widget)
+        self.grid_top.bind_model(self.list_store_top, self._create_cover_art_widget)
 
         grid_detail_grid_box.add(self.grid_top)
 
@@ -408,7 +468,9 @@ class AlbumsGrid(Gtk.Overlay):
         self.grid_bottom.connect("child-activated", self.on_child_activated)
 
         self.list_store_bottom = Gio.ListStore()
-        self.grid_bottom.bind_model(self.list_store_bottom, self.create_widget)
+        self.grid_bottom.bind_model(
+            self.list_store_bottom, self._create_cover_art_widget
+        )
 
         grid_detail_grid_box.add(self.grid_bottom)
 
@@ -424,21 +486,20 @@ class AlbumsGrid(Gtk.Overlay):
         self.add_overlay(self.spinner)
 
     def update(
-        self, order_token: int, app_config: AppConfiguration, force: bool = False
+        self, order_token: int, app_config: AppConfiguration = None, force: bool = False
     ):
         if order_token < self.latest_applied_order_ratchet:
             return
 
         if app_config:
             self.currently_selected_id = app_config.state.selected_album_id
+            self.page = app_config.state.album_page
 
-        # TODO test this
-        # new_hash = app_config.server.strhash()
-        # server_changed = self.server_hash != new_hash
-        # self.server_hash = new_hash
-        self.update_grid(
-            order_token, force=force,  # or server_changed,
-        )
+            new_hash = server.strhash() if (server := app_config.server) else None
+            server_changed = self.server_hash != new_hash
+            self.server_hash = new_hash
+
+        self.update_grid(order_token, force=force or server_changed)
 
         # Update the detail panel.
         children = self.detail_box_inner.get_children()
@@ -452,7 +513,24 @@ class AlbumsGrid(Gtk.Overlay):
             self.spinner.hide()
             return
 
-        def do_update(f: Result[Iterable[API.Album]]):
+        def do_update_grid(
+            selected_index: Optional[int], force_reload_from_master: bool = False
+        ):
+            selection_changed = selected_index != self.currently_selected_index
+            self.currently_selected_index = selected_index
+            self.reflow_grids(
+                force_reload_from_master=force_reload_from_master,
+                selection_changed=selection_changed,
+                models=self.current_models,
+            )
+            self.spinner.hide()
+
+        def reload_store(f: Result[Iterable[API.Album]]):
+            # Don't override more recent results
+            if order_token < self.latest_applied_order_ratchet:
+                return
+            self.latest_applied_order_ratchet = self.order_ratchet
+
             try:
                 albums = f.result()
             except Exception as e:
@@ -466,7 +544,7 @@ class AlbumsGrid(Gtk.Overlay):
                     text="Failed to retrieve albums",
                 )
                 self.error_dialog.format_secondary_markup(
-                    # TODO make this error better
+                    # TODO make this error better.
                     f"Getting albums by {self.current_query.type} failed due to the "
                     f"following error\n\n{e}"
                 )
@@ -476,40 +554,34 @@ class AlbumsGrid(Gtk.Overlay):
                 self.spinner.hide()
                 return
 
-            # Don't override more recent results
-            if order_token < self.latest_applied_order_ratchet:
-                return
-
-            should_reload = (
-                force or self.latest_applied_order_ratchet < self.order_ratchet
-            )
-            self.latest_applied_order_ratchet = self.order_ratchet
-
             selected_index = None
-            models = []
+            self.current_models = []
             for i, album in enumerate(albums):
                 model = AlbumsGrid._AlbumModel(album)
 
                 if model.id == self.currently_selected_id:
                     selected_index = i
 
-                models.append(model)
+                self.current_models.append(model)
 
-            selection_changed = selected_index != self.currently_selected_index
-            self.currently_selected_index = selected_index
-            self.reflow_grids(
-                force_reload_from_master=should_reload,
-                selection_changed=selection_changed,
-                models=models,
-            )
-            self.spinner.hide()
+            do_update_grid(selected_index, force_reload_from_master=True)
 
-        future = AdapterManager.get_albums(
-            self.current_query,
-            before_download=lambda: GLib.idle_add(self.spinner.show),
-            force=force,
-        )
-        future.add_done_callback(lambda f: GLib.idle_add(do_update, f))
+        if force or self.latest_applied_order_ratchet < self.order_ratchet:
+            albums_result = AdapterManager.get_albums(self.current_query, force=force)
+            if albums_result.data_is_available:
+                # Don't idle add if the data is already available.
+                albums_result.add_done_callback(reload_store)
+            else:
+                self.spinner.show()
+                albums_result.add_done_callback(
+                    lambda f: GLib.idle_add(reload_store, f)
+                )
+        else:
+            selected_index = None
+            for i, album in enumerate(self.current_models):
+                if album.id == self.currently_selected_id:
+                    selected_index = i
+            do_update_grid(selected_index)
 
     # Event Handlers
     # =========================================================================
@@ -531,7 +603,7 @@ class AlbumsGrid(Gtk.Overlay):
         # picture + (padding * 2) + (margin * 2)
         new_items_per_row = min((rect.width // 230), 7)
         if new_items_per_row != self.items_per_row:
-            self.items_per_row = min((rect.width // 230), 7)
+            self.items_per_row = new_items_per_row
             self.detail_box_inner.set_size_request(
                 self.items_per_row * 230 - 10, -1,
             )
@@ -540,7 +612,17 @@ class AlbumsGrid(Gtk.Overlay):
 
     # Helper Methods
     # =========================================================================
-    def create_widget(self, item: _AlbumModel) -> Gtk.Box:
+    def _make_label(self, text: str, name: str) -> Gtk.Label:
+        return Gtk.Label(
+            name=name,
+            label=text,
+            tooltip_text=text,
+            ellipsize=Pango.EllipsizeMode.END,
+            max_width_chars=20,
+            halign=Gtk.Align.START,
+        )
+
+    def _create_cover_art_widget(self, item: _AlbumModel) -> Gtk.Box:
         widget_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Cover art image
@@ -552,18 +634,8 @@ class AlbumsGrid(Gtk.Overlay):
         )
         widget_box.pack_start(artwork, False, False, 0)
 
-        def make_label(text: str, name: str) -> Gtk.Label:
-            return Gtk.Label(
-                name=name,
-                label=text,
-                tooltip_text=text,
-                ellipsize=Pango.EllipsizeMode.END,
-                max_width_chars=20,
-                halign=Gtk.Align.START,
-            )
-
         # Header for the widget
-        header_label = make_label(item.album.name, "grid-header-label")
+        header_label = self._make_label(item.album.name, "grid-header-label")
         widget_box.pack_start(header_label, False, False, 0)
 
         # Extra info for the widget
@@ -571,23 +643,24 @@ class AlbumsGrid(Gtk.Overlay):
             item.album.artist.name if item.album.artist else "-", item.album.year
         )
         if info_text:
-            info_label = make_label(info_text, "grid-info-label")
+            info_label = self._make_label(info_text, "grid-info-label")
             widget_box.pack_start(info_label, False, False, 0)
 
         # Download the cover art.
-        def on_artwork_downloaded(f: Result[str]):
-            artwork.set_from_file(f.result())
+        def on_artwork_downloaded(filename: str):
+            artwork.set_from_file(filename)
             artwork.set_loading(False)
 
-        def start_loading():
-            artwork.set_loading(True)
-
         cover_art_filename_future = AdapterManager.get_cover_art_filename(
-            item.album.cover_art, before_download=lambda: GLib.idle_add(start_loading),
+            item.album.cover_art
         )
-        cover_art_filename_future.add_done_callback(
-            lambda f: GLib.idle_add(on_artwork_downloaded, f)
-        )
+        if cover_art_filename_future.data_is_available:
+            on_artwork_downloaded(cover_art_filename_future.result())
+        else:
+            artwork.set_loading(True)
+            cover_art_filename_future.add_done_callback(
+                lambda f: GLib.idle_add(on_artwork_downloaded, f)
+            )
 
         widget_box.show_all()
         return widget_box
