@@ -893,7 +893,7 @@ def test_search(cache_adapter: FilesystemAdapter):
     with pytest.raises(CacheMissError):
         cache_adapter.get_song_details("s1")
 
-    search_result = SublimeAPI.SearchResult()
+    search_result = SublimeAPI.SearchResult("")
     search_result.add_results(
         "albums",
         [

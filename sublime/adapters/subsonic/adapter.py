@@ -520,9 +520,9 @@ class SubsonicAdapter(Adapter):
     def search(self, query: str) -> API.SearchResult:
         result = self._get_json(self._make_url("search3"), query=query).search_result
         if not result:
-            return API.SearchResult()
+            return API.SearchResult(query)
 
-        search_result = API.SearchResult()
+        search_result = API.SearchResult(query)
         search_result.add_results("albums", result.album)
         search_result.add_results("artists", result.artist)
         search_result.add_results("songs", result.song)

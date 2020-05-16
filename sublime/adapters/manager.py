@@ -968,7 +968,7 @@ class AdapterManager:
         return sorted(
             it,
             key=lambda x: AdapterManager._strip_ignored_articles(
-                use_ground_truth_adapter, key(x)
+                use_ground_truth_adapter, key(x).lower()
             ),
         )
 

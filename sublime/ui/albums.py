@@ -23,7 +23,7 @@ def _to_type(query_type: AlbumSearchQuery.Type) -> str:
         AlbumSearchQuery.Type.STARRED: "starred",
         AlbumSearchQuery.Type.ALPHABETICAL_BY_NAME: "alphabetical",
         AlbumSearchQuery.Type.ALPHABETICAL_BY_ARTIST: "alphabetical",
-        AlbumSearchQuery.Type.YEAR_RANGE: "year",
+        AlbumSearchQuery.Type.YEAR_RANGE: "year_range",
         AlbumSearchQuery.Type.GENRE: "genre",
     }[query_type]
 
