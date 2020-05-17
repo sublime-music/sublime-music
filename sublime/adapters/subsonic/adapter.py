@@ -42,13 +42,13 @@ except Exception:
     )
     networkmanager_imported = False
 
-SUBSONIC_ADAPTER_DEBUG_DELAY = None
-if delay_str := os.environ.get("SUBSONIC_ADAPTER_DEBUG_DELAY"):
-    SUBSONIC_ADAPTER_DEBUG_DELAY = (
-        random.uniform(*map(float, delay_str.split(",")))
-        if "," in delay_str
-        else float(delay_str)
-    )
+REQUEST_DELAY: Optional[Tuple[float, float]] = None
+if delay_str := os.environ.get("REQUEST_DELAY"):
+    if "," in delay_str:
+        high, low = map(float, delay_str.split(","))
+        REQUEST_DELAY = (high, low)
+    else:
+        REQUEST_DELAY = (float(delay_str), float(delay_str))
 
 
 class SubsonicAdapter(Adapter):
@@ -122,12 +122,16 @@ class SubsonicAdapter(Adapter):
         self.ping_process = multiprocessing.Process(target=self._check_ping_thread)
         self.ping_process.start()
 
-        # Wait for the first ping.
-        # TODO this is kinda dumb. Should probably fix it somehow.
-        while not self._first_ping_happened.value:
-            sleep(0.1)
-
         # TODO (#191): support XML?
+
+    def initial_sync(self):
+        # Wait for the ping to happen.
+        t = 0
+        while not self._server_available.value:
+            sleep(0.1)
+            t += 0.1
+            if t >= 10:  # timeout of 10 seconds on initial synchronization.
+                break
 
     def shutdown(self):
         self.ping_process.terminate()
@@ -142,8 +146,12 @@ class SubsonicAdapter(Adapter):
         # since the last successful request is high, then do another ping.
         # TODO: also use NM to detect when the connection changes and update
         # accordingly.
-        while True:
+
+        # Try 5 times to ping the server.
+        tries = 0
+        while not self._server_available.value and tries < 5:
             self._set_ping_status()
+
             self._first_ping_happened.value = True
             sleep(15)
 
@@ -233,11 +241,17 @@ class SubsonicAdapter(Adapter):
         params = {**self._get_params(), **params}
         logging.info(f"[START] get: {url}")
 
-        if SUBSONIC_ADAPTER_DEBUG_DELAY:
-            logging.info(
-                f"SUBSONIC_ADAPTER_DEBUG_DELAY enabled. Pausing for {SUBSONIC_ADAPTER_DEBUG_DELAY} seconds"  # noqa: 512
-            )
-            sleep(SUBSONIC_ADAPTER_DEBUG_DELAY)
+        if REQUEST_DELAY:
+            delay = random.uniform(*REQUEST_DELAY)
+            logging.info(f"REQUEST_DELAY enabled. Pausing for {delay} seconds")
+            sleep(delay)
+            if timeout:
+                if type(timeout) == tuple:
+                    if cast(Tuple[float, float], timeout)[0] > delay:
+                        raise TimeoutError("DUMMY TIMEOUT ERROR")
+                else:
+                    if cast(float, timeout) > delay:
+                        raise TimeoutError("DUMMY TIMEOUT ERROR")
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():

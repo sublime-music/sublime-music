@@ -20,6 +20,9 @@ from .. import (
 )
 
 
+KEYS = CachingAdapter.CachedDataKey
+
+
 class FilesystemAdapter(CachingAdapter):
     """
     Defines an adapter which retrieves its data from the local filesystem.
@@ -60,6 +63,10 @@ class FilesystemAdapter(CachingAdapter):
             models.database.create_tables(models.ALL_TABLES)
             self._migrate_db()
 
+    def initial_sync(self):
+        # TODO this is where scanning the fs should potentially happen?
+        pass
+
     def shutdown(self):
         logging.info("Shutdown complete")
 
@@ -71,23 +78,44 @@ class FilesystemAdapter(CachingAdapter):
     # Usage and Availability Properties
     # ==================================================================================
     can_be_cached = False  # Can't be cached (there's no need).
-    is_networked = False  # Can't be cached (there's no need).
+    is_networked = False  # Doesn't access the network.
     can_service_requests = True  # Can always be used to service requests.
 
     # TODO make these dependent on cache state. Need to do this kinda efficiently
-    can_get_playlists = True
-    can_get_playlist_details = True
     can_get_cover_art_uri = True
     can_get_song_uri = True
     can_get_song_details = True
-    can_get_artists = True
     can_get_artist = True
     can_get_albums = True
     can_get_album = True
     can_get_ignored_articles = True
     can_get_directory = True
-    can_get_genres = True
     can_search = True
+
+    def _can_get_key(self, cache_key: CachingAdapter.CachedDataKey) -> bool:
+        if not self.is_cache:
+            return True
+
+        # As long as there's something in the cache (even if it's not valid) it may be
+        # returned in a cache miss error.
+        query = models.CacheInfo.select().where(models.CacheInfo.cache_key == cache_key)
+        return query.count() > 0
+
+    @property
+    def can_get_playlists(self) -> bool:
+        return self._can_get_key(KEYS.PLAYLISTS)
+
+    @property
+    def can_get_playlist_details(self) -> bool:
+        return self._can_get_key(KEYS.PLAYLIST_DETAILS)
+
+    @property
+    def can_get_artists(self) -> bool:
+        return self._can_get_key(KEYS.ARTISTS)
+
+    @property
+    def can_get_genres(self) -> bool:
+        return self._can_get_key(KEYS.GENRES)
 
     supported_schemes = ("file",)
     supported_artist_query_types = {
@@ -389,8 +417,6 @@ class FilesystemAdapter(CachingAdapter):
         logging.debug(
             f"_do_ingest_new_data param={param} data_key={data_key} data={data}"
         )
-
-        KEYS = CachingAdapter.CachedDataKey
 
         def setattrs(obj: Any, data: Dict[str, Any]):
             for k, v in data.items():

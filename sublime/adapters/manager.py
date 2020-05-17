@@ -1,5 +1,7 @@
 import hashlib
 import logging
+import os
+import random
 import tempfile
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -17,6 +19,7 @@ from typing import (
     Optional,
     Sequence,
     Set,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -47,6 +50,13 @@ from .api_objects import (
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter
 
+REQUEST_DELAY: Optional[Tuple[float, float]] = None
+if delay_str := os.environ.get("REQUEST_DELAY"):
+    if "," in delay_str:
+        high, low = map(float, delay_str.split(","))
+        REQUEST_DELAY = (high, low)
+    else:
+        REQUEST_DELAY = (float(delay_str), float(delay_str))
 
 T = TypeVar("T")
 
@@ -189,9 +199,13 @@ class AdapterManager:
         this class.
         """
         raise Exception(
-            "Do not instantiate the AdapterManager. "
-            "Only use the static methods on the class."
+            "Do not instantiate the AdapterManager. Only use the static methods on the class."  # noqa: 512
         )
+
+    @staticmethod
+    def initial_sync() -> Result[None]:
+        assert AdapterManager._instance
+        return Result(AdapterManager._instance.ground_truth_adapter.initial_sync)
 
     @staticmethod
     def shutdown():
@@ -338,6 +352,13 @@ class AdapterManager:
             else:
                 logging.info(f"{uri} not found. Downloading...")
                 try:
+                    if REQUEST_DELAY is not None:
+                        delay = random.uniform(*REQUEST_DELAY)
+                        logging.info(
+                            f"REQUEST_DELAY enabled. Pausing for {delay} seconds"  # noqa: E501
+                        )
+                        sleep(delay)
+
                     data = requests.get(uri)
 
                     # TODO (#122): make better

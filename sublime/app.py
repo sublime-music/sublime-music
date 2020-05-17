@@ -149,7 +149,8 @@ class SublimeMusicApp(Gtk.Application):
                 self.window.close()
                 return
 
-        self.update_window()
+        # TODO remove?
+        # self.update_window()
 
         # Configure the players
         self.last_play_queue_update = timedelta(0)
@@ -225,6 +226,10 @@ class SublimeMusicApp(Gtk.Application):
 
         # Need to do this after we set the current device.
         self.player.volume = self.app_config.state.volume
+
+        # Update after Adapter Initial Sync
+        inital_sync_result = AdapterManager.initial_sync()
+        inital_sync_result.add_done_callback(lambda _: self.update_window())
 
         # Prompt to load the play queue from the server.
         if self.app_config.server.sync_enabled:
@@ -690,7 +695,7 @@ class SublimeMusicApp(Gtk.Application):
                 song_queue[:song_index] + song_queue[song_index + 1 :]
             )
             random.shuffle(song_queue_list)
-            song_queue = tuple(song_id, *song_queue_list)
+            song_queue = (song_id, *song_queue_list)
             song_index = 0
 
         self.play_song(
@@ -908,13 +913,12 @@ class SublimeMusicApp(Gtk.Application):
                 dialog.format_secondary_markup(resume_text)
                 result = dialog.run()
                 dialog.destroy()
-                if result != Gtk.ResponseType.YES:
-                    return
-
-            self.app_config.state.play_queue = new_play_queue
-            self.app_config.state.song_progress = play_queue.position
-
-            self.app_config.state.current_song_index = play_queue.current_index or 0
+                if result == Gtk.ResponseType.YES:
+                    self.app_config.state.play_queue = new_play_queue
+                    self.app_config.state.song_progress = play_queue.position
+                    self.app_config.state.current_song_index = (
+                        play_queue.current_index or 0
+                    )
 
             self.player.reset()
             self.update_window()

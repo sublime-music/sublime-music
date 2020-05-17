@@ -153,13 +153,13 @@ Simulating Bad Network Conditions
 
 One of the primary goals of this project is to be resilient to crappy network
 conditions. If you have good internet, you can simulate bad internet with the
-``SUBSONIC_ADAPTER_DEBUG_DELAY`` environment variable. This environment variable
-should be two values, separated by a ``,``: the lower and upper limit for the
-delay to add to each network request. The delay will be a random number between
-the lower and upper bounds. For example, the following will run Sublime Music
-and every request will have an additional 3-5 seconds of latency::
+``REQUEST_DELAY`` environment variable. This environment variable should be two
+values, separated by a ``,``: the lower and upper limit for the delay to add to
+each network request. The delay will be a random number between the lower and
+upper bounds. For example, the following will run Sublime Music and every
+request will have an additional 3-5 seconds of latency::
 
-    SUBSONIC_ADAPTER_DEBUG_DELAY=3,5 sublime-music
+    REQUEST_DELAY=3,5 sublime-music
 
 CI/CD Pipeline
 --------------

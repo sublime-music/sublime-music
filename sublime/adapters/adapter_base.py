@@ -239,12 +239,24 @@ class Adapter(abc.ABC):
         This function should be overridden by inheritors of :class:`Adapter` and should
         be used to do whatever setup is required for the adapter.
 
+        This should do the bare minimum to get things set up, since this blocks the main
+        UI loop. If you need to do longer initialization, use the :class:`initial_sync`
+        function.
+
         :param config: The adapter configuration. The keys of are the configuration
             parameter names as defined by the return value of the
             :class:`get_config_parameters` function. The values are the actual value of
             the configuration parameter.
         :param data_directory: the directory where the adapter can store data.  This
             directory is guaranteed to exist.
+        """
+
+    @abc.abstractmethod
+    def initial_sync(self):
+        """
+        Perform any operations that are required to get the adapter functioning
+        properly. For example, this function can be used to wait for an initial ping to
+        come back from the server.
         """
 
     @abc.abstractmethod

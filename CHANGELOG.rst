@@ -1,3 +1,18 @@
+v0.9.3
+======
+
+* **Features**
+
+    * The Albums tab is now paginated.
+    * You can sort the Albums tab ascending or descending.
+
+* This release has a ton of under-the-hood changes to make things more robust
+  and performant.
+
+  * The cache is now stored in a SQLite database.
+  * The cache is no longer reliant on Subsonic which will enable more backends
+    in the future.
+
 v0.9.2
 ======
 

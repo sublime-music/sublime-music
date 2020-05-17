@@ -198,6 +198,7 @@ class AlbumsPanel(Gtk.Box):
         self, app_config: AppConfiguration = None, force: bool = False,
     ):
         if not AdapterManager.can_get_genres():
+            self.updating_query = False
             return
 
         def get_genres_done(f: Result):
@@ -216,11 +217,14 @@ class AlbumsPanel(Gtk.Box):
             finally:
                 self.updating_query = False
 
-        # Never force. We invalidate the cache ourselves (force is used when
-        # sort params change). TODO I don't think that is the case now probaly can just
-        # force=force here
-        genres_future = AdapterManager.get_genres(force=False)
-        genres_future.add_done_callback(lambda f: GLib.idle_add(get_genres_done, f))
+        try:
+            # Never force. We invalidate the cache ourselves (force is used when sort
+            # params change). TODO I don't think that is the case now probaly can just
+            # force=force here
+            genres_future = AdapterManager.get_genres(force=False)
+            genres_future.add_done_callback(lambda f: GLib.idle_add(get_genres_done, f))
+        except Exception:
+            self.updating_query = False
 
     def update(self, app_config: AppConfiguration = None, force: bool = False):
         self.updating_query = True
@@ -251,9 +255,6 @@ class AlbumsPanel(Gtk.Box):
 
         self.prev_page.set_sensitive(self.album_page > 0)
         self.page_entry.set_text(str(self.album_page + 1))
-
-        # Has to be last because it resets self.updating_query
-        self.populate_genre_combo(app_config, force=force)
 
         # Show/hide the combo boxes.
         def show_if(sort_type: Iterable[AlbumSearchQuery.Type], *elements):
@@ -295,6 +296,9 @@ class AlbumsPanel(Gtk.Box):
             self.show_count_dropdown.set_active_id(
                 str(app_config.state.album_page_size)
             )
+
+        # Has to be last because it resets self.updating_query
+        self.populate_genre_combo(app_config, force=force)
 
         # At this point, the current query should be totally updated.
         self.grid_order_token = self.grid.update_params(self.current_query)
@@ -812,7 +816,7 @@ class AlbumsGrid(Gtk.Overlay):
         # Calculate the page that the currently_selected_index is in. If it's a
         # different page, then update the window.
         page_changed = False
-        if self.currently_selected_index:
+        if self.currently_selected_index is not None:
             page_of_selected_index = self.currently_selected_index // self.page_size
             if page_of_selected_index != self.page:
                 page_changed = True
