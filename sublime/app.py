@@ -887,7 +887,7 @@ class SublimeMusicApp(Gtk.Application):
     def update_play_state_from_server(self, prompt_confirm: bool = False):
         # TODO (#129): need to make the play queue list loading for the duration here if
         # prompt_confirm is False.
-        if (was_playing := self.app_config.state.playing) :
+        if not prompt_confirm and self.app_config.state.playing:
             assert self.player
             self.player.pause()
             self.app_config.state.playing = False
@@ -933,6 +933,9 @@ class SublimeMusicApp(Gtk.Application):
                 resume_text += "?"
 
                 def on_resume_click():
+                    if was_playing := self.app_config.state.playing:
+                        self.on_play_pause()
+
                     self.app_config.state.play_queue = new_play_queue
                     self.app_config.state.song_progress = play_queue.position
                     self.app_config.state.current_song_index = (

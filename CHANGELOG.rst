@@ -3,11 +3,11 @@ v0.9.3
 
 * **Features**
 
-    * The Albums tab is now paginated.
+    * The Albums tab is now paginated with configurable page sizes.
     * You can sort the Albums tab ascending or descending.
     * The amount of the song that is cached is now shown while streaming a song.
-    * The dialog for resuming a play queue from another device has been greatly
-      improved and is now less intrusive.
+    * The notification for resuming a play queue is now a non-modal
+      notification that pops up right above the player controls.
 
 * This release has a ton of under-the-hood changes to make things more robust
   and performant.

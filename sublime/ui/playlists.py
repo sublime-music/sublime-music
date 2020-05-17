@@ -171,7 +171,7 @@ class PlaylistList(Gtk.Box):
         self.update_list(**kwargs)
 
     @util.async_callback(
-        lambda *a, **k: AdapterManager.get_playlists(*a, **k),
+        AdapterManager.get_playlists,
         before_download=lambda self: self.loading_indicator.show_all(),
         on_failure=lambda self, e: self.loading_indicator.hide(),
     )
@@ -437,7 +437,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             )
 
     @util.async_callback(
-        lambda *a, **k: AdapterManager.get_playlist_details(*a, **k),
+        AdapterManager.get_playlist_details,
         before_download=lambda self: self.show_loading_all(),
         on_failure=lambda self, e: self.playlist_view_loading_box.hide(),
     )
@@ -498,7 +498,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.play_shuffle_buttons.show_all()
 
     @util.async_callback(
-        lambda *a, **k: AdapterManager.get_cover_art_filename(*a, **k),
+        AdapterManager.get_cover_art_filename,
         before_download=lambda self: self.playlist_artwork.set_loading(True),
         on_failure=lambda self, e: self.playlist_artwork.set_loading(False),
     )
@@ -711,7 +711,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
     def make_label(self, text: str = None, name: str = None, **params,) -> Gtk.Label:
         return Gtk.Label(label=text, name=name, halign=Gtk.Align.START, **params,)
 
-    @util.async_callback(lambda *a, **k: AdapterManager.get_playlist_details(*a, **k))
+    @util.async_callback(AdapterManager.get_playlist_details)
     def _update_playlist_order(
         self, playlist: PlaylistDetails, app_config: AppConfiguration, **kwargs,
     ):

@@ -218,10 +218,12 @@ class AlbumsPanel(Gtk.Box):
                 self.updating_query = False
 
         try:
-            # Never force. We invalidate the cache ourselves (force is used when sort
-            # params change). TODO I don't think that is the case now probaly can just
-            # force=force here
-            genres_future = AdapterManager.get_genres(force=False)
+            force = force and (
+                app_config is not None
+                and (state := app_config.state) is not None
+                and state.current_album_search_query.type == AlbumSearchQuery.Type.GENRE
+            )
+            genres_future = AdapterManager.get_genres(force=force)
             genres_future.add_done_callback(lambda f: GLib.idle_add(get_genres_done, f))
         except Exception:
             self.updating_query = False

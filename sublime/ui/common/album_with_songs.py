@@ -86,14 +86,14 @@ class AlbumWithSongs(Gtk.Box):
         self.play_next_btn = IconButton(
             "go-top-symbolic",
             "Play all of the songs in this album next",
-            action_name="app.play-next",
+            sensitive=False,
         )
         album_title_and_buttons.pack_start(self.play_next_btn, False, False, 5)
 
         self.add_to_queue_btn = IconButton(
             "go-jump-symbolic",
             "Add all the songs in this album to the end of the play queue",
-            action_name="app.add-to-queue",
+            sensitive=False,
         )
         album_title_and_buttons.pack_start(self.add_to_queue_btn, False, False, 5)
 
@@ -276,9 +276,12 @@ class AlbumWithSongs(Gtk.Box):
 
         self.play_btn.set_sensitive(True)
         self.shuffle_btn.set_sensitive(True)
+        self.download_all_btn.set_sensitive(AdapterManager.can_batch_download_songs())
+
         self.play_next_btn.set_action_target_value(GLib.Variant("as", song_ids))
         self.add_to_queue_btn.set_action_target_value(GLib.Variant("as", song_ids))
-        self.download_all_btn.set_sensitive(AdapterManager.can_batch_download_songs())
+        self.play_next_btn.set_action_name("app.add-to-queue")
+        self.add_to_queue_btn.set_action_name("app.play-next")
 
         util.diff_song_store(self.album_song_store, new_store)
         self.loading_indicator.hide()

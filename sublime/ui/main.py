@@ -91,7 +91,8 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def update(self, app_config: AppConfiguration, force: bool = False):
         notification = app_config.state.current_notification
-        if notification and hash(notification) != self.current_notification_hash:
+        if notification and (h := hash(notification)) != self.current_notification_hash:
+            self.current_notification_hash = h
             self.notification_text.set_markup(notification.markup)
 
             for c in self.notification_actions.get_children():
