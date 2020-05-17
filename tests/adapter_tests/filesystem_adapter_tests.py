@@ -267,11 +267,13 @@ def test_caching_get_playlist_then_details(cache_adapter: FilesystemAdapter):
 
 def test_cache_cover_art(cache_adapter: FilesystemAdapter):
     with pytest.raises(CacheMissError):
-        cache_adapter.get_cover_art_uri("pl_test1", "file")
+        cache_adapter.get_cover_art_uri("pl_test1", "file", size=300)
 
     # After ingesting the data, reading from the cache should give the exact same file.
     cache_adapter.ingest_new_data(KEYS.COVER_ART_FILE, "pl_test1", MOCK_ALBUM_ART)
-    with open(cache_adapter.get_cover_art_uri("pl_test1", "file"), "wb+") as cached:
+    with open(
+        cache_adapter.get_cover_art_uri("pl_test1", "file", size=300), "wb+"
+    ) as cached:
         with open(MOCK_ALBUM_ART, "wb+") as expected:
             assert cached.read() == expected.read()
 
@@ -294,8 +296,8 @@ def test_invalidate_playlist(cache_adapter: FilesystemAdapter):
         KEYS.COVER_ART_FILE, "pl_2", MOCK_ALBUM_ART2,
     )
 
-    stale_uri_1 = cache_adapter.get_cover_art_uri("pl_test1", "file")
-    stale_uri_2 = cache_adapter.get_cover_art_uri("pl_2", "file")
+    stale_uri_1 = cache_adapter.get_cover_art_uri("pl_test1", "file", size=300)
+    stale_uri_2 = cache_adapter.get_cover_art_uri("pl_2", "file", size=300)
 
     cache_adapter.invalidate_data(KEYS.PLAYLISTS, None)
     cache_adapter.invalidate_data(KEYS.PLAYLIST_DETAILS, "2")
@@ -311,7 +313,7 @@ def test_invalidate_playlist(cache_adapter: FilesystemAdapter):
         assert len(e.partial_data) == 2
 
     try:
-        cache_adapter.get_cover_art_uri("pl_test1", "file")
+        cache_adapter.get_cover_art_uri("pl_test1", "file", size=300)
         assert 0, "DID NOT raise CacheMissError"
     except CacheMissError as e:
         assert e.partial_data
@@ -326,7 +328,7 @@ def test_invalidate_playlist(cache_adapter: FilesystemAdapter):
     # Even though the pl_2 cover art file wasn't explicitly invalidated, it should have
     # been invalidated with the playlist details invalidation.
     try:
-        cache_adapter.get_cover_art_uri("pl_2", "file")
+        cache_adapter.get_cover_art_uri("pl_2", "file", size=300)
         assert 0, "DID NOT raise CacheMissError"
     except CacheMissError as e:
         assert e.partial_data
@@ -349,7 +351,7 @@ def test_invalidate_song_file(cache_adapter: FilesystemAdapter):
         cache_adapter.get_song_uri("1", "file")
 
     with pytest.raises(CacheMissError):
-        cache_adapter.get_cover_art_uri("s1", "file")
+        cache_adapter.get_cover_art_uri("s1", "file", size=300)
 
     # Make sure it didn't delete the other song.
     assert cache_adapter.get_song_uri("2", "file").endswith("song2.mp3")
@@ -430,7 +432,7 @@ def test_delete_playlists(cache_adapter: FilesystemAdapter):
     # Deleting a playlist with associated cover art should get rid the cover art too.
     cache_adapter.delete_data(KEYS.PLAYLIST_DETAILS, "1")
     try:
-        cache_adapter.get_cover_art_uri("pl_1", "file")
+        cache_adapter.get_cover_art_uri("pl_1", "file", size=300)
         assert 0, "DID NOT raise CacheMissError"
     except CacheMissError as e:
         assert e.partial_data is None
@@ -440,7 +442,7 @@ def test_delete_playlists(cache_adapter: FilesystemAdapter):
         MOCK_ALBUM_ART, str(cache_adapter.cover_art_dir.joinpath(MOCK_ALBUM_ART_HASH)),
     )
     try:
-        cache_adapter.get_cover_art_uri("pl_1", "file")
+        cache_adapter.get_cover_art_uri("pl_1", "file", size=300)
         assert 0, "DID NOT raise CacheMissError"
     except CacheMissError as e:
         assert e.partial_data is None
@@ -454,7 +456,7 @@ def test_delete_song_data(cache_adapter: FilesystemAdapter):
     )
 
     music_file_path = cache_adapter.get_song_uri("1", "file")
-    cover_art_path = cache_adapter.get_cover_art_uri("s1", "file")
+    cover_art_path = cache_adapter.get_cover_art_uri("s1", "file", size=300)
 
     cache_adapter.delete_data(KEYS.SONG_FILE, "1")
     cache_adapter.delete_data(KEYS.COVER_ART_FILE, "s1")
@@ -469,7 +471,7 @@ def test_delete_song_data(cache_adapter: FilesystemAdapter):
         assert e.partial_data is None
 
     try:
-        cache_adapter.get_cover_art_uri("s1", "file")
+        cache_adapter.get_cover_art_uri("s1", "file", size=300)
         assert 0, "DID NOT raise CacheMissError"
     except CacheMissError as e:
         assert e.partial_data is None
@@ -798,9 +800,9 @@ def test_caching_invalidate_artist(cache_adapter: FilesystemAdapter):
     stale_artist = cache_adapter.get_artist("artist1")
     stale_album_1 = cache_adapter.get_album("1")
     stale_album_2 = cache_adapter.get_album("2")
-    stale_artist_artwork = cache_adapter.get_cover_art_uri("image", "file")
-    stale_cover_art_1 = cache_adapter.get_cover_art_uri("1", "file")
-    stale_cover_art_2 = cache_adapter.get_cover_art_uri("2", "file")
+    stale_artist_artwork = cache_adapter.get_cover_art_uri("image", "file", size=300)
+    stale_cover_art_1 = cache_adapter.get_cover_art_uri("1", "file", size=300)
+    stale_cover_art_2 = cache_adapter.get_cover_art_uri("2", "file", size=300)
 
     cache_adapter.invalidate_data(KEYS.ARTIST, "artist1")
 
@@ -827,21 +829,21 @@ def test_caching_invalidate_artist(cache_adapter: FilesystemAdapter):
         assert e.partial_data == stale_album_2
 
     try:
-        cache_adapter.get_cover_art_uri("image", "file")
+        cache_adapter.get_cover_art_uri("image", "file", size=300)
         assert 0, "DID NOT raise CacheMissError"
     except CacheMissError as e:
         assert e.partial_data
         assert e.partial_data == stale_artist_artwork
 
     try:
-        cache_adapter.get_cover_art_uri("1", "file")
+        cache_adapter.get_cover_art_uri("1", "file", size=300)
         assert 0, "DID NOT raise CacheMissError"
     except CacheMissError as e:
         assert e.partial_data
         assert e.partial_data == stale_cover_art_1
 
     try:
-        cache_adapter.get_cover_art_uri("2", "file")
+        cache_adapter.get_cover_art_uri("2", "file", size=300)
         assert 0, "DID NOT raise CacheMissError"
     except CacheMissError as e:
         assert e.partial_data

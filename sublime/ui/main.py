@@ -6,7 +6,7 @@ from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 from sublime.adapters import AdapterManager, api_objects as API, Result
 from sublime.config import AppConfiguration
 from sublime.ui import albums, artists, browse, player_controls, playlists, util
-from sublime.ui.common import SpinnerImage
+from sublime.ui.common import IconButton, SpinnerImage
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -24,6 +24,7 @@ class MainWindow(Gtk.ApplicationWindow):
             GObject.TYPE_NONE,
             (object, bool),
         ),
+        "notification-closed": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (),),
         "go-to": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str, str),),
     }
 
@@ -43,6 +44,33 @@ class MainWindow(Gtk.ApplicationWindow):
         self.titlebar = self._create_headerbar(self.stack)
         self.set_titlebar(self.titlebar)
 
+        flowbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        notification_container = Gtk.Overlay()
+
+        notification_container.add(self.stack)
+
+        self.notification_revealer = Gtk.Revealer(
+            valign=Gtk.Align.END, halign=Gtk.Align.CENTER
+        )
+
+        notification_box = Gtk.Box(can_focus=False, valign="start", spacing=10)
+        notification_box.get_style_context().add_class("app-notification")
+
+        self.notification_text = Gtk.Label(use_markup=True)
+        notification_box.pack_start(self.notification_text, True, False, 0)
+
+        self.notification_actions = Gtk.Box()
+        notification_box.pack_start(self.notification_actions, True, False, 0)
+
+        notification_box.add(close_button := IconButton("window-close-symbolic"))
+        close_button.connect("clicked", lambda _: self.emit("notification-closed"))
+
+        self.notification_revealer.add(notification_box)
+
+        notification_container.add_overlay(self.notification_revealer)
+        flowbox.pack_start(notification_container, True, True, 0)
+
+        # Player Controls
         self.player_controls = player_controls.PlayerControls()
         self.player_controls.connect(
             "song-clicked", lambda _, *a: self.emit("song-clicked", *a)
@@ -53,15 +81,32 @@ class MainWindow(Gtk.ApplicationWindow):
         self.player_controls.connect(
             "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
         )
-
-        flowbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        flowbox.pack_start(self.stack, True, True, 0)
         flowbox.pack_start(self.player_controls, False, True, 0)
+
         self.add(flowbox)
 
         self.connect("button-release-event", self._on_button_release)
 
+    current_notification_hash = None
+
     def update(self, app_config: AppConfiguration, force: bool = False):
+        notification = app_config.state.current_notification
+        if notification and hash(notification) != self.current_notification_hash:
+            self.notification_text.set_markup(notification.markup)
+
+            for c in self.notification_actions.get_children():
+                self.notification_actions.remove(c)
+
+            for label, fn in notification.actions:
+                self.notification_actions.add(action_button := Gtk.Button(label=label))
+                action_button.connect("clicked", lambda _: fn())
+
+            self.notification_revealer.show_all()
+            self.notification_revealer.set_reveal_child(True)
+
+        if notification is None:
+            self.notification_revealer.set_reveal_child(False)
+
         # Update the Connected to label on the popup menu.
         if app_config.server:
             self.connected_to_label.set_markup(

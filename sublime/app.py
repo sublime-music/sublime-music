@@ -40,7 +40,7 @@ from .players import ChromecastPlayer, MPVPlayer, Player, PlayerEvent
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.main import MainWindow
 from .ui.settings import SettingsDialog
-from .ui.state import RepeatType
+from .ui.state import RepeatType, UIState
 
 
 class SublimeMusicApp(Gtk.Application):
@@ -128,6 +128,7 @@ class SublimeMusicApp(Gtk.Application):
         self.window.connect("song-clicked", self.on_song_clicked)
         self.window.connect("songs-removed", self.on_songs_removed)
         self.window.connect("refresh-window", self.on_refresh_window)
+        self.window.connect("notification-closed", self.on_notification_closed)
         self.window.connect("go-to", self.on_window_go_to)
         self.window.connect("key-press-event", self.on_window_key_press)
         self.window.player_controls.connect("song-scrub", self.on_song_scrub)
@@ -495,6 +496,10 @@ class SublimeMusicApp(Gtk.Application):
         for k, v in state_updates.items():
             setattr(self.app_config.state, k, v)
         self.update_window(force=force)
+
+    def on_notification_closed(self, _):
+        self.app_config.state.current_notification = None
+        self.update_window()
 
     def on_configure_servers(self, *args):
         self.show_configure_servers_dialog()
@@ -915,13 +920,6 @@ class SublimeMusicApp(Gtk.Application):
                         return
 
                 # TODO (#167): info bar here (maybe pop up above the player controls?)
-                dialog = Gtk.MessageDialog(
-                    transient_for=self.window,
-                    message_type=Gtk.MessageType.INFO,
-                    buttons=Gtk.ButtonsType.YES_NO,
-                    text="Resume Playback?",
-                )
-
                 resume_text = "Do you want to resume the play queue"
                 if play_queue.changed_by or play_queue.changed:
                     resume_text += " saved"
@@ -934,20 +932,24 @@ class SublimeMusicApp(Gtk.Application):
                         resume_text += f" at {changed_str}"
                 resume_text += "?"
 
-                dialog.format_secondary_markup(resume_text)
-                result = dialog.run()
-                dialog.destroy()
-                if result == Gtk.ResponseType.YES:
+                def on_resume_click():
                     self.app_config.state.play_queue = new_play_queue
                     self.app_config.state.song_progress = play_queue.position
                     self.app_config.state.current_song_index = (
                         play_queue.current_index or 0
                     )
                     self.player.reset()
+                    self.app_config.state.current_notification = None
                     self.update_window()
 
                     if was_playing:
                         self.on_play_pause()
+
+                self.app_config.state.current_notification = UIState.UINotification(
+                    markup=f"<b>{resume_text}</b>",
+                    actions=(("Resume", on_resume_click),),
+                )
+                self.update_window()
 
         play_queue_future = AdapterManager.get_play_queue()
         play_queue_future.add_done_callback(lambda f: GLib.idle_add(do_update, f))

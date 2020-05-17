@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from sublime.adapters import AlbumSearchQuery
 from sublime.adapters.api_objects import Genre, Song
@@ -35,6 +35,13 @@ class RepeatType(Enum):
 class UIState:
     """Represents the UI state of the application."""
 
+    @dataclass(unsafe_hash=True)
+    class UINotification:
+        markup: str
+        actions: Tuple[Tuple[str, Callable[[], None]], ...] = field(
+            default_factory=tuple
+        )
+
     version: int = 1
     playing: bool = False
     current_song_index: int = -1
@@ -55,15 +62,18 @@ class UIState:
     album_sort_direction: str = "ascending"
     album_page_size: int = 30
     album_page: int = 0
+    current_notification: Optional[UINotification] = None
 
     def __getstate__(self):
         state = self.__dict__.copy()
         del state["song_stream_cache_progress"]
+        del state["current_notification"]
         return state
 
     def __setstate__(self, state: Dict[str, Any]):
         self.__dict__.update(state)
         self.song_stream_cache_progress = None
+        self.current_notification = None
 
     class _DefaultGenre(Genre):
         def __init__(self):
@@ -83,10 +93,10 @@ class UIState:
 
     @property
     def current_song(self) -> Optional[Song]:
-        from sublime.adapters import AdapterManager
-
         if not self.play_queue or self.current_song_index < 0:
             return None
+
+        from sublime.adapters import AdapterManager
 
         current_song_id = self.play_queue[self.current_song_index]
 

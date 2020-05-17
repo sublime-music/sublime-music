@@ -557,6 +557,7 @@ class AlbumsGrid(Gtk.Overlay):
         self.detail_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self.detail_box.pack_start(Gtk.Box(), True, True, 0)
 
+        # TODO wrap in revealer?
         self.detail_box_inner = Gtk.Box()
         self.detail_box.pack_start(self.detail_box_inner, False, False, 0)
 

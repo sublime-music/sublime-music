@@ -5,6 +5,9 @@ v0.9.3
 
     * The Albums tab is now paginated.
     * You can sort the Albums tab ascending or descending.
+    * The amount of the song that is cached is now shown while streaming a song.
+    * The dialog for resuming a play queue from another device has been greatly
+      improved and is now less intrusive.
 
 * This release has a ton of under-the-hood changes to make things more robust
   and performant.

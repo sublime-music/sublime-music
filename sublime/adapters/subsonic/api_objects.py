@@ -2,6 +2,7 @@
 These are the API objects that are returned by Subsonic.
 """
 
+import hashlib
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
@@ -81,7 +82,8 @@ class Album(SublimeAPI.Album):
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ArtistAndArtistInfo(SublimeAPI.Artist):
-    id: str
+    id: str = field(init=False)
+    _id: Optional[str] = field(metadata=config(field_name="id"))
     name: str
     albums: List[Album] = field(
         default_factory=list, metadata=config(field_name="album")
@@ -99,7 +101,16 @@ class ArtistAndArtistInfo(SublimeAPI.Artist):
     music_brainz_id: Optional[str] = None
     last_fm_url: Optional[str] = None
 
+    @staticmethod
+    def _strhash(string: str) -> str:
+        return hashlib.sha1(bytes(string, "utf8")).hexdigest()
+
     def __post_init__(self):
+        self.id = (
+            self._id
+            if self._id is not None
+            else ArtistAndArtistInfo._strhash(self.name)
+        )
         self.album_count = self.album_count or len(self.albums)
         if not self.artist_image_url:
             self.artist_image_url = self.cover_art
