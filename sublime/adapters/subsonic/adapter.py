@@ -126,19 +126,16 @@ class SubsonicAdapter(Adapter):
 
     def initial_sync(self):
         # Wait for the ping to happen.
-        t = 0
-        while not self._server_available.value:
-            sleep(0.1)
-            t += 0.1
-            if t >= 10:  # timeout of 10 seconds on initial synchronization.
-                break
+        tries = 5
+        while not self._server_available.value and tries < 5:
+            self._set_ping_status()
+            tries += 1
 
     def shutdown(self):
         self.ping_process.terminate()
 
     # Availability Properties
     # ==================================================================================
-    _first_ping_happened = multiprocessing.Value("b", False)
     _server_available = multiprocessing.Value("b", False)
 
     def _check_ping_thread(self):
@@ -147,12 +144,8 @@ class SubsonicAdapter(Adapter):
         # TODO: also use NM to detect when the connection changes and update
         # accordingly.
 
-        # Try 5 times to ping the server.
-        tries = 0
-        while not self._server_available.value and tries < 5:
+        while True:
             self._set_ping_status()
-
-            self._first_ping_happened.value = True
             sleep(15)
 
     # TODO maybe expose something like this on the API?

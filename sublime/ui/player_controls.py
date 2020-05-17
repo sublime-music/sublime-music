@@ -71,7 +71,14 @@ class PlayerControls(Gtk.ActionBar):
             if app_config.state.current_song
             else None
         )
-        self.update_scrubber(app_config.state.song_progress, duration)
+        song_stream_cache_progress = (
+            app_config.state.song_stream_cache_progress
+            if app_config.state.current_song
+            else None
+        )
+        self.update_scrubber(
+            app_config.state.song_progress, duration, song_stream_cache_progress
+        )
 
         icon = "pause" if app_config.state.playing else "start"
         self.play_button.set_icon(f"media-playback-{icon}-symbolic")
@@ -306,7 +313,10 @@ class PlayerControls(Gtk.ActionBar):
         self.album_art.set_loading(False)
 
     def update_scrubber(
-        self, current: Optional[timedelta], duration: Optional[timedelta],
+        self,
+        current: Optional[timedelta],
+        duration: Optional[timedelta],
+        song_stream_cache_progress: Optional[timedelta],
     ):
         if current is None or duration is None:
             self.song_duration_label.set_text("-:--")
@@ -314,10 +324,16 @@ class PlayerControls(Gtk.ActionBar):
             self.song_scrubber.set_value(0)
             return
 
-        percent_complete = current.total_seconds() / duration.total_seconds() * 100
+        percent_complete = current / duration * 100
 
         if not self.editing:
             self.song_scrubber.set_value(percent_complete)
+
+        self.song_scrubber.set_show_fill_level(song_stream_cache_progress is not None)
+        if song_stream_cache_progress:
+            percent_cached = song_stream_cache_progress / duration * 100
+            self.song_scrubber.set_fill_level(percent_cached)
+
         self.song_duration_label.set_text(util.format_song_duration(duration))
         self.song_progress_label.set_text(
             util.format_song_duration(math.floor(current.total_seconds()))
@@ -517,6 +533,7 @@ class PlayerControls(Gtk.ActionBar):
         )
         self.song_scrubber.set_name("song-scrubber")
         self.song_scrubber.set_draw_value(False)
+        self.song_scrubber.set_restrict_to_fill_level(False)
         self.song_scrubber.connect(
             "change-value", lambda s, t, v: self.emit("song-scrub", v)
         )

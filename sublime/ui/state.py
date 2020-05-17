@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from sublime.adapters import AlbumSearchQuery
 from sublime.adapters.api_objects import Genre, Song
@@ -45,6 +45,7 @@ class UIState:
     repeat_type: RepeatType = RepeatType.NO_REPEAT
     shuffle_on: bool = False
     song_progress: timedelta = timedelta()
+    song_stream_cache_progress: Optional[timedelta] = timedelta()
     current_device: str = "this device"
     current_tab: str = "albums"
     selected_album_id: Optional[str] = None
@@ -54,6 +55,15 @@ class UIState:
     album_sort_direction: str = "ascending"
     album_page_size: int = 30
     album_page: int = 0
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state["song_stream_cache_progress"]
+        return state
+
+    def __setstate__(self, state: Dict[str, Any]):
+        self.__dict__.update(state)
+        self.song_stream_cache_progress = None
 
     class _DefaultGenre(Genre):
         def __init__(self):

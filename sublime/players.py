@@ -7,7 +7,9 @@ import os
 import socket
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass
 from datetime import timedelta
+from enum import Enum
 from time import sleep
 from typing import Any, Callable, List, Optional
 from urllib.parse import urlparse
@@ -22,14 +24,17 @@ from sublime.adapters.api_objects import Song
 from sublime.config import AppConfiguration
 
 
+@dataclass
 class PlayerEvent:
-    # TODO standardize this
-    name: str
-    value: Any
+    class Type(Enum):
+        PLAY_STATE_CHANGE = 0
+        VOLUME_CHANGE = 1
+        STREAM_CACHE_PROGRESS_CHANGE = 2
 
-    def __init__(self, name: str, value: Any):
-        self.name = name
-        self.value = value
+    type: Type
+    playing: Optional[bool] = False
+    volume: Optional[float] = 0.0
+    stream_cache_duration: Optional[float] = 0.0
 
 
 class Player(abc.ABC):
@@ -37,6 +42,7 @@ class Player(abc.ABC):
     # because it's kinda a bit strange tbh.
     _can_hotswap_source: bool
 
+    # TODO unify on_timepos_change and on_player_event?
     def __init__(
         self,
         on_timepos_change: Callable[[Optional[float]], None],
@@ -153,7 +159,7 @@ class MPVPlayer(Player):
         self._can_hotswap_source = True
 
         @self.mpv.property_observer("time-pos")
-        def time_observer(_: Any, value: Optional[float]):
+        def time_observer(_, value: Optional[float]):
             self.on_timepos_change(value)
             if value is None and self.progress_value_count > 1:
                 self.on_track_end()
@@ -163,6 +169,15 @@ class MPVPlayer(Player):
             if value:
                 with self.progress_value_lock:
                     self.progress_value_count += 1
+
+        @self.mpv.property_observer("demuxer-cache-time")
+        def cache_size_observer(_, value: Optional[float]):
+            on_player_event(
+                PlayerEvent(
+                    PlayerEvent.Type.STREAM_CACHE_PROGRESS_CHANGE,
+                    stream_cache_duration=value,
+                )
+            )
 
     def _is_playing(self) -> bool:
         return not self.mpv.pause
@@ -182,7 +197,7 @@ class MPVPlayer(Player):
             "loadfile",
             file_or_url,
             "replace",
-            f"start={progress.total_seconds()}" if progress else "",
+            f"force-seekable=yes,start={progress.total_seconds()}" if progress else "",
         )
         self._song_loaded = True
 
@@ -360,15 +375,17 @@ class ChromecastPlayer(Player):
     ):
         self.on_player_event(
             PlayerEvent(
-                "volume_change",
-                status.volume_level * 100 if not status.volume_muted else 0,
+                PlayerEvent.Type.VOLUME_CHANGE,
+                volume=(status.volume_level * 100 if not status.volume_muted else 0),
             )
         )
 
         # This normally happens when "Stop Casting" is pressed in the Google
         # Home app.
         if status.session_id is None:
-            self.on_player_event(PlayerEvent("play_state_change", False))
+            self.on_player_event(
+                PlayerEvent(PlayerEvent.Type.PLAY_STATE_CHANGE, playing=False)
+            )
             self._song_loaded = False
 
     def on_new_media_status(
@@ -386,7 +403,8 @@ class ChromecastPlayer(Player):
 
         self.on_player_event(
             PlayerEvent(
-                "play_state_change", status.player_state in ("PLAYING", "BUFFERING"),
+                PlayerEvent.Type.PLAY_STATE_CHANGE,
+                playing=(status.player_state in ("PLAYING", "BUFFERING")),
             )
         )
 

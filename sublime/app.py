@@ -174,6 +174,7 @@ class SublimeMusicApp(Gtk.Application):
                 self.window.player_controls.update_scrubber,
                 self.app_config.state.song_progress,
                 self.app_config.state.current_song.duration,
+                self.app_config.state.song_stream_cache_progress,
             )
 
             if (self.last_play_queue_update + timedelta(15)).total_seconds() <= value:
@@ -201,12 +202,34 @@ class SublimeMusicApp(Gtk.Application):
 
             GLib.idle_add(self.on_next_track)
 
-        @dbus_propagate(self)
         def on_player_event(event: PlayerEvent):
-            if event.name == "play_state_change":
-                self.app_config.state.playing = event.value
-            elif event.name == "volume_change":
-                self.app_config.state.volume = event.value
+            if event.type == PlayerEvent.Type.PLAY_STATE_CHANGE:
+                assert event.playing
+                self.app_config.state.playing = event.playing
+                if self.dbus_manager:
+                    self.dbus_manager.property_diff()
+            elif event.type == PlayerEvent.Type.VOLUME_CHANGE:
+                assert event.volume
+                self.app_config.state.volume = event.volume
+                if self.dbus_manager:
+                    self.dbus_manager.property_diff()
+            elif event.type == PlayerEvent.Type.STREAM_CACHE_PROGRESS_CHANGE:
+                if (
+                    self.loading_state
+                    or not self.window
+                    or not self.app_config.state.current_song
+                    or not event.stream_cache_duration
+                ):
+                    return
+                self.app_config.state.song_stream_cache_progress = timedelta(
+                    seconds=event.stream_cache_duration
+                )
+                GLib.idle_add(
+                    self.window.player_controls.update_scrubber,
+                    self.app_config.state.song_progress,
+                    self.app_config.state.current_song.duration,
+                    self.app_config.state.song_stream_cache_progress,
+                )
 
             self.update_window()
 
@@ -751,6 +774,7 @@ class SublimeMusicApp(Gtk.Application):
         self.window.player_controls.update_scrubber(
             self.app_config.state.song_progress,
             self.app_config.state.current_song.duration,
+            self.app_config.state.song_stream_cache_progress,
         )
 
         # If already playing, then make the player itself seek.
@@ -919,12 +943,11 @@ class SublimeMusicApp(Gtk.Application):
                     self.app_config.state.current_song_index = (
                         play_queue.current_index or 0
                     )
+                    self.player.reset()
+                    self.update_window()
 
-            self.player.reset()
-            self.update_window()
-
-            if was_playing:
-                self.on_play_pause()
+                    if was_playing:
+                        self.on_play_pause()
 
         play_queue_future = AdapterManager.get_play_queue()
         play_queue_future.add_done_callback(lambda f: GLib.idle_add(do_update, f))
