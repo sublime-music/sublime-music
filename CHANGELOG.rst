@@ -5,6 +5,7 @@ v0.9.3
 
     * The Albums tab is now paginated with configurable page sizes.
     * You can sort the Albums tab ascending or descending.
+    * Opening an closing an album on the Albums tab now has a nice animation.
     * The amount of the song that is cached is now shown while streaming a song.
     * The notification for resuming a play queue is now a non-modal
       notification that pops up right above the player controls.

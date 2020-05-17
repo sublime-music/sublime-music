@@ -537,8 +537,8 @@ class AlbumsGrid(Gtk.Overlay):
                 hexpand=True,
                 row_spacing=5,
                 column_spacing=5,
-                margin_top=12,
-                margin_bottom=12,
+                margin_top=5,
+                # margin_bottom=5,
                 homogeneous=True,
                 valign=Gtk.Align.START,
                 halign=Gtk.Align.CENTER,
@@ -556,6 +556,7 @@ class AlbumsGrid(Gtk.Overlay):
 
         grid_detail_grid_box.add(self.grid_top)
 
+        self.detail_box_revealer = Gtk.Revealer(valign=Gtk.Align.END)
         self.detail_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self.detail_box.pack_start(Gtk.Box(), True, True, 0)
 
@@ -564,7 +565,8 @@ class AlbumsGrid(Gtk.Overlay):
         self.detail_box.pack_start(self.detail_box_inner, False, False, 0)
 
         self.detail_box.pack_start(Gtk.Box(), True, True, 0)
-        grid_detail_grid_box.add(self.detail_box)
+        self.detail_box_revealer.add(self.detail_box)
+        grid_detail_grid_box.add(self.detail_box_revealer)
 
         self.grid_bottom = create_flowbox(vexpand=True)
         self.grid_bottom.connect("child-activated", self.on_child_activated)
@@ -845,6 +847,10 @@ class AlbumsGrid(Gtk.Overlay):
                 (relative_selected_index // self.items_per_row) + 1
             ) * self.items_per_row
 
+        # Unreveal the current album details first
+        if self.currently_selected_index is None:
+            self.detail_box_revealer.set_reveal_child(False)
+
         if force_reload_from_master:
             # Just remove everything and re-add all of the items.
             # TODO (#114): make this smarter somehow to avoid flicker. Maybe
@@ -856,7 +862,7 @@ class AlbumsGrid(Gtk.Overlay):
             self.list_store_bottom.splice(
                 0, len(self.list_store_bottom), window[entries_before_fold:],
             )
-        else:
+        elif self.currently_selected_index or entries_before_fold != self.page_size:
             # Move entries between the two stores.
             top_store_len = len(self.list_store_top)
             bottom_store_len = len(self.list_store_bottom)
@@ -895,14 +901,14 @@ class AlbumsGrid(Gtk.Overlay):
             detail_element.connect("song-selected", lambda *a: None)
 
             self.detail_box_inner.pack_start(detail_element, True, True, 0)
-            self.detail_box.show_all()
+            self.detail_box_inner.show_all()
+            self.detail_box_revealer.set_reveal_child(True)
 
             # TODO (#88): scroll so that the grid_top is visible, and the
             # detail_box is visible, with preference to the grid_top. May need
             # to add another flag for this function.
         else:
             self.grid_top.unselect_all()
-            self.detail_box.hide()
 
         # If we had to change the page to select the index, then update the window. It
         # should basically be a no-op.
