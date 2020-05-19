@@ -1,7 +1,5 @@
 from typing import Optional
 
-import gi
-gi.require_version('Gtk', '3.0')
 from gi.repository import GdkPixbuf, Gtk
 
 
@@ -29,14 +27,11 @@ class SpinnerImage(Gtk.Overlay):
         self.add_overlay(self.spinner)
 
     def set_from_file(self, filename: Optional[str]):
-        if filename == '':
+        if filename == "":
             filename = None
         if self.image_size is not None and filename:
             pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                filename,
-                self.image_size,
-                self.image_size,
-                True,
+                filename, self.image_size, self.image_size, True,
             )
             self.image.set_from_pixbuf(pixbuf)
         else:

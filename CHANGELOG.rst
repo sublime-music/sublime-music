@@ -1,3 +1,22 @@
+v0.9.3
+======
+
+* **Features**
+
+    * The Albums tab is now paginated with configurable page sizes.
+    * You can sort the Albums tab ascending or descending.
+    * Opening an closing an album on the Albums tab now has a nice animation.
+    * The amount of the song that is cached is now shown while streaming a song.
+    * The notification for resuming a play queue is now a non-modal
+      notification that pops up right above the player controls.
+
+* This release has a ton of under-the-hood changes to make things more robust
+  and performant.
+
+  * The cache is now stored in a SQLite database.
+  * The cache is no longer reliant on Subsonic which will enable more backends
+    in the future.
+
 v0.9.2
 ======
 

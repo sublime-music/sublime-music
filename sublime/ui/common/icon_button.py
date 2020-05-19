@@ -1,7 +1,5 @@
 from typing import Optional
 
-import gi
-gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
 
@@ -9,7 +7,7 @@ class IconButton(Gtk.Button):
     def __init__(
         self,
         icon_name: Optional[str],
-        tooltip_text: str = '',
+        tooltip_text: str = "",
         relief: bool = False,
         icon_size: Gtk.IconSize = Gtk.IconSize.BUTTON,
         label: str = None,
@@ -18,8 +16,7 @@ class IconButton(Gtk.Button):
         Gtk.Button.__init__(self, **kwargs)
 
         self.icon_size = icon_size
-        box = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL, name='icon-button-box')
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, name="icon-button-box")
 
         self.image = Gtk.Image()
         self.image.set_from_icon_name(icon_name, self.icon_size)
@@ -42,7 +39,7 @@ class IconToggleButton(Gtk.ToggleButton):
     def __init__(
         self,
         icon_name: Optional[str],
-        tooltip_text: str = '',
+        tooltip_text: str = "",
         relief: bool = False,
         icon_size: Gtk.IconSize = Gtk.IconSize.BUTTON,
         label: str = None,
@@ -50,8 +47,7 @@ class IconToggleButton(Gtk.ToggleButton):
     ):
         Gtk.ToggleButton.__init__(self, **kwargs)
         self.icon_size = icon_size
-        box = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL, name='icon-button-box')
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, name="icon-button-box")
 
         self.image = Gtk.Image()
         self.image.set_from_icon_name(icon_name, self.icon_size)

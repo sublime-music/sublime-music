@@ -19,8 +19,9 @@ lint:
     - ./cicd/install-project-deps.sh
   script:
     - pipenv run python setup.py check -mrs
+    - pipenv run black --check .
     - pipenv run flake8
-    - pipenv run mypy sublime
+    - pipenv run mypy sublime tests/**/*.py
     - pipenv run cicd/custom_style_check.py
 
 test:
@@ -47,6 +48,7 @@ build:
 
 build_flatpak:
   image: registry.gitlab.com/sumner/sublime-music/flatpak-build:latest
+  allow_failure: true
   stage: build
   script:
     - cd flatpak

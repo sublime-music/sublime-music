@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:sub="http://subsonic.org/restapi"
+           targetNamespace="http://subsonic.org/restapi"
+           attributeFormDefault="unqualified"
+           elementFormDefault="qualified"
+           version="1.2">
+
+    <xs:element name="subsonic-response" type="sub:Response"/>
+
+    <xs:complexType name="Response">
+        <xs:choice minOccurs="0" maxOccurs="1">
+            <xs:element name="musicFolders" type="sub:MusicFolders" minOccurs="1" maxOccurs="1"/>
+            <xs:element name="indexes" type="sub:Indexes" minOccurs="1" maxOccurs="1"/>
+            <xs:element name="directory" type="sub:Directory" minOccurs="1" maxOccurs="1"/>
+            <xs:element name="nowPlaying" type="sub:NowPlaying" minOccurs="1" maxOccurs="1"/>
+            <xs:element name="searchResult" type="sub:SearchResult" minOccurs="1" maxOccurs="1"/>
+            <xs:element name="playlists" type="sub:Playlists" minOccurs="1" maxOccurs="1"/>
+            <xs:element name="playlist" type="sub:Playlist" minOccurs="1" maxOccurs="1"/>
+            <xs:element name="jukeboxPlaylist" type="sub:JukeboxPlaylist" minOccurs="1" maxOccurs="1"/>
+            <xs:element name="license" type="sub:License" minOccurs="1" maxOccurs="1"/>
+            <xs:element name="chatMessages" type="sub:ChatMessages" minOccurs="1" maxOccurs="1"/>
+            <xs:element name="albumList" type="sub:AlbumList" minOccurs="1" maxOccurs="1"/>
+            <xs:element name="randomSongs" type="sub:RandomSongs" minOccurs="1" maxOccurs="1"/>
+            <xs:element name="lyrics" type="sub:Lyrics" minOccurs="1" maxOccurs="1"/>
+            <xs:element name="error" type="sub:Error" minOccurs="1" maxOccurs="1"/>
+        </xs:choice>
+        <xs:attribute name="status" type="sub:ResponseStatus" use="required"/>
+        <xs:attribute name="version" type="sub:Version" use="required"/>
+    </xs:complexType>
+
+    <xs:simpleType name="ResponseStatus">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="ok"/>
+            <xs:enumeration value="failed"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="Version">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="\d+\.\d+\.\d+"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="MusicFolders">
+        <xs:sequence>
+            <xs:element name="musicFolder" type="sub:MusicFolder" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="MusicFolder">
+            <xs:attribute name="id" type="xs:int" use="required"/>
+            <xs:attribute name="name" type="xs:string" use="optional"/>
+    </xs:complexType>
+
+    <xs:complexType name="Indexes">
+        <xs:sequence>
+            <xs:element name="shortcut" type="sub:Artist" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element name="index" type="sub:Index" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="lastModified" type="xs:long" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="Index">
+        <xs:sequence>
+            <xs:element name="artist" type="sub:Artist" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="name" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="Artist">
+        <xs:attribute name="id" type="xs:string" use="required"/>
+        <xs:attribute name="name" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="Directory">
+        <xs:sequence>
+            <xs:element name="child" type="sub:Child" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="id" type="xs:string" use="required"/>
+        <xs:attribute name="name" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="Child">
+        <xs:attribute name="id" type="xs:string" use="required"/>
+        <xs:attribute name="isDir" type="xs:boolean" use="required"/>
+        <xs:attribute name="title" type="xs:string" use="required"/>
+        <xs:attribute name="album" type="xs:string" use="optional"/>
+        <xs:attribute name="artist" type="xs:string" use="optional"/>
+        <xs:attribute name="track" type="xs:int" use="optional"/>
+        <xs:attribute name="year" type="xs:int" use="optional"/>
+        <xs:attribute name="genre" type="xs:string" use="optional"/>
+        <xs:attribute name="coverArt" type="xs:string" use="optional"/>
+        <xs:attribute name="size" type="xs:long" use="optional"/>
+        <xs:attribute name="contentType" type="xs:string" use="optional"/>
+        <xs:attribute name="suffix" type="xs:string" use="optional"/>
+        <xs:attribute name="transcodedContentType" type="xs:string" use="optional"/>
+        <xs:attribute name="transcodedSuffix" type="xs:string" use="optional"/>
+        <xs:attribute name="duration" type="xs:int" use="optional"/>
+        <xs:attribute name="bitRate" type="xs:int" use="optional"/>
+        <xs:attribute name="path" type="xs:string" use="optional"/>
+    </xs:complexType>
+
+    <xs:complexType name="NowPlaying">
+        <xs:sequence>
+            <xs:element name="entry" type="sub:NowPlayingEntry" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="NowPlayingEntry">
+        <xs:complexContent>
+            <xs:extension base="sub:Child">
+                <xs:attribute name="username" type="xs:string" use="required"/>
+                <xs:attribute name="minutesAgo" type="xs:int" use="required"/>
+                <xs:attribute name="playerId" type="xs:int" use="required"/>
+                <xs:attribute name="playerName" type="xs:string" use="optional"/>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="SearchResult">
+        <xs:sequence>
+            <xs:element name="match" type="sub:Child" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="offset" type="xs:int" use="required"/>
+        <xs:attribute name="totalHits" type="xs:int" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="Playlists">
+        <xs:sequence>
+            <xs:element name="playlist" type="sub:PlaylistIdAndName" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="PlaylistIdAndName">
+        <xs:attribute name="id" type="xs:string" use="required"/>
+        <xs:attribute name="name" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="Playlist">
+        <xs:complexContent>
+            <xs:extension base="sub:PlaylistIdAndName">
+                <xs:sequence>
+                    <xs:element name="entry" type="sub:Child" minOccurs="0" maxOccurs="unbounded"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="JukeboxPlaylist">
+        <xs:sequence>
+            <xs:element name="entry" type="sub:Child" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="currentIndex" type="xs:int" use="required"/>
+        <xs:attribute name="gain" type="xs:float" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="ChatMessages">
+        <xs:sequence>
+            <xs:element name="chatMessage" type="sub:ChatMessage" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="ChatMessage">
+        <xs:attribute name="username" type="xs:string" use="required"/>
+        <xs:attribute name="time" type="xs:long" use="required"/>
+        <xs:attribute name="message" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="AlbumList">
+        <xs:sequence>
+            <xs:element name="album" type="sub:Child" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="RandomSongs">
+        <xs:sequence>
+            <xs:element name="song" type="sub:Child" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="Lyrics" mixed="true">
+        <xs:attribute name="artist" type="xs:string" use="optional"/>
+        <xs:attribute name="title" type="xs:string" use="optional"/>
+    </xs:complexType>
+
+    <xs:complexType name="License">
+        <xs:attribute name="valid" type="xs:boolean" use="required"/>
+        <xs:attribute name="email" type="xs:string" use="optional"/>
+        <xs:attribute name="key" type="xs:string" use="optional"/>
+        <xs:attribute name="date" type="xs:dateTime" use="optional"/>
+    </xs:complexType>
+
+    <xs:complexType name="Error">
+        <xs:attribute name="code" type="xs:int" use="required"/>
+        <xs:attribute name="message" type="xs:string" use="optional"/>
+    </xs:complexType>
+
+</xs:schema>

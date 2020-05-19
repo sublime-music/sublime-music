@@ -1,3 +1,4 @@
+import abc
 import base64
 import io
 import logging
@@ -6,6 +7,9 @@ import os
 import socket
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass
+from datetime import timedelta
+from enum import Enum
 from time import sleep
 from typing import Any, Callable, List, Optional
 from urllib.parse import urlparse
@@ -15,23 +19,30 @@ import bottle
 import mpv
 import pychromecast
 
-from sublime.cache_manager import CacheManager
+from sublime.adapters import AdapterManager
+from sublime.adapters.api_objects import Song
 from sublime.config import AppConfiguration
-from sublime.server.api_objects import Child
 
 
+@dataclass
 class PlayerEvent:
-    name: str
-    value: Any
+    class Type(Enum):
+        PLAY_STATE_CHANGE = 0
+        VOLUME_CHANGE = 1
+        STREAM_CACHE_PROGRESS_CHANGE = 2
 
-    def __init__(self, name: str, value: Any):
-        self.name = name
-        self.value = value
+    type: Type
+    playing: Optional[bool] = False
+    volume: Optional[float] = 0.0
+    stream_cache_duration: Optional[float] = 0.0
 
 
-class Player:
+class Player(abc.ABC):
+    # TODO (#205): pull players out into different modules and actually document this
+    # API because it's kinda a bit strange tbh.
     _can_hotswap_source: bool
 
+    # TODO (#205): unify on_timepos_change and on_player_event?
     def __init__(
         self,
         on_timepos_change: Callable[[Optional[float]], None],
@@ -74,52 +85,58 @@ class Player:
         self._set_is_muted(value)
 
     def reset(self):
-        raise NotImplementedError(
-            'reset must be implemented by implementor of Player')
+        raise NotImplementedError("reset must be implemented by implementor of Player")
 
-    def play_media(self, file_or_url: str, progress: float, song: Child):
+    def play_media(self, file_or_url: str, progress: timedelta, song: Song):
         raise NotImplementedError(
-            'play_media must be implemented by implementor of Player')
+            "play_media must be implemented by implementor of Player"
+        )
 
     def _is_playing(self):
         raise NotImplementedError(
-            '_is_playing must be implemented by implementor of Player')
+            "_is_playing must be implemented by implementor of Player"
+        )
 
     def pause(self):
-        raise NotImplementedError(
-            'pause must be implemented by implementor of Player')
+        raise NotImplementedError("pause must be implemented by implementor of Player")
 
     def toggle_play(self):
         raise NotImplementedError(
-            'toggle_play must be implemented by implementor of Player')
+            "toggle_play must be implemented by implementor of Player"
+        )
 
-    def seek(self, value: float):
-        raise NotImplementedError(
-            'seek must be implemented by implementor of Player')
+    def seek(self, value: timedelta):
+        raise NotImplementedError("seek must be implemented by implementor of Player")
 
     def _get_timepos(self):
         raise NotImplementedError(
-            'get_timepos must be implemented by implementor of Player')
+            "get_timepos must be implemented by implementor of Player"
+        )
 
     def _get_volume(self):
         raise NotImplementedError(
-            '_get_volume must be implemented by implementor of Player')
+            "_get_volume must be implemented by implementor of Player"
+        )
 
     def _set_volume(self, value: float):
         raise NotImplementedError(
-            '_set_volume must be implemented by implementor of Player')
+            "_set_volume must be implemented by implementor of Player"
+        )
 
     def _get_is_muted(self):
         raise NotImplementedError(
-            '_get_is_muted must be implemented by implementor of Player')
+            "_get_is_muted must be implemented by implementor of Player"
+        )
 
     def _set_is_muted(self, value: bool):
         raise NotImplementedError(
-            '_set_is_muted must be implemented by implementor of Player')
+            "_set_is_muted must be implemented by implementor of Player"
+        )
 
     def shutdown(self):
         raise NotImplementedError(
-            'shutdown must be implemented by implementor of Player')
+            "shutdown must be implemented by implementor of Player"
+        )
 
 
 class MPVPlayer(Player):
@@ -130,20 +147,19 @@ class MPVPlayer(Player):
         on_player_event: Callable[[PlayerEvent], None],
         config: AppConfiguration,
     ):
-        super().__init__(
-            on_timepos_change, on_track_end, on_player_event, config)
+        super().__init__(on_timepos_change, on_track_end, on_player_event, config)
 
         self.mpv = mpv.MPV()
-        self.mpv.audio_client_name = 'sublime-music'
+        self.mpv.audio_client_name = "sublime-music"
         self.mpv.replaygain = config.replay_gain.as_string()
         self.progress_value_lock = threading.Lock()
         self.progress_value_count = 0
         self._muted = False
-        self._volume = 100.
+        self._volume = 100.0
         self._can_hotswap_source = True
 
-        @self.mpv.property_observer('time-pos')
-        def time_observer(_: Any, value: Optional[float]):
+        @self.mpv.property_observer("time-pos")
+        def time_observer(_, value: Optional[float]):
             self.on_timepos_change(value)
             if value is None and self.progress_value_count > 1:
                 self.on_track_end()
@@ -154,6 +170,15 @@ class MPVPlayer(Player):
                 with self.progress_value_lock:
                     self.progress_value_count += 1
 
+        @self.mpv.property_observer("demuxer-cache-time")
+        def cache_size_observer(_, value: Optional[float]):
+            on_player_event(
+                PlayerEvent(
+                    PlayerEvent.Type.STREAM_CACHE_PROGRESS_CHANGE,
+                    stream_cache_duration=value,
+                )
+            )
+
     def _is_playing(self) -> bool:
         return not self.mpv.pause
 
@@ -162,17 +187,17 @@ class MPVPlayer(Player):
         with self.progress_value_lock:
             self.progress_value_count = 0
 
-    def play_media(self, file_or_url: str, progress: float, song: Child):
+    def play_media(self, file_or_url: str, progress: timedelta, song: Song):
         self.had_progress_value = False
         with self.progress_value_lock:
             self.progress_value_count = 0
 
         self.mpv.pause = False
         self.mpv.command(
-            'loadfile',
+            "loadfile",
             file_or_url,
-            'replace',
-            f'start={progress}' if progress else '',
+            "replace",
+            f"force-seekable=yes,start={progress.total_seconds()}" if progress else "",
         )
         self._song_loaded = True
 
@@ -180,10 +205,10 @@ class MPVPlayer(Player):
         self.mpv.pause = True
 
     def toggle_play(self):
-        self.mpv.cycle('pause')
+        self.mpv.cycle("pause")
 
-    def seek(self, value: float):
-        self.mpv.seek(str(value), 'absolute')
+    def seek(self, value: timedelta):
+        self.mpv.seek(str(value.total_seconds()), "absolute")
 
     def _get_volume(self) -> float:
         return self._volume
@@ -236,31 +261,36 @@ class ChromecastPlayer(Player):
 
             self.app = bottle.Bottle()
 
-            @self.app.route('/')
+            @self.app.route("/")
             def index() -> str:
-                return '''
+                return """
                 <h1>Sublime Music Local Music Server</h1>
                 <p>
                     Sublime Music uses this port as a server for serving music
                     Chromecasts on the same LAN.
                 </p>
-                '''
+                """
 
-            @self.app.route('/s/<token>')
+            @self.app.route("/s/<token>")
             def stream_song(token: str) -> bytes:
-                if token != self.token:
-                    raise bottle.HTTPError(status=401, body='Invalid token.')
+                assert self.song_id
 
-                song = CacheManager.get_song_details(self.song_id).result()
-                filename, _ = CacheManager.get_song_filename_or_stream(song)
-                with open(filename, 'rb') as fin:
+                if token != self.token:
+                    raise bottle.HTTPError(status=401, body="Invalid token.")
+
+                # TODO (#189) refactor this so that the players can specify what types
+                # of URIs they can play. Set it to just ("http", "https") when streaming
+                # from the local filesystem is disabled and set it to ("file", "http",
+                # "https") in the other case.
+                song = AdapterManager.get_song_details(self.song_id).result()
+                filename = AdapterManager.get_song_filename_or_stream(song)
+                with open(filename, "rb") as fin:
                     song_buffer = io.BytesIO(fin.read())
 
                 bottle.response.set_header(
-                    'Content-Type',
-                    mimetypes.guess_type(filename)[0],
+                    "Content-Type", mimetypes.guess_type(filename)[0],
                 )
-                bottle.response.set_header('Accept-Ranges', 'bytes')
+                bottle.response.set_header("Accept-Ranges", "bytes")
                 return song_buffer.read()
 
         def set_song_and_token(self, song_id: str, token: str):
@@ -276,11 +306,11 @@ class ChromecastPlayer(Player):
     def get_chromecasts(cls) -> Future:
         def do_get_chromecasts() -> List[pychromecast.Chromecast]:
             if not ChromecastPlayer.getting_chromecasts:
-                logging.info('Getting Chromecasts')
+                logging.info("Getting Chromecasts")
                 ChromecastPlayer.getting_chromecasts = True
                 ChromecastPlayer.chromecasts = pychromecast.get_chromecasts()
             else:
-                logging.info('Already getting Chromecasts... busy wait')
+                logging.info("Already getting Chromecasts... busy wait")
                 while ChromecastPlayer.getting_chromecasts:
                     sleep(0.1)
 
@@ -291,15 +321,15 @@ class ChromecastPlayer(Player):
 
     def set_playing_chromecast(self, uuid: str):
         self.chromecast = next(
-            cc for cc in ChromecastPlayer.chromecasts
-            if cc.device.uuid == UUID(uuid))
+            cc for cc in ChromecastPlayer.chromecasts if cc.device.uuid == UUID(uuid)
+        )
 
         self.chromecast.media_controller.register_status_listener(
-            ChromecastPlayer.media_status_listener)
-        self.chromecast.register_status_listener(
-            ChromecastPlayer.cast_status_listener)
+            ChromecastPlayer.media_status_listener
+        )
+        self.chromecast.register_status_listener(ChromecastPlayer.cast_status_listener)
         self.chromecast.wait()
-        logging.info(f'Using: {self.chromecast.device.friendly_name}')
+        logging.info(f"Using: {self.chromecast.device.friendly_name}")
 
     def __init__(
         self,
@@ -308,16 +338,17 @@ class ChromecastPlayer(Player):
         on_player_event: Callable[[PlayerEvent], None],
         config: AppConfiguration,
     ):
-        super().__init__(
-            on_timepos_change, on_track_end, on_player_event, config)
+        super().__init__(on_timepos_change, on_track_end, on_player_event, config)
         self._timepos = 0.0
         self.time_incrementor_running = False
         self._can_hotswap_source = False
 
         ChromecastPlayer.cast_status_listener.on_new_cast_status = (
-            self.on_new_cast_status)
+            self.on_new_cast_status
+        )
         ChromecastPlayer.media_status_listener.on_new_media_status = (
-            self.on_new_media_status)
+            self.on_new_media_status
+        )
 
         # Set host_ip
         # TODO (#128): should have a mechanism to update this. Maybe it should
@@ -326,7 +357,7 @@ class ChromecastPlayer(Player):
         # piped over the VPN tunnel.
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(('8.8.8.8', 80))
+            s.connect(("8.8.8.8", 80))
             self.host_ip = s.getsockname()[0]
             s.close()
         except OSError:
@@ -336,42 +367,46 @@ class ChromecastPlayer(Player):
         self.serve_over_lan = config.serve_over_lan
 
         if self.serve_over_lan:
-            self.server_thread = ChromecastPlayer.ServerThread(
-                '0.0.0.0', self.port)
+            self.server_thread = ChromecastPlayer.ServerThread("0.0.0.0", self.port)
             self.server_thread.start()
 
     def on_new_cast_status(
-        self,
-        status: pychromecast.socket_client.CastStatus,
+        self, status: pychromecast.socket_client.CastStatus,
     ):
         self.on_player_event(
             PlayerEvent(
-                'volume_change',
-                status.volume_level * 100 if not status.volume_muted else 0,
-            ))
+                PlayerEvent.Type.VOLUME_CHANGE,
+                volume=(status.volume_level * 100 if not status.volume_muted else 0),
+            )
+        )
 
         # This normally happens when "Stop Casting" is pressed in the Google
         # Home app.
         if status.session_id is None:
-            self.on_player_event(PlayerEvent('play_state_change', False))
+            self.on_player_event(
+                PlayerEvent(PlayerEvent.Type.PLAY_STATE_CHANGE, playing=False)
+            )
             self._song_loaded = False
 
     def on_new_media_status(
-        self,
-        status: pychromecast.controllers.media.MediaStatus,
+        self, status: pychromecast.controllers.media.MediaStatus,
     ):
         # Detect the end of a track and go to the next one.
-        if (status.idle_reason == 'FINISHED' and status.player_state == 'IDLE'
-                and self._timepos > 0):
+        if (
+            status.idle_reason == "FINISHED"
+            and status.player_state == "IDLE"
+            and self._timepos > 0
+        ):
             self.on_track_end()
 
         self._timepos = status.current_time
 
         self.on_player_event(
             PlayerEvent(
-                'play_state_change',
-                status.player_state in ('PLAYING', 'BUFFERING'),
-            ))
+                PlayerEvent.Type.PLAY_STATE_CHANGE,
+                playing=(status.player_state in ("PLAYING", "BUFFERING")),
+            )
+        )
 
         # Start the time incrementor just in case this was a play notification.
         self.start_time_incrementor()
@@ -400,8 +435,7 @@ class ChromecastPlayer(Player):
                 if self.playing:
                     break
                 if url is not None:
-                    if (url == self.chromecast.media_controller.status
-                            .content_id):
+                    if url == self.chromecast.media_controller.status.content_id:
                         break
 
             callback()
@@ -416,40 +450,40 @@ class ChromecastPlayer(Player):
     def reset(self):
         self._song_loaded = False
 
-    def play_media(self, file_or_url: str, progress: float, song: Child):
+    def play_media(self, file_or_url: str, progress: timedelta, song: Song):
         stream_scheme = urlparse(file_or_url).scheme
         # If it's a local file, then see if we can serve it over the LAN.
         if not stream_scheme:
             if self.serve_over_lan:
-                token = base64.b64encode(os.urandom(64)).decode('ascii')
-                for r in (('+', '.'), ('/', '-'), ('=', '_')):
+                token = base64.b64encode(os.urandom(64)).decode("ascii")
+                for r in (("+", "."), ("/", "-"), ("=", "_")):
                     token = token.replace(*r)
                 self.server_thread.set_song_and_token(song.id, token)
-                file_or_url = f'http://{self.host_ip}:{self.port}/s/{token}'
+                file_or_url = f"http://{self.host_ip}:{self.port}/s/{token}"
             else:
-                file_or_url, _ = CacheManager.get_song_filename_or_stream(
-                    song,
-                    force_stream=True,
+                file_or_url = AdapterManager.get_song_filename_or_stream(
+                    song, force_stream=True,
                 )
 
-        cover_art_url = CacheManager.get_cover_art_url(song.coverArt)
+        cover_art_url = AdapterManager.get_cover_art_uri(song.cover_art, size=1000)
         self.chromecast.media_controller.play_media(
             file_or_url,
             # Just pretend that whatever we send it is mp3, even if it isn't.
-            'audio/mp3',
-            current_time=progress,
+            "audio/mp3",
+            current_time=progress.total_seconds(),
             title=song.title,
             thumb=cover_art_url,
             metadata={
-                'metadataType': 3,
-                'albumName': song.album,
-                'artist': song.artist,
-                'trackNumber': song.track,
+                "metadataType": 3,
+                "albumName": song.album.name if song.album else None,
+                "artist": song.artist.name if song.artist else None,
+                "trackNumber": song.track,
             },
         )
-        self._timepos = progress
+        self._timepos = progress.total_seconds()
 
         def on_play_begin():
+            # TODO (#206) this starts too soon, do something better
             self._song_loaded = True
             self.start_time_incrementor()
 
@@ -466,9 +500,9 @@ class ChromecastPlayer(Player):
             self.chromecast.media_controller.play()
             self.wait_for_playing(self.start_time_incrementor)
 
-    def seek(self, value: float):
+    def seek(self, value: timedelta):
         do_pause = not self.playing
-        self.chromecast.media_controller.seek(value)
+        self.chromecast.media_controller.seek(value.total_seconds())
         if do_pause:
             self.pause()
 

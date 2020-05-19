@@ -1,14 +1,15 @@
+import hashlib
 import logging
 import os
+import pickle
+from dataclasses import asdict, dataclass, field, fields
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import List, Optional
 
-try:
-    import keyring
+import yaml
 
-    has_keyring = True
-except ImportError:
-    has_keyring = False
+from sublime.ui.state import UIState
 
 
 class ReplayGainType(Enum):
@@ -17,94 +18,63 @@ class ReplayGainType(Enum):
     ALBUM = 2
 
     def as_string(self) -> str:
-        return ['no', 'track', 'album'][self.value]
+        return ["no", "track", "album"][self.value]
 
     @staticmethod
-    def from_string(replay_gain_type: str) -> 'ReplayGainType':
+    def from_string(replay_gain_type: str) -> "ReplayGainType":
         return {
-            'no': ReplayGainType.NO,
-            'disabled': ReplayGainType.NO,
-            'track': ReplayGainType.TRACK,
-            'album': ReplayGainType.ALBUM,
+            "no": ReplayGainType.NO,
+            "disabled": ReplayGainType.NO,
+            "track": ReplayGainType.TRACK,
+            "album": ReplayGainType.ALBUM,
         }[replay_gain_type.lower()]
 
 
+@dataclass
 class ServerConfiguration:
-    version: int
-    name: str
-    server_address: str
-    local_network_address: str
-    local_network_ssid: str
-    username: str
-    _password: str
-    sync_enabled: bool
-    disable_cert_verify: bool
-
-    def __init__(
-        self,
-        name: str = 'Default',
-        server_address: str = 'http://yourhost',
-        local_network_address: str = '',
-        local_network_ssid: str = '',
-        username: str = '',
-        password: str = '',
-        sync_enabled: bool = True,
-        disable_cert_verify: bool = False,
-    ):
-        self.name = name
-        self.server_address = server_address
-        self.local_network_address = local_network_address
-        self.local_network_ssid = local_network_ssid
-        self.username = username
-        self.sync_enabled = sync_enabled
-        self.disable_cert_verify = disable_cert_verify
-
-        # Try to save the password in the keyring, but if we can't, then save
-        # it in the config JSON.
-        if not has_keyring:
-            self._password = password
-        else:
-            try:
-                keyring.set_password(
-                    'com.sumnerevans.SublimeMusic',
-                    f'{self.username}@{self.server_address}',
-                    password,
-                )
-            except Exception:
-                self._password = password
+    name: str = "Default"
+    server_address: str = "http://yourhost"
+    local_network_address: str = ""
+    local_network_ssid: str = ""
+    username: str = ""
+    password: str = ""
+    sync_enabled: bool = True
+    disable_cert_verify: bool = False
+    version: int = 0
 
     def migrate(self):
-        # Try and migrate to use the system keyring, but if it fails, then we
-        # don't care.
-        if self._password and has_keyring:
-            try:
-                keyring.set_password(
-                    'com.sumnerevans.SublimeMusic',
-                    f'{self.username}@{self.server_address}',
-                    self._password,
-                )
-                self._password = None
-            except Exception:
-                pass
+        self.version = 0
 
-    @property
-    def password(self) -> str:
-        if not has_keyring:
-            return self._password
+    _strhash: Optional[str] = None
 
-        try:
-            return keyring.get_password(
-                'com.sumnerevans.SublimeMusic',
-                f'{self.username}@{self.server_address}',
-            )
-        except Exception:
-            return self._password
+    def strhash(self) -> str:
+        # TODO (#197): make this configurable by the adapters the combination of the
+        # hashes will be the hash dir
+        """
+        Returns the MD5 hash of the server's name, server address, and
+        username. This should be used whenever it's necessary to uniquely
+        identify the server, rather than using the name (which is not
+        necessarily unique).
+
+        >>> sc = ServerConfiguration(
+        ...     name='foo',
+        ...     server_address='bar',
+        ...     username='baz',
+        ... )
+        >>> sc.strhash()
+        '6df23dc03f9b54cc38a0fc1483df6e21'
+        """
+        if not self._strhash:
+            server_info = self.name + self.server_address + self.username
+            self._strhash = hashlib.md5(server_info.encode("utf-8")).hexdigest()
+        return self._strhash
 
 
+@dataclass
 class AppConfiguration:
-    servers: List[ServerConfiguration] = []
-    current_server: int = -1
-    _cache_location: str = ''
+    servers: List[ServerConfiguration] = field(default_factory=list)
+    current_server_index: int = -1
+    cache_location: str = ""
     max_cache_size_mb: int = -1  # -1 means unlimited
     always_stream: bool = False  # always stream instead of downloading songs
     download_on_stream: bool = True  # also download when streaming a song
@@ -115,53 +85,98 @@ class AppConfiguration:
     version: int = 3
     serve_over_lan: bool = True
     replay_gain: ReplayGainType = ReplayGainType.NO
+    filename: Optional[Path] = None
 
-    def to_json(self) -> Dict[str, Any]:
-        exclude = ('servers', 'replay_gain')
-        json_object = {
-            k: getattr(self, k)
-            for k in self.__annotations__.keys()
-            if k not in exclude
-        }
-        json_object.update(
-            {
-                'servers': [s.__dict__ for s in self.servers],
-                'replay_gain':
-                getattr(self, 'replay_gain', ReplayGainType.NO).value,
-            })
-        return json_object
+    @staticmethod
+    def load_from_file(filename: Path) -> "AppConfiguration":
+        args = {}
+        if filename.exists():
+            with open(filename, "r") as f:
+                field_names = {f.name for f in fields(AppConfiguration)}
+                args = yaml.load(f, Loader=yaml.CLoader).items()
+                args = dict(filter(lambda kv: kv[0] in field_names, args))
+
+        config = AppConfiguration(**args)
+        config.filename = filename
+
+        return config
+
+    def __post_init__(self):
+        # Default the cache_location to ~/.local/share/sublime-music
+        if not self.cache_location:
+            path = Path(os.environ.get("XDG_DATA_HOME") or "~/.local/share")
+            path = path.expanduser().joinpath("sublime-music").resolve()
+            self.cache_location = path.as_posix()
+
+        # Deserialize the YAML into the ServerConfiguration object.
+        if len(self.servers) > 0 and type(self.servers[0]) != ServerConfiguration:
+            self.servers = [ServerConfiguration(**sc) for sc in self.servers]
+
+        self._state = None
+        self._current_server_hash = None
 
     def migrate(self):
         for server in self.servers:
             server.migrate()
-
-        if (getattr(self, 'version') or 0) < 2:
-            logging.info('Migrating app configuration to version 2.')
-            logging.info('Setting serve_over_lan to True')
-            self.serve_over_lan = True
-
-        if (getattr(self, 'version') or 0) < 3:
-            logging.info('Migrating app configuration to version 3.')
-            logging.info('Setting replay_gain to ReplayGainType.NO')
-            self.replay_gain = ReplayGainType.NO
-
         self.version = 3
-
-    @property
-    def cache_location(self) -> str:
-        if (hasattr(self, '_cache_location')
-                and self._cache_location is not None
-                and self._cache_location != ''):
-            return self._cache_location
-        else:
-            default_cache_location = (
-                os.environ.get('XDG_DATA_HOME')
-                or os.path.expanduser('~/.local/share'))
-            return os.path.join(default_cache_location, 'sublime-music')
+        self.state.migrate()
 
     @property
     def server(self) -> Optional[ServerConfiguration]:
-        if 0 <= self.current_server < len(self.servers):
-            return self.servers[self.current_server]
+        if 0 <= self.current_server_index < len(self.servers):
+            return self.servers[self.current_server_index]
 
         return None
+
+    @property
+    def state(self) -> UIState:
+        server = self.server
+        if not server:
+            return UIState()
+
+        # If the server has changed, then retrieve the new server's state.
+        if self._current_server_hash != server.strhash():
+            self.load_state()
+
+        return self._state
+
+    def load_state(self):
+        self._state = UIState()
+        if not self.server:
+            return
+
+        self._current_server_hash = self.server.strhash()
+        if self.state_file_location.exists():
+            try:
+                with open(self.state_file_location, "rb") as f:
+                    self._state = pickle.load(f)
+            except Exception:
+                logging.warning(f"Couldn't load state from {self.state_file_location}")
+                # Just ignore any errors, it is only UI state.
+                self._state = UIState()
+
+        # Do the import in the function to avoid circular imports.
+        from sublime.adapters import AdapterManager
+
+        AdapterManager.reset(self)
+
+    @property
+    def state_file_location(self) -> Path:
+        assert self.server is not None
+        server_hash = self.server.strhash()
+
+        state_file_location = Path(os.environ.get("XDG_DATA_HOME") or "~/.local/share")
+        return state_file_location.expanduser().joinpath(
+            "sublime-music", server_hash, "state.pickle"
+        )
+
+    def save(self):
+        # Save the config as YAML.
+        self.filename.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.filename, "w+") as f:
+            f.write(yaml.dump(asdict(self)))
+
+        # Save the state for the current server.
+        self.state_file_location.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.state_file_location, "wb+") as f:
+            pickle.dump(self.state, f)

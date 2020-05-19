@@ -4,28 +4,33 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+black = "*"
 docutils = "*"
 flake8 = "*"
 flake8-annotations = "*"
+flake8-bugbear = "*"
 flake8-comprehensions = "*"
+flake8-import-order = "*"
 flake8-pep3101 = "*"
 flake8-print = "*"
 graphviz = "*"
-jedi = "*"
 lxml = "*"
 mypy = "*"
+pycodestyle = "*"
 pytest = "*"
 pytest-cov = "*"
 rope = "*"
 rst2html5 = "*"
 sphinx = "*"
-sphinx-autodoc-typehints = "*"
 sphinx-rtd-theme = "*"
 termcolor = "*"
-yapf = "*"
 
 [packages]
 sublime-music = {editable = true,extras = ["keyring"],path = "."}
+dataclasses-json = {editable = true,git = "https://github.com/lidatong/dataclasses-json",ref = "master"}
 
 [requires]
 python_version = "3.8"
+
+[pipenv]
+allow_prereleases = true
