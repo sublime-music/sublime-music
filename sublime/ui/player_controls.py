@@ -206,7 +206,6 @@ class PlayerControls(Gtk.ActionBar):
         def make_idle_index_capturing_function(
             idx: int, order_tok: int, fn: Callable[[int, int, Any], None],
         ) -> Callable[[Result], None]:
-            # TODO use partial here?
             return lambda f: GLib.idle_add(fn, idx, order_tok, f.result())
 
         def on_cover_art_future_done(

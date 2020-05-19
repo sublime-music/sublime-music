@@ -1196,17 +1196,17 @@ class AdapterManager:
     # Cache Status Methods
     # ==================================================================================
     @staticmethod
-    def get_cached_statuses(songs: Sequence[Song]) -> Sequence[SongCacheStatus]:
+    def get_cached_statuses(song_ids: Sequence[str]) -> Sequence[SongCacheStatus]:
         assert AdapterManager._instance
         if not AdapterManager._instance.caching_adapter:
-            return list(itertools.repeat(SongCacheStatus.NOT_CACHED, len(songs)))
+            return list(itertools.repeat(SongCacheStatus.NOT_CACHED, len(song_ids)))
 
         cached_statuses = AdapterManager._instance.caching_adapter.get_cached_statuses(
-            songs
+            song_ids
         )
         return [
             SongCacheStatus.DOWNLOADING
-            if song.id in AdapterManager.current_download_ids
-            else cached_statuses[song.id]
-            for song in songs
+            if song_id in AdapterManager.current_download_ids
+            else cached_statuses[song_id]
+            for song_id in song_ids
         ]

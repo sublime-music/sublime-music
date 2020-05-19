@@ -436,7 +436,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
             )
 
     _current_song_ids: List[str] = []
-    songs: List[API.Song] = []
 
     @util.async_callback(
         AdapterManager.get_playlist_details,
@@ -494,7 +493,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         if force:
             self._current_song_ids = song_ids
-            self.songs = [cast(API.Song, s) for s in songs]
 
             new_songs_store = [
                 [
@@ -506,14 +504,15 @@ class PlaylistDetailPanel(Gtk.Overlay):
                     song.id,
                 ]
                 for status_icon, song in zip(
-                    util.get_cached_status_icons(self.songs), self.songs
+                    util.get_cached_status_icons(song_ids),
+                    [cast(API.Song, s) for s in songs],
                 )
             ]
         else:
             new_songs_store = [
                 [status_icon] + song_model[1:]
                 for status_icon, song_model in zip(
-                    util.get_cached_status_icons(self.songs), self.playlist_song_store
+                    util.get_cached_status_icons(song_ids), self.playlist_song_store
                 )
             ]
 

@@ -194,7 +194,7 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(
         KEYS.PLAYLIST_DETAILS,
         "1",
-        SubsonicAPI.PlaylistWithSongs("1", "test1", songs=MOCK_SUBSONIC_SONGS[:2]),
+        SubsonicAPI.Playlist("1", "test1", songs=MOCK_SUBSONIC_SONGS[:2]),
     )
 
     playlist = cache_adapter.get_playlist_details("1")
@@ -208,7 +208,7 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(
         KEYS.PLAYLIST_DETAILS,
         "1",
-        SubsonicAPI.PlaylistWithSongs("1", "foo", songs=MOCK_SUBSONIC_SONGS),
+        SubsonicAPI.Playlist("1", "foo", songs=MOCK_SUBSONIC_SONGS),
     )
 
     playlist = cache_adapter.get_playlist_details("1")
@@ -254,13 +254,13 @@ def test_caching_get_playlist_then_details(cache_adapter: FilesystemAdapter):
 
     # Simulate getting playlist details for id=1, then id=2
     cache_adapter.ingest_new_data(
-        KEYS.PLAYLIST_DETAILS, "1", SubsonicAPI.PlaylistWithSongs("1", "test1"),
+        KEYS.PLAYLIST_DETAILS, "1", SubsonicAPI.Playlist("1", "test1"),
     )
 
     cache_adapter.ingest_new_data(
         KEYS.PLAYLIST_DETAILS,
         "2",
-        SubsonicAPI.PlaylistWithSongs("2", "test2", songs=MOCK_SUBSONIC_SONGS),
+        SubsonicAPI.Playlist("2", "test2", songs=MOCK_SUBSONIC_SONGS),
     )
 
     # Going back and getting playlist details for the first one should not
@@ -295,7 +295,7 @@ def test_invalidate_playlist(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(
         KEYS.PLAYLIST_DETAILS,
         "2",
-        SubsonicAPI.PlaylistWithSongs("2", "test2", cover_art="pl_2", songs=[]),
+        SubsonicAPI.Playlist("2", "test2", cover_art="pl_2", songs=[]),
     )
     cache_adapter.ingest_new_data(
         KEYS.COVER_ART_FILE, "pl_2", MOCK_ALBUM_ART2,
@@ -381,41 +381,35 @@ def test_malformed_song_path(cache_adapter: FilesystemAdapter):
 
 def test_get_cached_statuses(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(KEYS.SONG, "1", MOCK_SUBSONIC_SONGS[1])
-    assert cache_adapter.get_cached_statuses([cache_adapter.get_song_details("1")]) == [
-        SongCacheStatus.NOT_CACHED
-    ]
+    assert cache_adapter.get_cached_statuses(["1"]) == {"1": SongCacheStatus.NOT_CACHED}
 
     cache_adapter.ingest_new_data(KEYS.SONG_FILE, "1", (None, MOCK_SONG_FILE))
-    assert cache_adapter.get_cached_statuses([cache_adapter.get_song_details("1")]) == [
-        SongCacheStatus.CACHED
-    ]
+    assert cache_adapter.get_cached_statuses(["1"]) == {"1": SongCacheStatus.CACHED}
 
     cache_adapter.ingest_new_data(KEYS.SONG_FILE_PERMANENT, "1", None)
-    assert cache_adapter.get_cached_statuses([cache_adapter.get_song_details("1")]) == [
-        SongCacheStatus.PERMANENTLY_CACHED
-    ]
+    assert cache_adapter.get_cached_statuses(["1"]) == {
+        "1": SongCacheStatus.PERMANENTLY_CACHED
+    }
 
     cache_adapter.invalidate_data(KEYS.SONG_FILE, "1")
-    assert cache_adapter.get_cached_statuses([cache_adapter.get_song_details("1")]) == [
-        SongCacheStatus.CACHED_STALE
-    ]
+    assert cache_adapter.get_cached_statuses(["1"]) == {
+        "1": SongCacheStatus.CACHED_STALE
+    }
 
     cache_adapter.delete_data(KEYS.SONG_FILE, "1")
-    assert cache_adapter.get_cached_statuses([cache_adapter.get_song_details("1")]) == [
-        SongCacheStatus.NOT_CACHED
-    ]
+    assert cache_adapter.get_cached_statuses(["1"]) == {"1": SongCacheStatus.NOT_CACHED}
 
 
 def test_delete_playlists(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(
         KEYS.PLAYLIST_DETAILS,
         "1",
-        SubsonicAPI.PlaylistWithSongs("1", "test1", cover_art="pl_1", songs=[]),
+        SubsonicAPI.Playlist("1", "test1", cover_art="pl_1", songs=[]),
     )
     cache_adapter.ingest_new_data(
         KEYS.PLAYLIST_DETAILS,
         "2",
-        SubsonicAPI.PlaylistWithSongs("2", "test1", cover_art="pl_2", songs=[]),
+        SubsonicAPI.Playlist("2", "test1", cover_art="pl_2", songs=[]),
     )
     cache_adapter.ingest_new_data(
         KEYS.COVER_ART_FILE, "pl_1", MOCK_ALBUM_ART,

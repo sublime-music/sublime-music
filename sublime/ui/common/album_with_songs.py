@@ -266,6 +266,7 @@ class AlbumWithSongs(Gtk.Box):
         force: bool = False,
         order_token: int = None,
     ):
+        song_ids = [s.id for s in album.songs or []]
         new_store = [
             [
                 cached_status,
@@ -274,7 +275,7 @@ class AlbumWithSongs(Gtk.Box):
                 song.id,
             ]
             for cached_status, song in zip(
-                util.get_cached_status_icons(list(album.songs or [])), album.songs or []
+                util.get_cached_status_icons(song_ids), album.songs or []
             )
         ]
 

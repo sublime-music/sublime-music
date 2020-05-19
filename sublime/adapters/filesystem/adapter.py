@@ -1,5 +1,4 @@
 import hashlib
-import itertools
 import logging
 import shutil
 import threading
@@ -7,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, cast, Dict, Optional, Sequence, Set, Tuple, Union
 
-from peewee import fn
+from peewee import fn, prefetch
 
 from sublime.adapters import api_objects as API
 
@@ -194,7 +193,7 @@ class FilesystemAdapter(CachingAdapter):
     # Data Retrieval Methods
     # ==================================================================================
     def get_cached_statuses(
-        self, songs: Sequence[API.Song]
+        self, song_ids: Sequence[str]
     ) -> Dict[str, SongCacheStatus]:
         def compute_song_cache_status(song: models.Song) -> SongCacheStatus:
             file = song.file
@@ -209,18 +208,18 @@ class FilesystemAdapter(CachingAdapter):
             return SongCacheStatus.NOT_CACHED
 
         try:
-            song_models = (
-                songs
-                if isinstance(songs[0], models.Song)
-                else models.Song.select().where(
-                    models.Song.id.in_([song.id for song in songs])
-                )
+            file_models = models.CacheInfo.select().where(
+                models.CacheInfo.cache_key == KEYS.SONG_FILE
             )
-            return {s.id: compute_song_cache_status(s) for s in song_models}
+            song_models = models.Song.select().where(models.Song.id.in_(song_ids))
+            return {
+                s.id: compute_song_cache_status(s)
+                for s in prefetch(song_models, file_models)
+            }
         except Exception:
             pass
 
-        return {song.id: SongCacheStatus.NOT_CACHED for song in songs}
+        return {song_id: SongCacheStatus.NOT_CACHED for song_id in song_ids}
 
     _playlists = None
 
@@ -623,7 +622,7 @@ class FilesystemAdapter(CachingAdapter):
                 "comment": getattr(api_playlist, "comment", None),
                 "owner": getattr(api_playlist, "owner", None),
                 "public": getattr(api_playlist, "public", None),
-                "songs": [
+                "_songs": [
                     self._do_ingest_new_data(KEYS.SONG, s.id, s)
                     for s in api_playlist.songs
                 ],

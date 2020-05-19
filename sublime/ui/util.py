@@ -67,7 +67,7 @@ def format_sequence_duration(duration: Optional[timedelta]) -> str:
 
     >>> format_sequence_duration(timedelta(seconds=90))
     '1 minute, 30 seconds'
-    >>> format_sequence_duration(seconds=(60 * 60 + 120))
+    >>> format_sequence_duration(timedelta(seconds=(60 * 60 + 120)))
     '1 hour, 2 minutes'
     >>> format_sequence_duration(None)
     '0 seconds'
@@ -116,7 +116,7 @@ def dot_join(*items: Any) -> str:
     return "  •  ".join(map(str, filter(lambda x: x is not None, items)))
 
 
-def get_cached_status_icons(songs: List[Song]) -> List[str]:
+def get_cached_status_icons(song_ids: List[str]) -> List[str]:
     cache_icon = {
         SongCacheStatus.CACHED: "folder-download-symbolic",
         SongCacheStatus.PERMANENTLY_CACHED: "view-pin-symbolic",
@@ -124,7 +124,7 @@ def get_cached_status_icons(songs: List[Song]) -> List[str]:
     }
     return [
         cache_icon.get(cache_status, "")
-        for cache_status in AdapterManager.get_cached_statuses(songs)
+        for cache_status in AdapterManager.get_cached_statuses(song_ids)
     ]
 
 
@@ -173,7 +173,6 @@ def diff_model_store(store_to_edit: Any, new_store: Iterable[Any]):
     The diff here is that if there are any differences, then we refresh the
     entire list. This is because it is too hard to do editing.
     """
-    # TODO: figure out if there's a way to do editing.
     old_store = store_to_edit[:]
 
     diff = DeepDiff(old_store, new_store)
@@ -224,7 +223,7 @@ def show_song_popover(
     song_details = [
         AdapterManager.get_song_details(song_id).result() for song_id in song_ids
     ]
-    song_cache_statuses = AdapterManager.get_cached_statuses(song_details)
+    song_cache_statuses = AdapterManager.get_cached_statuses(song_ids)
     for song, status in zip(song_details, song_cache_statuses):
         # TODO lazy load these
         albums.add(album.id if (album := song.album) else None)

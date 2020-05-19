@@ -6,6 +6,7 @@ from peewee import (
     ForeignKeyField,
     IntegerField,
     Model,
+    prefetch,
     Query,
     SqliteDatabase,
     TextField,
@@ -184,7 +185,13 @@ class Playlist(BaseModel):
     changed = TzDateTimeField(null=True)
     public = BooleanField(null=True)
 
-    songs = SortedManyToManyField(Song, backref="playlists")
+    _songs = SortedManyToManyField(Song, backref="playlists")
+
+    @property
+    def songs(self) -> List[Song]:
+        albums = Album.select()
+        artists = Album.select()
+        return prefetch(self._songs, albums, artists)
 
     _cover_art = ForeignKeyField(CacheInfo, null=True)
 
@@ -230,7 +237,7 @@ ALL_TABLES = (
     Genre,
     IgnoredArticle,
     Playlist,
-    Playlist.songs.get_through_model(),
+    Playlist._songs.get_through_model(),
     SimilarArtist,
     Song,
     Version,

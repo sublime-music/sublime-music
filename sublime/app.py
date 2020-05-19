@@ -206,11 +206,13 @@ class SublimeMusicApp(Gtk.Application):
                 self.app_config.state.playing = event.playing
                 if self.dbus_manager:
                     self.dbus_manager.property_diff()
+                self.update_window()
             elif event.type == PlayerEvent.Type.VOLUME_CHANGE:
                 assert event.volume
                 self.app_config.state.volume = event.volume
                 if self.dbus_manager:
                     self.dbus_manager.property_diff()
+                self.update_window()
             elif event.type == PlayerEvent.Type.STREAM_CACHE_PROGRESS_CHANGE:
                 if (
                     self.loading_state
@@ -228,8 +230,6 @@ class SublimeMusicApp(Gtk.Application):
                     self.app_config.state.current_song.duration,
                     self.app_config.state.song_stream_cache_progress,
                 )
-
-            self.update_window()
 
         self.mpv_player = MPVPlayer(
             time_observer, on_track_end, on_player_event, self.app_config,
@@ -1151,7 +1151,6 @@ class SublimeMusicApp(Gtk.Application):
         )
 
     def save_play_queue(self):
-        # TODO let this be delayed as well
         if len(self.app_config.state.play_queue) == 0:
             return
 

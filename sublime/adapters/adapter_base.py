@@ -815,7 +815,9 @@ class CachingAdapter(Adapter):
     # Cache-Specific Methods
     # ==================================================================================
     @abc.abstractmethod
-    def get_cached_statuses(self, songs: Sequence[Song]) -> Dict[str, SongCacheStatus]:
+    def get_cached_statuses(
+        self, song_ids: Sequence[str]
+    ) -> Dict[str, SongCacheStatus]:
         """
         Returns the cache statuses for the given list of songs. See the
         :class:`SongCacheStatus` documentation for more details about what each status

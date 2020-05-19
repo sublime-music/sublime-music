@@ -250,7 +250,6 @@ class MusicDirectoryList(Gtk.Box):
         )
 
     _current_child_ids: List[str] = []
-    songs: List[API.Song] = []
 
     @util.async_callback(
         AdapterManager.get_directory,
@@ -275,7 +274,7 @@ class MusicDirectoryList(Gtk.Box):
         # The entire algorithm ends up being O(2n), but the first loop is very tight,
         # and the expensive parts of the second loop are avoided if the IDs haven't
         # changed.
-        children_ids, children = [], []
+        children_ids, children, song_ids = [], [], []
         selected_dir_idx = None
         for i, c in enumerate(directory.children):
             if i >= len(self._current_child_ids) or c.id != self._current_child_ids[i]:
@@ -287,18 +286,21 @@ class MusicDirectoryList(Gtk.Box):
             children_ids.append(c.id)
             children.append(c)
 
+            if not hasattr(c, "children"):
+                song_ids.append(c.id)
+
         if force:
             new_directories_store = []
             self._current_child_ids = children_ids
 
-            self.songs = []
+            songs = []
             for el in children:
                 if hasattr(el, "children"):
                     new_directories_store.append(
                         MusicDirectoryList.DrilldownElement(cast(API.Directory, el))
                     )
                 else:
-                    self.songs.append(cast(API.Song, el))
+                    songs.append(cast(API.Song, el))
 
             util.diff_model_store(
                 self.drilldown_directories_store, new_directories_store
@@ -312,14 +314,14 @@ class MusicDirectoryList(Gtk.Box):
                     song.id,
                 ]
                 for status_icon, song in zip(
-                    util.get_cached_status_icons(self.songs), self.songs
+                    util.get_cached_status_icons(song_ids), songs
                 )
             ]
         else:
             new_songs_store = [
                 [status_icon] + song_model[1:]
                 for status_icon, song_model in zip(
-                    util.get_cached_status_icons(self.songs), self.directory_song_store
+                    util.get_cached_status_icons(song_ids), self.directory_song_store
                 )
             ]
 

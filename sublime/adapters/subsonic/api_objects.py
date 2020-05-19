@@ -206,24 +206,9 @@ class Song(SublimeAPI.Song, DataClassJsonMixin):
 class Playlist(SublimeAPI.Playlist):
     id: str
     name: str
-    song_count: Optional[int] = None
-    duration: Optional[timedelta] = None
-    created: Optional[datetime] = None
-    changed: Optional[datetime] = None
-    comment: Optional[str] = None
-    owner: Optional[str] = None
-    public: Optional[bool] = None
-    cover_art: Optional[str] = None
-
-
-@dataclass_json(letter_case=LetterCase.CAMEL)
-@dataclass
-class PlaylistWithSongs(SublimeAPI.Playlist):
-    id: str
-    name: str
     songs: List[Song] = field(default_factory=list, metadata=config(field_name="entry"))
-    song_count: int = field(default=0)
-    duration: timedelta = field(default=timedelta())
+    song_count: Optional[int] = field(default=None)
+    duration: Optional[timedelta] = field(default=None)
     created: Optional[datetime] = None
     changed: Optional[datetime] = None
     comment: Optional[str] = None
@@ -232,12 +217,17 @@ class PlaylistWithSongs(SublimeAPI.Playlist):
     cover_art: Optional[str] = None
 
     def __post_init__(self):
-        self.song_count = self.song_count or len(self.songs)
-        self.duration = self.duration or timedelta(
-            seconds=sum(
-                s.duration.total_seconds() if s.duration else 0 for s in self.songs
+        if self.songs is None:
+            return
+        if self.song_count is None:
+            self.song_count = len(self.songs)
+
+        if self.duration is None:
+            self.duration = timedelta(
+                seconds=sum(
+                    s.duration.total_seconds() if s.duration else 0 for s in self.songs
+                )
             )
-        )
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -336,7 +326,7 @@ class Response(DataClassJsonMixin):
 
     indexes: Optional[Indexes] = None
 
-    playlist: Optional[PlaylistWithSongs] = None
+    playlist: Optional[Playlist] = None
     playlists: Optional[Playlists] = None
 
     play_queue: Optional[PlayQueue] = field(
