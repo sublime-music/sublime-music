@@ -825,19 +825,17 @@ class AlbumsGrid(Gtk.Overlay):
         page_offset = self.page_size * self.page
 
         # Calculate the look-at window.
-        models = (
-            models
-            if models is not None
-            else list(self.list_store_top) + list(self.list_store_bottom)
-        )
-        if self.sort_dir == "ascending":
-            window = models[page_offset : (page_offset + self.page_size)]
+        if models:
+            if self.sort_dir == "ascending":
+                window = models[page_offset : (page_offset + self.page_size)]
+            else:
+                reverse_sorted_models = reversed(models)
+                # remove to the offset
+                for _ in range(page_offset):
+                    next(reverse_sorted_models, page_offset)
+                window = list(itertools.islice(reverse_sorted_models, self.page_size))
         else:
-            reverse_sorted_models = reversed(models)
-            # remove to the offset
-            for _ in range(page_offset):
-                next(reverse_sorted_models, page_offset)
-            window = list(itertools.islice(reverse_sorted_models, self.page_size))
+            window = list(self.list_store_top) + list(self.list_store_bottom)
 
         # Determine where the cuttoff is between the top and bottom grids.
         entries_before_fold = self.page_size
