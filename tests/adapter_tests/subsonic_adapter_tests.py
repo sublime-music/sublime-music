@@ -253,6 +253,50 @@ def test_get_song_details(adapter: SubsonicAdapter):
         assert song.genre and song.genre.name == "Pop"
 
 
+def test_get_song_details_missing_data(adapter: SubsonicAdapter):
+    for filename, data in mock_data_files("get_song_details_no_albumid"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        song = adapter.get_song_details("1")
+        assert (song.id, song.title, song.year, song.cover_art, song.duration) == (
+            "1",
+            "Sweet Caroline",
+            2017,
+            "544",
+            timedelta(seconds=203),
+        )
+        assert song.path and song.path.endswith("Sweet Caroline.mp3")
+        assert song.parent_id == "544"
+        assert song.artist
+        assert (song.artist.id, song.artist.name) == ("60", "Neil Diamond")
+        assert song.album
+        assert (song.album.id, song.album.name) == (None, "50th Anniversary Collection")
+        assert song.genre and song.genre.name == "Pop"
+
+    for filename, data in mock_data_files("get_song_details_no_artistid"):
+        logging.info(filename)
+        logging.debug(data)
+        adapter._set_mock_data(data)
+
+        song = adapter.get_song_details("1")
+        assert (song.id, song.title, song.year, song.cover_art, song.duration) == (
+            "1",
+            "Sweet Caroline",
+            2017,
+            "544",
+            timedelta(seconds=203),
+        )
+        assert song.path and song.path.endswith("Sweet Caroline.mp3")
+        assert song.parent_id == "544"
+        assert song.artist
+        assert (song.artist.id, song.artist.name) == (None, "Neil Diamond")
+        assert song.album
+        assert (song.album.id, song.album.name) == ("88", "50th Anniversary Collection")
+        assert song.genre and song.genre.name == "Pop"
+
+
 def test_get_genres(adapter: SubsonicAdapter):
     for filename, data in mock_data_files("get_genres"):
         logging.info(filename)

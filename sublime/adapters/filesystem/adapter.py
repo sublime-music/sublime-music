@@ -1,12 +1,13 @@
 import hashlib
+import itertools
 import logging
 import shutil
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast, Dict, Optional, Sequence, Set, Union
+from typing import Any, cast, Dict, Optional, Sequence, Set, Tuple, Union
 
-from peewee import fn
+from peewee import fn, prefetch
 
 from sublime.adapters import api_objects as API
 
@@ -137,8 +138,12 @@ class FilesystemAdapter(CachingAdapter):
         model: Any,
         cache_key: CachingAdapter.CachedDataKey,
         ignore_cache_miss: bool = False,
+        where_clauses: Tuple[Any, ...] = None,
     ) -> Sequence:
-        result = list(model.select())
+        result = model.select()
+        if where_clauses is not None:
+            result = result.where(*where_clauses)
+
         if self.is_cache and not ignore_cache_miss:
             # Determine if the adapter has ingested data for this key before, and if
             # not, cache miss.
@@ -192,10 +197,11 @@ class FilesystemAdapter(CachingAdapter):
 
     # Data Retrieval Methods
     # ==================================================================================
-    def get_cached_status(self, song: API.Song) -> SongCacheStatus:
-        try:
-            song_model = self.get_song_details(song.id)
-            file = song_model.file
+    def get_cached_statuses(
+        self, songs: Sequence[API.Song]
+    ) -> Sequence[SongCacheStatus]:
+        def compute_song_cache_status(song: models.Song) -> SongCacheStatus:
+            file = song.file
             if self._compute_song_filename(file).exists():
                 if file.valid:
                     if file.cache_permanently:
@@ -204,10 +210,22 @@ class FilesystemAdapter(CachingAdapter):
 
                 # The file is on disk, but marked as stale.
                 return SongCacheStatus.CACHED_STALE
+            return SongCacheStatus.NOT_CACHED
+
+        try:
+            # TODO batch getting song details for songs that aren't already a song
+            # model?
+            song_models = [
+                song
+                if isinstance(song, models.Song)
+                else self.get_song_details(song.id)
+                for song in songs
+            ]
+            return [compute_song_cache_status(s) for s in song_models]
         except Exception:
             pass
 
-        return SongCacheStatus.NOT_CACHED
+        return list(itertools.repeat(SongCacheStatus.NOT_CACHED, len(songs)))
 
     _playlists = None
 
@@ -270,6 +288,7 @@ class FilesystemAdapter(CachingAdapter):
             models.Artist,
             CachingAdapter.CachedDataKey.ARTISTS,
             ignore_cache_miss=ignore_cache_miss,
+            where_clauses=(~(models.Artist.id.startswith("invalid:")),),
         )
 
     def get_artist(self, artist_id: str) -> API.Artist:
@@ -300,7 +319,9 @@ class FilesystemAdapter(CachingAdapter):
         # If we haven't ever cached the query result, try to construct one, and return
         # it as a CacheMissError result.
 
-        sql_query = models.Album.select()
+        sql_query = models.Album.select().where(
+            ~(models.Album.id.startswith("invalid:"))
+        )
 
         Type = AlbumSearchQuery.Type
         if query.type == Type.GENRE:
@@ -328,7 +349,10 @@ class FilesystemAdapter(CachingAdapter):
 
     def get_all_albums(self) -> Sequence[API.Album]:
         return self._get_list(
-            models.Album, CachingAdapter.CachedDataKey.ALBUMS, ignore_cache_miss=True
+            models.Album,
+            CachingAdapter.CachedDataKey.ALBUMS,
+            ignore_cache_miss=True,
+            where_clauses=(~(models.Album.id.startswith("invalid:")),),
         )
 
     def get_album(self, album_id: str) -> API.Album:
@@ -371,6 +395,9 @@ class FilesystemAdapter(CachingAdapter):
 
     # Data Ingestion Methods
     # ==================================================================================
+    def _strhash(self, string: str) -> str:
+        return hashlib.sha1(bytes(string, "utf8")).hexdigest()
+
     def ingest_new_data(
         self, data_key: CachingAdapter.CachedDataKey, param: Optional[str], data: Any,
     ):
@@ -474,8 +501,9 @@ class FilesystemAdapter(CachingAdapter):
         def ingest_album_data(
             api_album: API.Album, exclude_artist: bool = False
         ) -> models.Album:
+            album_id = api_album.id or f"invalid:{self._strhash(api_album.name)}"
             album_data = {
-                "id": api_album.id,
+                "id": album_id,
                 "name": api_album.name,
                 "created": getattr(api_album, "created", None),
                 "duration": getattr(api_album, "duration", None),
@@ -522,8 +550,9 @@ class FilesystemAdapter(CachingAdapter):
                     ]
                 ).on_conflict_replace().execute()
 
+            artist_id = api_artist.id or f"invalid:{self._strhash(api_artist.name)}"
             artist_data = {
-                "id": api_artist.id,
+                "id": artist_id,
                 "name": api_artist.name,
                 "album_count": getattr(api_artist, "album_count", None),
                 "starred": getattr(api_artist, "starred", None),
@@ -542,7 +571,7 @@ class FilesystemAdapter(CachingAdapter):
             }
 
             artist, created = models.Artist.get_or_create(
-                id=api_artist.id, defaults=artist_data
+                id=artist_id, defaults=artist_data
             )
 
             if not created:
@@ -661,6 +690,7 @@ class FilesystemAdapter(CachingAdapter):
                 ingest_artist_data(a)
             models.Artist.delete().where(
                 models.Artist.id.not_in([a.id for a in data])
+                & ~models.Artist.id.startswith("invalid")
             ).execute()
 
         elif data_key == KEYS.COVER_ART_FILE:

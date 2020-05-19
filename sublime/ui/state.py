@@ -68,12 +68,14 @@ class UIState:
         state = self.__dict__.copy()
         del state["song_stream_cache_progress"]
         del state["current_notification"]
+        del state["playing"]
         return state
 
     def __setstate__(self, state: Dict[str, Any]):
         self.__dict__.update(state)
         self.song_stream_cache_progress = None
         self.current_notification = None
+        self.playing = False
 
     class _DefaultGenre(Genre):
         def __init__(self):

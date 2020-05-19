@@ -47,8 +47,8 @@ class Genre(SublimeAPI.Genre):
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class Album(SublimeAPI.Album):
-    id: str
     name: str
+    id: Optional[str]
     cover_art: Optional[str] = None
     song_count: Optional[int] = None
     year: Optional[int] = None
@@ -73,8 +73,8 @@ class Album(SublimeAPI.Album):
         # Initialize the cross-references
         self.artist = (
             None
-            if not self.artist_id
-            else ArtistAndArtistInfo(self.artist_id, self._artist)
+            if not self.artist_id and not self._artist
+            else ArtistAndArtistInfo(id=self.artist_id, name=self._artist)
         )
         self.genre = None if not self._genre else Genre(self._genre)
 
@@ -82,9 +82,8 @@ class Album(SublimeAPI.Album):
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ArtistAndArtistInfo(SublimeAPI.Artist):
-    id: str = field(init=False)
-    _id: Optional[str] = field(metadata=config(field_name="id"))
     name: str
+    id: Optional[str]
     albums: List[Album] = field(
         default_factory=list, metadata=config(field_name="album")
     )
@@ -106,11 +105,6 @@ class ArtistAndArtistInfo(SublimeAPI.Artist):
         return hashlib.sha1(bytes(string, "utf8")).hexdigest()
 
     def __post_init__(self):
-        self.id = (
-            self._id
-            if self._id is not None
-            else ArtistAndArtistInfo._strhash(self.name)
-        )
         self.album_count = self.album_count or len(self.albums)
         if not self.artist_image_url:
             self.artist_image_url = self.cover_art
@@ -198,10 +192,12 @@ class Song(SublimeAPI.Song, DataClassJsonMixin):
         self.parent_id = (self.parent_id or "root") if self.id != "root" else None
         self.artist = (
             None
-            if not self.artist_id
-            else ArtistAndArtistInfo(self.artist_id, self._artist)
+            if not self._artist
+            else ArtistAndArtistInfo(id=self.artist_id, name=self._artist)
         )
-        self.album = None if not self.album_id else Album(self.album_id, self._album)
+        self.album = (
+            None if not self._album else Album(id=self.album_id, name=self._album)
+        )
         self.genre = None if not self._genre else Genre(self._genre)
 
 

@@ -9,7 +9,12 @@ import pytest
 
 from peewee import SelectQuery
 
-from sublime.adapters import api_objects as SublimeAPI, CacheMissError, SongCacheStatus
+from sublime.adapters import (
+    AlbumSearchQuery,
+    api_objects as SublimeAPI,
+    CacheMissError,
+    SongCacheStatus,
+)
 from sublime.adapters.filesystem import FilesystemAdapter
 from sublime.adapters.subsonic import api_objects as SubsonicAPI
 
@@ -374,36 +379,31 @@ def test_malformed_song_path(cache_adapter: FilesystemAdapter):
     assert song_uri2.endswith("fine/path/song2.mp3")
 
 
-def test_get_cached_status(cache_adapter: FilesystemAdapter):
+def test_get_cached_statuses(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(KEYS.SONG, "1", MOCK_SUBSONIC_SONGS[1])
-    assert (
-        cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
-        == SongCacheStatus.NOT_CACHED
-    )
+    assert cache_adapter.get_cached_statuses([cache_adapter.get_song_details("1")]) == [
+        SongCacheStatus.NOT_CACHED
+    ]
 
     cache_adapter.ingest_new_data(KEYS.SONG_FILE, "1", (None, MOCK_SONG_FILE))
-    assert (
-        cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
-        == SongCacheStatus.CACHED
-    )
+    assert cache_adapter.get_cached_statuses([cache_adapter.get_song_details("1")]) == [
+        SongCacheStatus.CACHED
+    ]
 
     cache_adapter.ingest_new_data(KEYS.SONG_FILE_PERMANENT, "1", None)
-    assert (
-        cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
-        == SongCacheStatus.PERMANENTLY_CACHED
-    )
+    assert cache_adapter.get_cached_statuses([cache_adapter.get_song_details("1")]) == [
+        SongCacheStatus.PERMANENTLY_CACHED
+    ]
 
     cache_adapter.invalidate_data(KEYS.SONG_FILE, "1")
-    assert (
-        cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
-        == SongCacheStatus.CACHED_STALE
-    )
+    assert cache_adapter.get_cached_statuses([cache_adapter.get_song_details("1")]) == [
+        SongCacheStatus.CACHED_STALE
+    ]
 
     cache_adapter.delete_data(KEYS.SONG_FILE, "1")
-    assert (
-        cache_adapter.get_cached_status(cache_adapter.get_song_details("1"))
-        == SongCacheStatus.NOT_CACHED
-    )
+    assert cache_adapter.get_cached_statuses([cache_adapter.get_song_details("1")]) == [
+        SongCacheStatus.NOT_CACHED
+    ]
 
 
 def test_delete_playlists(cache_adapter: FilesystemAdapter):
@@ -544,9 +544,9 @@ def test_caching_get_song_details(cache_adapter: FilesystemAdapter):
     song = cache_adapter.get_song_details("1")
     assert song.id == "1"
     assert song.title == "Song 1"
-    assert song.album
+    assert song.album and song.artist
     assert (song.album.id, song.album.name) == ("a2", "bar")
-    assert song.artist and song.artist.name == "bar"
+    assert (song.artist.id, song.artist.name) == ("art2", "bar")
     assert song.parent_id == "bar"
     assert song.duration == timedelta(seconds=10.2)
     assert song.path == "bar/song1.mp3"
@@ -554,6 +554,71 @@ def test_caching_get_song_details(cache_adapter: FilesystemAdapter):
 
     with pytest.raises(CacheMissError):
         cache_adapter.get_playlist_details("2")
+
+
+def test_caching_get_song_details_missing_data(cache_adapter: FilesystemAdapter):
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_song_details("1")
+
+    # Ingest a song without an album ID and artist ID, but with album and artist name.
+    cache_adapter.ingest_new_data(
+        KEYS.SONG,
+        "1",
+        SubsonicAPI.Song(
+            "1",
+            title="Song 1",
+            parent_id="bar",
+            _album="bar",
+            _artist="foo",
+            duration=timedelta(seconds=10.2),
+            path="foo/bar/song1.mp3",
+            _genre="Bar",
+        ),
+    )
+
+    song = cache_adapter.get_song_details("1")
+    assert song.id == "1"
+    assert song.title == "Song 1"
+    assert song.album
+    assert (song.album.id, song.album.name) == (
+        "invalid:62cdb7020ff920e5aa642c3d4066950dd1f01f4d",
+        "bar",
+    )
+    assert (song.artist.id, song.artist.name) == (
+        "invalid:0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33",
+        "foo",
+    )
+    assert song.parent_id == "bar"
+    assert song.duration == timedelta(seconds=10.2)
+    assert song.path == "foo/bar/song1.mp3"
+    assert song.genre and song.genre.name == "Bar"
+
+    # Because the album and artist are invalid (doesn't have an album/artist ID), it
+    # shouldn't show up in any results.
+    try:
+        list(
+            cache_adapter.get_albums(
+                AlbumSearchQuery(AlbumSearchQuery.Type.ALPHABETICAL_BY_NAME)
+            )
+        )
+    except CacheMissError as e:
+        assert e.partial_data is not None
+        assert len(e.partial_data) == 0
+
+    albums = list(cache_adapter.get_all_albums())
+    assert len(albums) == 0
+
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_album("invalid:62cdb7020ff920e5aa642c3d4066950dd1f01f4d")
+
+    try:
+        list(cache_adapter.get_artists())
+    except CacheMissError as e:
+        assert e.partial_data is not None
+        assert len(e.partial_data) == 0
+
+    with pytest.raises(CacheMissError):
+        cache_adapter.get_artist("invalid:0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33")
 
 
 def test_caching_less_info(cache_adapter: FilesystemAdapter):
@@ -600,8 +665,10 @@ def test_caching_get_artists(cache_adapter: FilesystemAdapter):
         KEYS.ARTISTS,
         None,
         [
-            SubsonicAPI.ArtistAndArtistInfo("1", "test1", album_count=3, albums=[]),
-            SubsonicAPI.ArtistAndArtistInfo("2", "test2", album_count=4),
+            SubsonicAPI.ArtistAndArtistInfo(
+                id="1", name="test1", album_count=3, albums=[]
+            ),
+            SubsonicAPI.ArtistAndArtistInfo(id="2", name="test2", album_count=4),
         ],
     )
 
@@ -615,8 +682,8 @@ def test_caching_get_artists(cache_adapter: FilesystemAdapter):
         KEYS.ARTISTS,
         None,
         [
-            SubsonicAPI.ArtistAndArtistInfo("1", "test1", album_count=3),
-            SubsonicAPI.ArtistAndArtistInfo("3", "test3", album_count=8),
+            SubsonicAPI.ArtistAndArtistInfo(id="1", name="test1", album_count=3),
+            SubsonicAPI.ArtistAndArtistInfo(id="3", name="test3", album_count=8),
         ],
     )
 
@@ -651,17 +718,17 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
         KEYS.ARTIST,
         "1",
         SubsonicAPI.ArtistAndArtistInfo(
-            "1",
-            "Bar",
+            id="1",
+            name="Bar",
             album_count=1,
             artist_image_url="image",
             similar_artists=[
-                SubsonicAPI.ArtistAndArtistInfo("A", "B"),
-                SubsonicAPI.ArtistAndArtistInfo("C", "D"),
+                SubsonicAPI.ArtistAndArtistInfo(id="A", name="B"),
+                SubsonicAPI.ArtistAndArtistInfo(id="C", name="D"),
             ],
             biography="this is a bio",
             music_brainz_id="mbid",
-            albums=[SubsonicAPI.Album("1", "Foo", artist_id="1")],
+            albums=[SubsonicAPI.Album(id="1", name="Foo", artist_id="1")],
         ),
     )
 
@@ -675,30 +742,32 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
         artist.music_brainz_id,
     ) == ("1", "Bar", 1, "image", "this is a bio", "mbid")
     assert artist.similar_artists == [
-        SubsonicAPI.ArtistAndArtistInfo("A", "B"),
-        SubsonicAPI.ArtistAndArtistInfo("C", "D"),
+        SubsonicAPI.ArtistAndArtistInfo(id="A", name="B"),
+        SubsonicAPI.ArtistAndArtistInfo(id="C", name="D"),
     ]
     assert artist.albums and len(artist.albums) == 1
-    assert cast(SelectQuery, artist.albums).dicts() == [SubsonicAPI.Album("1", "Foo")]
+    assert cast(SelectQuery, artist.albums).dicts() == [
+        SubsonicAPI.Album(id="1", name="Foo")
+    ]
 
     # Simulate "force refreshing" the artist details being retrieved from Subsonic.
     cache_adapter.ingest_new_data(
         KEYS.ARTIST,
         "1",
         SubsonicAPI.ArtistAndArtistInfo(
-            "1",
-            "Foo",
+            id="1",
+            name="Foo",
             album_count=2,
             artist_image_url="image2",
             similar_artists=[
-                SubsonicAPI.ArtistAndArtistInfo("A", "B"),
-                SubsonicAPI.ArtistAndArtistInfo("E", "F"),
+                SubsonicAPI.ArtistAndArtistInfo(id="A", name="B"),
+                SubsonicAPI.ArtistAndArtistInfo(id="E", name="F"),
             ],
             biography="this is a bio2",
             music_brainz_id="mbid2",
             albums=[
-                SubsonicAPI.Album("1", "Foo", artist_id="1"),
-                SubsonicAPI.Album("2", "Bar", artist_id="1"),
+                SubsonicAPI.Album(id="1", name="Foo", artist_id="1"),
+                SubsonicAPI.Album(id="2", name="Bar", artist_id="1"),
             ],
         ),
     )
@@ -713,13 +782,13 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
         artist.music_brainz_id,
     ) == ("1", "Foo", 2, "image2", "this is a bio2", "mbid2")
     assert artist.similar_artists == [
-        SubsonicAPI.ArtistAndArtistInfo("A", "B"),
-        SubsonicAPI.ArtistAndArtistInfo("E", "F"),
+        SubsonicAPI.ArtistAndArtistInfo(id="A", name="B"),
+        SubsonicAPI.ArtistAndArtistInfo(id="E", name="F"),
     ]
     assert artist.albums and len(artist.albums) == 2
     assert cast(SelectQuery, artist.albums).dicts() == [
-        SubsonicAPI.Album("1", "Foo"),
-        SubsonicAPI.Album("2", "Bar"),
+        SubsonicAPI.Album(id="1", name="Foo"),
+        SubsonicAPI.Album(id="2", name="Bar"),
     ]
 
 
@@ -732,8 +801,8 @@ def test_caching_get_album(cache_adapter: FilesystemAdapter):
         KEYS.ALBUM,
         "a1",
         SubsonicAPI.Album(
-            "a1",
-            "foo",
+            id="a1",
+            name="foo",
             cover_art="c",
             song_count=2,
             year=2020,
@@ -767,31 +836,31 @@ def test_caching_invalidate_artist(cache_adapter: FilesystemAdapter):
         KEYS.ARTIST,
         "artist1",
         SubsonicAPI.ArtistAndArtistInfo(
-            "artist1",
-            "Bar",
+            id="artist1",
+            name="Bar",
             album_count=1,
             artist_image_url="image",
             similar_artists=[
-                SubsonicAPI.ArtistAndArtistInfo("A", "B"),
-                SubsonicAPI.ArtistAndArtistInfo("C", "D"),
+                SubsonicAPI.ArtistAndArtistInfo(id="A", name="B"),
+                SubsonicAPI.ArtistAndArtistInfo(id="C", name="D"),
             ],
             biography="this is a bio",
             music_brainz_id="mbid",
             albums=[
-                SubsonicAPI.Album("1", "Foo", artist_id="1"),
-                SubsonicAPI.Album("2", "Bar", artist_id="1"),
+                SubsonicAPI.Album(id="1", name="Foo", artist_id="1"),
+                SubsonicAPI.Album(id="2", name="Bar", artist_id="1"),
             ],
         ),
     )
     cache_adapter.ingest_new_data(
         KEYS.ALBUM,
         "1",
-        SubsonicAPI.Album("1", "Foo", artist_id="artist1", cover_art="1"),
+        SubsonicAPI.Album(id="1", name="Foo", artist_id="artist1", cover_art="1"),
     )
     cache_adapter.ingest_new_data(
         KEYS.ALBUM,
         "2",
-        SubsonicAPI.Album("2", "Bar", artist_id="artist1", cover_art="2"),
+        SubsonicAPI.Album(id="2", name="Bar", artist_id="artist1", cover_art="2"),
     )
     cache_adapter.ingest_new_data(KEYS.COVER_ART_FILE, "image", MOCK_ALBUM_ART3)
     cache_adapter.ingest_new_data(KEYS.COVER_ART_FILE, "1", MOCK_ALBUM_ART)
@@ -899,15 +968,21 @@ def test_search(cache_adapter: FilesystemAdapter):
     search_result.add_results(
         "albums",
         [
-            SubsonicAPI.Album("album1", "Foo", artist_id="artist1", cover_art="cal1"),
-            SubsonicAPI.Album("album2", "Boo", artist_id="artist1", cover_art="cal2"),
+            SubsonicAPI.Album(
+                id="album1", name="Foo", artist_id="artist1", cover_art="cal1"
+            ),
+            SubsonicAPI.Album(
+                id="album2", name="Boo", artist_id="artist1", cover_art="cal2"
+            ),
         ],
     )
     search_result.add_results(
         "artists",
         [
-            SubsonicAPI.ArtistAndArtistInfo("artist1", "foo", cover_art="car1"),
-            SubsonicAPI.ArtistAndArtistInfo("artist2", "better boo", cover_art="car2"),
+            SubsonicAPI.ArtistAndArtistInfo(id="artist1", name="foo", cover_art="car1"),
+            SubsonicAPI.ArtistAndArtistInfo(
+                id="artist2", name="better boo", cover_art="car2"
+            ),
         ],
     )
     search_result.add_results(

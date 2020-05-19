@@ -132,6 +132,10 @@ class Directory(BaseModel):
             ) + list(Song.select().where(Song.parent_id == self.id))
         return self._children
 
+    @children.setter
+    def children(self, value: List[Union["Directory", "Song"]]):
+        self._children = value
+
 
 class Song(BaseModel):
     id = TextField(unique=True, primary_key=True)

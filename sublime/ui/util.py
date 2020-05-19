@@ -35,11 +35,12 @@ def format_song_duration(duration_secs: Union[int, timedelta, None]) -> str:
     >>> format_song_duration(None)
     '-:--'
     """
-    # TODO remove int compatibility eventually?
     if isinstance(duration_secs, timedelta):
         duration_secs = round(duration_secs.total_seconds())
     if duration_secs is None:
         return "-:--"
+
+    duration_secs = max(duration_secs, 0)
 
     return f"{duration_secs // 60}:{duration_secs % 60:02}"
 
@@ -121,14 +122,16 @@ def dot_join(*items: Any) -> str:
     return "  •  ".join(map(str, filter(lambda x: x is not None, items)))
 
 
-def get_cached_status_icon(song: Song) -> str:
+def get_cached_status_icons(songs: List[Song]) -> List[str]:
     cache_icon = {
-        SongCacheStatus.NOT_CACHED: "",
         SongCacheStatus.CACHED: "folder-download-symbolic",
         SongCacheStatus.PERMANENTLY_CACHED: "view-pin-symbolic",
         SongCacheStatus.DOWNLOADING: "emblem-synchronizing-symbolic",
     }
-    return cache_icon[AdapterManager.get_cached_status(song)]
+    return [
+        cache_icon.get(cache_status, "")
+        for cache_status in AdapterManager.get_cached_statuses(songs)
+    ]
 
 
 def _parse_diff_location(location: str) -> Tuple:
@@ -223,22 +226,22 @@ def show_song_popover(
     # Determine if we should enable the download button.
     download_sensitive, remove_download_sensitive = False, False
     albums, artists, parents = set(), set(), set()
-    for song_id in song_ids:
+    # TODO lazy load these
+    song_details = [
+        AdapterManager.get_song_details(song_id).result() for song_id in song_ids
+    ]
+    song_cache_statuses = AdapterManager.get_cached_statuses(song_details)
+    for song, status in zip(song_details, song_cache_statuses):
         # TODO lazy load these
-        details = AdapterManager.get_song_details(song_id).result()
-        status = AdapterManager.get_cached_status(details)
-        albums.add(album.id if (album := details.album) else None)
-        artists.add(artist.id if (artist := details.artist) else None)
-        parents.add(parent_id if (parent_id := details.parent_id) else None)
+        albums.add(album.id if (album := song.album) else None)
+        artists.add(artist.id if (artist := song.artist) else None)
+        parents.add(parent_id if (parent_id := song.parent_id) else None)
 
-        if download_sensitive or status == SongCacheStatus.NOT_CACHED:
-            download_sensitive = True
-
-        if remove_download_sensitive or status in (
+        download_sensitive |= status == SongCacheStatus.NOT_CACHED
+        remove_download_sensitive |= status in (
             SongCacheStatus.CACHED,
             SongCacheStatus.PERMANENTLY_CACHED,
-        ):
-            remove_download_sensitive = True
+        )
 
     go_to_album_button = Gtk.ModelButton(
         text="Go to album", action_name="app.go-to-album"
@@ -386,9 +389,14 @@ def async_callback(
                 )
 
                 if is_immediate:
-                    GLib.idle_add(fn)
-                else:
+                    # The data is available now, no need to wait for the future to
+                    # finish, and no need to incur the overhead of adding to the GLib
+                    # event queue.
                     fn()
+                else:
+                    # We don'h have the data, and we have to idle add so that we don't
+                    # seg fault GTK.
+                    GLib.idle_add(fn)
 
             result: Result = future_fn(
                 *args, before_download=on_before_download, force=force, **kwargs,

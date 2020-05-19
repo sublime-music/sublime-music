@@ -96,7 +96,6 @@ class ArtistList(Gtk.Box):
                     margin=12,
                     halign=Gtk.Align.START,
                     ellipsize=Pango.EllipsizeMode.END,
-                    max_width_chars=30,
                 )
             )
             row.show_all()
@@ -414,6 +413,7 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
     def get_artist_song_ids(self) -> List[str]:
         songs = []
         for album in AdapterManager.get_artist(self.artist_id).result().albums or []:
+            assert album.id
             album_songs = AdapterManager.get_album(album.id).result()
             for song in album_songs.songs or []:
                 songs.append(song.id)
@@ -455,7 +455,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
             self.spinner.hide()
             return
 
-        new_albums = list(artist.albums or [])
+        new_albums = sorted(artist.albums or [], key=lambda a: a.name)
 
         if self.albums == new_albums:
             # Just go through all of the colidren and update them.

@@ -1,12 +1,11 @@
 from functools import lru_cache
 from random import randint
-from typing import Any, Iterable, List, Tuple
+from typing import Any, cast, Iterable, List, Tuple
 
 from fuzzywuzzy import process
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager
-from sublime.adapters.api_objects import Playlist, PlaylistDetails
+from sublime.adapters import AdapterManager, api_objects as API
 from sublime.config import AppConfiguration
 from sublime.ui import util
 from sublime.ui.common import (
@@ -177,7 +176,7 @@ class PlaylistList(Gtk.Box):
     )
     def update_list(
         self,
-        playlists: List[Playlist],
+        playlists: List[API.Playlist],
         app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
@@ -436,6 +435,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 order_token=self.update_playlist_view_order_token,
             )
 
+    _current_song_ids: List[str] = []
+    songs: List[API.Song] = []
+
     @util.async_callback(
         AdapterManager.get_playlist_details,
         before_download=lambda self: self.show_loading_all(),
@@ -443,7 +445,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
     )
     def update_playlist_view(
         self,
-        playlist: PlaylistDetails,
+        playlist: API.PlaylistDetails,
         app_config: AppConfiguration = None,
         force: bool = False,
         order_token: int = None,
@@ -469,27 +471,53 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_stats.set_markup(self._format_stats(playlist))
 
         # Update the artwork.
-        self.update_playlist_artwork(
-            playlist.cover_art, order_token=order_token,
-        )
+        self.update_playlist_artwork(playlist.cover_art, order_token=order_token)
 
         # Update the song list model. This requires some fancy diffing to
         # update the list.
         self.editing_playlist_song_list = True
 
-        new_store = [
-            [
-                util.get_cached_status_icon(song),
-                song.title,
-                album.name if (album := song.album) else None,
-                artist.name if (artist := song.artist) else None,
-                util.format_song_duration(song.duration),
-                song.id,
-            ]
-            for song in playlist.songs
-        ]
+        # This doesn't look efficient, since it's doing a ton of passses over the data,
+        # but there is some annoying memory overhead for generating the stores to diff,
+        # so we are short-circuiting by checking to see if any of the the IDs have
+        # changed.
+        #
+        # The entire algorithm ends up being O(2n), but the first loop is very tight,
+        # and the expensive parts of the second loop are avoided if the IDs haven't
+        # changed.
+        song_ids, songs = [], []
+        for i, c in enumerate(playlist.songs):
+            if i >= len(self._current_song_ids) or c.id != self._current_song_ids[i]:
+                force = True
+            song_ids.append(c.id)
+            songs.append(c)
 
-        util.diff_song_store(self.playlist_song_store, new_store)
+        if force:
+            self._current_song_ids = song_ids
+            self.songs = [cast(API.Song, s) for s in songs]
+
+            new_songs_store = [
+                [
+                    status_icon,
+                    song.title,
+                    album.name if (album := song.album) else None,
+                    artist.name if (artist := song.artist) else None,
+                    util.format_song_duration(song.duration),
+                    song.id,
+                ]
+                for status_icon, song in zip(
+                    util.get_cached_status_icons(self.songs), self.songs
+                )
+            ]
+        else:
+            new_songs_store = [
+                [status_icon] + song_model[1:]
+                for status_icon, song_model in zip(
+                    util.get_cached_status_icons(self.songs), self.playlist_song_store
+                )
+            ]
+
+        util.diff_song_store(self.playlist_song_store, new_songs_store)
 
         self.editing_playlist_song_list = False
 
@@ -713,7 +741,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     @util.async_callback(AdapterManager.get_playlist_details)
     def _update_playlist_order(
-        self, playlist: PlaylistDetails, app_config: AppConfiguration, **kwargs,
+        self, playlist: API.PlaylistDetails, app_config: AppConfiguration, **kwargs,
     ):
         self.playlist_view_loading_box.show_all()
         update_playlist_future = AdapterManager.update_playlist(
@@ -730,7 +758,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             )
         )
 
-    def _format_stats(self, playlist: PlaylistDetails) -> str:
+    def _format_stats(self, playlist: API.PlaylistDetails) -> str:
         created_date_text = ""
         if playlist.created:
             created_date_text = f" on {playlist.created.strftime('%B %d, %Y')}"

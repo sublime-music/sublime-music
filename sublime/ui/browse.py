@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, cast, Optional, Tuple
+from typing import Any, cast, List, Optional, Tuple
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
@@ -61,9 +61,7 @@ class BrowsePanel(Gtk.Overlay):
                 return
 
             # TODO pass order token here?
-            self.root_directory_listing.update(
-                id_stack.result(), app_config, force=force,
-            )
+            self.root_directory_listing.update(id_stack.result(), app_config, force)
             self.spinner.hide()
 
         def calculate_path() -> Tuple[str, ...]:
@@ -253,8 +251,9 @@ class MusicDirectoryList(Gtk.Box):
             self.directory_id, force=force, order_token=self.update_order_token,
         )
 
-    # TODO this causes probalems because the callback may try and call an object that
-    # doesn't exist anymore since we delete these panels a lot.
+    _current_child_ids: List[str] = []
+    songs: List[API.Song] = []
+
     @util.async_callback(
         AdapterManager.get_directory,
         before_download=lambda self: self.loading_indicator.show(),
@@ -270,49 +269,70 @@ class MusicDirectoryList(Gtk.Box):
         if order_token != self.update_order_token:
             return
 
-        new_directories_store = []
-        new_songs_store = []
+        # This doesn't look efficient, since it's doing a ton of passses over the data,
+        # but there is some annoying memory overhead for generating the stores to diff,
+        # so we are short-circuiting by checking to see if any of the the IDs have
+        # changed.
+        #
+        # The entire algorithm ends up being O(2n), but the first loop is very tight,
+        # and the expensive parts of the second loop are avoided if the IDs haven't
+        # changed.
+        children_ids, children = [], []
         selected_dir_idx = None
+        for i, c in enumerate(directory.children):
+            if i >= len(self._current_child_ids) or c.id != self._current_child_ids[i]:
+                force = True
 
-        for el in directory.children:
-            if hasattr(el, "children"):
-                new_directories_store.append(
-                    MusicDirectoryList.DrilldownElement(cast(API.Directory, el))
+            if c.id == self.selected_id:
+                selected_dir_idx = i
+
+            children_ids.append(c.id)
+            children.append(c)
+
+        if force:
+            new_directories_store = []
+            self._current_child_ids = children_ids
+
+            self.songs = []
+            for el in children:
+                if hasattr(el, "children"):
+                    new_directories_store.append(
+                        MusicDirectoryList.DrilldownElement(cast(API.Directory, el))
+                    )
+                else:
+                    self.songs.append(cast(API.Song, el))
+
+            util.diff_model_store(
+                self.drilldown_directories_store, new_directories_store
+            )
+
+            new_songs_store = [
+                [
+                    status_icon,
+                    util.esc(song.title),
+                    util.format_song_duration(song.duration),
+                    song.id,
+                ]
+                for status_icon, song in zip(
+                    util.get_cached_status_icons(self.songs), self.songs
                 )
-            else:
-                song = cast(API.Song, el)
-                new_songs_store.append(
-                    [
-                        util.get_cached_status_icon(song),
-                        util.esc(song.title),
-                        util.format_song_duration(song.duration),
-                        song.id,
-                    ]
+            ]
+        else:
+            new_songs_store = [
+                [status_icon] + song_model[1:]
+                for status_icon, song_model in zip(
+                    util.get_cached_status_icons(self.songs), self.directory_song_store
                 )
+            ]
 
-        # TODO figure out a way to push the sorting into the AdapterManager.
-        # start = time()
-        new_directories_store = AdapterManager.sort_by_ignored_articles(
-            new_directories_store, key=lambda d: d.name, use_ground_truth_adapter=force
-        )
-        new_songs_store = AdapterManager.sort_by_ignored_articles(
-            new_songs_store, key=lambda s: s[1], use_ground_truth_adapter=force
-        )
-        # print("CONSTRUCTING STORE TOOK", time() - start, force)
-
-        for idx, el in enumerate(new_directories_store):
-            if el.id == self.selected_id:
-                selected_dir_idx = idx
-
-        util.diff_model_store(self.drilldown_directories_store, new_directories_store)
         util.diff_song_store(self.directory_song_store, new_songs_store)
 
-        if len(new_directories_store) == 0:
+        if len(self.drilldown_directories_store) == 0:
             self.list.hide()
         else:
             self.list.show()
 
-        if len(new_songs_store) == 0:
+        if len(self.directory_song_store) == 0:
             self.directory_song_list.hide()
             self.scroll_window.set_min_content_width(275)
         else:

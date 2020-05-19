@@ -815,11 +815,12 @@ class CachingAdapter(Adapter):
     # Cache-Specific Methods
     # ==================================================================================
     @abc.abstractmethod
-    def get_cached_status(self, song: Song) -> SongCacheStatus:
+    def get_cached_statuses(self, songs: Sequence[Song]) -> Sequence[SongCacheStatus]:
         """
-        Returns the cache status of a given song. See the :class:`SongCacheStatus`
-        documentation for more details about what each status means.
+        Returns the cache statuses for the given list of songs. See the
+        :class:`SongCacheStatus` documentation for more details about what each status
+        means.
 
-        :params song: The song to get the cache status for.
-        :returns: The :class:`SongCacheStatus` for the song.
+        :params songs: The songs to get the cache status for.
+        :returns: A list of :class:`SongCacheStatus` objects for each of the songs.
         """

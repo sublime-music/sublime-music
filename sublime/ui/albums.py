@@ -95,7 +95,6 @@ class AlbumsPanel(Gtk.Box):
         )
         actionbar.pack_start(self.alphabetical_type_combo)
 
-        # TODO: Sort genre combo box alphabetically?
         self.genre_combo, self.genre_combo_store = self.make_combobox(
             (), self.on_genre_change
         )
@@ -203,9 +202,8 @@ class AlbumsPanel(Gtk.Box):
 
         def get_genres_done(f: Result):
             try:
-                new_store = [
-                    (genre.name, genre.name, True) for genre in (f.result() or [])
-                ]
+                genre_names = map(lambda g: g.name, f.result() or [])
+                new_store = [(name, name, True) for name in sorted(genre_names)]
 
                 util.diff_song_store(self.genre_combo_store, new_store)
 
@@ -497,10 +495,11 @@ class AlbumsGrid(Gtk.Overlay):
 
         @property
         def id(self) -> str:
+            assert self.album.id
             return self.album.id
 
         def __repr__(self) -> str:
-            return f"<AlbumsGrid.AlbumModel {self.album}>"
+            return f"<AlbumsGrid._AlbumModel {self.album}>"
 
     current_query: AlbumSearchQuery = AlbumSearchQuery(AlbumSearchQuery.Type.RANDOM)
     current_models: List[_AlbumModel] = []
@@ -538,7 +537,6 @@ class AlbumsGrid(Gtk.Overlay):
                 row_spacing=5,
                 column_spacing=5,
                 margin_top=5,
-                # margin_bottom=5,
                 homogeneous=True,
                 valign=Gtk.Align.START,
                 halign=Gtk.Align.CENTER,
@@ -560,7 +558,6 @@ class AlbumsGrid(Gtk.Overlay):
         self.detail_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self.detail_box.pack_start(Gtk.Box(), True, True, 0)
 
-        # TODO wrap in revealer?
         self.detail_box_inner = Gtk.Box()
         self.detail_box.pack_start(self.detail_box_inner, False, False, 0)
 
@@ -745,7 +742,8 @@ class AlbumsGrid(Gtk.Overlay):
             self.emit("cover-clicked", self.list_store_bottom[selected_index].id)
 
     def on_grid_resize(self, flowbox: Gtk.FlowBox, rect: Gdk.Rectangle):
-        # TODO (#124): this doesn't work with themes that add extra padding.
+        # TODO (#124): this doesn't work at all consistency, especially with themes that
+        #              add extra padding.
         # 200     + (10      * 2) + (5      * 2) = 230
         # picture + (padding * 2) + (margin * 2)
         new_items_per_row = min((rect.width // 230), 10)
@@ -755,7 +753,7 @@ class AlbumsGrid(Gtk.Overlay):
                 self.items_per_row * 230 - 10, -1,
             )
 
-            self.reflow_grids()
+            self.reflow_grids(force_reload_from_master=True)
 
     # Helper Methods
     # =========================================================================
@@ -829,7 +827,11 @@ class AlbumsGrid(Gtk.Overlay):
         page_offset = self.page_size * self.page
 
         # Calculate the look-at window.
-        models = models if models is not None else self.list_store_top
+        models = (
+            models
+            if models is not None
+            else list(self.list_store_top) + list(self.list_store_bottom)
+        )
         if self.sort_dir == "ascending":
             window = models[page_offset : (page_offset + self.page_size)]
         else:
@@ -852,10 +854,8 @@ class AlbumsGrid(Gtk.Overlay):
             self.detail_box_revealer.set_reveal_child(False)
 
         if force_reload_from_master:
-            # Just remove everything and re-add all of the items.
-            # TODO (#114): make this smarter somehow to avoid flicker. Maybe
-            # change this so that it removes one by one and adds back one by
-            # one.
+            # Just remove everything and re-add all of the items. It's not worth trying
+            # to diff in this case.
             self.list_store_top.splice(
                 0, len(self.list_store_top), window[:entries_before_fold],
             )
@@ -863,6 +863,8 @@ class AlbumsGrid(Gtk.Overlay):
                 0, len(self.list_store_bottom), window[entries_before_fold:],
             )
         elif self.currently_selected_index or entries_before_fold != self.page_size:
+            # This case handles when the selection changes and the entries need to be
+            # re-allocated to the top and bottom grids
             # Move entries between the two stores.
             top_store_len = len(self.list_store_top)
             bottom_store_len = len(self.list_store_bottom)
@@ -909,6 +911,7 @@ class AlbumsGrid(Gtk.Overlay):
             # to add another flag for this function.
         else:
             self.grid_top.unselect_all()
+            self.grid_bottom.unselect_all()
 
         # If we had to change the page to select the index, then update the window. It
         # should basically be a no-op.

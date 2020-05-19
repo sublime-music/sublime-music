@@ -29,8 +29,13 @@ class Genre(abc.ABC):
 
 
 class Album(abc.ABC):
-    id: str
+    """
+    The ``id`` field is optional, because there are some situations where an adapter
+    (such as Subsonic) sends an album name, but not an album ID.
+    """
+
     name: str
+    id: Optional[str]
     artist: Optional["Artist"]
     cover_art: Optional[str]
     created: Optional[datetime]
@@ -44,8 +49,14 @@ class Album(abc.ABC):
 
 
 class Artist(abc.ABC):
-    id: str
+    """
+    The ``id`` field is optional, because there are some situations where an adapter
+    (such as Subsonic) sends an artist name, but not an artist ID. This especially
+    happens when there are multiple artists.
+    """
+
     name: str
+    id: Optional[str]
     album_count: Optional[int]
     artist_image_url: Optional[str]
     starred: Optional[datetime]

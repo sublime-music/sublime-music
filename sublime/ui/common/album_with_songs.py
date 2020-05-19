@@ -120,12 +120,11 @@ class AlbumWithSongs(Gtk.Box):
             )
         )
 
-        self.album_song_store = Gtk.ListStore(
-            str, str, str, str,  # cache status, title, duration, song ID
-        )
+        self.loading_indicator_container = Gtk.Box()
+        album_details.add(self.loading_indicator_container)
 
-        self.loading_indicator = Gtk.Spinner(name="album-list-song-list-spinner")
-        album_details.add(self.loading_indicator)
+        # cache status, title, duration, song ID
+        self.album_song_store = Gtk.ListStore(str, str, str, str)
 
         self.album_songs = Gtk.TreeView(
             model=self.album_song_store,
@@ -244,11 +243,16 @@ class AlbumWithSongs(Gtk.Box):
 
     def set_loading(self, loading: bool):
         if loading:
-            self.loading_indicator.start()
-            self.loading_indicator.show()
+            if len(self.loading_indicator_container.get_children()) == 0:
+                self.loading_indicator_container.pack_start(Gtk.Box(), True, True, 0)
+                spinner = Gtk.Spinner(name="album-list-song-list-spinner")
+                spinner.start()
+                self.loading_indicator_container.add(spinner)
+                self.loading_indicator_container.pack_start(Gtk.Box(), True, True, 0)
+
+            self.loading_indicator_container.show_all()
         else:
-            self.loading_indicator.stop()
-            self.loading_indicator.hide()
+            self.loading_indicator_container.hide()
 
     @util.async_callback(
         AdapterManager.get_album,
@@ -264,12 +268,14 @@ class AlbumWithSongs(Gtk.Box):
     ):
         new_store = [
             [
-                util.get_cached_status_icon(song),
+                cached_status,
                 util.esc(song.title),
                 util.format_song_duration(song.duration),
                 song.id,
             ]
-            for song in list(album.songs or [])
+            for cached_status, song in zip(
+                util.get_cached_status_icons(list(album.songs or [])), album.songs or []
+            )
         ]
 
         song_ids = [song[-1] for song in new_store]
@@ -284,4 +290,6 @@ class AlbumWithSongs(Gtk.Box):
         self.add_to_queue_btn.set_action_name("app.play-next")
 
         util.diff_song_store(self.album_song_store, new_store)
-        self.loading_indicator.hide()
+
+        # Have to idle_add here so that his happens after the component is rendered.
+        self.set_loading(False)

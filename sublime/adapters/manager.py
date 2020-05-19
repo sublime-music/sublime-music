@@ -1,4 +1,5 @@
 import hashlib
+import itertools
 import logging
 import os
 import random
@@ -7,6 +8,7 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 from time import sleep
 from typing import (
@@ -26,6 +28,7 @@ from typing import (
 )
 
 import requests
+from gi.repository import GLib
 
 from sublime.config import AppConfiguration
 
@@ -318,7 +321,9 @@ class AdapterManager:
         return Result(future_fn)
 
     @staticmethod
-    def _create_download_fn(uri: str, id: str) -> Callable[[], str]:
+    def _create_download_fn(
+        uri: str, id: str, before_download: Callable[[], None] = None,
+    ) -> Callable[[], str]:
         """
         Create a function to download the given URI to a temporary file, and return the
         filename. The returned function will spin-loop if the resource is already being
@@ -336,6 +341,9 @@ class AdapterManager:
                 if id in AdapterManager.current_download_ids:
                     resource_downloading = True
                 AdapterManager.current_download_ids.add(id)
+
+            if before_download:
+                before_download()
 
             # TODO (#122): figure out how to retry if the other request failed.
             if resource_downloading:
@@ -688,7 +696,7 @@ class AdapterManager:
     @staticmethod
     def get_cover_art_filename(
         cover_art_id: str = None,
-        before_download: Callable[[], None] = lambda: None,
+        before_download: Callable[[], None] = None,
         force: bool = False,  # TODO: rename to use_ground_truth_adapter?
         allow_download: bool = True,
     ) -> Result[str]:
@@ -731,15 +739,13 @@ class AdapterManager:
             return Result(existing_cover_art_filename)
 
         # TODO: make _get_from_cache_or_ground_truth work with downloading
-        if before_download:
-            before_download()
-
         future: Result[str] = Result(
             AdapterManager._create_download_fn(
                 AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
                     cover_art_id, AdapterManager._get_scheme(), size=300
                 ),
                 cover_art_id,
+                before_download,
             ),
             is_download=True,
             default_value=existing_cover_art_filename,
@@ -835,6 +841,7 @@ class AdapterManager:
                             song_id, AdapterManager._get_scheme()
                         ),
                         song_id,
+                        lambda: before_download(song_id),
                     )()
                     AdapterManager._instance.caching_adapter.ingest_new_data(
                         CachingAdapter.CachedDataKey.SONG_FILE,
@@ -963,20 +970,23 @@ class AdapterManager:
         if not AdapterManager._any_adapter_can_do("get_ignored_articles"):
             return set()
         try:
-            return AdapterManager._get_from_cache_or_ground_truth(
+            ignored_articles: Set[str] = AdapterManager._get_from_cache_or_ground_truth(
                 "get_ignored_articles",
                 None,
                 use_ground_truth_adapter=use_ground_truth_adapter,
                 cache_key=CachingAdapter.CachedDataKey.IGNORED_ARTICLES,
             ).result()
+            return set(map(str.lower, ignored_articles))
         except Exception:
             logging.exception("Failed to retrieve ignored_articles")
             return set()
 
     @staticmethod
-    def _strip_ignored_articles(use_ground_truth_adapter: bool, string: str) -> str:
+    def _strip_ignored_articles(
+        use_ground_truth_adapter: bool, ignored_articles: Set[str], string: str
+    ) -> str:
         first_word, *rest = string.split(maxsplit=1)
-        if first_word in AdapterManager._get_ignored_articles(use_ground_truth_adapter):
+        if first_word in ignored_articles:
             return rest[0]
         return string
 
@@ -988,12 +998,15 @@ class AdapterManager:
         key: Callable[[_S], str],
         use_ground_truth_adapter: bool = False,
     ) -> List[_S]:
-        return sorted(
-            it,
-            key=lambda x: AdapterManager._strip_ignored_articles(
-                use_ground_truth_adapter, key(x).lower()
-            ),
+        ignored_articles = AdapterManager._get_ignored_articles(
+            use_ground_truth_adapter
         )
+        strip_fn = partial(
+            AdapterManager._strip_ignored_articles,
+            use_ground_truth_adapter,
+            ignored_articles,
+        )
+        return sorted(it, key=lambda x: strip_fn(key(x).lower()))
 
     @staticmethod
     def get_artist(
@@ -1060,36 +1073,30 @@ class AdapterManager:
         before_download: Callable[[], None] = lambda: None,
         force: bool = False,
     ) -> Result[Directory]:
-        return AdapterManager._get_from_cache_or_ground_truth(
-            "get_directory",
-            directory_id,
-            before_download=before_download,
-            use_ground_truth_adapter=force,
-            cache_key=CachingAdapter.CachedDataKey.DIRECTORY,
-        )
+        def do_get_directory() -> Directory:
+            directory: Directory = AdapterManager._get_from_cache_or_ground_truth(
+                "get_directory",
+                directory_id,
+                before_download=before_download,
+                use_ground_truth_adapter=force,
+                cache_key=CachingAdapter.CachedDataKey.DIRECTORY,
+            ).result()
+            directory.children = AdapterManager.sort_by_ignored_articles(
+                directory.children,
+                key=lambda c: cast(Directory, c).name or ""
+                if hasattr(c, "name")
+                else cast(Song, c).title,
+                use_ground_truth_adapter=force,
+            )
+            return directory
+
+        return Result(do_get_directory)
 
     # Play Queue
     @staticmethod
     def get_play_queue() -> Result[Optional[PlayQueue]]:
         assert AdapterManager._instance
-        future: Result[
-            Optional[PlayQueue]
-        ] = AdapterManager._create_ground_truth_result("get_play_queue")
-
-        if AdapterManager._instance.caching_adapter:
-
-            def future_finished(f: Result):
-                assert AdapterManager._instance
-                assert AdapterManager._instance.caching_adapter
-                if play_queue := f.result():
-                    for song in play_queue.songs:
-                        AdapterManager._instance.caching_adapter.ingest_new_data(
-                            CachingAdapter.CachedDataKey.SONG, song.id, song
-                        )
-
-            future.add_done_callback(future_finished)
-
-        return future
+        return AdapterManager._create_ground_truth_result("get_play_queue")
 
     @staticmethod
     def save_play_queue(
@@ -1192,12 +1199,18 @@ class AdapterManager:
     # Cache Status Methods
     # ==================================================================================
     @staticmethod
-    def get_cached_status(song: Song) -> SongCacheStatus:
+    def get_cached_statuses(songs: Sequence[Song]) -> Sequence[SongCacheStatus]:
         assert AdapterManager._instance
         if not AdapterManager._instance.caching_adapter:
-            return SongCacheStatus.NOT_CACHED
+            return list(itertools.repeat(SongCacheStatus.NOT_CACHED, len(songs)))
 
-        if song.id in AdapterManager.current_download_ids:
-            return SongCacheStatus.DOWNLOADING
+        cache_statuses = []
+        for song, cache_status in zip(
+            songs, AdapterManager._instance.caching_adapter.get_cached_statuses(songs)
+        ):
+            if song.id in AdapterManager.current_download_ids:
+                cache_statuses.append(SongCacheStatus.DOWNLOADING)
+            else:
+                cache_statuses.append(cache_status)
 
-        return AdapterManager._instance.caching_adapter.get_cached_status(song)
+        return cache_statuses

@@ -395,7 +395,7 @@ class MainWindow(Gtk.ApplicationWindow):
                     f"<b>{util.esc(song.title)}</b>",
                     util.esc(song.artist.name if song.artist else None),
                 )
-                assert song.album
+                assert song.album and song.album.id
                 self.song_results.add(
                     self._create_search_result_row(
                         label_text, "album", song.album.id, song.cover_art
@@ -412,6 +412,7 @@ class MainWindow(Gtk.ApplicationWindow):
                     f"<b>{util.esc(album.name)}</b>",
                     util.esc(album.artist.name if album.artist else None),
                 )
+                assert album.id
                 self.album_results.add(
                     self._create_search_result_row(
                         label_text, "album", album.id, album.cover_art
@@ -425,6 +426,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self._remove_all_from_widget(self.artist_results)
             for artist in search_results.artists:
                 label_text = util.esc(artist.name)
+                assert artist.id
                 self.artist_results.add(
                     self._create_search_result_row(
                         label_text, "artist", artist.id, artist.artist_image_url

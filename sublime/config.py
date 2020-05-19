@@ -158,6 +158,7 @@ class AppConfiguration:
 
         # Do the import in the function to avoid circular imports.
         from sublime.adapters import AdapterManager
+
         AdapterManager.reset(self)
 
     @property

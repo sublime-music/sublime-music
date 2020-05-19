@@ -477,7 +477,7 @@ class PlayerControls(Gtk.ActionBar):
                 "refresh-window",
                 {
                     "current_song_index": currently_playing_index,
-                    "play_queue": [s[-1] for s in self.play_queue_store],
+                    "play_queue": tuple(s[-1] for s in self.play_queue_store),
                 },
                 False,
             )
