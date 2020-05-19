@@ -20,7 +20,10 @@ def main():
     )
     parser.add_argument("-l", "--logfile", help="the filename to send logs to")
     parser.add_argument(
-        "-m", "--loglevel", help="the minium level of logging to do", default="WARNING",
+        "-m",
+        "--loglevel",
+        help="the minimum level of logging to do",
+        default="WARNING",
     )
     parser.add_argument(
         "-c",
