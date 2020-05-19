@@ -189,6 +189,7 @@ def show_song_popover(
     relative_to: Any,
     position: Gtk.PositionType = Gtk.PositionType.BOTTOM,
     on_download_state_change: Callable[[str], None] = lambda _: None,
+    on_playlist_state_change: Callable[[], None] = lambda: None,
     show_remove_from_playlist_button: bool = False,
     extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = None,
 ):
@@ -205,10 +206,10 @@ def show_song_popover(
         )
 
     def on_add_to_playlist_click(_: Any, playlist: Playlist):
-        AdapterManager.update_playlist(
+        update_playlist_result = AdapterManager.update_playlist(
             playlist_id=playlist.id, append_song_ids=song_ids
         )
-        # TODO: make this update the entire window (or at least what's visible)
+        update_playlist_result.add_done_callback(lambda _: on_playlist_state_change)
 
     popover = Gtk.PopoverMenu()
     vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -216,46 +217,58 @@ def show_song_popover(
     # Add all of the menu items to the popover.
     song_count = len(song_ids)
 
-    # Determine if we should enable the download button.
-    download_sensitive, remove_download_sensitive = False, False
-    albums, artists, parents = set(), set(), set()
-    # TODO lazy load these
-    song_details = [
-        AdapterManager.get_song_details(song_id).result() for song_id in song_ids
-    ]
-    song_cache_statuses = AdapterManager.get_cached_statuses(song_ids)
-    for song, status in zip(song_details, song_cache_statuses):
-        # TODO lazy load these
-        albums.add(album.id if (album := song.album) else None)
-        artists.add(artist.id if (artist := song.artist) else None)
-        parents.add(parent_id if (parent_id := song.parent_id) else None)
-
-        download_sensitive |= status == SongCacheStatus.NOT_CACHED
-        remove_download_sensitive |= status in (
-            SongCacheStatus.CACHED,
-            SongCacheStatus.PERMANENTLY_CACHED,
-        )
-
     go_to_album_button = Gtk.ModelButton(
         text="Go to album", action_name="app.go-to-album"
     )
-    if len(albums) == 1 and list(albums)[0] is not None:
-        album_value = GLib.Variant("s", list(albums)[0])
-        go_to_album_button.set_action_target_value(album_value)
-
     go_to_artist_button = Gtk.ModelButton(
         text="Go to artist", action_name="app.go-to-artist"
     )
-    if len(artists) == 1 and list(artists)[0] is not None:
-        artist_value = GLib.Variant("s", list(artists)[0])
-        go_to_artist_button.set_action_target_value(artist_value)
-
     browse_to_song = Gtk.ModelButton(
         text=f"Browse to {pluralize('song', song_count)}", action_name="app.browse-to",
     )
-    if len(parents) == 1 and list(parents)[0] is not None:
-        parent_value = GLib.Variant("s", list(parents)[0])
-        browse_to_song.set_action_target_value(parent_value)
+    download_song_button = Gtk.ModelButton(
+        text=f"Download {pluralize('song', song_count)}", sensitive=False
+    )
+    remove_download_button = Gtk.ModelButton(
+        text=f"Remove {pluralize('download', song_count)}", sensitive=False
+    )
+
+    # Retrieve songs and set the buttons as sensitive later.
+    def on_get_song_details_done(songs: List[Song]):
+        song_cache_statuses = AdapterManager.get_cached_statuses([s.id for s in songs])
+        if any(status == SongCacheStatus.NOT_CACHED for status in song_cache_statuses):
+            download_song_button.set_sensitive(True)
+        if any(
+            status in (SongCacheStatus.CACHED, SongCacheStatus.PERMANENTLY_CACHED)
+            for status in song_cache_statuses
+        ):
+            download_song_button.set_sensitive(True)
+
+        albums, artists, parents = set(), set(), set()
+        for song in songs:
+            albums.add(album.id if (album := song.album) else None)
+            artists.add(artist.id if (artist := song.artist) else None)
+            parents.add(parent_id if (parent_id := song.parent_id) else None)
+
+        if len(albums) == 1 and list(albums)[0] is not None:
+            album_value = GLib.Variant("s", list(albums)[0])
+            go_to_album_button.set_action_target_value(album_value)
+        if len(artists) == 1 and list(artists)[0] is not None:
+            artist_value = GLib.Variant("s", list(artists)[0])
+            go_to_artist_button.set_action_target_value(artist_value)
+        if len(parents) == 1 and list(parents)[0] is not None:
+            parent_value = GLib.Variant("s", list(parents)[0])
+            browse_to_song.set_action_target_value(parent_value)
+
+    def batch_get_song_details() -> List[Song]:
+        return [
+            AdapterManager.get_song_details(song_id).result() for song_id in song_ids
+        ]
+
+    get_song_details_result: Result[List[Song]] = Result(batch_get_song_details)
+    get_song_details_result.add_done_callback(
+        lambda f: GLib.idle_add(on_get_song_details_done, f.result())
+    )
 
     menu_items = [
         Gtk.ModelButton(
@@ -273,24 +286,13 @@ def show_song_popover(
         go_to_artist_button,
         browse_to_song,
         Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
-        (
-            Gtk.ModelButton(
-                text=f"Download {pluralize('song', song_count)}",
-                sensitive=download_sensitive,
-            ),
-            on_download_songs_click,
-        ),
-        (
-            Gtk.ModelButton(
-                text=f"Remove {pluralize('download', song_count)}",
-                sensitive=remove_download_sensitive,
-            ),
-            on_remove_downloads_click,
-        ),
+        (download_song_button, on_download_songs_click),
+        (remove_download_button, on_remove_downloads_click),
         Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
         Gtk.ModelButton(
             text=f"Add {pluralize('song', song_count)} to playlist",
             menu_name="add-to-playlist",
+            name="menu-item-add-to-playlist",
         ),
         *(extra_menu_items or []),
     ]
@@ -311,15 +313,26 @@ def show_song_popover(
     playlists_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
     # Back button
-    playlists_vbox.add(Gtk.ModelButton(inverted=True, centered=True, menu_name="main",))
+    playlists_vbox.add(Gtk.ModelButton(inverted=True, centered=True, menu_name="main"))
 
-    # The playlist buttons
-    # TODO lazy load
-    for playlist in AdapterManager.get_playlists().result():
-        button = Gtk.ModelButton(text=playlist.name)
-        button.get_style_context().add_class("menu-button")
-        button.connect("clicked", on_add_to_playlist_click, playlist)
-        playlists_vbox.pack_start(button, False, True, 0)
+    # Loading indicator
+    loading_indicator = Gtk.Spinner(name="menu-item-spinner")
+    loading_indicator.start()
+    playlists_vbox.add(loading_indicator)
+
+    # Create a future to make the actual playlist buttons
+    def on_get_playlists_done(f: Result[List[Playlist]]):
+        playlists_vbox.remove(loading_indicator)
+
+        for playlist in f.result():
+            button = Gtk.ModelButton(text=playlist.name)
+            button.get_style_context().add_class("menu-button")
+            button.connect("clicked", on_add_to_playlist_click, playlist)
+            button.show()
+            playlists_vbox.pack_start(button, False, True, 0)
+
+    playlists_result = AdapterManager.get_playlists()
+    playlists_result.add_done_callback(on_get_playlists_done)
 
     popover.add(playlists_vbox)
     popover.child_set_property(playlists_vbox, "submenu", "add-to-playlist")

@@ -56,11 +56,11 @@ class BrowsePanel(Gtk.Overlay):
 
         self.update_order_token += 1
 
-        def do_update(update_order_token: int, id_stack: Result[Tuple[str, ...]]):
+        def do_update(update_order_token: int, id_stack: Tuple[str, ...]):
             if self.update_order_token != update_order_token:
                 return
 
-            self.root_directory_listing.update(id_stack.result(), app_config, force)
+            self.root_directory_listing.update(id_stack, app_config, force)
             self.spinner.hide()
 
         def calculate_path() -> Tuple[str, ...]:
@@ -80,7 +80,9 @@ class BrowsePanel(Gtk.Overlay):
 
         path_result: Result[Tuple[str, ...]] = Result(calculate_path)
         path_result.add_done_callback(
-            partial(GLib.idle_add, partial(do_update, self.update_order_token))
+            lambda f: GLib.idle_add(
+                partial(do_update, self.update_order_token), f.result()
+            )
         )
 
 

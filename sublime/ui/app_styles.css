@@ -52,6 +52,14 @@
   min-width: 100px;
 }
 
+#menu-item-add-to-playlist {
+    min-width: 170px;
+}
+
+#menu-item-spinner {
+    margin: 10px;
+}
+
 #playlist-album-artwork {
   min-height: 200px;
   min-width: 200px;

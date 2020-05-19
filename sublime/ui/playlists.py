@@ -707,6 +707,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 extra_menu_items=[
                     (Gtk.ModelButton(text=remove_text), on_remove_songs_click),
                 ],
+                on_playlist_state_change=lambda:print('ohea') or self.emit("refresh-window", {}, True),
             )
 
             # If the click was on a selected row, don't deselect anything.
