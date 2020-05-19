@@ -188,7 +188,7 @@ class PlayerControls(Gtk.ActionBar):
                 f"<b>Play Queue:</b> {play_queue_len} {song_label}"
             )
 
-        # TODO this is super freaking stupid inefficient.
+        # TODO (#207) this is super freaking stupid inefficient.
         # IDEAS: batch it, don't get the queue until requested
         self.editing_play_queue_song_list = True
 
@@ -294,7 +294,7 @@ class PlayerControls(Gtk.ActionBar):
         self.editing_play_queue_song_list = False
 
     @util.async_callback(
-        lambda *k, **v: AdapterManager.get_cover_art_filename(*k, **v),
+        AdapterManager.get_cover_art_filename,
         before_download=lambda self: self.album_art.set_loading(True),
         on_failure=lambda self, e: self.album_art.set_loading(False),
     )

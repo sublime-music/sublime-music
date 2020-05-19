@@ -174,8 +174,6 @@ class AdapterManager:
         def __post_init__(self):
             self._download_dir = tempfile.TemporaryDirectory()
             self.download_path = Path(self._download_dir.name)
-            # TODO can we use the threadpool executor max workers for limiting
-            # downloads?
             self.download_limiter_semaphore = threading.Semaphore(
                 self.concurrent_download_limit
             )
@@ -486,15 +484,16 @@ class AdapterManager:
                 cache_key, param_str
             )
 
-        # TODO If any of the following fails, do we want to return what the caching
-        # adapter has?
+        # TODO (#122) If any of the following fails, do we want to return what the
+        # caching adapter has?
 
         # TODO (#188): don't short circuit if not allow_download because it could be the
         # filesystem adapter.
         if not allow_download or not AdapterManager._ground_truth_can_do(function_name):
             logging.info(f"END: NO DOWNLOAD: {function_name}")
             if partial_data:
-                # TODO indicate that this is partial data. Probably just re-throw here?
+                # TODO (#122) indicate that this is partial data. Probably just re-throw
+                # here?
                 logging.debug("partial_data exists, returning", partial_data)
                 return Result(cast(AdapterManager.R, partial_data))
             raise Exception(f"No adapters can service {function_name} at the moment.")
@@ -513,7 +512,7 @@ class AdapterManager:
                 )
 
             if on_result_finished:
-                # TODO: figure out a way to pass partial data here
+                # TODO (#122): figure out a way to pass partial data here
                 result.add_done_callback(on_result_finished)
 
         logging.info(f"END: {function_name}")
