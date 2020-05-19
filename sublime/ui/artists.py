@@ -1,4 +1,4 @@
-import math
+from datetime import timedelta
 from random import randint
 from typing import Any, List, Sequence
 
@@ -396,14 +396,12 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
         )
 
     def format_stats(self, artist: API.Artist) -> str:
-        album_count = artist.album_count or 0
-        song_count = sum(a.song_count for a in artist.albums or []) or 0
-        duration = math.floor(
-            sum(
-                (a.duration.total_seconds() if a.duration else 0)
-                for a in artist.albums or []
-            )
-        )
+        album_count = artist.album_count or len(artist.albums or [])
+        song_count, duration = 0, timedelta(0)
+        for album in artist.albums or []:
+            song_count += album.song_count or 0
+            duration += album.duration or timedelta(0)
+
         return util.dot_join(
             "{} {}".format(album_count, util.pluralize("album", album_count)),
             "{} {}".format(song_count, util.pluralize("song", song_count)),

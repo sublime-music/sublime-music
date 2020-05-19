@@ -38,11 +38,11 @@ class PlayerEvent:
 
 
 class Player(abc.ABC):
-    # TODO: pull players out into different modules and actually document this API
-    # because it's kinda a bit strange tbh.
+    # TODO (#205): pull players out into different modules and actually document this
+    # API because it's kinda a bit strange tbh.
     _can_hotswap_source: bool
 
-    # TODO unify on_timepos_change and on_player_event?
+    # TODO (#205): unify on_timepos_change and on_player_event?
     def __init__(
         self,
         on_timepos_change: Callable[[Optional[float]], None],
@@ -278,9 +278,9 @@ class ChromecastPlayer(Player):
                 if token != self.token:
                     raise bottle.HTTPError(status=401, body="Invalid token.")
 
-                # TODO refactor this so that the players can specify what types of URIs
-                # they can play. Set it to just ("http", "https") when streaming from
-                # the local filesystem is disabled and set it to ("file", "http",
+                # TODO (#189) refactor this so that the players can specify what types
+                # of URIs they can play. Set it to just ("http", "https") when streaming
+                # from the local filesystem is disabled and set it to ("file", "http",
                 # "https") in the other case.
                 song = AdapterManager.get_song_details(self.song_id).result()
                 filename = AdapterManager.get_song_filename_or_stream(song)
@@ -483,7 +483,7 @@ class ChromecastPlayer(Player):
         self._timepos = progress.total_seconds()
 
         def on_play_begin():
-            # TODO this starts too soon, do something better
+            # TODO (#206) this starts too soon, do something better
             self._song_loaded = True
             self.start_time_incrementor()
 

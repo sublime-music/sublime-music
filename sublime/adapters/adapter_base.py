@@ -23,7 +23,6 @@ from .api_objects import (
     Directory,
     Genre,
     Playlist,
-    PlaylistDetails,
     PlayQueue,
     SearchResult,
     Song,
@@ -402,7 +401,7 @@ class Adapter(abc.ABC):
 
         :returns: A set of :class:`AlbumSearchQuery.Type` objects.
         """
-        # TODO: use this
+        # TODO (#203): use this
         return set()
 
     @property
@@ -493,28 +492,28 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("get_playlists")
 
-    def get_playlist_details(self, playlist_id: str,) -> PlaylistDetails:
+    def get_playlist_details(self, playlist_id: str,) -> Playlist:
         """
         Get the details for the given ``playlist_id``. If the playlist_id does not
         exist, then this function should throw an exception.
 
         :param playlist_id: The ID of the playlist to retrieve.
-        :returns: A :class:`sublime.adapter.api_objects.PlaylistDetails` object for the
-            given playlist.
+        :returns: A :class:`sublime.adapter.api_objects.Play` object for the given
+            playlist.
         """
         raise self._check_can_error("get_playlist_details")
 
     def create_playlist(
         self, name: str, songs: Sequence[Song] = None,
-    ) -> Optional[PlaylistDetails]:  # TODO make not optional?
+    ) -> Optional[Playlist]:
         """
         Creates a playlist of the given name with the given songs.
 
         :param name: The human-readable name of the playlist.
         :param songs: A list of songs that should be included in the playlist.
-        :returns: A :class:`sublime.adapter.api_objects.PlaylistDetails` object for the
-            created playlist. If getting this information will incurr network overhead,
-            then just return ``None``.
+        :returns: A :class:`sublime.adapter.api_objects.Playlist` object for the created
+            playlist. If getting this information will incurr network overhead, then
+            just return ``None``.
         """
         raise self._check_can_error("create_playlist")
 
@@ -525,7 +524,7 @@ class Adapter(abc.ABC):
         comment: str = None,
         public: bool = None,
         song_ids: Sequence[str] = None,
-    ) -> PlaylistDetails:
+    ) -> Playlist:
         """
         Updates a given playlist. If a parameter is ``None``, then it will be ignored
         and no updates will occur to that field.
@@ -537,8 +536,8 @@ class Adapter(abc.ABC):
             shared/public vs. not shared/private playlists concept, setting this to
             ``True`` will make the playlist shared/public.
         :param song_ids: A list of song IDs that should be included in the playlist.
-        :returns: A :class:`sublime.adapter.api_objects.PlaylistDetails` object for the
-            updated playlist.
+        :returns: A :class:`sublime.adapter.api_objects.Playlist` object for the updated
+            playlist.
         """
         raise self._check_can_error("update_playlist")
 
@@ -573,9 +572,10 @@ class Adapter(abc.ABC):
             ``scheme`` will be one of the schemes returned by
             :class:`supported_schemes`.
         :param stream: Whether or not the URI returned should be a stream URI. This will
-            only be ``True`` if :class:`supports_streaming` returns ``True``. TODO fix
+            only be ``True`` if :class:`supports_streaming` returns ``True``.
         :returns: The URI for the given song.
         """
+        # TODO (#189)
         raise self._check_can_error("get_song_uri")
 
     def get_song_details(self, song_id: str) -> Song:
@@ -815,12 +815,13 @@ class CachingAdapter(Adapter):
     # Cache-Specific Methods
     # ==================================================================================
     @abc.abstractmethod
-    def get_cached_statuses(self, songs: Sequence[Song]) -> Sequence[SongCacheStatus]:
+    def get_cached_statuses(self, songs: Sequence[Song]) -> Dict[str, SongCacheStatus]:
         """
         Returns the cache statuses for the given list of songs. See the
         :class:`SongCacheStatus` documentation for more details about what each status
         means.
 
         :params songs: The songs to get the cache status for.
-        :returns: A list of :class:`SongCacheStatus` objects for each of the songs.
+        :returns: A dictionary of song ID to :class:`SongCacheStatus` objects for each
+            of the songs.
         """

@@ -150,9 +150,6 @@ class SublimeMusicApp(Gtk.Application):
                 self.window.close()
                 return
 
-        # TODO remove?
-        # self.update_window()
-
         # Configure the players
         self.last_play_queue_update = timedelta(0)
         self.loading_state = False

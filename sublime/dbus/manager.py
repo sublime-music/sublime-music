@@ -10,7 +10,6 @@ from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
 
 from sublime.adapters import AdapterManager, CacheMissError
-from sublime.adapters.api_objects import PlaylistDetails
 from sublime.config import AppConfiguration
 from sublime.players import Player
 from sublime.ui.state import RepeatType
@@ -245,7 +244,7 @@ class DBusManager:
             return (False, GLib.Variant("(oss)", ("/", "", "")))
 
         try:
-            playlist: PlaylistDetails = AdapterManager.get_playlist_details(
+            playlist = AdapterManager.get_playlist_details(
                 active_playlist_id, allow_download=False
             ).result()
 

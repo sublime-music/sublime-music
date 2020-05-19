@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, cast, Dict, Optional, Sequence, Set, Tuple, Union
 
-from peewee import fn, prefetch
+from peewee import fn
 
 from sublime.adapters import api_objects as API
 
@@ -65,7 +65,7 @@ class FilesystemAdapter(CachingAdapter):
             self._migrate_db()
 
     def initial_sync(self):
-        # TODO this is where scanning the fs should potentially happen?
+        # TODO (#188) this is where scanning the fs should potentially happen?
         pass
 
     def shutdown(self):
@@ -82,7 +82,7 @@ class FilesystemAdapter(CachingAdapter):
     is_networked = False  # Doesn't access the network.
     can_service_requests = True  # Can always be used to service requests.
 
-    # TODO make these dependent on cache state. Need to do this kinda efficiently
+    # TODO (#200) make these dependent on cache state. Need to do this kinda efficiently
     can_get_cover_art_uri = True
     can_get_song_uri = True
     can_get_song_details = True
@@ -119,6 +119,7 @@ class FilesystemAdapter(CachingAdapter):
         return self._can_get_key(KEYS.GENRES)
 
     supported_schemes = ("file",)
+    # TODO (#203)
     supported_artist_query_types = {
         AlbumSearchQuery.Type.RANDOM,
         AlbumSearchQuery.Type.NEWEST,
@@ -155,12 +156,7 @@ class FilesystemAdapter(CachingAdapter):
         return result
 
     def _get_object_details(
-        self,
-        model: Any,
-        id: str,
-        cache_key: CachingAdapter.CachedDataKey,
-        # where_clause: Tuple[Any, ...] = (),
-        # cache_where_clause: Tuple[Any, ...] = (),
+        self, model: Any, id: str, cache_key: CachingAdapter.CachedDataKey
     ) -> Any:
         obj = model.get_or_none(model.id == id)
 
@@ -199,7 +195,7 @@ class FilesystemAdapter(CachingAdapter):
     # ==================================================================================
     def get_cached_statuses(
         self, songs: Sequence[API.Song]
-    ) -> Sequence[SongCacheStatus]:
+    ) -> Dict[str, SongCacheStatus]:
         def compute_song_cache_status(song: models.Song) -> SongCacheStatus:
             file = song.file
             if self._compute_song_filename(file).exists():
@@ -213,19 +209,18 @@ class FilesystemAdapter(CachingAdapter):
             return SongCacheStatus.NOT_CACHED
 
         try:
-            # TODO batch getting song details for songs that aren't already a song
-            # model?
-            song_models = [
-                song
-                if isinstance(song, models.Song)
-                else self.get_song_details(song.id)
-                for song in songs
-            ]
-            return [compute_song_cache_status(s) for s in song_models]
+            song_models = (
+                songs
+                if isinstance(songs[0], models.Song)
+                else models.Song.select().where(
+                    models.Song.id.in_([song.id for song in songs])
+                )
+            )
+            return {s.id: compute_song_cache_status(s) for s in song_models}
         except Exception:
             pass
 
-        return list(itertools.repeat(SongCacheStatus.NOT_CACHED, len(songs)))
+        return {song.id: SongCacheStatus.NOT_CACHED for song in songs}
 
     _playlists = None
 
@@ -240,7 +235,7 @@ class FilesystemAdapter(CachingAdapter):
         )
         return self._playlists
 
-    def get_playlist_details(self, playlist_id: str) -> API.PlaylistDetails:
+    def get_playlist_details(self, playlist_id: str) -> API.Playlist:
         return self._get_object_details(
             models.Playlist, playlist_id, CachingAdapter.CachedDataKey.PLAYLIST_DETAILS
         )
@@ -433,11 +428,11 @@ class FilesystemAdapter(CachingAdapter):
         data: Any,
         partial: bool = False,
     ) -> Any:
-        # TODO: this entire function is not exactly efficient due to the nested
+        # TODO (#201): this entire function is not exactly efficient due to the nested
         # dependencies and everything. I'm not sure how to improve it, and I'm not sure
         # if it needs improving at this point.
 
-        # TODO refactor to to be a recursive function like invalidate_data?
+        # TODO (#201): refactor to to be a recursive function like invalidate_data?
 
         cache_info_extra: Dict[str, Any] = {}
 
@@ -535,7 +530,6 @@ class FilesystemAdapter(CachingAdapter):
 
         def ingest_artist_data(api_artist: API.Artist) -> models.Artist:
             # Ingest similar artists.
-            # TODO figure out which order to do this in to be most efficient.
             if api_artist.similar_artists:
                 models.SimilarArtist.delete().where(
                     models.SimilarArtist.similar_artist.not_in(
@@ -617,7 +611,7 @@ class FilesystemAdapter(CachingAdapter):
             return song
 
         def ingest_playlist(
-            api_playlist: Union[API.Playlist, API.PlaylistDetails]
+            api_playlist: Union[API.Playlist, API.Playlist]
         ) -> models.Playlist:
             playlist_data = {
                 "id": api_playlist.id,
@@ -631,11 +625,7 @@ class FilesystemAdapter(CachingAdapter):
                 "public": getattr(api_playlist, "public", None),
                 "songs": [
                     self._do_ingest_new_data(KEYS.SONG, s.id, s)
-                    for s in (
-                        cast(API.PlaylistDetails, api_playlist).songs
-                        if hasattr(api_playlist, "songs")
-                        else ()
-                    )
+                    for s in api_playlist.songs
                 ],
                 "_cover_art": self._do_ingest_new_data(
                     KEYS.COVER_ART_FILE, api_playlist.cover_art, None

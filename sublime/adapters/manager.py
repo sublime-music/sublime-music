@@ -28,7 +28,6 @@ from typing import (
 )
 
 import requests
-from gi.repository import GLib
 
 from sublime.config import AppConfiguration
 
@@ -45,7 +44,6 @@ from .api_objects import (
     Directory,
     Genre,
     Playlist,
-    PlaylistDetails,
     PlayQueue,
     SearchResult,
     Song,
@@ -227,8 +225,8 @@ class AdapterManager:
         if AdapterManager._instance:
             AdapterManager._instance.shutdown()
 
-        # TODO: actually do stuff with the config to determine which adapters
-        # to create, etc.
+        # TODO (#197): actually do stuff with the config to determine which adapters to
+        # create, etc.
         assert config.server is not None
         source_data_dir = Path(config.cache_location, config.server.strhash())
         source_data_dir.joinpath("g").mkdir(parents=True, exist_ok=True)
@@ -590,7 +588,7 @@ class AdapterManager:
     @staticmethod
     def get_playlists(
         before_download: Callable[[], None] = lambda: None,
-        force: bool = False,  # TODO: rename to use_ground_truth_adapter?
+        force: bool = False,  # TODO (#202): rename to use_ground_truth_adapter?
         allow_download: bool = True,
     ) -> Result[Sequence[Playlist]]:
         return AdapterManager._get_from_cache_or_ground_truth(
@@ -606,9 +604,9 @@ class AdapterManager:
     def get_playlist_details(
         playlist_id: str,
         before_download: Callable[[], None] = lambda: None,
-        force: bool = False,  # TODO: rename to use_ground_truth_adapter?
+        force: bool = False,  # TODO (#202): rename to use_ground_truth_adapter?
         allow_download: bool = True,
-    ) -> Result[PlaylistDetails]:
+    ) -> Result[Playlist]:
         return AdapterManager._get_from_cache_or_ground_truth(
             "get_playlist_details",
             playlist_id,
@@ -621,8 +619,8 @@ class AdapterManager:
     @staticmethod
     def create_playlist(
         name: str, songs: Sequence[Song] = None
-    ) -> Result[Optional[PlaylistDetails]]:
-        def on_result_finished(f: Result[Optional[PlaylistDetails]]):
+    ) -> Result[Optional[Playlist]]:
+        def on_result_finished(f: Result[Optional[Playlist]]):
             assert AdapterManager._instance
             assert AdapterManager._instance.caching_adapter
             if playlist := f.result():
@@ -653,7 +651,7 @@ class AdapterManager:
         song_ids: Sequence[str] = None,
         append_song_ids: Sequence[str] = None,
         before_download: Callable[[], None] = lambda: None,
-    ) -> Result[PlaylistDetails]:
+    ) -> Result[Playlist]:
         return AdapterManager._get_from_cache_or_ground_truth(
             "update_playlist",
             playlist_id,
@@ -697,7 +695,7 @@ class AdapterManager:
     def get_cover_art_filename(
         cover_art_id: str = None,
         before_download: Callable[[], None] = None,
-        force: bool = False,  # TODO: rename to use_ground_truth_adapter?
+        force: bool = False,  # TODO (#202): rename to use_ground_truth_adapter?
         allow_download: bool = True,
     ) -> Result[str]:
         existing_cover_art_filename = str(
@@ -738,7 +736,6 @@ class AdapterManager:
         if not AdapterManager._ground_truth_can_do("get_cover_art_uri"):
             return Result(existing_cover_art_filename)
 
-        # TODO: make _get_from_cache_or_ground_truth work with downloading
         future: Result[str] = Result(
             AdapterManager._create_download_fn(
                 AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
@@ -787,9 +784,9 @@ class AdapterManager:
                 raise Exception("Can't stream the song.")
             return cached_song_filename
 
-        # TODO implement subsonic extension to get the hash of the song and compare
-        # here. That way of the cache gets blown away, but not the song files, it will
-        # not have to re-download.
+        # TODO (subsonic-extensions-api/specification#2) implement subsonic extension to
+        # get the hash of the song and compare here. That way of the cache gets blown
+        # away, but not the song files, it will not have to re-download.
 
         if force_stream and not AdapterManager._ground_truth_can_do("stream"):
             raise Exception("Can't stream the song.")
@@ -895,7 +892,7 @@ class AdapterManager:
         # This only really makes sense if we have a caching_adapter.
         if not AdapterManager._instance.caching_adapter:
             return Result(None)
-        # TODO ACTUALLY IMPLEMENT THIS
+        # TODO (#74): actually implement this
         raise NotImplementedError()
 
     @staticmethod
@@ -966,7 +963,7 @@ class AdapterManager:
 
     @staticmethod
     def _get_ignored_articles(use_ground_truth_adapter: bool) -> Set[str]:
-        # TODO get this at first startup.
+        # TODO (#21) get this at first startup.
         if not AdapterManager._any_adapter_can_do("get_ignored_articles"):
             return set()
         try:
@@ -1204,13 +1201,12 @@ class AdapterManager:
         if not AdapterManager._instance.caching_adapter:
             return list(itertools.repeat(SongCacheStatus.NOT_CACHED, len(songs)))
 
-        cache_statuses = []
-        for song, cache_status in zip(
-            songs, AdapterManager._instance.caching_adapter.get_cached_statuses(songs)
-        ):
-            if song.id in AdapterManager.current_download_ids:
-                cache_statuses.append(SongCacheStatus.DOWNLOADING)
-            else:
-                cache_statuses.append(cache_status)
-
-        return cache_statuses
+        cached_statuses = AdapterManager._instance.caching_adapter.get_cached_statuses(
+            songs
+        )
+        return [
+            SongCacheStatus.DOWNLOADING
+            if song.id in AdapterManager.current_download_ids
+            else cached_statuses[song.id]
+            for song in songs
+        ]

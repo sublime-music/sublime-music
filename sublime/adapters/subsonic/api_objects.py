@@ -218,7 +218,7 @@ class Playlist(SublimeAPI.Playlist):
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class PlaylistWithSongs(SublimeAPI.PlaylistDetails):
+class PlaylistWithSongs(SublimeAPI.Playlist):
     id: str
     name: str
     songs: List[Song] = field(default_factory=list, metadata=config(field_name="entry"))

@@ -445,7 +445,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
     )
     def update_playlist_view(
         self,
-        playlist: API.PlaylistDetails,
+        playlist: API.Playlist,
         app_config: AppConfiguration = None,
         force: bool = False,
         order_token: int = None,
@@ -741,7 +741,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     @util.async_callback(AdapterManager.get_playlist_details)
     def _update_playlist_order(
-        self, playlist: API.PlaylistDetails, app_config: AppConfiguration, **kwargs,
+        self, playlist: API.Playlist, app_config: AppConfiguration, **kwargs,
     ):
         self.playlist_view_loading_box.show_all()
         update_playlist_future = AdapterManager.update_playlist(
@@ -758,7 +758,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             )
         )
 
-    def _format_stats(self, playlist: API.PlaylistDetails) -> str:
+    def _format_stats(self, playlist: API.Playlist) -> str:
         created_date_text = ""
         if playlist.created:
             created_date_text = f" on {playlist.created.strftime('%B %d, %Y')}"
@@ -771,7 +771,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
             ),
             util.dot_join(
                 "{} {}".format(
-                    playlist.song_count, util.pluralize("song", playlist.song_count)
+                    playlist.song_count,
+                    util.pluralize("song", playlist.song_count or 0),
                 ),
                 util.format_sequence_duration(playlist.duration),
             ),

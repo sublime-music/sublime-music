@@ -99,25 +99,11 @@ class Song(abc.ABC):
     starred: Optional[datetime]
 
 
-# TODO remove distinction between Playlist and PlaylistDetails
 class Playlist(abc.ABC):
     id: str
     name: str
     song_count: Optional[int]
     duration: Optional[timedelta]
-    created: Optional[datetime]
-    changed: Optional[datetime]
-    comment: Optional[str]
-    owner: Optional[str]
-    public: Optional[bool]
-    cover_art: Optional[str]
-
-
-class PlaylistDetails(abc.ABC):
-    id: str
-    name: str
-    song_count: int
-    duration: timedelta
     songs: Sequence[Song]
     created: Optional[datetime]
     changed: Optional[datetime]

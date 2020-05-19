@@ -60,8 +60,8 @@ class SubsonicAdapter(Adapter):
     # ==================================================================================
     @staticmethod
     def get_config_parameters() -> Dict[str, ConfigParamDescriptor]:
-        # TODO some way to test the connection to the server and a way to open the
-        # server URL in a browser
+        # TODO (#197) some way to test the connection to the server and a way to open
+        # the server URL in a browser
         configs = {
             "server_address": ConfigParamDescriptor(str, "Server address"),
             "disable_cert_verify": ConfigParamDescriptor("password", "Password", False),
@@ -85,7 +85,10 @@ class SubsonicAdapter(Adapter):
     def verify_configuration(config: Dict[str, Any]) -> Dict[str, Optional[str]]:
         errors: Dict[str, Optional[str]] = {}
 
-        # TODO: verify the URL
+        # TODO (#197): verify the URL and ping it.
+        # Maybe have a special key like __ping_future__ or something along those lines
+        # to add a function that allows the UI to check whether or not connecting to the
+        # server will work?
         return errors
 
     def __init__(self, config: dict, data_directory: Path):
@@ -139,16 +142,15 @@ class SubsonicAdapter(Adapter):
     _server_available = multiprocessing.Value("b", False)
 
     def _check_ping_thread(self):
-        # TODO: also use other requests in place of ping if they come in. If the time
-        # since the last successful request is high, then do another ping.
-        # TODO: also use NM to detect when the connection changes and update
+        # TODO (#198): also use other requests in place of ping if they come in. If the
+        # time since the last successful request is high, then do another ping.
+        # TODO (#198): also use NM to detect when the connection changes and update
         # accordingly.
 
         while True:
             self._set_ping_status()
             sleep(15)
 
-    # TODO maybe expose something like this on the API?
     def _set_ping_status(self):
         try:
             # Try to ping the server with a timeout of 2 seconds.
@@ -162,7 +164,7 @@ class SubsonicAdapter(Adapter):
     def can_service_requests(self) -> bool:
         return self._server_available.value
 
-    # TODO make these way smarter
+    # TODO (#199) make these way smarter
     can_get_playlists = True
     can_get_playlist_details = True
     can_create_playlist = True
@@ -192,7 +194,7 @@ class SubsonicAdapter(Adapter):
             self._schemes = (urlparse(self.hostname)[0],)
         return self._schemes
 
-    # TODO make this way smarter
+    # TODO (#203) make this way smarter
     supported_artist_query_types = {
         AlbumSearchQuery.Type.RANDOM,
         AlbumSearchQuery.Type.NEWEST,
@@ -223,12 +225,13 @@ class SubsonicAdapter(Adapter):
     def _make_url(self, endpoint: str) -> str:
         return f"{self.hostname}/rest/{endpoint}.view"
 
-    # TODO figure out some way of rate limiting requests. They often come in too fast.
+    # TODO (#196) figure out some way of rate limiting requests. They often come in too
+    # fast.
     def _get(
         self,
         url: str,
         timeout: Union[float, Tuple[float, float], None] = None,
-        # TODO: retry count
+        # TODO (#122): retry count
         **params,
     ) -> Any:
         params = {**self._get_params(), **params}
@@ -282,7 +285,7 @@ class SubsonicAdapter(Adapter):
         result = self._get(url, timeout=timeout, **params)
         subsonic_response = result.json().get("subsonic-response")
 
-        # TODO (#122):  make better
+        # TODO (#122): make better
         if not subsonic_response:
             raise Exception(f"[FAIL] get: invalid JSON from {url}")
 
@@ -331,7 +334,7 @@ class SubsonicAdapter(Adapter):
             return playlists.playlist
         return []
 
-    def get_playlist_details(self, playlist_id: str) -> API.PlaylistDetails:
+    def get_playlist_details(self, playlist_id: str) -> API.Playlist:
         result = self._get_json(self._make_url("getPlaylist"), id=playlist_id).playlist
         # TODO (#122) better error (here and elsewhere)
         assert result, f"Error getting playlist {playlist_id}"
@@ -339,7 +342,7 @@ class SubsonicAdapter(Adapter):
 
     def create_playlist(
         self, name: str, songs: Sequence[API.Song] = None,
-    ) -> Optional[API.PlaylistDetails]:
+    ) -> Optional[API.Playlist]:
         return self._get_json(
             self._make_url("createPlaylist"),
             name=name,
@@ -354,7 +357,7 @@ class SubsonicAdapter(Adapter):
         public: bool = None,
         song_ids: Sequence[str] = None,
         append_song_ids: Sequence[str] = None,
-    ) -> API.PlaylistDetails:
+    ) -> API.Playlist:
         if any(x is not None for x in (name, comment, public, append_song_ids)):
             self._get_json(
                 self._make_url("updatePlaylist"),

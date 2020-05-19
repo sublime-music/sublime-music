@@ -77,8 +77,6 @@ class AlbumsPanel(Gtk.Box):
                 ("random", "randomly", True),
                 ("genre", "by genre", AdapterManager.can_get_genres()),
                 ("newest", "by most recently added", True),
-                # ("highest", "by highest rated", True),  # TODO I don't t hink this
-                # works anyway
                 ("frequent", "by most played", True),
                 ("recent", "by most recently played", True),
                 ("alphabetical", "alphabetically", True),
@@ -672,7 +670,7 @@ class AlbumsGrid(Gtk.Overlay):
                     text="Failed to retrieve albums",
                 )
                 self.error_dialog.format_secondary_markup(
-                    # TODO make this error better.
+                    # TODO (#204) make this error better.
                     f"Getting albums by {self.current_query.type} failed due to the "
                     f"following error\n\n{e}"
                 )

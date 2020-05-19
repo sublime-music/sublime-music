@@ -48,8 +48,8 @@ class ServerConfiguration:
     _strhash: Optional[str] = None
 
     def strhash(self) -> str:
-        # TODO: make this configurable by the adapters the combination of the hashes
-        # will be the hash dir
+        # TODO (#197): make this configurable by the adapters the combination of the
+        # hashes will be the hash dir
         """
         Returns the MD5 hash of the server's name, server address, and
         username. This should be used whenever it's necessary to uniquely
@@ -135,7 +135,6 @@ class AppConfiguration:
             return UIState()
 
         # If the server has changed, then retrieve the new server's state.
-        # TODO: if things are slow, then use a different hash
         if self._current_server_hash != server.strhash():
             self.load_state()
 

@@ -61,24 +61,18 @@ def pluralize(string: str, number: int, pluralized_form: str = None,) -> str:
     return string
 
 
-def format_sequence_duration(duration_secs: Union[int, timedelta]) -> str:
+def format_sequence_duration(duration: Optional[timedelta]) -> str:
     """
     Formats duration in English.
 
-    >>> format_sequence_duration(30)
-    '30 seconds'
     >>> format_sequence_duration(timedelta(seconds=90))
     '1 minute, 30 seconds'
-    >>> format_sequence_duration(60 * 60 + 120)
+    >>> format_sequence_duration(seconds=(60 * 60 + 120))
     '1 hour, 2 minutes'
     >>> format_sequence_duration(None)
     '0 seconds'
     """
-    # TODO remove int compatibility eventually
-    if isinstance(duration_secs, timedelta):
-        duration_secs = round(duration_secs.total_seconds())
-    if not duration_secs:
-        duration_secs = 0
+    duration_secs = round(duration.total_seconds()) if duration else 0
     duration_mins = (duration_secs // 60) % 60
     duration_hrs = duration_secs // 60 // 60
     duration_secs = duration_secs % 60

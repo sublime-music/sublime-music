@@ -60,7 +60,6 @@ class BrowsePanel(Gtk.Overlay):
             if self.update_order_token != update_order_token:
                 return
 
-            # TODO pass order token here?
             self.root_directory_listing.update(id_stack.result(), app_config, force)
             self.spinner.hide()
 
@@ -79,7 +78,6 @@ class BrowsePanel(Gtk.Overlay):
 
             return tuple(id_stack)
 
-        # TODO figure out why this updates so many times on startup
         path_result: Result[Tuple[str, ...]] = Result(calculate_path)
         path_result.add_done_callback(
             partial(GLib.idle_add, partial(do_update, self.update_order_token))
