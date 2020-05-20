@@ -139,10 +139,14 @@ class FilesystemAdapter(CachingAdapter):
         cache_key: CachingAdapter.CachedDataKey,
         ignore_cache_miss: bool = False,
         where_clauses: Tuple[Any, ...] = None,
+        order_by: Any = None,
     ) -> Sequence:
         result = model.select()
         if where_clauses is not None:
             result = result.where(*where_clauses)
+
+        if order_by:
+            result = result.order_by(order_by)
 
         if self.is_cache and not ignore_cache_miss:
             # Determine if the adapter has ingested data for this key before, and if
@@ -231,6 +235,7 @@ class FilesystemAdapter(CachingAdapter):
             models.Playlist,
             CachingAdapter.CachedDataKey.PLAYLISTS,
             ignore_cache_miss=ignore_cache_miss,
+            order_by=fn.LOWER(models.Playlist.name),
         )
         return self._playlists
 
@@ -291,7 +296,10 @@ class FilesystemAdapter(CachingAdapter):
         )
 
     def get_albums(
-        self, query: AlbumSearchQuery, sort_direction: str = "ascending"
+        self,
+        query: AlbumSearchQuery,
+        sort_direction: str = "ascending"
+        # TODO deal with sort dir here?
     ) -> Sequence[API.Album]:
         strhash = query.strhash()
         query_result = models.AlbumQueryResult.get_or_none(

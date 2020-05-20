@@ -164,6 +164,11 @@ class ConfigParamDescriptor:
       UI.
     * The literal string ``"option"``: corresponds to dropdown in the UI.
 
+    The :class:`hidden_behind` is an optional string representing the name of the
+    expander that the component should be displayed underneath. For example, one common
+    value for this is "Advanced" which will make the component only visible when the
+    user expands the "Advanced" settings.
+
     The :class:`numeric_bounds` parameter only has an effect if the :class:`type` is
     `int`. It specifies the min and max values that the UI control can have.
 
@@ -179,6 +184,7 @@ class ConfigParamDescriptor:
     type: Union[Type, str]
     description: str
     required: bool = True
+    hidden_behind: Optional[str] = None
     default: Any = None
     numeric_bounds: Optional[Tuple[int, int]] = None
     numeric_step: Optional[int] = None

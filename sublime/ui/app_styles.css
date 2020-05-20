@@ -61,19 +61,16 @@
 }
 
 #playlist-album-artwork {
-  min-height: 200px;
-  min-width: 200px;
-  margin: 10px;
-}
-
-#playlist-album-artwork.collapsed {
-  min-height: 40px;
-  min-width: 40px;
+  margin: 10px 15px 0 10px;
 }
 
 #playlist-name, #artist-detail-panel #artist-name {
   font-size: 40px;
   margin-bottom: 10px;
+}
+
+#playlist-name.collapsed {
+  font-size: 30px;
 }
 
 #playlist-comment, #playlist-stats, #artist-bio, #artist-stats, #similar-artists {
@@ -83,10 +80,6 @@
 #similar-artist-button {
   padding: 0;
   margin: -10px 0 0 10px;
-}
-
-#playlist-play-shuffle-buttons {
-  margin-bottom: 10px;
 }
 
 /* ********** Playback Controls ********** */
