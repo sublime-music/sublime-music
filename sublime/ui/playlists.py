@@ -469,7 +469,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         if app_config:
             self.playlist_details_expanded = app_config.state.playlist_details_expanded
-            print("expanded =", self.playlist_details_expanded)
 
         up_down = "up" if self.playlist_details_expanded else "down"
         self.expand_collapse_button.set_icon(f"pan-{up_down}-symbolic")
