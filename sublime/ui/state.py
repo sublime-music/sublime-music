@@ -43,6 +43,8 @@ class UIState:
         )
 
     version: int = 1
+
+    # Play state
     playing: bool = False
     current_song_index: int = -1
     play_queue: Tuple[str, ...] = field(default_factory=tuple)
@@ -54,6 +56,8 @@ class UIState:
     song_progress: timedelta = timedelta()
     song_stream_cache_progress: Optional[timedelta] = timedelta()
     current_device: str = "this device"
+
+    # UI state
     current_tab: str = "albums"
     selected_album_id: Optional[str] = None
     selected_artist_id: Optional[str] = None
@@ -63,6 +67,8 @@ class UIState:
     album_page_size: int = 30
     album_page: int = 0
     current_notification: Optional[UINotification] = None
+    playlist_details_expanded: bool = True
+    artist_details_expanded: bool = True
 
     def __getstate__(self):
         state = self.__dict__.copy()

@@ -153,7 +153,6 @@ class PlaylistList(Gtk.Box):
                     margin=10,
                     halign=Gtk.Align.START,
                     ellipsize=Pango.EllipsizeMode.END,
-                    max_width_chars=30,
                 )
             )
             row.show_all()
@@ -204,25 +203,25 @@ class PlaylistList(Gtk.Box):
 
     # Event Handlers
     # =========================================================================
-    def on_new_playlist_clicked(self, _: Any):
+    def on_new_playlist_clicked(self, _):
         self.new_playlist_entry.set_text("Untitled Playlist")
         self.new_playlist_entry.grab_focus()
         self.new_playlist_row.show()
 
-    def on_list_refresh_click(self, _: Any):
+    def on_list_refresh_click(self, _):
         self.update(force=True)
 
     def new_entry_activate(self, entry: Gtk.Entry):
         self.create_playlist(entry.get_text())
 
-    def cancel_button_clicked(self, _: Any):
+    def cancel_button_clicked(self, _):
         self.new_playlist_row.hide()
 
-    def confirm_button_clicked(self, _: Any):
+    def confirm_button_clicked(self, _):
         self.create_playlist(self.new_playlist_entry.get_text())
 
     def create_playlist(self, playlist_name: str):
-        def on_playlist_created(_: Any):
+        def on_playlist_created(_):
             self.update(force=True)
 
         self.loading_indicator.show()
@@ -247,53 +246,26 @@ class PlaylistDetailPanel(Gtk.Overlay):
     }
 
     playlist_id = None
+    playlist_details_expanded = False
 
     editing_playlist_song_list: bool = False
     reordering_playlist_song_list: bool = False
 
     def __init__(self):
         Gtk.Overlay.__init__(self, name="playlist-view-overlay")
-        playlist_view_scroll_window = Gtk.ScrolledWindow()
-        playlist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.playlist_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-        # Playlist info panel
-        self.big_info_panel = Gtk.Box(
-            name="playlist-info-panel", orientation=Gtk.Orientation.HORIZONTAL,
-        )
+        playlist_info_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         self.playlist_artwork = SpinnerImage(
             image_name="playlist-album-artwork",
             spinner_name="playlist-artwork-spinner",
             image_size=200,
         )
-        self.big_info_panel.pack_start(self.playlist_artwork, False, False, 0)
+        playlist_info_box.add(self.playlist_artwork)
 
-        # Action buttons, name, comment, number of songs, etc.
+        # Name, comment, number of songs, etc.
         playlist_details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-
-        # Action buttons (note we are packing end here, so we have to put them
-        # in right-to-left).
-        self.playlist_action_buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-
-        view_refresh_button = IconButton(
-            "view-refresh-symbolic", "Refresh playlist info"
-        )
-        view_refresh_button.connect("clicked", self.on_view_refresh_click)
-        self.playlist_action_buttons.pack_end(view_refresh_button, False, False, 5)
-
-        playlist_edit_button = IconButton("document-edit-symbolic", "Edit paylist")
-        playlist_edit_button.connect("clicked", self.on_playlist_edit_button_click)
-        self.playlist_action_buttons.pack_end(playlist_edit_button, False, False, 5)
-
-        download_all_button = IconButton(
-            "folder-download-symbolic", "Download all songs in the playlist"
-        )
-        download_all_button.connect(
-            "clicked", self.on_playlist_list_download_all_button_click
-        )
-        self.playlist_action_buttons.pack_end(download_all_button, False, False, 5)
-
-        playlist_details_box.pack_start(self.playlist_action_buttons, False, False, 5)
 
         playlist_details_box.pack_start(Gtk.Box(), True, False, 0)
 
@@ -328,11 +300,53 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         playlist_details_box.add(self.play_shuffle_buttons)
 
-        self.big_info_panel.pack_start(playlist_details_box, True, True, 10)
+        playlist_info_box.pack_start(playlist_details_box, True, True, 0)
 
-        playlist_box.pack_start(self.big_info_panel, False, True, 0)
+        # Action buttons & expand/collapse button
+        action_buttons_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.playlist_action_buttons = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=10
+        )
+
+        download_all_button = IconButton(
+            "folder-download-symbolic", "Download all songs in the playlist"
+        )
+        download_all_button.connect(
+            "clicked", self.on_playlist_list_download_all_button_click
+        )
+        self.playlist_action_buttons.add(download_all_button)
+
+        playlist_edit_button = IconButton("document-edit-symbolic", "Edit paylist")
+        playlist_edit_button.connect("clicked", self.on_playlist_edit_button_click)
+        self.playlist_action_buttons.add(playlist_edit_button)
+
+        view_refresh_button = IconButton(
+            "view-refresh-symbolic", "Refresh playlist info"
+        )
+        view_refresh_button.connect("clicked", self.on_view_refresh_click)
+        self.playlist_action_buttons.add(view_refresh_button)
+
+        action_buttons_container.pack_start(
+            self.playlist_action_buttons, False, False, 10
+        )
+
+        action_buttons_container.pack_start(Gtk.Box(), True, True, 0)
+
+        expand_button_container = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.expand_collapse_button = IconButton(
+            "pan-up-symbolic", "Expand playlist details"
+        )
+        self.expand_collapse_button.connect("clicked", self.on_expand_collapse_click)
+        expand_button_container.pack_end(self.expand_collapse_button, False, False, 0)
+        action_buttons_container.add(expand_button_container)
+
+        playlist_info_box.pack_end(action_buttons_container, False, False, 5)
+
+        self.playlist_box.add(playlist_info_box)
 
         # Playlist songs list
+        playlist_view_scroll_window = Gtk.ScrolledWindow()
+
         self.playlist_song_store = Gtk.ListStore(
             str,  # cache status
             str,  # title
@@ -399,10 +413,10 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
         self.playlist_song_store.connect("row-deleted", self.on_playlist_model_row_move)
 
-        playlist_box.add(self.playlist_songs)
+        playlist_view_scroll_window.add(self.playlist_songs)
 
-        playlist_view_scroll_window.add(playlist_box)
-        self.add(playlist_view_scroll_window)
+        self.playlist_box.pack_start(playlist_view_scroll_window, True, True, 0)
+        self.add(self.playlist_box)
 
         playlist_view_spinner = Gtk.Spinner(active=True)
         playlist_view_spinner.start()
@@ -417,17 +431,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     def update(self, app_config: AppConfiguration, force: bool = False):
         if app_config.state.selected_playlist_id is None:
-            self.playlist_artwork.set_from_file(None)
-            self.playlist_indicator.set_markup("")
-            self.playlist_name.set_markup("")
-            self.playlist_comment.hide()
-            self.playlist_stats.set_markup("")
-            self.playlist_action_buttons.hide()
-            self.play_shuffle_buttons.hide()
+            self.playlist_box.hide()
             self.playlist_view_loading_box.hide()
-            self.playlist_artwork.set_loading(False)
         else:
             self.update_playlist_view_order_token += 1
+            self.playlist_box.show()
             self.update_playlist_view(
                 app_config.state.selected_playlist_id,
                 app_config=app_config,
@@ -459,15 +467,40 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         self.playlist_id = playlist.id
 
+        if app_config:
+            self.playlist_details_expanded = app_config.state.playlist_details_expanded
+
+        up_down = "up" if self.playlist_details_expanded else "down"
+        self.expand_collapse_button.set_icon(f"pan-{up_down}-symbolic")
+        self.expand_collapse_button.set_tooltip_text(
+            "Collapse" if self.playlist_details_expanded else "Expand"
+        )
+
         # Update the info display.
-        self.playlist_indicator.set_markup("PLAYLIST")
         self.playlist_name.set_markup(f"<b>{playlist.name}</b>")
-        if playlist.comment:
-            self.playlist_comment.set_text(playlist.comment)
-            self.playlist_comment.show()
+        self.playlist_name.set_tooltip_text(playlist.name)
+
+        if self.playlist_details_expanded:
+            self.playlist_name.get_style_context().remove_class("collapsed")
+            self.playlist_box.show_all()
+            self.playlist_artwork.set_image_size(200)
+            self.playlist_indicator.set_markup("PLAYLIST")
+
+            if playlist.comment:
+                self.playlist_comment.set_text(playlist.comment)
+                self.playlist_comment.set_tooltip_text(playlist.comment)
+                self.playlist_comment.show()
+            else:
+                self.playlist_comment.hide()
+
+            self.playlist_stats.set_markup(self._format_stats(playlist))
         else:
+            self.playlist_name.get_style_context().add_class("collapsed")
+            self.playlist_box.show_all()
+            self.playlist_artwork.set_image_size(70)
+            self.playlist_indicator.hide()
             self.playlist_comment.hide()
-        self.playlist_stats.set_markup(self._format_stats(playlist))
+            self.playlist_stats.hide()
 
         # Update the artwork.
         self.update_playlist_artwork(playlist.cover_art, order_token=order_token)
@@ -522,7 +555,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         self.playlist_view_loading_box.hide()
         self.playlist_action_buttons.show_all()
-        self.play_shuffle_buttons.show_all()
 
     @util.async_callback(
         AdapterManager.get_cover_art_filename,
@@ -544,14 +576,14 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     # Event Handlers
     # =========================================================================
-    def on_view_refresh_click(self, _: Any):
+    def on_view_refresh_click(self, _):
         self.update_playlist_view(
             self.playlist_id,
             force=True,
             order_token=self.update_playlist_view_order_token,
         )
 
-    def on_playlist_edit_button_click(self, _: Any):
+    def on_playlist_edit_button_click(self, _):
         assert self.playlist_id
         playlist = AdapterManager.get_playlist_details(self.playlist_id).result()
         dialog = EditPlaylistDialog(self.get_toplevel(), playlist)
@@ -609,7 +641,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         dialog.destroy()
 
-    def on_playlist_list_download_all_button_click(self, _: Any):
+    def on_playlist_list_download_all_button_click(self, _):
         def download_state_change(song_id: str):
             GLib.idle_add(
                 lambda: self.update_playlist_view(
@@ -624,7 +656,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             on_song_download_complete=download_state_change,
         )
 
-    def on_play_all_clicked(self, _: Any):
+    def on_play_all_clicked(self, _):
         self.emit(
             "song-clicked",
             0,
@@ -632,7 +664,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             {"force_shuffle_state": False, "active_playlist_id": self.playlist_id},
         )
 
-    def on_shuffle_all_button(self, _: Any):
+    def on_shuffle_all_button(self, _):
         self.emit(
             "song-clicked",
             randint(0, len(self.playlist_song_store) - 1),
@@ -640,7 +672,14 @@ class PlaylistDetailPanel(Gtk.Overlay):
             {"force_shuffle_state": True, "active_playlist_id": self.playlist_id},
         )
 
-    def on_song_activated(self, _: Any, idx: Gtk.TreePath, col: Any):
+    def on_expand_collapse_click(self, _):
+        self.emit(
+            "refresh-window",
+            {"playlist_details_expanded": not self.playlist_details_expanded},
+            False,
+        )
+
+    def on_song_activated(self, _, idx: Gtk.TreePath, col: Any):
         # The song ID is in the last column of the model.
         self.emit(
             "song-clicked",
@@ -678,7 +717,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
             bin_coords = tree.convert_tree_to_bin_window_coords(event.x, event.y)
             widget_coords = tree.convert_tree_to_widget_coords(event.x, event.y)
 
-            def on_remove_songs_click(_: Any):
+            def on_remove_songs_click(_):
                 assert self.playlist_id
                 delete_idxs = {p.get_indices()[0] for p in paths}
                 new_song_ids = [
@@ -737,7 +776,13 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_view_loading_box.show_all()
 
     def make_label(self, text: str = None, name: str = None, **params,) -> Gtk.Label:
-        return Gtk.Label(label=text, name=name, halign=Gtk.Align.START, **params,)
+        return Gtk.Label(
+            label=text,
+            name=name,
+            halign=Gtk.Align.START,
+            ellipsize=Pango.EllipsizeMode.END,
+            **params,
+        )
 
     @util.async_callback(AdapterManager.get_playlist_details)
     def _update_playlist_order(

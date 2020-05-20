@@ -125,7 +125,7 @@ class SubsonicAdapter(Adapter):
         self.ping_process = multiprocessing.Process(target=self._check_ping_thread)
         self.ping_process.start()
 
-        # TODO (#191): support XML?
+        # TODO (#112): support XML?
 
     def initial_sync(self):
         # Wait for the ping to happen.
