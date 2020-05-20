@@ -1,6 +1,6 @@
 from datetime import timedelta
 from random import randint
-from typing import Any, List, Sequence
+from typing import List, Sequence
 
 from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
@@ -35,6 +35,9 @@ class ArtistsPanel(Gtk.Paned):
         self.artist_detail_panel = ArtistDetailPanel()
         self.artist_detail_panel.connect(
             "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+        )
+        self.artist_detail_panel.connect(
+            "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
         )
         self.pack2(self.artist_detail_panel, True, False)
 
@@ -145,7 +148,7 @@ class ArtistList(Gtk.Box):
         self.loading_indicator.hide()
 
 
-class ArtistDetailPanel(Gtk.ScrolledWindow):
+class ArtistDetailPanel(Gtk.Box):
     """Defines the artists list."""
 
     __gsignals__ = {
@@ -154,19 +157,30 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
             GObject.TYPE_NONE,
             (int, object, object),
         ),
+        "refresh-window": (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, bool),
+        ),
     }
 
     update_order_token = 0
+    artist_details_expanded = False
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, name="artist-detail-panel", **kwargs)
+        super().__init__(
+            *args,
+            name="artist-detail-panel",
+            orientation=Gtk.Orientation.VERTICAL,
+            **kwargs,
+        )
         self.albums: Sequence[API.Album] = []
         self.artist_id = None
 
-        artist_info_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-
         # Artist info panel
-        self.big_info_panel = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.big_info_panel = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, name="artist-info-panel"
+        )
 
         self.artist_artwork = SpinnerImage(
             loading=False,
@@ -178,22 +192,6 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
 
         # Action buttons, name, comment, number of songs, etc.
         artist_details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-
-        # Action buttons (note we are packing end here, so we have to put them
-        # in right-to-left).
-        self.artist_action_buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-
-        view_refresh_button = IconButton("view-refresh-symbolic", "Refresh artist info")
-        view_refresh_button.connect("clicked", self.on_view_refresh_click)
-        self.artist_action_buttons.pack_end(view_refresh_button, False, False, 5)
-
-        download_all_btn = IconButton(
-            "folder-download-symbolic", "Download all songs by this artist"
-        )
-        download_all_btn.connect("clicked", self.on_download_all_click)
-        self.artist_action_buttons.pack_end(download_all_btn, False, False, 5)
-
-        artist_details_box.pack_start(self.artist_action_buttons, False, False, 5)
 
         artist_details_box.pack_start(Gtk.Box(), True, False, 0)
 
@@ -246,35 +244,55 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
 
         self.big_info_panel.pack_start(artist_details_box, True, True, 10)
 
-        artist_info_box.pack_start(self.big_info_panel, False, True, 0)
+        # Action buttons
+        action_buttons_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.artist_action_buttons = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=10
+        )
 
+        download_all_btn = IconButton(
+            "folder-download-symbolic", "Download all songs by this artist"
+        )
+        download_all_btn.connect("clicked", self.on_download_all_click)
+        self.artist_action_buttons.add(download_all_btn)
+
+        view_refresh_button = IconButton("view-refresh-symbolic", "Refresh artist info")
+        view_refresh_button.connect("clicked", self.on_view_refresh_click)
+        self.artist_action_buttons.add(view_refresh_button)
+
+        action_buttons_container.pack_start(
+            self.artist_action_buttons, False, False, 10
+        )
+
+        action_buttons_container.pack_start(Gtk.Box(), True, True, 0)
+
+        expand_button_container = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.expand_collapse_button = IconButton(
+            "pan-up-symbolic", "Expand playlist details"
+        )
+        self.expand_collapse_button.connect("clicked", self.on_expand_collapse_click)
+        expand_button_container.pack_end(self.expand_collapse_button, False, False, 0)
+        action_buttons_container.add(expand_button_container)
+
+        self.big_info_panel.pack_start(action_buttons_container, False, False, 5)
+
+        self.pack_start(self.big_info_panel, False, True, 0)
+
+        self.album_list_scrolledwindow = Gtk.ScrolledWindow()
         self.albums_list = AlbumsListWithSongs()
         self.albums_list.connect(
             "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
         )
-        artist_info_box.pack_start(self.albums_list, True, True, 0)
-
-        self.add(artist_info_box)
+        self.album_list_scrolledwindow.add(self.albums_list)
+        self.pack_start(self.album_list_scrolledwindow, True, True, 0)
 
     def update(self, app_config: AppConfiguration):
         self.artist_id = app_config.state.selected_artist_id
         if app_config.state.selected_artist_id is None:
-            self.artist_action_buttons.hide()
-            self.artist_indicator.set_text("")
-            self.artist_name.set_markup("")
-            self.artist_stats.set_markup("")
-
-            self.artist_bio.set_markup("")
-            self.similar_artists_scrolledwindow.hide()
-            self.play_shuffle_buttons.hide()
-
-            self.artist_artwork.set_from_file(None)
-
-            self.albums = []
-            self.albums_list.update(None)
+            self.hide()
         else:
             self.update_order_token += 1
-            self.artist_action_buttons.show()
+            self.show()
             self.update_artist_view(
                 app_config.state.selected_artist_id,
                 app_config=app_config,
@@ -296,28 +314,50 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
         if order_token != self.update_order_token:
             return
 
-        self.artist_indicator.set_text("ARTIST")
+        if app_config:
+            self.artist_details_expanded = app_config.state.artist_details_expanded
+
+        up_down = "up" if self.artist_details_expanded else "down"
+        self.expand_collapse_button.set_icon(f"pan-{up_down}-symbolic")
+        self.expand_collapse_button.set_tooltip_text(
+            "Collapse" if self.artist_details_expanded else "Expand"
+        )
+
         self.artist_name.set_markup(util.esc(f"<b>{artist.name}</b>"))
-        self.artist_stats.set_markup(self.format_stats(artist))
+        self.artist_name.set_tooltip_text(artist.name)
 
-        self.artist_bio.set_markup(util.esc(artist.biography))
+        if self.artist_details_expanded:
+            self.show_all()
+            self.artist_artwork.set_image_size(300)
+            self.artist_indicator.set_text("ARTIST")
+            self.artist_stats.set_markup(self.format_stats(artist))
 
-        if len(artist.similar_artists or []) > 0:
-            self.similar_artists_label.set_markup("<b>Similar Artists:</b> ")
-            for c in self.similar_artists_button_box.get_children():
-                self.similar_artists_button_box.remove(c)
+            self.artist_bio.set_markup(util.esc(artist.biography))
 
-            for artist in (artist.similar_artists or [])[:5]:
-                self.similar_artists_button_box.add(
-                    Gtk.LinkButton(
-                        label=artist.name,
-                        name="similar-artist-button",
-                        action_name="app.go-to-artist",
-                        action_target=GLib.Variant("s", artist.id),
+            if len(artist.similar_artists or []) > 0:
+                self.similar_artists_label.set_markup("<b>Similar Artists:</b> ")
+                for c in self.similar_artists_button_box.get_children():
+                    self.similar_artists_button_box.remove(c)
+
+                for artist in (artist.similar_artists or [])[:5]:
+                    self.similar_artists_button_box.add(
+                        Gtk.LinkButton(
+                            label=artist.name,
+                            name="similar-artist-button",
+                            action_name="app.go-to-artist",
+                            action_target=GLib.Variant("s", artist.id),
+                        )
                     )
-                )
-            self.similar_artists_scrolledwindow.show_all()
+                self.similar_artists_scrolledwindow.show_all()
+            else:
+                self.similar_artists_scrolledwindow.hide()
         else:
+            self.artist_name.get_style_context().add_class("collapsed")
+            self.show_all()
+            self.artist_artwork.set_image_size(70)
+            self.artist_indicator.hide()
+            self.artist_stats.hide()
+            self.artist_bio.hide()
             self.similar_artists_scrolledwindow.hide()
 
         self.play_shuffle_buttons.show_all()
@@ -353,7 +393,7 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
             self.artist_id, force=True, order_token=self.update_order_token,
         )
 
-    def on_download_all_click(self, btn: Any):
+    def on_download_all_click(self, _):
         AdapterManager.batch_download_songs(
             self.get_artist_song_ids(),
             before_download=lambda _: self.update_artist_view(
@@ -364,19 +404,26 @@ class ArtistDetailPanel(Gtk.ScrolledWindow):
             ),
         )
 
-    def on_play_all_clicked(self, btn: Any):
+    def on_play_all_clicked(self, _):
         songs = self.get_artist_song_ids()
         self.emit(
             "song-clicked", 0, songs, {"force_shuffle_state": False},
         )
 
-    def on_shuffle_all_button(self, btn: Any):
+    def on_shuffle_all_button(self, _):
         songs = self.get_artist_song_ids()
         self.emit(
             "song-clicked",
             randint(0, len(songs) - 1),
             songs,
             {"force_shuffle_state": True},
+        )
+
+    def on_expand_collapse_click(self, _):
+        self.emit(
+            "refresh-window",
+            {"artist_details_expanded": not self.artist_details_expanded},
+            False,
         )
 
     # Helper Methods

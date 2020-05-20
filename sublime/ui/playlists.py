@@ -673,7 +673,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
     def on_expand_collapse_click(self, _):
-        # TODO
         self.emit(
             "refresh-window",
             {"playlist_details_expanded": not self.playlist_details_expanded},

@@ -64,12 +64,17 @@
   margin: 10px 15px 0 10px;
 }
 
+#artist-info-panel {
+  margin-bottom: 10px;
+}
+
 #playlist-name, #artist-detail-panel #artist-name {
   font-size: 40px;
   margin-bottom: 10px;
 }
 
-#playlist-name.collapsed {
+#playlist-name.collapsed,
+#artist-detail-panel #artist-name.collapsed {
   font-size: 30px;
 }
 
@@ -204,9 +209,7 @@
 }
 
 #artist-album-artwork {
-  margin: 10px;
-  min-width: 300px;
-  min-height: 300px;
+  margin: 10px 15px 0 10px;
 }
 
 #artist-album-list-artwork {

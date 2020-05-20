@@ -515,7 +515,7 @@ class FilesystemAdapter(CachingAdapter):
                 "year": getattr(api_album, "year", None),
                 "genre": ingest_genre_data(g) if (g := api_album.genre) else None,
                 "artist": ingest_artist_data(ar) if (ar := api_album.artist) else None,
-                "songs": [
+                "_songs": [
                     ingest_song_data(s, fill_album=False) for s in api_album.songs or []
                 ],
                 "_cover_art": self._do_ingest_new_data(

@@ -108,6 +108,15 @@ class Album(BaseModel):
         except Exception:
             return None
 
+    @property
+    def songs(self) -> List["Song"]:
+        albums = Album.select()
+        artists = Album.select()
+        return sorted(
+            prefetch(self._songs, albums, artists),
+            key=lambda s: (s.disc_number or 1, s.track),
+        )
+
 
 class AlbumQueryResult(BaseModel):
     query_hash = TextField(primary_key=True)
@@ -144,7 +153,7 @@ class Song(BaseModel):
     duration = DurationField(null=True)
 
     parent_id = TextField(null=True)
-    album = ForeignKeyField(Album, null=True, backref="songs")
+    album = ForeignKeyField(Album, null=True, backref="_songs")
     artist = ForeignKeyField(Artist, null=True)
     genre = ForeignKeyField(Genre, null=True, backref="songs")
 
