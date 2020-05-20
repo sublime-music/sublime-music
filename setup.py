@@ -60,6 +60,7 @@ setup(
         "peewee",
         "pychromecast",
         "PyGObject",
+        "python-dateutil",
         "python-Levenshtein",
         "python-mpv",
         "pyyaml",

@@ -14,12 +14,13 @@ from dataclasses_json import (
     DataClassJsonMixin,
     LetterCase,
 )
+from dateutil import parser
 
 from .. import api_objects as SublimeAPI
 
 # Translation map
 decoder_functions = {
-    datetime: (lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%f%z") if s else None),
+    datetime: (lambda s: parser.parse(s) if s else None),
     timedelta: (lambda s: timedelta(seconds=s) if s else None),
 }
 encoder_functions = {
