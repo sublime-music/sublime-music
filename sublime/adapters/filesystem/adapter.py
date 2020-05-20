@@ -299,7 +299,7 @@ class FilesystemAdapter(CachingAdapter):
         self,
         query: AlbumSearchQuery,
         sort_direction: str = "ascending"
-        # TODO deal with sort dir here?
+        # TODO (#208) deal with sort dir here?
     ) -> Sequence[API.Album]:
         strhash = query.strhash()
         query_result = models.AlbumQueryResult.get_or_none(
