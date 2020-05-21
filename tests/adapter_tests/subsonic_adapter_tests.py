@@ -358,10 +358,16 @@ def test_get_artist(adapter: SubsonicAdapter):
         artist = adapter.get_artist("3")
         assert artist.album_count == 1
         assert artist.albums and len(artist.albums) == 1
+        assert ("3", "Kane Brown") == (artist.albums[0].id, artist.albums[0].name)
         assert artist.artist_image_url == "ar-3"
         assert artist.biography and len(artist.biography) > 0
         assert artist.name == "Kane Brown"
-        assert ("3", "Kane Brown") == (artist.albums[0].id, artist.albums[0].name)
+        assert artist.similar_artists
+        assert len(artist.similar_artists) == 20
+        assert (first_similar := artist.similar_artists[0])
+        assert first_similar
+        assert first_similar.name == 'Luke Combs'
+        assert first_similar.artist_image_url == 'ar-158'
 
 
 def test_get_artist_with_good_image_url(adapter: SubsonicAdapter):

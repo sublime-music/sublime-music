@@ -91,6 +91,7 @@
 #player-controls-album-artwork {
   min-height: 70px;
   min-width: 70px;
+  margin-right: 10px;
 }
 
 #player-controls-bar #play-button {

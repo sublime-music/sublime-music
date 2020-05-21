@@ -246,9 +246,13 @@ def show_song_popover(
 
         albums, artists, parents = set(), set(), set()
         for song in songs:
-            albums.add(album.id if (album := song.album) else None)
-            artists.add(artist.id if (artist := song.artist) else None)
             parents.add(parent_id if (parent_id := song.parent_id) else None)
+
+            if (al := song.album) and (id_ := al.id) and not id_.startswith("invalid:"):
+                albums.add(id_)
+
+            if (a := song.artist) and (id_ := a.id) and not id_.startswith("invalid:"):
+                artists.add(id_)
 
         if len(albums) == 1 and list(albums)[0] is not None:
             album_value = GLib.Variant("s", list(albums)[0])

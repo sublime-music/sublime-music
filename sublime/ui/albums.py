@@ -1,5 +1,6 @@
 import datetime
 import itertools
+import logging
 import math
 from typing import Any, Callable, cast, Iterable, List, Optional, Tuple
 
@@ -674,6 +675,7 @@ class AlbumsGrid(Gtk.Overlay):
                     f"Getting albums by {self.current_query.type} failed due to the "
                     f"following error\n\n{e}"
                 )
+                logging.exception("Failed to retrieve albums")
                 self.error_dialog.run()
                 self.error_dialog.destroy()
                 self.error_dialog = None

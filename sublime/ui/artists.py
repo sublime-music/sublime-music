@@ -242,7 +242,7 @@ class ArtistDetailPanel(Gtk.Box):
         self.play_shuffle_buttons.pack_start(shuffle_button, False, False, 5)
         artist_details_box.add(self.play_shuffle_buttons)
 
-        self.big_info_panel.pack_start(artist_details_box, True, True, 10)
+        self.big_info_panel.pack_start(artist_details_box, True, True, 0)
 
         # Action buttons
         action_buttons_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -289,10 +289,12 @@ class ArtistDetailPanel(Gtk.Box):
     def update(self, app_config: AppConfiguration):
         self.artist_id = app_config.state.selected_artist_id
         if app_config.state.selected_artist_id is None:
-            self.hide()
+            self.big_info_panel.hide()
+            self.album_list_scrolledwindow.hide()
         else:
             self.update_order_token += 1
-            self.show()
+            self.big_info_panel.show()
+            self.album_list_scrolledwindow.show()
             self.update_artist_view(
                 app_config.state.selected_artist_id,
                 app_config=app_config,
@@ -328,6 +330,7 @@ class ArtistDetailPanel(Gtk.Box):
 
         if self.artist_details_expanded:
             self.show_all()
+            self.artist_name.get_style_context().remove_class("collapsed")
             self.artist_artwork.set_image_size(300)
             self.artist_indicator.set_text("ARTIST")
             self.artist_stats.set_markup(self.format_stats(artist))
@@ -339,13 +342,13 @@ class ArtistDetailPanel(Gtk.Box):
                 for c in self.similar_artists_button_box.get_children():
                     self.similar_artists_button_box.remove(c)
 
-                for artist in (artist.similar_artists or [])[:5]:
+                for similar_artist in (artist.similar_artists or [])[:5]:
                     self.similar_artists_button_box.add(
                         Gtk.LinkButton(
-                            label=artist.name,
+                            label=similar_artist.name,
                             name="similar-artist-button",
                             action_name="app.go-to-artist",
-                            action_target=GLib.Variant("s", artist.id),
+                            action_target=GLib.Variant("s", similar_artist.id),
                         )
                     )
                 self.similar_artists_scrolledwindow.show_all()

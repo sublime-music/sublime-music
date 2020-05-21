@@ -73,7 +73,12 @@ class Artist(BaseModel):
 
     @property
     def similar_artists(self) -> Query:
-        return SimilarArtist.select().where(SimilarArtist.artist == self.id)
+        return (
+            Artist.select()
+            .join(SimilarArtist, on=(SimilarArtist.similar_artist == Artist.id))
+            .where(SimilarArtist.artist == self.id)
+            .order_by(SimilarArtist.order)
+        )
 
 
 class SimilarArtist(BaseModel):

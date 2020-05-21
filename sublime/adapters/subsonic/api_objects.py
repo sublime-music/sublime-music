@@ -94,9 +94,7 @@ class ArtistAndArtistInfo(SublimeAPI.Artist):
     starred: Optional[datetime] = None
 
     # Artist Info
-    similar_artists: List["ArtistAndArtistInfo"] = field(
-        default_factory=list, metadata=config(field_name="similar_artist")
-    )
+    similar_artists: List["ArtistAndArtistInfo"] = field(default_factory=list)
     biography: Optional[str] = None
     music_brainz_id: Optional[str] = None
     last_fm_url: Optional[str] = None
@@ -112,15 +110,21 @@ class ArtistAndArtistInfo(SublimeAPI.Artist):
 
     def augment_with_artist_info(self, artist_info: Optional["ArtistInfo"]):
         if artist_info:
-            for k, v in asdict(artist_info).items():
-                if v:
-                    setattr(self, k, v)
+            self.similar_artists = artist_info.similar_artists
+            self.biography = artist_info.biography
+            self.last_fm_url = artist_info.last_fm_url
+            self.artist_image_url = (
+                artist_info.artist_image_url or self.artist_image_url
+            )
+            self.music_brainz_id = artist_info.music_brainz_id
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ArtistInfo:
-    similar_artist: List[ArtistAndArtistInfo] = field(default_factory=list)
+    similar_artists: List[ArtistAndArtistInfo] = field(
+        default_factory=list, metadata=config(field_name="similarArtist")
+    )
     biography: Optional[str] = None
     last_fm_url: Optional[str] = None
     artist_image_url: Optional[str] = field(

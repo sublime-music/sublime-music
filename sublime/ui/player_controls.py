@@ -490,7 +490,7 @@ class PlayerControls(Gtk.ActionBar):
         self.album_art = SpinnerImage(
             image_name="player-controls-album-artwork", image_size=70,
         )
-        box.pack_start(self.album_art, False, False, 5)
+        box.pack_start(self.album_art, False, False, 0)
 
         details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         details_box.pack_start(Gtk.Box(), True, True, 0)
