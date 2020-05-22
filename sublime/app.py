@@ -106,6 +106,10 @@ class SublimeMusicApp(Gtk.Application):
             self.window.present()
             return
 
+        # Configure Icons
+        icon_dir = Path(__file__).parent.joinpath("ui", "icons")
+        Gtk.IconTheme.get_default().append_search_path(str(icon_dir))
+
         # Windows are associated with the application when the last one is
         # closed the application shuts down.
         self.window = MainWindow(application=self, title="Sublime Music")
@@ -492,7 +496,7 @@ class SublimeMusicApp(Gtk.Application):
     ):
         if settings := state_updates.get("__settings__"):
             for k, v in settings.items():
-                print('SET', k, v)
+                print("SET", k, v)
                 setattr(self.app_config, k, v)
             del state_updates["__settings__"]
 

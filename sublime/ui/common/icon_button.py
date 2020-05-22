@@ -76,7 +76,6 @@ class IconMenuButton(Gtk.MenuButton):
     def __init__(
         self,
         icon_name: Optional[str] = None,
-        icon_image_filename: Optional[str] = None,
         tooltip_text: str = "",
         relief: bool = False,
         icon_size: Gtk.IconSize = Gtk.IconSize.BUTTON,
@@ -96,12 +95,6 @@ class IconMenuButton(Gtk.MenuButton):
         self.image = Gtk.Image()
         if icon_name:
             self.image.set_from_icon_name(icon_name, self.icon_size)
-            box.add(self.image)
-        elif icon_image_filename:
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                icon_image_filename, -1, 16, True,
-            )
-            self.image.set_from_pixbuf(pixbuf)
             box.add(self.image)
 
         if label is not None:

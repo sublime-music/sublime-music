@@ -203,8 +203,7 @@ class MainWindow(Gtk.ApplicationWindow):
         # Server icon and change server dropdown
         self.server_connection_popover = self._create_server_connection_popover()
         self.server_connection_menu_button = IconMenuButton(
-            name="server-connection-icon",
-            icon_image_filename="/home/sumner/tmp/server-subsonic-symbolic.svg",
+            "server-subsonic-error-symbolic",
             tooltip_text="Server connection settings",
             popover=self.server_connection_popover,
         )
