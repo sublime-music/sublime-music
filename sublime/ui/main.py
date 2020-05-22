@@ -1,7 +1,7 @@
 from functools import partial
-from typing import Any, Callable, Optional, Set
+from typing import Any, Callable, Optional, Set, Tuple
 
-from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
+from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
 from sublime.adapters import AdapterManager, api_objects as API, Result
 from sublime.config import AppConfiguration, ReplayGainType
@@ -111,22 +111,35 @@ class MainWindow(Gtk.ApplicationWindow):
             self.notification_revealer.set_reveal_child(False)
 
         # Update the Connected to label on the popup menu.
-        # if app_config.server:
-        #     self.connected_to_label.set_markup(
-        #         f"<b>Connected to {app_config.server.name}</b>"
-        #     )
-        # else:
-        #     self.connected_to_label.set_markup(
-        #         '<span style="italic">Not Connected to a Server</span>'
-        #     )
+        if app_config.server:
+            self.connected_to_label.set_markup(
+                f"<b>Connected to {app_config.server.name}</b>"
+            )
+        else:
+            self.connected_to_label.set_markup("<i>Not Connected to a Server</i>")
 
         self._updating_settings = True
 
-        self.offline_mode_switch.set_active(app_config.offline_mode)
+        # Main Settings
+        offline_mode = app_config.offline_mode
+        self.offline_mode_switch.set_active(offline_mode)
+        self.download_settings_button.set_sensitive(not offline_mode)
         self.notification_switch.set_active(app_config.song_play_notification)
         self.replay_gain_options.set_active_id(app_config.replay_gain.as_string())
         self.serve_over_lan_switch.set_active(app_config.serve_over_lan)
         self.port_number_entry.set_value(app_config.port_number)
+
+        # Download Settings
+        allow_song_downloads = app_config.allow_song_downloads
+        self.allow_song_downloads_switch.set_active(allow_song_downloads)
+        self.download_on_stream_switch.set_active(app_config.download_on_stream)
+        self.prefetch_songs_entry.set_value(app_config.prefetch_amount)
+        self.max_concurrent_downloads_entry.set_value(
+            app_config.concurrent_download_limit
+        )
+        self.download_on_stream_switch.set_sensitive(allow_song_downloads)
+        self.prefetch_songs_entry.set_sensitive(allow_song_downloads)
+        self.max_concurrent_downloads_entry.set_sensitive(allow_song_downloads)
 
         self._updating_settings = False
 
@@ -231,17 +244,72 @@ class MainWindow(Gtk.ApplicationWindow):
         label.get_style_context().add_class("search-result-row")
         return label
 
+    def _create_toggle_menu_button(
+        self, label: str, settings_name: str
+    ) -> Tuple[Gtk.Box, Gtk.Switch]:
+        def on_active_change(toggle: Gtk.Switch, _):
+            self._emit_settings_change(**{settings_name: toggle.get_active()})
+
+        box = Gtk.Box()
+        box.add(gtk_label := Gtk.Label(label=label))
+        gtk_label.get_style_context().add_class("menu-label")
+        switch = Gtk.Switch(active=True)
+        switch.connect("notify::active", on_active_change)
+        box.pack_end(switch, False, False, 0)
+        box.get_style_context().add_class("menu-button")
+        return box, switch
+
+    def _create_model_button(
+        self, text: str, clicked_fn: Callable = None, **kwargs
+    ) -> Gtk.ModelButton:
+        model_button = Gtk.ModelButton(text=text, **kwargs)
+        model_button.get_style_context().add_class("menu-button")
+        if clicked_fn:
+            model_button.connect("clicked", clicked_fn)
+        return model_button
+
+    def _create_spin_button_menu_item(
+        self, label: str, low: int, high: int, step: int, settings_name: str
+    ) -> Tuple[Gtk.Box, Gtk.Entry]:
+        def on_change(entry: Gtk.SpinButton) -> bool:
+            self._emit_settings_change(**{settings_name: int(entry.get_value())})
+            return False
+
+        box = Gtk.Box()
+        box.add(spin_button_label := Gtk.Label(label=label))
+        spin_button_label.get_style_context().add_class("menu-label")
+
+        entry = Gtk.SpinButton.new_with_range(low, high, step)
+        entry.connect("value-changed", on_change)
+        box.pack_end(entry, False, False, 0)
+        box.get_style_context().add_class("menu-button")
+        return box, entry
+
     def _create_downloads_popover(self) -> Gtk.PopoverMenu:
         menu = Gtk.PopoverMenu()
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, name="downloads-menu")
 
-        vbox.add(self._create_label("<b>Current Downloads</b>", name="menu-label"))
-
-        clear_cache = Gtk.ModelButton(
-            text="Clear Cache", menu_name="clear-cache", name="menu-item-clear-cache",
+        current_downloads_header = Gtk.Box()
+        current_downloads_header.add(
+            current_downloads_label := Gtk.Label(
+                label="Current Downloads", name="menu-header",
+            )
         )
-        clear_cache.get_style_context().add_class("menu-button")
+        current_downloads_label.get_style_context().add_class("menu-label")
+        cancel_all_button = IconButton(
+            "process-stop-symbolic", "Cancel all downloads", sensitive=False
+        )
+        current_downloads_header.pack_end(cancel_all_button, False, False, 0)
+        vbox.add(current_downloads_header)
+
+        current_downloads_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, name="current-downloads-list"
+        )
+        vbox.add(current_downloads_box)
+
+        clear_cache = self._create_model_button("Clear Cache", menu_name="clear-cache")
         vbox.add(clear_cache)
+        menu.add(vbox)
 
         # Create the "Add song(s) to playlist" sub-menu.
         clear_cache_options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -258,20 +326,41 @@ class MainWindow(Gtk.ApplicationWindow):
             ("Clear Entire Cache", lambda _: print("clear entire cache")),
         ]
         for text, clicked_fn in menu_items:
-            clear_song_cache = Gtk.ModelButton(text=text)
-            clear_song_cache.get_style_context().add_class("menu-button")
-            clear_song_cache.connect("clicked", clicked_fn)
+            clear_song_cache = self._create_model_button(text, clicked_fn)
             clear_cache_options.pack_start(clear_song_cache, False, True, 0)
 
         menu.add(clear_cache_options)
         menu.child_set_property(clear_cache_options, "submenu", "clear-cache")
 
-        menu.add(vbox)
         return menu
 
     def _create_server_connection_popover(self) -> Gtk.PopoverMenu:
         menu = Gtk.PopoverMenu()
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        # Current Server
+        self.connected_to_label = self._create_label(
+            "<i>Not connected to any music source</i>", name="connected-to-label"
+        )
+        vbox.add(self.connected_to_label)
+
+        edit_button = self._create_model_button("Edit...", lambda _: print("edit"))
+        vbox.add(edit_button)
+
+        vbox.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
+
+        music_provider_button = self._create_model_button(
+            "Switch Music Provider",
+            lambda _: print("switch"),
+            menu_name="switch-provider",
+        )
+        music_provider_button.set_action_name("app.configure-servers")
+        vbox.add(music_provider_button)
+
+        add_new_music_provider_button = self._create_model_button(
+            "Add New Music Provider...", lambda _: print("add new")
+        )
+        vbox.add(add_new_music_provider_button)
 
         menu.add(vbox)
         return menu
@@ -280,46 +369,19 @@ class MainWindow(Gtk.ApplicationWindow):
         main_menu = Gtk.PopoverMenu()
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, name="main-menu-box")
 
-        # TODO
-        # Current Server
-        # current_server_box = Gtk.Box(name="connected-to-box")
-
-        # self.connected_to_label = self._create_label("")
-        # self.connected_to_label.set_markup(
-        #     '<span style="italic">Not connected to any music source</span>'
-        # )
-        # current_server_box.add(self.connected_to_label)
-
-        # edit_button = IconButton("document-edit-symbolic", "Edit the current server")
-        # edit_button.connect("clicked", lambda _: print("edit"))  # TODO
-        # current_server_box.pack_end(edit_button, False, False, 5)
-
-        # vbox.add(current_server_box)
-
-        # # Music Source
-        # switch_source_button = Gtk.ModelButton(
-        #     text="Switch Music Source",
-        #     menu_name="switch-source",
-        #     name="menu-item-switch-source",
-        # )
-        # switch_source_button.get_style_context().add_class("menu-button")
-        # vbox.add(switch_source_button)
-
-        # vbox.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
-
         # Offline Mode
         offline_box, self.offline_mode_switch = self._create_toggle_menu_button(
             "Offline Mode", "offline_mode"
         )
         vbox.add(offline_box)
 
-        download_settings = Gtk.ModelButton(
+        self.download_settings_button = Gtk.ModelButton(
             text="Download Settings",
             menu_name="download-settings",
             name="menu-item-download-settings",
         )
-        download_settings.get_style_context().add_class("menu-button")
-        vbox.add(download_settings)
+        self.download_settings_button.get_style_context().add_class("menu-button")
+        vbox.add(self.download_settings_button)
 
         vbox.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
 
@@ -331,7 +393,8 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Replay Gain
         replay_gain_box = Gtk.Box()
-        replay_gain_box.add(Gtk.Label(label="Replay Gain"))
+        replay_gain_box.add(replay_gain_label := Gtk.Label(label="Replay Gain"))
+        replay_gain_label.get_style_context().add_class("menu-label")
 
         replay_gain_option_store = Gtk.ListStore(str, str)
         for id, option in (("no", "Disabled"), ("track", "Track"), ("album", "Album")):
@@ -357,40 +420,64 @@ class MainWindow(Gtk.ApplicationWindow):
         vbox.add(serve_over_lan)
 
         # Server Port
-        server_port_box = Gtk.Box()
-        server_port_box.add(Gtk.Label(label="LAN Server Port Number"))
-
-        self.port_number_entry = Gtk.SpinButton.new_with_range(8000, 9000, 1)
-        server_port_box.pack_end(self.port_number_entry, False, False, 0)
-        server_port_box.get_style_context().add_class("menu-button")
-
+        server_port_box, self.port_number_entry = self._create_spin_button_menu_item(
+            "LAN Server Port Number", 8000, 9000, 1, "port_number"
+        )
         vbox.add(server_port_box)
 
-        menu_items = [
-            ("app.configure-servers", Gtk.ModelButton(text="Configure Servers")),
-            ("app.settings", Gtk.ModelButton(text="Settings")),
-        ]
-
-        for name, item in menu_items:
-            if name:
-                item.set_action_name(name)
-            item.get_style_context().add_class("menu-button")
-            vbox.pack_start(item, False, True, 0)
-
         main_menu.add(vbox)
+
+        # Add the download settings sub-menu after the main menu vbox to make sure that
+        # it doesn't get shown first.
+        download_settings_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        # Back button
+        download_settings_vbox.add(
+            Gtk.ModelButton(inverted=True, centered=True, menu_name="main")
+        )
+
+        # Allow Song Downloads
+        (
+            allow_song_downloads,
+            self.allow_song_downloads_switch,
+        ) = self._create_toggle_menu_button(
+            "Allow Song Downloads", "allow_song_downloads"
+        )
+        download_settings_vbox.add(allow_song_downloads)
+
+        # Download on Stream
+        (
+            download_on_stream,
+            self.download_on_stream_switch,
+        ) = self._create_toggle_menu_button(
+            "When Streaming, Also Download Song", "download_on_stream"
+        )
+        download_settings_vbox.add(download_on_stream)
+
+        # Prefetch Songs
+        (
+            prefetch_songs_box,
+            self.prefetch_songs_entry,
+        ) = self._create_spin_button_menu_item(
+            "Number of Songs to Prefetch", 0, 10, 1, "prefetch_amount"
+        )
+        download_settings_vbox.add(prefetch_songs_box)
+
+        # Max Concurrent Downloads
+        (
+            max_concurrent_downloads,
+            self.max_concurrent_downloads_entry,
+        ) = self._create_spin_button_menu_item(
+            "Maximum Concurrent Downloads", 0, 10, 1, "concurrent_download_limit"
+        )
+        download_settings_vbox.add(max_concurrent_downloads)
+
+        main_menu.add(download_settings_vbox)
+        main_menu.child_set_property(
+            download_settings_vbox, "submenu", "download-settings"
+        )
+
         return main_menu
-
-    def _create_toggle_menu_button(self, label: str, settings_name: str) -> Gtk.Box:
-        def on_active_change(toggle: Gtk.Switch, _):
-            self._emit_settings_change(**{settings_name: toggle.get_active()})
-
-        box = Gtk.Box()
-        box.add(Gtk.Label(label=label))
-        switch = Gtk.Switch(active=True)
-        switch.connect("notify::active", on_active_change)
-        box.pack_end(switch, False, False, 0)
-        box.get_style_context().add_class("menu-button")
-        return box, switch
 
     def _create_search_popup(self) -> Gtk.PopoverMenu:
         self.search_popup = Gtk.PopoverMenu(modal=False)

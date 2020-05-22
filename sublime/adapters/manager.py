@@ -759,11 +759,11 @@ class AdapterManager:
     # TODO (#189): allow this to take a set of schemes
     @staticmethod
     def get_song_filename_or_stream(
-        song: Song, format: str = None, force_stream: bool = False,
+        song: Song, format: str = None, allow_song_downloads: bool = True,
     ) -> str:
         assert AdapterManager._instance
         cached_song_filename = None
-        if AdapterManager._can_use_cache(force_stream, "get_song_uri"):
+        if AdapterManager._can_use_cache(False, "get_song_uri"):
             assert AdapterManager._instance.caching_adapter
             try:
                 return AdapterManager._instance.caching_adapter.get_song_uri(
@@ -779,7 +779,7 @@ class AdapterManager:
                 )
 
         if not AdapterManager._ground_truth_can_do("get_song_uri"):
-            if force_stream or cached_song_filename is None:
+            if not allow_song_downloads or cached_song_filename is None:
                 raise Exception("Can't stream the song.")
             return cached_song_filename
 
@@ -787,7 +787,9 @@ class AdapterManager:
         # get the hash of the song and compare here. That way of the cache gets blown
         # away, but not the song files, it will not have to re-download.
 
-        if force_stream and not AdapterManager._ground_truth_can_do("stream"):
+        if not allow_song_downloads and not AdapterManager._ground_truth_can_do(
+            "stream"
+        ):
             raise Exception("Can't stream the song.")
 
         return AdapterManager._instance.ground_truth_adapter.get_song_uri(

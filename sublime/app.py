@@ -34,12 +34,11 @@ except Exception:
 
 from .adapters import AdapterManager, AlbumSearchQuery, Result
 from .adapters.api_objects import Playlist, PlayQueue, Song
-from .config import AppConfiguration, ReplayGainType
+from .config import AppConfiguration
 from .dbus import dbus_propagate, DBusManager
 from .players import ChromecastPlayer, MPVPlayer, Player, PlayerEvent
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.main import MainWindow
-from .ui.settings import SettingsDialog
 from .ui.state import RepeatType, UIState
 
 
@@ -70,7 +69,6 @@ class SublimeMusicApp(Gtk.Application):
 
         # Add action for menu items.
         add_action("configure-servers", self.on_configure_servers)
-        add_action("settings", self.on_settings)
 
         # Add actions for player controls
         add_action("play-pause", self.on_play_pause)
@@ -510,33 +508,6 @@ class SublimeMusicApp(Gtk.Application):
 
     def on_configure_servers(self, *args):
         self.show_configure_servers_dialog()
-
-    def on_settings(self, *args):
-        """Show the Settings dialog."""
-        dialog = SettingsDialog(self.window, self.app_config)
-        result = dialog.run()
-        if result == Gtk.ResponseType.OK:
-            self.app_config.port_number = int(dialog.data["port_number"].get_text())
-            self.app_config.always_stream = dialog.data["always_stream"].get_active()
-            self.app_config.download_on_stream = dialog.data[
-                "download_on_stream"
-            ].get_active()
-            self.app_config.song_play_notification = dialog.data[
-                "song_play_notification"
-            ].get_active()
-            self.app_config.serve_over_lan = dialog.data["serve_over_lan"].get_active()
-            self.app_config.prefetch_amount = dialog.data[
-                "prefetch_amount"
-            ].get_value_as_int()
-            self.app_config.concurrent_download_limit = dialog.data[
-                "concurrent_download_limit"
-            ].get_value_as_int()
-            self.app_config.replay_gain = ReplayGainType.from_string(
-                dialog.data["replay_gain"].get_active_id()
-            )
-            self.app_config.save()
-            self.reset_state()
-        dialog.destroy()
 
     def on_window_go_to(self, win: Any, action: str, value: str):
         {
@@ -982,7 +953,7 @@ class SublimeMusicApp(Gtk.Application):
                 return
 
             uri = AdapterManager.get_song_filename_or_stream(
-                song, force_stream=self.app_config.always_stream,
+                song, allow_song_downloads=self.app_config.allow_song_downloads,
             )
 
             # Prevent it from doing the thing where it continually loads
@@ -1065,8 +1036,9 @@ class SublimeMusicApp(Gtk.Application):
                         "Unable to display notification. Is a notification daemon running?"  # noqa: E501
                     )
 
-            # Download current song and prefetch songs. Only do this if
-            # download_on_stream is True and always_stream is off.
+            # Download current song and prefetch songs. Only do this if the adapter can
+            # download songs and allow_song_downloads is True and download_on_stream is
+            # True.
             def on_song_download_complete(song_id: str):
                 if order_token != self.song_playing_order_token:
                     return
@@ -1094,8 +1066,8 @@ class SublimeMusicApp(Gtk.Application):
                 self.update_window()
 
             if (
-                self.app_config.download_on_stream
-                and not self.app_config.always_stream
+                self.app_config.allow_song_downloads
+                and self.app_config.download_on_stream
                 and AdapterManager.can_batch_download_songs()
             ):
                 song_ids = [song.id]

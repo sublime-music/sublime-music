@@ -84,15 +84,18 @@ class AppConfiguration:
     song_play_notification: bool = True
     offline_mode: bool = False
     serve_over_lan: bool = True
-
-    # TODO this should probably be moved to the cache adapter settings
-    max_cache_size_mb: int = -1  # -1 means unlimited
-    always_stream: bool = False  # always stream instead of downloading songs
+    port_number: int = 8282
+    replay_gain: ReplayGainType = ReplayGainType.NO
+    allow_song_downloads: bool = True
     download_on_stream: bool = True  # also download when streaming a song
     prefetch_amount: int = 3
     concurrent_download_limit: int = 5
-    port_number: int = 8282
-    replay_gain: ReplayGainType = ReplayGainType.NO
+
+    # TODO this should probably be moved to the cache adapter settings
+    max_cache_size_mb: int = -1  # -1 means unlimited
+
+    # Deprecated
+    always_stream: bool = False  # always stream instead of downloading songs
 
     @staticmethod
     def load_from_file(filename: Path) -> "AppConfiguration":
@@ -124,11 +127,16 @@ class AppConfiguration:
 
         self._state = None
         self._current_server_hash = None
+        self.migrate()
 
     def migrate(self):
         for server in self.servers:
             server.migrate()
-        self.version = 3
+
+        if self.version < 4:
+            self.allow_song_downloads = not self.always_stream
+
+        self.version = 4
         self.state.migrate()
 
     @property
