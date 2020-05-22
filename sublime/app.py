@@ -490,6 +490,12 @@ class SublimeMusicApp(Gtk.Application):
     def on_refresh_window(
         self, _, state_updates: Dict[str, Any], force: bool = False,
     ):
+        if settings := state_updates.get("__settings__"):
+            for k, v in settings.items():
+                print('SET', k, v)
+                setattr(self.app_config, k, v)
+            del state_updates["__settings__"]
+
         for k, v in state_updates.items():
             setattr(self.app_config.state, k, v)
         self.update_window(force=force)

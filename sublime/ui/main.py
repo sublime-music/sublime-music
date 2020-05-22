@@ -1,12 +1,12 @@
 from functools import partial
-from typing import Any, Optional, Set
+from typing import Any, Callable, Optional, Set
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from sublime.adapters import AdapterManager, api_objects as API, Result
-from sublime.config import AppConfiguration
+from sublime.config import AppConfiguration, ReplayGainType
 from sublime.ui import albums, artists, browse, player_controls, playlists, util
-from sublime.ui.common import IconButton, SpinnerImage
+from sublime.ui.common import IconButton, IconMenuButton, SpinnerImage
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -27,6 +27,8 @@ class MainWindow(Gtk.ApplicationWindow):
         "notification-closed": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (),),
         "go-to": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str, str),),
     }
+
+    _updating_settings: bool = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -109,14 +111,24 @@ class MainWindow(Gtk.ApplicationWindow):
             self.notification_revealer.set_reveal_child(False)
 
         # Update the Connected to label on the popup menu.
-        if app_config.server:
-            self.connected_to_label.set_markup(
-                f"<b>Connected to {app_config.server.name}</b>"
-            )
-        else:
-            self.connected_to_label.set_markup(
-                '<span style="italic">Not Connected to a Server</span>'
-            )
+        # if app_config.server:
+        #     self.connected_to_label.set_markup(
+        #         f"<b>Connected to {app_config.server.name}</b>"
+        #     )
+        # else:
+        #     self.connected_to_label.set_markup(
+        #         '<span style="italic">Not Connected to a Server</span>'
+        #     )
+
+        self._updating_settings = True
+
+        self.offline_mode_switch.set_active(app_config.offline_mode)
+        self.notification_switch.set_active(app_config.song_play_notification)
+        self.replay_gain_options.set_active_id(app_config.replay_gain.as_string())
+        self.serve_over_lan_switch.set_active(app_config.serve_over_lan)
+        self.port_number_entry.set_value(app_config.port_number)
+
+        self._updating_settings = False
 
         self.stack.set_visible_child_name(app_config.state.current_tab)
 
@@ -164,19 +176,47 @@ class MainWindow(Gtk.ApplicationWindow):
         switcher = Gtk.StackSwitcher(stack=stack)
         header.set_custom_title(switcher)
 
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+
+        # Downloads
+        self.downloads_popover = self._create_downloads_popover()
+        self.downloads_menu_button = IconMenuButton(
+            "folder-download-symbolic",
+            tooltip_text="Show download status",
+            popover=self.downloads_popover,
+        )
+        self.downloads_menu_button.connect("clicked", self._on_downloads_menu_clicked)
+        self.downloads_popover.set_relative_to(self.downloads_menu_button)
+        button_box.add(self.downloads_menu_button)
+
         # Menu button
-        menu_button = Gtk.MenuButton()
-        menu_button.set_tooltip_text("Open application menu")
-        menu_button.set_use_popover(True)
-        menu_button.set_popover(self._create_menu())
-        menu_button.connect("clicked", self._on_menu_clicked)
-        self.menu.set_relative_to(menu_button)
+        self.main_menu_popover = self._create_main_menu()
+        main_menu_button = IconMenuButton(
+            "emblem-system-symbolic",
+            tooltip_text="Open Sublime Music settings",
+            popover=self.main_menu_popover,
+        )
+        main_menu_button.connect("clicked", self._on_main_menu_clicked)
+        self.main_menu_popover.set_relative_to(main_menu_button)
+        button_box.add(main_menu_button)
 
-        icon = Gio.ThemedIcon(name="open-menu-symbolic")
-        image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
-        menu_button.add(image)
+        # Server icon and change server dropdown
+        self.server_connection_popover = self._create_server_connection_popover()
+        self.server_connection_menu_button = IconMenuButton(
+            name="server-connection-icon",
+            icon_image_filename="/home/sumner/tmp/server-subsonic-symbolic.svg",
+            tooltip_text="Server connection settings",
+            popover=self.server_connection_popover,
+        )
+        self.server_connection_menu_button.connect(
+            "clicked", self._on_server_connection_menu_clicked
+        )
+        self.server_connection_popover.set_relative_to(
+            self.server_connection_menu_button
+        )
+        button_box.add(self.server_connection_menu_button)
 
-        header.pack_end(menu_button)
+        header.pack_end(button_box)
 
         return header
 
@@ -192,29 +232,141 @@ class MainWindow(Gtk.ApplicationWindow):
         label.get_style_context().add_class("search-result-row")
         return label
 
-    def _create_menu(self) -> Gtk.PopoverMenu:
-        self.menu = Gtk.PopoverMenu()
+    def _create_downloads_popover(self) -> Gtk.PopoverMenu:
+        menu = Gtk.PopoverMenu()
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, name="main-menu-box")
 
-        self.connected_to_label = self._create_label("", name="connected-to-label")
-        self.connected_to_label.set_markup(
-            '<span style="italic">Not Connected to a Server</span>'
+        download_settings = Gtk.ModelButton(
+            text="Clear Cache", menu_name="clear-cache", name="menu-item-clear-cache",
         )
+        download_settings.get_style_context().add_class("menu-button")
+        vbox.add(download_settings)
+
+        menu.add(vbox)
+        return menu
+
+    def _create_server_connection_popover(self) -> Gtk.PopoverMenu:
+        menu = Gtk.PopoverMenu()
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        menu.add(vbox)
+        return menu
+
+    def _create_main_menu(self) -> Gtk.PopoverMenu:
+        main_menu = Gtk.PopoverMenu()
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, name="main-menu-box")
+
+        # TODO
+        # Current Server
+        # current_server_box = Gtk.Box(name="connected-to-box")
+
+        # self.connected_to_label = self._create_label("")
+        # self.connected_to_label.set_markup(
+        #     '<span style="italic">Not connected to any music source</span>'
+        # )
+        # current_server_box.add(self.connected_to_label)
+
+        # edit_button = IconButton("document-edit-symbolic", "Edit the current server")
+        # edit_button.connect("clicked", lambda _: print("edit"))  # TODO
+        # current_server_box.pack_end(edit_button, False, False, 5)
+
+        # vbox.add(current_server_box)
+
+        # # Music Source
+        # switch_source_button = Gtk.ModelButton(
+        #     text="Switch Music Source",
+        #     menu_name="switch-source",
+        #     name="menu-item-switch-source",
+        # )
+        # switch_source_button.get_style_context().add_class("menu-button")
+        # vbox.add(switch_source_button)
+
+        # vbox.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
+
+        # Offline Mode
+        offline_box, self.offline_mode_switch = self._create_toggle_menu_button(
+            "Offline Mode", "offline_mode"
+        )
+        vbox.add(offline_box)
+
+        download_settings = Gtk.ModelButton(
+            text="Download Settings",
+            menu_name="download-settings",
+            name="menu-item-download-settings",
+        )
+        download_settings.get_style_context().add_class("menu-button")
+        vbox.add(download_settings)
+
+        vbox.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
+
+        # Notifications
+        notifications_box, self.notification_switch = self._create_toggle_menu_button(
+            "Notifications", "song_play_notification"
+        )
+        vbox.add(notifications_box)
+
+        # Replay Gain
+        replay_gain_box = Gtk.Box()
+        replay_gain_box.add(Gtk.Label(label="Replay Gain"))
+
+        replay_gain_option_store = Gtk.ListStore(str, str)
+        for id, option in (("no", "Disabled"), ("track", "Track"), ("album", "Album")):
+            replay_gain_option_store.append([id, option])
+
+        self.replay_gain_options = Gtk.ComboBox.new_with_model(replay_gain_option_store)
+        self.replay_gain_options.set_id_column(0)
+        renderer_text = Gtk.CellRendererText()
+        self.replay_gain_options.pack_start(renderer_text, True)
+        self.replay_gain_options.add_attribute(renderer_text, "text", 1)
+        self.replay_gain_options.connect("changed", self._on_replay_gain_change)
+
+        replay_gain_box.pack_end(self.replay_gain_options, False, False, 0)
+        replay_gain_box.get_style_context().add_class("menu-button")
+        vbox.add(replay_gain_box)
+
+        vbox.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
+
+        # Serve Local Files to Chromecast
+        serve_over_lan, self.serve_over_lan_switch = self._create_toggle_menu_button(
+            "Serve Local Files to Devices on the LAN", "serve_over_lan"
+        )
+        vbox.add(serve_over_lan)
+
+        # Server Port
+        server_port_box = Gtk.Box()
+        server_port_box.add(Gtk.Label(label="LAN Server Port Number"))
+
+        self.port_number_entry = Gtk.SpinButton.new_with_range(8000, 9000, 1)
+        server_port_box.pack_end(self.port_number_entry, False, False, 0)
+        server_port_box.get_style_context().add_class("menu-button")
+
+        vbox.add(server_port_box)
 
         menu_items = [
-            (None, self.connected_to_label),
-            ("app.configure-servers", Gtk.ModelButton(text="Configure Servers"),),
+            ("app.configure-servers", Gtk.ModelButton(text="Configure Servers")),
             ("app.settings", Gtk.ModelButton(text="Settings")),
         ]
 
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         for name, item in menu_items:
             if name:
                 item.set_action_name(name)
             item.get_style_context().add_class("menu-button")
             vbox.pack_start(item, False, True, 0)
-        self.menu.add(vbox)
 
-        return self.menu
+        main_menu.add(vbox)
+        return main_menu
+
+    def _create_toggle_menu_button(self, label: str, settings_name: str) -> Gtk.Box:
+        def on_active_change(toggle: Gtk.Switch, _):
+            self._emit_settings_change(**{settings_name: toggle.get_active()})
+
+        box = Gtk.Box()
+        box.add(Gtk.Label(label=label))
+        switch = Gtk.Switch(active=True)
+        switch.connect("notify::active", on_active_change)
+        box.pack_end(switch, False, False, 0)
+        box.get_style_context().add_class("menu-button")
+        return box, switch
 
     def _create_search_popup(self) -> Gtk.PopoverMenu:
         self.search_popup = Gtk.PopoverMenu(modal=False)
@@ -265,7 +417,7 @@ class MainWindow(Gtk.ApplicationWindow):
     # Event Listeners
     # =========================================================================
     def _on_button_release(self, win: Any, event: Gdk.EventButton) -> bool:
-        if not self._event_in_widgets(event, self.search_entry, self.search_popup,):
+        if not self._event_in_widgets(event, self.search_entry, self.search_popup):
             self._hide_search()
 
         if not self._event_in_widgets(
@@ -284,9 +436,22 @@ class MainWindow(Gtk.ApplicationWindow):
 
         return False
 
-    def _on_menu_clicked(self, *args):
-        self.menu.popup()
-        self.menu.show_all()
+    def _on_downloads_menu_clicked(self, *args):
+        self.downloads_popover.popup()
+        self.downloads_popover.show_all()
+
+    def _on_server_connection_menu_clicked(self, *args):
+        self.server_connection_popover.popup()
+        self.server_connection_popover.show_all()
+
+    def _on_main_menu_clicked(self, *args):
+        self.main_menu_popover.popup()
+        self.main_menu_popover.show_all()
+
+    def _on_replay_gain_change(self, combo: Gtk.ComboBox):
+        self._emit_settings_change(
+            replay_gain=ReplayGainType.from_string(combo.get_active_id())
+        )
 
     def _on_search_entry_focus(self, *args):
         self._show_search()
@@ -339,6 +504,11 @@ class MainWindow(Gtk.ApplicationWindow):
 
     # Helper Functions
     # =========================================================================
+    def _emit_settings_change(self, **kwargs):
+        if self._updating_settings:
+            return
+        self.emit("refresh-window", {"__settings__": kwargs}, False)
+
     def _show_search(self):
         self.search_entry.set_size_request(300, -1)
         self.search_popup.show_all()
