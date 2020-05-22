@@ -128,8 +128,9 @@ class SubsonicAdapter(Adapter):
         # TODO (#112): support XML?
 
     def initial_sync(self):
+        print('initial_sync')
         # Wait for the ping to happen.
-        tries = 5
+        tries = 0
         while not self._server_available.value and tries < 5:
             self._set_ping_status()
             tries += 1

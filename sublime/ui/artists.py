@@ -291,9 +291,9 @@ class ArtistDetailPanel(Gtk.Box):
         if app_config.state.selected_artist_id is None:
             self.big_info_panel.hide()
             self.album_list_scrolledwindow.hide()
+            self.play_shuffle_buttons.hide()
         else:
             self.update_order_token += 1
-            self.big_info_panel.show()
             self.album_list_scrolledwindow.show()
             self.update_artist_view(
                 app_config.state.selected_artist_id,
@@ -316,6 +316,8 @@ class ArtistDetailPanel(Gtk.Box):
         if order_token != self.update_order_token:
             return
 
+        self.big_info_panel.show()
+
         if app_config:
             self.artist_details_expanded = app_config.state.artist_details_expanded
 
@@ -329,7 +331,7 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_name.set_tooltip_text(artist.name)
 
         if self.artist_details_expanded:
-            self.show_all()
+            self.artist_artwork.get_style_context().remove_class("collapsed")
             self.artist_name.get_style_context().remove_class("collapsed")
             self.artist_artwork.set_image_size(300)
             self.artist_indicator.set_text("ARTIST")
@@ -355,8 +357,8 @@ class ArtistDetailPanel(Gtk.Box):
             else:
                 self.similar_artists_scrolledwindow.hide()
         else:
+            self.artist_artwork.get_style_context().add_class("collapsed")
             self.artist_name.get_style_context().add_class("collapsed")
-            self.show_all()
             self.artist_artwork.set_image_size(70)
             self.artist_indicator.hide()
             self.artist_stats.hide()
