@@ -9,6 +9,14 @@ v0.9.3
     * The amount of the song that is cached is now shown while streaming a song.
     * The notification for resuming a play queue is now a non-modal
       notification that pops up right above the player controls.
+    * **New Icons**
+
+      * The Devices button now uses the Chromecast logo
+      * Custom icons for "Add to play queue", and "Play next" buttons. Thanks to
+        @samsartor for contributing the SVGs!
+      * A new icon for the Subsonic adapter. Contributed by @samsartor.
+
+    * Settings has gotten a revamp
 
 * This release has a ton of under-the-hood changes to make things more robust
   and performant.

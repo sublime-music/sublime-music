@@ -204,13 +204,13 @@ class SublimeMusicApp(Gtk.Application):
 
         def on_player_event(event: PlayerEvent):
             if event.type == PlayerEvent.Type.PLAY_STATE_CHANGE:
-                assert event.playing
+                assert event.playing is not None
                 self.app_config.state.playing = event.playing
                 if self.dbus_manager:
                     self.dbus_manager.property_diff()
                 self.update_window()
             elif event.type == PlayerEvent.Type.VOLUME_CHANGE:
-                assert event.volume
+                assert event.volume is not None
                 self.app_config.state.volume = event.volume
                 if self.dbus_manager:
                     self.dbus_manager.property_diff()
@@ -220,7 +220,7 @@ class SublimeMusicApp(Gtk.Application):
                     self.loading_state
                     or not self.window
                     or not self.app_config.state.current_song
-                    or not event.stream_cache_duration
+                    or event.stream_cache_duration is None
                 ):
                     return
                 self.app_config.state.song_stream_cache_progress = timedelta(
