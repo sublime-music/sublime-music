@@ -3,6 +3,11 @@
   /* box-shadow: 0px 0px 3px green; */
 }
 
+#menu-label {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
 #main-menu-box {
   min-width: 230px;
 }

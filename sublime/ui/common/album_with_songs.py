@@ -84,14 +84,14 @@ class AlbumWithSongs(Gtk.Box):
         album_title_and_buttons.pack_start(self.shuffle_btn, False, False, 5)
 
         self.play_next_btn = IconButton(
-            "go-top-symbolic",
+            "queue-front-symbolic",
             "Play all of the songs in this album next",
             sensitive=False,
         )
         album_title_and_buttons.pack_start(self.play_next_btn, False, False, 5)
 
         self.add_to_queue_btn = IconButton(
-            "go-jump-symbolic",
+            "queue-back-symbolic",
             "Add all the songs in this album to the end of the play queue",
             sensitive=False,
         )

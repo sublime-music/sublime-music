@@ -233,13 +233,38 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _create_downloads_popover(self) -> Gtk.PopoverMenu:
         menu = Gtk.PopoverMenu()
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, name="main-menu-box")
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, name="downloads-menu")
 
-        download_settings = Gtk.ModelButton(
+        vbox.add(self._create_label("<b>Current Downloads</b>", name="menu-label"))
+
+        clear_cache = Gtk.ModelButton(
             text="Clear Cache", menu_name="clear-cache", name="menu-item-clear-cache",
         )
-        download_settings.get_style_context().add_class("menu-button")
-        vbox.add(download_settings)
+        clear_cache.get_style_context().add_class("menu-button")
+        vbox.add(clear_cache)
+
+        # Create the "Add song(s) to playlist" sub-menu.
+        clear_cache_options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        # Back button
+        clear_cache_options.add(
+            Gtk.ModelButton(inverted=True, centered=True, menu_name="main")
+        )
+
+        # Clear Song File Cache
+        menu_items = [
+            ("Clear Song File Cache", lambda _: print("clear song file cache")),
+            ("Clear Metadata Cache", lambda _: print("clear metadata cache")),
+            ("Clear Entire Cache", lambda _: print("clear entire cache")),
+        ]
+        for text, clicked_fn in menu_items:
+            clear_song_cache = Gtk.ModelButton(text=text)
+            clear_song_cache.get_style_context().add_class("menu-button")
+            clear_song_cache.connect("clicked", clicked_fn)
+            clear_cache_options.pack_start(clear_song_cache, False, True, 0)
+
+        menu.add(clear_cache_options)
+        menu.child_set_property(clear_cache_options, "submenu", "clear-cache")
 
         menu.add(vbox)
         return menu
