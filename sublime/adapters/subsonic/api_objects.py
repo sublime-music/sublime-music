@@ -3,7 +3,7 @@ These are the API objects that are returned by Subsonic.
 """
 
 import hashlib
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 
