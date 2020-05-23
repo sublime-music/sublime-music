@@ -74,6 +74,12 @@ plain-text::
 
     pip install sublime-music[keyring]
 
+.. note::
+
+   Sublime Music requires Python 3.8. Please make sure that you have that
+   installed. You may also need to use ``pip3`` instead of ``pip`` if you are on
+   an OS that hasn't deprecated Python 2 yet.
+
 .. toctree::
    :numbered:
    :maxdepth: 1
