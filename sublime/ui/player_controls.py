@@ -63,7 +63,7 @@ class PlayerControls(Gtk.ActionBar):
         self.set_center_widget(playback_controls)
         self.pack_end(play_queue_volume)
 
-    def update(self, app_config: AppConfiguration):
+    def update(self, app_config: AppConfiguration, force: bool = False):
         self.current_device = app_config.state.current_device
 
         duration = (
@@ -176,7 +176,7 @@ class PlayerControls(Gtk.ActionBar):
             self.update_device_list()
 
         # Short circuit if no changes to the play queue
-        if (
+        if not force and (
             self.current_play_queue == app_config.state.play_queue
             and self.current_playing_index == app_config.state.current_song_index
         ):

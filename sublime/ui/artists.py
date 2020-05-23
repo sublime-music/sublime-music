@@ -333,7 +333,6 @@ class ArtistDetailPanel(Gtk.Box):
         if self.artist_details_expanded:
             self.artist_artwork.get_style_context().remove_class("collapsed")
             self.artist_name.get_style_context().remove_class("collapsed")
-            self.artist_artwork.set_image_size(300)
             self.artist_indicator.set_text("ARTIST")
             self.artist_stats.set_markup(self.format_stats(artist))
 
@@ -359,7 +358,6 @@ class ArtistDetailPanel(Gtk.Box):
         else:
             self.artist_artwork.get_style_context().add_class("collapsed")
             self.artist_name.get_style_context().add_class("collapsed")
-            self.artist_artwork.set_image_size(70)
             self.artist_indicator.hide()
             self.artist_stats.hide()
             self.artist_bio.hide()
@@ -390,6 +388,11 @@ class ArtistDetailPanel(Gtk.Box):
             return
         self.artist_artwork.set_from_file(cover_art_filename)
         self.artist_artwork.set_loading(False)
+
+        if self.artist_details_expanded:
+            self.artist_artwork.set_image_size(300)
+        else:
+            self.artist_artwork.set_image_size(70)
 
     # Event Handlers
     # =========================================================================

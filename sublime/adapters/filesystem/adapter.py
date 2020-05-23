@@ -857,4 +857,24 @@ class FilesystemAdapter(CachingAdapter):
             if cache_info:
                 self._compute_song_filename(cache_info).unlink(missing_ok=True)
 
-        cache_info.delete_instance()
+        elif data_key == CachingAdapter.CachedDataKey.ALL_SONGS:
+            shutil.rmtree(str(self.music_dir))
+            shutil.rmtree(str(self.cover_art_dir))
+            self.music_dir.mkdir(parents=True, exist_ok=True)
+            self.cover_art_dir.mkdir(parents=True, exist_ok=True)
+
+            models.CacheInfo.update({"valid": False}).where(
+                models.CacheInfo.cache_key == CachingAdapter.CachedDataKey.SONG_FILE
+            ).execute()
+            models.CacheInfo.update({"valid": False}).where(
+                models.CacheInfo.cache_key
+                == CachingAdapter.CachedDataKey.COVER_ART_FILE
+            ).execute()
+
+        elif data_key == CachingAdapter.CachedDataKey.EVERYTHING:
+            self._do_delete_data(CachingAdapter.CachedDataKey.ALL_SONGS, None)
+            for table in models.ALL_TABLES:
+                table.truncate_table()
+
+        if cache_info:
+            cache_info.delete_instance()

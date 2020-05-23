@@ -1224,3 +1224,21 @@ class AdapterManager:
             else cached_statuses[song_id]
             for song_id in song_ids
         ]
+
+    @staticmethod
+    def clear_song_cache():
+        assert AdapterManager._instance
+        if not AdapterManager._instance.caching_adapter:
+            return
+        AdapterManager._instance.caching_adapter.delete_data(
+            CachingAdapter.CachedDataKey.ALL_SONGS, None
+        )
+
+    @staticmethod
+    def clear_entire_cache():
+        assert AdapterManager._instance
+        if not AdapterManager._instance.caching_adapter:
+            return
+        AdapterManager._instance.caching_adapter.delete_data(
+            CachingAdapter.CachedDataKey.EVERYTHING, None
+        )

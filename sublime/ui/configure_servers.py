@@ -34,6 +34,7 @@ class EditServerDialog(EditFormDialog):
 
         super().__init__(*args, **kwargs)
 
+    # TODO figure out how to do this
     # def on_test_server_clicked(self, event: Any):
     #     # Instantiate the server.
     #     server_address = self.data["server_address"].get_text()

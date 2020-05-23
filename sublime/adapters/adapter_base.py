@@ -783,6 +783,10 @@ class CachingAdapter(Adapter):
         SONG_FILE = "song_file"
         SONG_FILE_PERMANENT = "song_file_permanent"
 
+        # These are only for clearing the cache, and will only do deletion
+        ALL_SONGS = "all_songs"
+        EVERYTHING = "everything"
+
     @abc.abstractmethod
     def ingest_new_data(self, data_key: CachedDataKey, param: Optional[str], data: Any):
         """

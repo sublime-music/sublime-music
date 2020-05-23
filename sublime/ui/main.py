@@ -166,7 +166,7 @@ class MainWindow(Gtk.ApplicationWindow):
         if hasattr(active_panel, "update"):
             active_panel.update(app_config, force=force)
 
-        self.player_controls.update(app_config)
+        self.player_controls.update(app_config, force=force)
 
     def _create_stack(self, **kwargs: Gtk.Widget) -> Gtk.Stack:
         stack = Gtk.Stack()
@@ -340,9 +340,8 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Clear Song File Cache
         menu_items = [
-            ("Clear Song File Cache", lambda _: print("clear song file cache")),
-            ("Clear Metadata Cache", lambda _: print("clear metadata cache")),
-            ("Clear Entire Cache", lambda _: print("clear entire cache")),
+            ("Delete Cached Song Files", self._clear_song_file_cache),
+            ("Delete Cached Song Files and Metadata", self._clear_entire_cache),
         ]
         for text, clicked_fn in menu_items:
             clear_song_cache = self._create_model_button(text, clicked_fn)
@@ -583,6 +582,40 @@ class MainWindow(Gtk.ApplicationWindow):
             self.player_controls.play_queue_popover.popdown()
 
         return False
+
+    def _prompt_confirm_clear_cache(
+        self, title: str, detail_text: str
+    ) -> Gtk.ResponseType:
+        confirm_dialog = Gtk.MessageDialog(
+            transient_for=self.get_toplevel(),
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,
+            text=title,
+        )
+        confirm_dialog.add_buttons(
+            Gtk.STOCK_DELETE,
+            Gtk.ResponseType.YES,
+            Gtk.STOCK_CANCEL,
+            Gtk.ResponseType.CANCEL,
+        )
+        confirm_dialog.format_secondary_markup(detail_text)
+        result = confirm_dialog.run()
+        confirm_dialog.destroy()
+        return result
+
+    def _clear_song_file_cache(self, _):
+        title = "Confirm Delete Song Files"
+        detail_text = "Are you sure you want to delete all cached song files? Your song metadata will be preserved."  # noqa: 512
+        if self._prompt_confirm_clear_cache(title, detail_text) == Gtk.ResponseType.YES:
+            AdapterManager.clear_song_cache()
+            self.emit("refresh-window", {}, True)
+
+    def _clear_entire_cache(self, _):
+        title = "Confirm Delete Song Files and Metadata"
+        detail_text = "Are you sure you want to delete all cached song files and corresponding metadata?"  # noqa: 512
+        if self._prompt_confirm_clear_cache(title, detail_text) == Gtk.ResponseType.YES:
+            AdapterManager.clear_entire_cache()
+            self.emit("refresh-window", {}, True)
 
     def _on_downloads_menu_clicked(self, *args):
         self.downloads_popover.popup()

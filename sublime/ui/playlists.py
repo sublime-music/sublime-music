@@ -484,7 +484,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
             self.playlist_artwork.get_style_context().remove_class("collapsed")
             self.playlist_name.get_style_context().remove_class("collapsed")
             self.playlist_box.show_all()
-            self.playlist_artwork.set_image_size(200)
             self.playlist_indicator.set_markup("PLAYLIST")
 
             if playlist.comment:
@@ -499,7 +498,6 @@ class PlaylistDetailPanel(Gtk.Overlay):
             self.playlist_artwork.get_style_context().add_class("collapsed")
             self.playlist_name.get_style_context().add_class("collapsed")
             self.playlist_box.show_all()
-            self.playlist_artwork.set_image_size(70)
             self.playlist_indicator.hide()
             self.playlist_comment.hide()
             self.playlist_stats.hide()
@@ -575,6 +573,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         self.playlist_artwork.set_from_file(cover_art_filename)
         self.playlist_artwork.set_loading(False)
+
+        if self.playlist_details_expanded:
+            self.playlist_artwork.set_image_size(200)
+        else:
+            self.playlist_artwork.set_image_size(70)
 
     # Event Handlers
     # =========================================================================
