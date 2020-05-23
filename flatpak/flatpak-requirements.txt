@@ -1,5 +1,5 @@
 bottle==0.12.18
-git+https://github.com/lidatong/dataclasses-json@b8b60cdaa2c3ccc8d3bcbce67e911b705c3b0b10#egg=dataclasses-json
+dataclasses-json==0.4.3
 deepdiff==4.3.2
 fuzzywuzzy==0.18.0
 peewee==3.13.3

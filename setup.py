@@ -53,7 +53,7 @@ setup(
     },
     install_requires=[
         "bottle",
-        "dataclasses-json @ git+https://github.com/lidatong/dataclasses-json@master#egg=dataclasses-json",  # noqa: E501
+        "dataclasses-json",
         "deepdiff",
         "fuzzywuzzy",
         'osxmmkeys ; sys_platform=="darwin"',
