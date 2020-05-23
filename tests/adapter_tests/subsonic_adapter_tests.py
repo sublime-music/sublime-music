@@ -366,8 +366,8 @@ def test_get_artist(adapter: SubsonicAdapter):
         assert len(artist.similar_artists) == 20
         assert (first_similar := artist.similar_artists[0])
         assert first_similar
-        assert first_similar.name == 'Luke Combs'
-        assert first_similar.artist_image_url == 'ar-158'
+        assert first_similar.name == "Luke Combs"
+        assert first_similar.artist_image_url == "ar-158"
 
 
 def test_get_artist_with_good_image_url(adapter: SubsonicAdapter):

@@ -230,7 +230,7 @@ class MainWindow(Gtk.ApplicationWindow):
         return header
 
     def _create_label(
-        self, text: str, *args, halign=Gtk.Align.START, **kwargs
+        self, text: str, *args, halign: Gtk.Align = Gtk.Align.START, **kwargs
     ) -> Gtk.Label:
         label = Gtk.Label(
             use_markup=True,
@@ -341,7 +341,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.connected_to_label = self._create_label(
             "<i>No Music Source Selected</i>",
             name="connected-to-label",
-            halign=Gtk.Align.CENTER
+            halign=Gtk.Align.CENTER,
         )
         vbox.add(self.connected_to_label)
 

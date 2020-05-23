@@ -759,11 +759,14 @@ class AdapterManager:
     # TODO (#189): allow this to take a set of schemes
     @staticmethod
     def get_song_filename_or_stream(
-        song: Song, format: str = None, allow_song_downloads: bool = True,
+        song: Song,
+        format: str = None,
+        force_stream: bool = False,
+        allow_song_downloads: bool = True,
     ) -> str:
         assert AdapterManager._instance
         cached_song_filename = None
-        if AdapterManager._can_use_cache(False, "get_song_uri"):
+        if AdapterManager._can_use_cache(force_stream, "get_song_uri"):
             assert AdapterManager._instance.caching_adapter
             try:
                 return AdapterManager._instance.caching_adapter.get_song_uri(
