@@ -664,7 +664,7 @@ class MainWindow(Gtk.ApplicationWindow):
             GLib.idle_add(self._update_search_results, result)
 
         def search_result_done(r: Result):
-            if not r.result():
+            if r.result() is True:
                 # The search was cancelled
                 return
 

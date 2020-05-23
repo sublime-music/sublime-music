@@ -290,9 +290,13 @@ class AdapterManager:
 
     @staticmethod
     def _ground_truth_can_do(action_name: str) -> bool:
-        return AdapterManager._instance is not None and AdapterManager._adapter_can_do(
-            AdapterManager._instance.ground_truth_adapter, action_name
-        )
+        if not AdapterManager._instance:
+            return False
+        ground_truth_adapter = AdapterManager._instance.ground_truth_adapter
+        if AdapterManager.offline_mode and ground_truth_adapter.is_networked:
+            return False
+
+        return AdapterManager._adapter_can_do(ground_truth_adapter, action_name)
 
     @staticmethod
     def _can_use_cache(force: bool, action_name: str) -> bool:
@@ -319,6 +323,14 @@ class AdapterManager:
         """
         Creates a Result using the given ``function_name`` on the ground truth adapter.
         """
+        if (
+            AdapterManager.offline_mode
+            and AdapterManager._instance
+            and AdapterManager._instance.ground_truth_adapter.is_networked
+        ):
+            raise AssertionError(
+                "You should never call _create_ground_truth_result in offline mode"
+            )
 
         def future_fn() -> Any:
             assert AdapterManager._instance
@@ -338,6 +350,14 @@ class AdapterManager:
         filename. The returned function will spin-loop if the resource is already being
         downloaded to prevent multiple requests for the same download.
         """
+        if (
+            AdapterManager.offline_mode
+            and AdapterManager._instance
+            and AdapterManager._instance.ground_truth_adapter.is_networked
+        ):
+            raise AssertionError(
+                "You should never call _create_download_fn in offline mode"
+            )
 
         def download_fn() -> str:
             assert AdapterManager._instance
@@ -679,9 +699,15 @@ class AdapterManager:
 
     @staticmethod
     def delete_playlist(playlist_id: str):
-        # TODO (#190): make non-blocking?
         assert AdapterManager._instance
-        AdapterManager._instance.ground_truth_adapter.delete_playlist(playlist_id)
+        ground_truth_adapter = AdapterManager._instance.ground_truth_adapter
+        if AdapterManager.offline_mode and ground_truth_adapter.is_networked:
+            raise AssertionError(
+                "You should never call _create_download_fn in offline mode"
+            )
+
+        # TODO (#190): make non-blocking?
+        ground_truth_adapter.delete_playlist(playlist_id)
 
         if AdapterManager._instance.caching_adapter:
             AdapterManager._instance.caching_adapter.delete_data(
@@ -697,6 +723,7 @@ class AdapterManager:
             not AdapterManager._ground_truth_can_do("get_cover_art_uri")
             or not cover_art_id
         ):
+            # TODO return the placeholder
             return ""
 
         return AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
@@ -796,6 +823,7 @@ class AdapterManager:
 
         if not AdapterManager._ground_truth_can_do("get_song_uri"):
             if not allow_song_downloads or cached_song_filename is None:
+                # TODO
                 raise Exception("Can't stream the song.")
             return cached_song_filename
 
@@ -806,6 +834,7 @@ class AdapterManager:
         if not allow_song_downloads and not AdapterManager._ground_truth_can_do(
             "stream"
         ):
+            # TODO
             raise Exception("Can't stream the song.")
 
         return AdapterManager._instance.ground_truth_adapter.get_song_uri(
@@ -821,6 +850,13 @@ class AdapterManager:
         delay: float = 0.0,
     ) -> Result[None]:
         assert AdapterManager._instance
+        if (
+            AdapterManager.offline_mode
+            and AdapterManager._instance.ground_truth_adapter.is_networked
+        ):
+            raise AssertionError(
+                "You should never call batch_download_songs in offline mode"
+            )
 
         # This only really makes sense if we have a caching_adapter.
         if not AdapterManager._instance.caching_adapter:
@@ -1151,7 +1187,7 @@ class AdapterManager:
             sleep(0.3)
             if cancelled:
                 logging.info(f"Cancelled query {query} before caching adapter")
-                return False
+                return True
 
             assert AdapterManager._instance
 
@@ -1176,11 +1212,11 @@ class AdapterManager:
             # Wait longer to see if the user types anything else so we don't peg the
             # server with tons of requests.
             sleep(
-                1 if AdapterManager._instance.ground_truth_adapter.is_networked else 0.2
+                1 if AdapterManager._instance.ground_truth_adapter.is_networked else 0.3
             )
             if cancelled:
                 logging.info(f"Cancelled query {query} before server results")
-                return False
+                return True
 
             try:
                 ground_truth_search_results = AdapterManager._instance.ground_truth_adapter.search(  # noqa: E501
@@ -1200,7 +1236,7 @@ class AdapterManager:
                     ground_truth_search_results,
                 )
 
-            return True
+            return False
 
         # When the future is cancelled (this will happen if a new search is created),
         # set cancelled to True so that the search function can abort.
