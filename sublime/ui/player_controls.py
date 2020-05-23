@@ -48,6 +48,7 @@ class PlayerControls(Gtk.ActionBar):
     cover_art_update_order_token = 0
     play_queue_update_order_token = 0
     devices_requested = False
+    offline_mode = False
 
     def __init__(self):
         Gtk.ActionBar.__init__(self)
@@ -176,6 +177,9 @@ class PlayerControls(Gtk.ActionBar):
             self.update_device_list()
 
         # Short circuit if no changes to the play queue
+        self.offline_mode = app_config.offline_mode
+        self.load_play_queue_button.set_sensitive(not self.offline_mode)
+
         if not force and (
             self.current_play_queue == app_config.state.play_queue
             and self.current_playing_index == app_config.state.current_song_index
@@ -422,7 +426,7 @@ class PlayerControls(Gtk.ActionBar):
     def on_device_refresh_click(self, _: Any):
         self.update_device_list(force=True)
 
-    def on_play_queue_button_press(self, tree: Any, event: Gdk.EventButton,) -> bool:
+    def on_play_queue_button_press(self, tree: Any, event: Gdk.EventButton) -> bool:
         if event.button == 3:  # Right click
             clicked_path = tree.get_path_at_pos(event.x, event.y)
 
@@ -454,6 +458,7 @@ class PlayerControls(Gtk.ActionBar):
                 event.x,
                 event.y,
                 tree,
+                self.offline_mode,
                 on_download_state_change=on_download_state_change,
                 extra_menu_items=[
                     (Gtk.ModelButton(text=remove_text), on_remove_songs_click),
@@ -688,11 +693,11 @@ class PlayerControls(Gtk.ActionBar):
         )
         play_queue_popover_header.add(self.popover_label)
 
-        load_play_queue = IconButton(
+        self.load_play_queue_button = IconButton(
             "folder-download-symbolic", "Load Queue from Server", margin=5
         )
-        load_play_queue.set_action_name("app.update-play-queue-from-server")
-        play_queue_popover_header.pack_end(load_play_queue, False, False, 0)
+        self.load_play_queue_button.set_action_name("app.update-play-queue-from-server")
+        play_queue_popover_header.pack_end(self.load_play_queue_button, False, False, 0)
 
         play_queue_popover_box.add(play_queue_popover_header)
 

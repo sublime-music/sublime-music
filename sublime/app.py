@@ -260,9 +260,9 @@ class SublimeMusicApp(Gtk.Application):
             if self.exiting:
                 return
             self.update_window()
-            GLib.timeout_add(5000, ping_update)
+            GLib.timeout_add(10000, ping_update)
 
-        GLib.timeout_add(5000, ping_update)
+        GLib.timeout_add(10000, ping_update)
 
         # Prompt to load the play queue from the server.
         if self.app_config.server.sync_enabled:
@@ -505,6 +505,9 @@ class SublimeMusicApp(Gtk.Application):
         if settings := state_updates.get("__settings__"):
             for k, v in settings.items():
                 setattr(self.app_config, k, v)
+            if (offline_mode := settings.get("offline_mode")) is not None:
+                AdapterManager.offline_mode = offline_mode
+
             del state_updates["__settings__"]
 
         for k, v in state_updates.items():

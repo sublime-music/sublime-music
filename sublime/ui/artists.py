@@ -64,9 +64,11 @@ class ArtistList(Gtk.Box):
 
         list_actions = Gtk.ActionBar()
 
-        refresh = IconButton("view-refresh-symbolic", "Refresh list of artists")
-        refresh.connect("clicked", lambda *a: self.update(force=True))
-        list_actions.pack_end(refresh)
+        self.refresh_button = IconButton(
+            "view-refresh-symbolic", "Refresh list of artists"
+        )
+        self.refresh_button.connect("clicked", lambda *a: self.update(force=True))
+        list_actions.pack_end(self.refresh_button)
 
         self.add(list_actions)
 
@@ -126,6 +128,7 @@ class ArtistList(Gtk.Box):
     ):
         if app_config:
             self._app_config = app_config
+            self.refresh_button.set_sensitive(not app_config.offline_mode)
 
         new_store = []
         selected_idx = None
@@ -250,15 +253,15 @@ class ArtistDetailPanel(Gtk.Box):
             orientation=Gtk.Orientation.HORIZONTAL, spacing=10
         )
 
-        download_all_btn = IconButton(
+        self.download_all_button = IconButton(
             "folder-download-symbolic", "Download all songs by this artist"
         )
-        download_all_btn.connect("clicked", self.on_download_all_click)
-        self.artist_action_buttons.add(download_all_btn)
+        self.download_all_button.connect("clicked", self.on_download_all_click)
+        self.artist_action_buttons.add(self.download_all_button)
 
-        view_refresh_button = IconButton("view-refresh-symbolic", "Refresh artist info")
-        view_refresh_button.connect("clicked", self.on_view_refresh_click)
-        self.artist_action_buttons.add(view_refresh_button)
+        self.refresh_button = IconButton("view-refresh-symbolic", "Refresh artist info")
+        self.refresh_button.connect("clicked", self.on_view_refresh_click)
+        self.artist_action_buttons.add(self.refresh_button)
 
         action_buttons_container.pack_start(
             self.artist_action_buttons, False, False, 10
@@ -300,6 +303,8 @@ class ArtistDetailPanel(Gtk.Box):
                 app_config=app_config,
                 order_token=self.update_order_token,
             )
+            self.refresh_button.set_sensitive(not app_config.offline_mode)
+            self.download_all_button.set_sensitive(not app_config.offline_mode)
 
     @util.async_callback(
         AdapterManager.get_artist,
@@ -370,7 +375,7 @@ class ArtistDetailPanel(Gtk.Box):
         )
 
         self.albums = artist.albums or []
-        self.albums_list.update(artist)
+        self.albums_list.update(artist, app_config, force=force)
 
     @util.async_callback(
         AdapterManager.get_cover_art_filename,
@@ -498,7 +503,9 @@ class AlbumsListWithSongs(Gtk.Overlay):
 
         self.albums = []
 
-    def update(self, artist: API.Artist):
+    def update(
+        self, artist: API.Artist, app_config: AppConfiguration, force: bool = False
+    ):
         def remove_all():
             for c in self.box.get_children():
                 self.box.remove(c)
@@ -513,7 +520,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
         if self.albums == new_albums:
             # Just go through all of the colidren and update them.
             for c in self.box.get_children():
-                c.update()
+                c.update(app_config=app_config, force=force)
 
             self.spinner.hide()
             return

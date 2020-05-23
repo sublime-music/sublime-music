@@ -87,15 +87,15 @@ class PlaylistList(Gtk.Box):
 
         playlist_list_actions = Gtk.ActionBar()
 
-        new_playlist_button = IconButton("list-add-symbolic", label="New Playlist")
-        new_playlist_button.connect("clicked", self.on_new_playlist_clicked)
-        playlist_list_actions.pack_start(new_playlist_button)
+        self.new_playlist_button = IconButton("list-add-symbolic", label="New Playlist")
+        self.new_playlist_button.connect("clicked", self.on_new_playlist_clicked)
+        playlist_list_actions.pack_start(self.new_playlist_button)
 
-        list_refresh_button = IconButton(
+        self.list_refresh_button = IconButton(
             "view-refresh-symbolic", "Refresh list of playlists"
         )
-        list_refresh_button.connect("clicked", self.on_list_refresh_click)
-        playlist_list_actions.pack_end(list_refresh_button)
+        self.list_refresh_button.connect("clicked", self.on_list_refresh_click)
+        playlist_list_actions.pack_end(self.list_refresh_button)
 
         self.add(playlist_list_actions)
 
@@ -164,9 +164,11 @@ class PlaylistList(Gtk.Box):
         list_scroll_window.add(self.list)
         self.pack_start(list_scroll_window, True, True, 0)
 
-    def update(self, **kwargs):
+    def update(self, app_config: AppConfiguration, force: bool = False):
+        self.new_playlist_button.set_sensitive(not app_config.offline_mode)
+        self.list_refresh_button.set_sensitive(not app_config.offline_mode)
         self.new_playlist_row.hide()
-        self.update_list(**kwargs)
+        self.update_list(app_config=app_config, force=force)
 
     @util.async_callback(
         AdapterManager.get_playlists,
@@ -247,6 +249,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     playlist_id = None
     playlist_details_expanded = False
+    offline_mode = False
 
     editing_playlist_song_list: bool = False
     reordering_playlist_song_list: bool = False
@@ -308,23 +311,23 @@ class PlaylistDetailPanel(Gtk.Overlay):
             orientation=Gtk.Orientation.HORIZONTAL, spacing=10
         )
 
-        download_all_button = IconButton(
+        self.download_all_button = IconButton(
             "folder-download-symbolic", "Download all songs in the playlist"
         )
-        download_all_button.connect(
+        self.download_all_button.connect(
             "clicked", self.on_playlist_list_download_all_button_click
         )
-        self.playlist_action_buttons.add(download_all_button)
+        self.playlist_action_buttons.add(self.download_all_button)
 
-        playlist_edit_button = IconButton("document-edit-symbolic", "Edit paylist")
-        playlist_edit_button.connect("clicked", self.on_playlist_edit_button_click)
-        self.playlist_action_buttons.add(playlist_edit_button)
+        self.playlist_edit_button = IconButton("document-edit-symbolic", "Edit paylist")
+        self.playlist_edit_button.connect("clicked", self.on_playlist_edit_button_click)
+        self.playlist_action_buttons.add(self.playlist_edit_button)
 
-        view_refresh_button = IconButton(
+        self.view_refresh_button = IconButton(
             "view-refresh-symbolic", "Refresh playlist info"
         )
-        view_refresh_button.connect("clicked", self.on_view_refresh_click)
-        self.playlist_action_buttons.add(view_refresh_button)
+        self.view_refresh_button.connect("clicked", self.on_view_refresh_click)
+        self.playlist_action_buttons.add(self.view_refresh_button)
 
         action_buttons_container.pack_start(
             self.playlist_action_buttons, False, False, 10
@@ -430,6 +433,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
     update_playlist_view_order_token = 0
 
     def update(self, app_config: AppConfiguration, force: bool = False):
+        self.offline_mode = app_config.offline_mode
         if app_config.state.selected_playlist_id is None:
             self.playlist_box.hide()
             self.playlist_view_loading_box.hide()
@@ -442,6 +446,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 force=force,
                 order_token=self.update_playlist_view_order_token,
             )
+            self.download_all_button.set_sensitive(not app_config.offline_mode)
+            self.playlist_edit_button.set_sensitive(not app_config.offline_mode)
+            self.view_refresh_button.set_sensitive(not app_config.offline_mode)
 
     _current_song_ids: List[str] = []
 
@@ -746,6 +753,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 event.x,
                 event.y + abs(bin_coords.by - widget_coords.wy),
                 tree,
+                self.offline_mode,
                 on_download_state_change=on_download_state_change,
                 extra_menu_items=[
                     (Gtk.ModelButton(text=remove_text), on_remove_songs_click),

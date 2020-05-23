@@ -143,11 +143,11 @@ class AlbumsPanel(Gtk.Box):
         page_widget.add(self.next_page)
         actionbar.set_center_widget(page_widget)
 
-        refresh = IconButton(
+        self.refresh_button = IconButton(
             "view-refresh-symbolic", "Refresh list of albums", relief=True
         )
-        refresh.connect("clicked", self.on_refresh_clicked)
-        actionbar.pack_end(refresh)
+        self.refresh_button.connect("clicked", self.on_refresh_clicked)
+        actionbar.pack_end(self.refresh_button)
 
         actionbar.pack_end(Gtk.Label(label="albums per page"))
         self.show_count_dropdown, _ = self.make_combobox(
@@ -251,6 +251,7 @@ class AlbumsPanel(Gtk.Box):
         if app_config:
             self.album_page = app_config.state.album_page
             self.album_page_size = app_config.state.album_page_size
+            self.refresh_button.set_sensitive(not app_config.offline_mode)
 
         self.prev_page.set_sensitive(self.album_page > 0)
         self.page_entry.set_text(str(self.album_page + 1))
@@ -619,7 +620,7 @@ class AlbumsGrid(Gtk.Overlay):
         # Update the detail panel.
         children = self.detail_box_inner.get_children()
         if len(children) > 0 and hasattr(children[0], "update"):
-            children[0].update(force=force)
+            children[0].update(app_config=app_config, force=force)
 
     error_dialog = None
 

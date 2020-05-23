@@ -21,6 +21,8 @@ class AlbumWithSongs(Gtk.Box):
         ),
     }
 
+    offline_mode = True
+
     def __init__(
         self,
         album: API.Album,
@@ -202,6 +204,7 @@ class AlbumWithSongs(Gtk.Box):
                 event.x,
                 event.y + abs(bin_coords.by - widget_coords.wy),
                 tree,
+                self.offline_mode,
                 on_download_state_change=on_download_state_change,
             )
 
@@ -238,8 +241,11 @@ class AlbumWithSongs(Gtk.Box):
     def deselect_all(self):
         self.album_songs.get_selection().unselect_all()
 
-    def update(self, force: bool = False):
-        self.update_album_songs(self.album.id, force=force)
+    def update(self, app_config: AppConfiguration = None, force: bool = False):
+        if app_config:
+            self.offline_mode = app_config.offline_mode
+
+        self.update_album_songs(self.album.id, app_config=app_config, force=force)
 
     def set_loading(self, loading: bool):
         if loading:
@@ -283,7 +289,9 @@ class AlbumWithSongs(Gtk.Box):
 
         self.play_btn.set_sensitive(True)
         self.shuffle_btn.set_sensitive(True)
-        self.download_all_btn.set_sensitive(AdapterManager.can_batch_download_songs())
+        self.download_all_btn.set_sensitive(
+            not self.offline_mode and AdapterManager.can_batch_download_songs()
+        )
 
         self.play_next_btn.set_action_target_value(GLib.Variant("as", song_ids))
         self.add_to_queue_btn.set_action_target_value(GLib.Variant("as", song_ids))

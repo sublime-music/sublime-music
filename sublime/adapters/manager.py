@@ -164,6 +164,7 @@ class AdapterManager:
     executor: ThreadPoolExecutor = ThreadPoolExecutor()
     download_executor: ThreadPoolExecutor = ThreadPoolExecutor()
     is_shutting_down: bool = False
+    offline_mode: bool = False
 
     @dataclass
     class _AdapterManagerInternal:
@@ -232,6 +233,8 @@ class AdapterManager:
         # First, shutdown the current one...
         if AdapterManager._instance:
             AdapterManager._instance.shutdown()
+
+        AdapterManager.offline_mode = config.offline_mode
 
         # TODO (#197): actually do stuff with the config to determine which adapters to
         # create, etc.

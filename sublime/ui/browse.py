@@ -170,6 +170,7 @@ class MusicDirectoryList(Gtk.Box):
     update_order_token = 0
     directory_id: Optional[str] = None
     selected_id: Optional[str] = None
+    offline_mode = False
 
     class DrilldownElement(GObject.GObject):
         id = GObject.Property(type=str)
@@ -185,9 +186,9 @@ class MusicDirectoryList(Gtk.Box):
 
         list_actions = Gtk.ActionBar()
 
-        refresh = IconButton("view-refresh-symbolic", "Refresh folder")
-        refresh.connect("clicked", lambda *a: self.update(force=True))
-        list_actions.pack_end(refresh)
+        self.refresh_button = IconButton("view-refresh-symbolic", "Refresh folder")
+        self.refresh_button.connect("clicked", lambda *a: self.update(force=True))
+        list_actions.pack_end(self.refresh_button)
 
         self.add(list_actions)
 
@@ -250,6 +251,11 @@ class MusicDirectoryList(Gtk.Box):
         self.update_store(
             self.directory_id, force=force, order_token=self.update_order_token,
         )
+
+        if app_config:
+            self.offline_mode = app_config.offline_mode
+
+        self.refresh_button.set_sensitive(not self.offline_mode)
 
     _current_child_ids: List[str] = []
 
@@ -412,6 +418,7 @@ class MusicDirectoryList(Gtk.Box):
                 event.x,
                 event.y + abs(bin_coords.by - widget_coords.wy),
                 tree,
+                self.offline_mode,
                 on_download_state_change=self.on_download_state_change,
             )
 

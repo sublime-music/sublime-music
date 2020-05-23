@@ -187,6 +187,7 @@ def show_song_popover(
     x: int,
     y: int,
     relative_to: Any,
+    offline_mode: bool,
     position: Gtk.PositionType = Gtk.PositionType.BOTTOM,
     on_download_state_change: Callable[[str], None] = lambda _: None,
     on_playlist_state_change: Callable[[], None] = lambda: None,
@@ -236,13 +237,15 @@ def show_song_popover(
     # Retrieve songs and set the buttons as sensitive later.
     def on_get_song_details_done(songs: List[Song]):
         song_cache_statuses = AdapterManager.get_cached_statuses([s.id for s in songs])
-        if any(status == SongCacheStatus.NOT_CACHED for status in song_cache_statuses):
+        if not offline_mode and any(
+            status == SongCacheStatus.NOT_CACHED for status in song_cache_statuses
+        ):
             download_song_button.set_sensitive(True)
         if any(
             status in (SongCacheStatus.CACHED, SongCacheStatus.PERMANENTLY_CACHED)
             for status in song_cache_statuses
         ):
-            download_song_button.set_sensitive(True)
+            remove_download_button.set_sensitive(True)
 
         albums, artists, parents = set(), set(), set()
         for song in songs:
