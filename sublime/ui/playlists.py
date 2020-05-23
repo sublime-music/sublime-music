@@ -481,6 +481,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_name.set_tooltip_text(playlist.name)
 
         if self.playlist_details_expanded:
+            self.playlist_artwork.get_style_context().remove_class("collapsed")
             self.playlist_name.get_style_context().remove_class("collapsed")
             self.playlist_box.show_all()
             self.playlist_artwork.set_image_size(200)
@@ -495,6 +496,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
             self.playlist_stats.set_markup(self._format_stats(playlist))
         else:
+            self.playlist_artwork.get_style_context().add_class("collapsed")
             self.playlist_name.get_style_context().add_class("collapsed")
             self.playlist_box.show_all()
             self.playlist_artwork.set_image_size(70)

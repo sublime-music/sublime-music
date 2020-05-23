@@ -763,7 +763,7 @@ class AlbumsGrid(Gtk.Overlay):
             label=text,
             tooltip_text=text,
             ellipsize=Pango.EllipsizeMode.END,
-            max_width_chars=20,
+            max_width_chars=22,
             halign=Gtk.Align.START,
         )
 

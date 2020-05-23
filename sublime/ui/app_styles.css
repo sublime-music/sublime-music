@@ -4,7 +4,8 @@
 }
 
 #connected-to-label {
-  margin: 10px 0;
+  margin-top: 5px;
+  font-size: 1.2em;
 }
 
 #menu-header {
@@ -12,9 +13,14 @@
   font-weight: bold;
 }
 
+#menu-settings-separator {
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
 #current-downloads-list {
   min-height: 30px;
-  min-width: 200px;
+  min-width: 250px;
 }
 
 .menu-label {
@@ -87,14 +93,7 @@
 }
 
 #playlist-album-artwork {
-  min-height: 200px;
-  min-width: 200px;
   margin: 10px 15px 0 10px;
-}
-
-#playlist-album-artwork.collapsed {
-  min-height: 70px;
-  min-width: 70px;
 }
 
 #playlist-name, #artist-detail-panel #artist-name {
@@ -239,14 +238,7 @@
 }
 
 #artist-album-artwork {
-  min-width: 300px;
-  min-height: 300px;
   margin: 10px 15px 0 10px;
-}
-
-#artist-album-artwork.collapsed {
-  min-width: 70px;
-  min-height: 70px;
 }
 
 #artist-album-list-artwork {

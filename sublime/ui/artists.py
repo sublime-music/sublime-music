@@ -316,7 +316,7 @@ class ArtistDetailPanel(Gtk.Box):
         if order_token != self.update_order_token:
             return
 
-        self.big_info_panel.show()
+        self.big_info_panel.show_all()
 
         if app_config:
             self.artist_details_expanded = app_config.state.artist_details_expanded
