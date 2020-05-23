@@ -115,6 +115,12 @@ class PlayerControls(Gtk.ActionBar):
         self.play_button.set_sensitive(has_current_song)
         self.next_button.set_sensitive(has_current_song and has_next_song)
 
+        self.device_button.set_icon(
+            "chromecast{}-symbolic".format(
+                "" if app_config.state.current_device == "this device" else "-connected"
+            )
+        )
+
         # Volume button and slider
         if app_config.state.is_muted:
             icon_name = "muted"
@@ -609,14 +615,14 @@ class PlayerControls(Gtk.ActionBar):
 
         # Device button (for chromecast)
         self.device_button = IconButton(
-            "chromecast-connected-symbolic",
+            "chromecast-symbolic",
             "Show available audio output devices",
             icon_size=Gtk.IconSize.LARGE_TOOLBAR,
         )
         self.device_button.connect("clicked", self.on_device_click)
         box.pack_start(self.device_button, False, True, 5)
 
-        self.device_popover = Gtk.PopoverMenu(modal=False, name="device-popover",)
+        self.device_popover = Gtk.PopoverMenu(modal=False, name="device-popover")
         self.device_popover.set_relative_to(self.device_button)
 
         device_popover_box = Gtk.Box(

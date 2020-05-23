@@ -207,6 +207,16 @@ class AdapterManager:
         return Result(AdapterManager._instance.ground_truth_adapter.initial_sync)
 
     @staticmethod
+    def ground_truth_adapter_is_networked() -> bool:
+        assert AdapterManager._instance
+        return AdapterManager._instance.ground_truth_adapter.is_networked
+
+    @staticmethod
+    def get_ping_status() -> bool:
+        assert AdapterManager._instance
+        return AdapterManager._instance.ground_truth_adapter.ping_status
+
+    @staticmethod
     def shutdown():
         logging.info("AdapterManager shutdown start")
         AdapterManager.is_shutting_down = True

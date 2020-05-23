@@ -296,6 +296,18 @@ class Adapter(abc.ABC):
         """
         return True
 
+    @property
+    @abc.abstractmethod
+    def ping_status(self) -> bool:
+        """
+        This function should return whether or not the server can be pinged, however it
+        must do it *instantly*. This function is called *very* often, and even a few
+        milliseconds delay stacks up quickly and can block the UI thread.
+
+        One option is to ping the server every few seconds and cache the result of the
+        ping and use that as the result of this function.
+        """
+
     # Availability Properties
     # These properties determine if what things the adapter can be used to do
     # at the current moment.
@@ -750,6 +762,8 @@ class CachingAdapter(Adapter):
             directory is guaranteed to exist.
         :param is_cache: whether or not the adapter is being used as a cache.
         """
+
+    ping_status = True
 
     # Data Ingestion Methods
     # ==================================================================================

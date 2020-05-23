@@ -161,6 +161,10 @@ class SubsonicAdapter(Adapter):
             self._server_available.value = False
 
     @property
+    def ping_status(self) -> bool:
+        return self._server_available.value
+
+    @property
     def can_service_requests(self) -> bool:
         return self._server_available.value
 

@@ -616,8 +616,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                     Gtk.ResponseType.CANCEL,
                 )
                 confirm_dialog.format_secondary_markup(
-                    "Are you sure you want to delete the "
-                    f'"{playlist.name}" playlist?'
+                    'Are you sure you want to delete the "{playlist.name}" playlist?'
                 )
                 result = confirm_dialog.run()
                 confirm_dialog.destroy()

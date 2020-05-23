@@ -30,6 +30,8 @@ class PlayerEvent:
         PLAY_STATE_CHANGE = 0
         VOLUME_CHANGE = 1
         STREAM_CACHE_PROGRESS_CHANGE = 2
+        CONNECTING = 3
+        CONNECTED = 4
 
     type: Type
     playing: Optional[bool] = False
@@ -320,6 +322,7 @@ class ChromecastPlayer(Player):
         return ChromecastPlayer.executor.submit(do_get_chromecasts)
 
     def set_playing_chromecast(self, uuid: str):
+        self.on_player_event(PlayerEvent(PlayerEvent.Type.CONNECTING))
         self.chromecast = next(
             cc for cc in ChromecastPlayer.chromecasts if cc.device.uuid == UUID(uuid)
         )
@@ -329,7 +332,8 @@ class ChromecastPlayer(Player):
         )
         self.chromecast.register_status_listener(ChromecastPlayer.cast_status_listener)
         self.chromecast.wait()
-        logging.info(f"Using: {self.chromecast.device.friendly_name}")
+        logging.info(f"Connected to Chromecast: {self.chromecast.device.friendly_name}")
+        self.on_player_event(PlayerEvent(PlayerEvent.Type.CONNECTED))
 
     def __init__(
         self,
@@ -455,7 +459,7 @@ class ChromecastPlayer(Player):
         # If it's a local file, then see if we can serve it over the LAN.
         if not stream_scheme:
             if self.serve_over_lan:
-                token = base64.b64encode(os.urandom(64)).decode("ascii")
+                token = base64.b64encode(os.urandom(8)).decode("ascii")
                 for r in (("+", "."), ("/", "-"), ("=", "_")):
                     token = token.replace(*r)
                 self.server_thread.set_song_and_token(song.id, token)

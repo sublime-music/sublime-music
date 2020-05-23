@@ -55,6 +55,7 @@ class SublimeMusicApp(Gtk.Application):
         self.connect("shutdown", self.on_app_shutdown)
 
     player: Player
+    exiting: bool = False
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
@@ -253,6 +254,15 @@ class SublimeMusicApp(Gtk.Application):
         # Update after Adapter Initial Sync
         inital_sync_result = AdapterManager.initial_sync()
         inital_sync_result.add_done_callback(lambda _: self.update_window())
+
+        # Start a loop for testing the ping.
+        def ping_update():
+            if self.exiting:
+                return
+            self.update_window()
+            GLib.timeout_add(5000, ping_update)
+
+        GLib.timeout_add(5000, ping_update)
 
         # Prompt to load the play queue from the server.
         if self.app_config.server.sync_enabled:
@@ -494,7 +504,6 @@ class SublimeMusicApp(Gtk.Application):
     ):
         if settings := state_updates.get("__settings__"):
             for k, v in settings.items():
-                print("SET", k, v)
                 setattr(self.app_config, k, v)
             del state_updates["__settings__"]
 
@@ -828,6 +837,7 @@ class SublimeMusicApp(Gtk.Application):
         return False
 
     def on_app_shutdown(self, app: "SublimeMusicApp"):
+        self.exiting = True
         if glib_notify_exists:
             Notify.uninit()
 

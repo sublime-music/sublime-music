@@ -116,6 +116,26 @@ class MainWindow(Gtk.ApplicationWindow):
         else:
             self.connected_to_label.set_markup("<i>No Music Source Selected</i>")
 
+        if AdapterManager.ground_truth_adapter_is_networked:
+            status_label = ""
+            if app_config.offline_mode:
+                status_label = "Offline"
+            elif AdapterManager.get_ping_status():
+                status_label = "Connected"
+            else:
+                status_label = "Error"
+
+            self.server_connection_menu_button.set_icon(
+                f"server-subsonic-{status_label.lower()}-symbolic"
+            )
+            self.connection_status_icon.set_from_icon_name(
+                f"server-{status_label.lower()}-symbolic", Gtk.IconSize.BUTTON
+            )
+            self.connection_status_label.set_text(status_label)
+            self.connected_status_box.show_all()
+        else:
+            self.connected_status_box.hide()
+
         self._updating_settings = True
 
         # Main Settings
@@ -213,7 +233,7 @@ class MainWindow(Gtk.ApplicationWindow):
         # Server icon and change server dropdown
         self.server_connection_popover = self._create_server_connection_popover()
         self.server_connection_menu_button = IconMenuButton(
-            "server-subsonic-symbolic",
+            "server-subsonic-offline-symbolic",
             tooltip_text="Server connection settings",
             popover=self.server_connection_popover,
         )
@@ -346,24 +366,24 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         vbox.add(self.connected_to_label)
 
-        connected_status_box = Gtk.Box(
+        self.connected_status_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, name="connected-status-row"
         )
-        connected_status_box.pack_start(Gtk.Box(), True, True, 0)
+        self.connected_status_box.pack_start(Gtk.Box(), True, True, 0)
 
         self.connection_status_icon = Gtk.Image.new_from_icon_name(
             "server-online", Gtk.IconSize.BUTTON
         )
         self.connection_status_icon.set_name("online-status-icon")
-        connected_status_box.add(self.connection_status_icon)
+        self.connected_status_box.add(self.connection_status_icon)
 
         self.connection_status_label = Gtk.Label(
             label="Connected", name="connection-status-label"
         )
-        connected_status_box.add(self.connection_status_label)
+        self.connected_status_box.add(self.connection_status_label)
 
-        connected_status_box.pack_start(Gtk.Box(), True, True, 0)
-        vbox.add(connected_status_box)
+        self.connected_status_box.pack_start(Gtk.Box(), True, True, 0)
+        vbox.add(self.connected_status_box)
 
         # Offline Mode
         offline_box, self.offline_mode_switch = self._create_toggle_menu_button(
