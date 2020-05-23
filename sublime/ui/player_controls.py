@@ -609,7 +609,7 @@ class PlayerControls(Gtk.ActionBar):
 
         # Device button (for chromecast)
         self.device_button = IconButton(
-            "chromecast-symbolic",
+            "chromecast-connected-symbolic",
             "Show available audio output devices",
             icon_size=Gtk.IconSize.LARGE_TOOLBAR,
         )

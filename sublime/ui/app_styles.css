@@ -1,11 +1,15 @@
 /* ********** Main ********** */
-#server-connection-icon { /* TODO remove */
-  /* box-shadow: 0px 0px 3px green; */
+#connected-to-label {
+  margin: 5px 15px;
+  font-size: 1.2em;
 }
 
-#connected-to-label {
-  margin-top: 5px;
-  font-size: 1.2em;
+#connected-status-row {
+  margin-bottom: 5px;
+}
+
+#online-status-icon {
+  margin-right: 10px;
 }
 
 #menu-header {

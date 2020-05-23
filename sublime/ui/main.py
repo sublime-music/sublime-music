@@ -338,12 +338,32 @@ class MainWindow(Gtk.ApplicationWindow):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Current Server
+
         self.connected_to_label = self._create_label(
             "<i>No Music Source Selected</i>",
             name="connected-to-label",
             halign=Gtk.Align.CENTER,
         )
         vbox.add(self.connected_to_label)
+
+        connected_status_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, name="connected-status-row"
+        )
+        connected_status_box.pack_start(Gtk.Box(), True, True, 0)
+
+        self.connection_status_icon = Gtk.Image.new_from_icon_name(
+            "server-online", Gtk.IconSize.BUTTON
+        )
+        self.connection_status_icon.set_name("online-status-icon")
+        connected_status_box.add(self.connection_status_icon)
+
+        self.connection_status_label = Gtk.Label(
+            label="Connected", name="connection-status-label"
+        )
+        connected_status_box.add(self.connection_status_label)
+
+        connected_status_box.pack_start(Gtk.Box(), True, True, 0)
+        vbox.add(connected_status_box)
 
         # Offline Mode
         offline_box, self.offline_mode_switch = self._create_toggle_menu_button(
