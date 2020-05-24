@@ -2,6 +2,13 @@
 
 set -e
 
+echo "VARIABLES"
+echo "CI_COMMIT_TAG=${CI_COMMIT_TAG}"
+echo "CI_API_V4_URL=${CI_API_V4_URL}"
+echo "CI_PROJECT_ID=${CI_PROJECT_ID}"
+echo "CI_PIPELINE_ID=${CI_PIPELINE_ID}"
+echo "CI_PROJECT_URL=${CI_PROJECT_URL}"
+
 # The release notes for this version should be the first line of the CHANGELOG.
 if [[ $(head -n 1 CHANGELOG.rst) == "${CI_COMMIT_TAG}" ]]; then
     # Extract all of the bullet points and other things until the next header.
@@ -40,11 +47,13 @@ if [[ "${milestone}" != "" ]]; then
 fi
 
 # Determine whether or not to include the Flatpak build.
+set +e
 failed=$(curl \
     --header "PRIVATE-TOKEN: ${RELEASE_PUBLISH_TOKEN}" \
     --request GET \
     "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?scope[]=failed" \
     | grep '"name":"build_flatpak"')
+set -e
 
 assets=""
 if [[ $failed == "" ]]; then
