@@ -1,29 +1,59 @@
 v0.9.3
 ======
 
-* **Features**
+.. warning::
+
+   This version is not compatible with any previous versions. If you have run a
+   previous version of Sublime Music, please delete your cache (likely in
+   ``~/.local/share/sublime-music``) and your existing configuration (likely in
+   ``~/.config/sublime-music``) and re-run Sublime Music to restart the
+   configuration process.
+
+**Note:** this release does not have Flatpak support due to the fact that
+Flatpak does not support Python 3.8 yet.
+
+* **UI Features**
+
+  * **Albums Tab**
 
     * The Albums tab is now paginated with configurable page sizes.
     * You can sort the Albums tab ascending or descending.
     * Opening an closing an album on the Albums tab now has a nice animation.
+
+  * **Player Controls**
+
     * The amount of the song that is cached is now shown while streaming a song.
     * The notification for resuming a play queue is now a non-modal
       notification that pops up right above the player controls.
-    * **New Icons**
 
-      * The Devices button now uses the Chromecast logo
-      * Custom icons for "Add to play queue", and "Play next" buttons. Thanks to
-        @samsartor for contributing the SVGs!
-      * A new icon for the Subsonic adapter. Contributed by @samsartor.
+  * **New Icons**
 
-    * Settings has gotten a revamp
+    * The Devices button now uses the Chromecast logo.
+    * Custom icons for "Add to play queue", and "Play next" buttons. Thanks to
+      @samsartor for contributing the SVGs!
+    * A new icon for indicating the connection state to the Subsonic server.
+      Contributed by @samsartor.
 
-* This release has a ton of under-the-hood changes to make things more robust
+  * **Settings**
+
+    * Settings are now in the popup under the gear icon rather than in a
+      separate popup window.
+    * You can now clear the cache via an option in the Downloads popup. There
+      are options for removing the entire cache and removing just the song file
+      cache.
+
+* **Backend**
+
+  This release has a ton of under-the-hood changes to make things more robust
   and performant.
 
   * The cache is now stored in a SQLite database.
-  * The cache is no longer reliant on Subsonic which will enable more backends
-    in the future.
+  * The cache no longer gets corrupted when Sublime Music fails to write to
+    disk.
+  * A generic `Adapter API`_ has been created which means that Sublime Music is
+    no longer reliant on Subsonic and in the future, more backends can be added.
+
+.. _Adapter API: https://sumner.gitlab.io/sublime-music/adapter-api.html
 
 v0.9.2
 ======
