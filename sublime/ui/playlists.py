@@ -164,9 +164,10 @@ class PlaylistList(Gtk.Box):
         list_scroll_window.add(self.list)
         self.pack_start(list_scroll_window, True, True, 0)
 
-    def update(self, app_config: AppConfiguration, force: bool = False):
-        self.new_playlist_button.set_sensitive(not app_config.offline_mode)
-        self.list_refresh_button.set_sensitive(not app_config.offline_mode)
+    def update(self, app_config: AppConfiguration = None, force: bool = False):
+        if app_config:
+            self.new_playlist_button.set_sensitive(not app_config.offline_mode)
+            self.list_refresh_button.set_sensitive(not app_config.offline_mode)
         self.new_playlist_row.hide()
         self.update_list(app_config=app_config, force=force)
 
@@ -178,7 +179,7 @@ class PlaylistList(Gtk.Box):
     def update_list(
         self,
         playlists: List[API.Playlist],
-        app_config: AppConfiguration,
+        app_config: AppConfiguration = None,
         force: bool = False,
         order_token: int = None,
     ):
@@ -626,7 +627,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                     Gtk.ResponseType.CANCEL,
                 )
                 confirm_dialog.format_secondary_markup(
-                    'Are you sure you want to delete the "{playlist.name}" playlist?'
+                    f'Are you sure you want to delete the "{playlist.name}" playlist?'
                 )
                 result = confirm_dialog.run()
                 confirm_dialog.destroy()

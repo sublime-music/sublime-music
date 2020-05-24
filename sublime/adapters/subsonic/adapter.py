@@ -335,7 +335,7 @@ class SubsonicAdapter(Adapter):
     # ==================================================================================
     def get_playlists(self) -> Sequence[API.Playlist]:
         if playlists := self._get_json(self._make_url("getPlaylists")).playlists:
-            return playlists.playlist
+            return sorted(playlists.playlist, key=lambda p: p.name.lower())
         return []
 
     def get_playlist_details(self, playlist_id: str) -> API.Playlist:

@@ -35,11 +35,15 @@ class MainWindow(Gtk.ApplicationWindow):
         self.set_default_size(1150, 768)
 
         # Create the stack
+        self.albums_panel = albums.AlbumsPanel()
+        self.artists_panel = artists.ArtistsPanel()
+        self.browse_panel = browse.BrowsePanel()
+        self.playlists_panel = playlists.PlaylistsPanel()
         self.stack = self._create_stack(
-            Albums=albums.AlbumsPanel(),
-            Artists=artists.ArtistsPanel(),
-            Browse=browse.BrowsePanel(),
-            Playlists=playlists.PlaylistsPanel(),
+            Albums=self.albums_panel,
+            Artists=self.artists_panel,
+            Browse=self.browse_panel,
+            Playlists=self.playlists_panel,
         )
         self.stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
 

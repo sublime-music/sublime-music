@@ -816,16 +816,20 @@ class SublimeMusicApp(Gtk.Application):
         self.player.volume = self.app_config.state.volume
         self.update_window()
 
-    def on_window_key_press(self, window: Gtk.Window, event: Gdk.EventKey,) -> bool:
+    def on_window_key_press(self, window: Gtk.Window, event: Gdk.EventKey) -> bool:
         # Need to use bitwise & here to see if CTRL is pressed.
         if event.keyval == 102 and event.state & Gdk.ModifierType.CONTROL_MASK:
             # Ctrl + F
             window.search_entry.grab_focus()
             return False
 
+        # Allow spaces to work in the text entry boxes.
         if window.search_entry.has_focus():
             return False
+        if window.playlists_panel.playlist_list.new_playlist_entry.has_focus():
+            return False
 
+        # Spacebar, home/prev
         keymap = {
             32: self.on_play_pause,
             65360: self.on_prev_track,
