@@ -181,6 +181,10 @@
   min-width: 50px;
 }
 
+#play-queue-image-disabled {
+  opacity: 0.5;
+}
+
 /* ********** General ********** */
 .menu-button {
   padding: 5px;
@@ -258,15 +262,18 @@
   margin: 15px;
 }
 
+@define-color box_shadow_color rgba(0, 0, 0, 0.2);
+
 #artist-info-panel {
+  box-shadow: 0 5px 5px @box_shadow_color;
   margin-bottom: 10px;
+  padding-bottom: 10px;
 }
 
-@define-color detail_color rgba(0, 0, 0, 0.2);
 #artist-detail-box {
   padding-top: 10px;
   padding-bottom: 10px;
-  box-shadow: inset 0 5px 5px @detail_color,
-              inset 0 -5px 5px @detail_color;
-  background-color: @detail_color;
+  box-shadow: inset 0 5px 5px @box_shadow_color,
+              inset 0 -5px 5px @box_shadow_color;
+  background-color: @box_shadow_color;
 }

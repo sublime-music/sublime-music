@@ -234,13 +234,13 @@ class ArtistDetailPanel(Gtk.Box):
 
         # TODO: make these disabled if there are no songs that can be played.
         play_button = IconButton(
-            "media-playback-start-symbolic", label="Play All", relief=True,
+            "media-playback-start-symbolic", label="Play All", relief=True
         )
         play_button.connect("clicked", self.on_play_all_clicked)
         self.play_shuffle_buttons.pack_start(play_button, False, False, 0)
 
         shuffle_button = IconButton(
-            "media-playlist-shuffle-symbolic", label="Shuffle All", relief=True,
+            "media-playlist-shuffle-symbolic", label="Shuffle All", relief=True
         )
         shuffle_button.connect("clicked", self.on_shuffle_all_button)
         self.play_shuffle_buttons.pack_start(shuffle_button, False, False, 5)

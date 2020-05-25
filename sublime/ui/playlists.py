@@ -713,6 +713,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
     def on_song_activated(self, _, idx: Gtk.TreePath, col: Any):
+        if not self.playlist_song_store[idx[0]][0]:
+            return
         # The song ID is in the last column of the model.
         self.emit(
             "song-clicked",

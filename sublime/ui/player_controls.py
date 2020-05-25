@@ -7,7 +7,7 @@ from typing import Any, Callable, List, Optional, Tuple
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
 from pychromecast import Chromecast
 
-from sublime.adapters import AdapterManager, Result
+from sublime.adapters import AdapterManager, Result, SongCacheStatus
 from sublime.adapters.api_objects import Song
 from sublime.config import AppConfiguration
 from sublime.players import ChromecastPlayer
@@ -177,6 +177,7 @@ class PlayerControls(Gtk.ActionBar):
             self.update_device_list()
 
         # Short circuit if no changes to the play queue
+        force |= self.offline_mode != app_config.offline_mode
         self.offline_mode = app_config.offline_mode
         self.load_play_queue_button.set_sensitive(not self.offline_mode)
 
@@ -224,7 +225,7 @@ class PlayerControls(Gtk.ActionBar):
             if order_token != self.play_queue_update_order_token:
                 return
 
-            self.play_queue_store[idx][0] = cover_art_filename
+            self.play_queue_store[idx][1] = cover_art_filename
 
         def get_cover_art_filename_or_create_future(
             cover_art_id: Optional[str], idx: int, order_token: int
@@ -247,21 +248,26 @@ class PlayerControls(Gtk.ActionBar):
             if order_token != self.play_queue_update_order_token:
                 return
 
-            self.play_queue_store[idx][1] = calculate_label(song_details)
+            self.play_queue_store[idx][2] = calculate_label(song_details)
 
             # Cover Art
             filename = get_cover_art_filename_or_create_future(
                 song_details.cover_art, idx, order_token
             )
             if filename:
-                self.play_queue_store[idx][0] = filename
+                self.play_queue_store[idx][1] = filename
 
         current_play_queue = [x[-1] for x in self.play_queue_store]
         if app_config.state.play_queue != current_play_queue:
             self.play_queue_update_order_token += 1
 
         song_details_results = []
-        for i, song_id in enumerate(app_config.state.play_queue):
+        for i, (song_id, cached_status) in enumerate(
+            zip(
+                app_config.state.play_queue,
+                AdapterManager.get_cached_statuses(app_config.state.play_queue),
+            )
+        ):
             song_details_result = AdapterManager.get_song_details(song_id)
 
             cover_art_filename = ""
@@ -282,6 +288,11 @@ class PlayerControls(Gtk.ActionBar):
 
             new_store.append(
                 [
+                    (
+                        not self.offline_mode
+                        or cached_status
+                        in (SongCacheStatus.CACHED, SongCacheStatus.PERMANENTLY_CACHED)
+                    ),
                     cover_art_filename,
                     label,
                     i == app_config.state.current_song_index,
@@ -361,6 +372,8 @@ class PlayerControls(Gtk.ActionBar):
             self.play_queue_popover.show_all()
 
     def on_song_activated(self, t: Any, idx: Gtk.TreePath, c: Any):
+        if not self.play_queue_store[idx[0]][0]:
+            return
         # The song ID is in the last column of the model.
         self.emit(
             "song-clicked",
@@ -481,7 +494,7 @@ class PlayerControls(Gtk.ActionBar):
         # reordering_play_queue_song_list flag.
         if self.reordering_play_queue_song_list:
             currently_playing_index = [
-                i for i, s in enumerate(self.play_queue_store) if s[2]
+                i for i, s in enumerate(self.play_queue_store) if s[3]  # playing
             ][0]
             self.emit(
                 "refresh-window",
@@ -706,6 +719,7 @@ class PlayerControls(Gtk.ActionBar):
         )
 
         self.play_queue_store = Gtk.ListStore(
+            bool,  # playable
             str,  # image filename
             str,  # title, album, artist
             bool,  # playing
@@ -714,30 +728,35 @@ class PlayerControls(Gtk.ActionBar):
         self.play_queue_list = Gtk.TreeView(
             model=self.play_queue_store, reorderable=True, headers_visible=False,
         )
-        self.play_queue_list.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+        selection = self.play_queue_list.get_selection()
+        selection.set_mode(Gtk.SelectionMode.MULTIPLE)
+        selection.set_select_function(lambda _, model, path, current: model[path[0]][0])
 
-        # Album Art column.
+        # Album Art column. This function defines what image to use for the play queue
+        # song icon.
         def filename_to_pixbuf(
             column: Any,
             cell: Gtk.CellRendererPixbuf,
             model: Gtk.ListStore,
-            iter: Gtk.TreeIter,
+            tree_iter: Gtk.TreeIter,
             flags: Any,
         ):
-            filename = model.get_value(iter, 0)
+            cell.set_property("sensitive", model.get_value(tree_iter, 0))
+            filename = model.get_value(tree_iter, 1)
             if not filename:
                 cell.set_property("icon_name", "")
                 return
+
             pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(filename, 50, 50, True)
 
             # If this is the playing song, then overlay the play icon.
-            if model.get_value(iter, 2):
+            if model.get_value(tree_iter, 3):
                 play_overlay_pixbuf = GdkPixbuf.Pixbuf.new_from_file(
                     str(Path(__file__).parent.joinpath("images/play-queue-play.png"))
                 )
 
                 play_overlay_pixbuf.composite(
-                    pixbuf, 0, 0, 50, 50, 0, 0, 1, 1, GdkPixbuf.InterpType.NEAREST, 255
+                    pixbuf, 0, 0, 50, 50, 0, 0, 1, 1, GdkPixbuf.InterpType.NEAREST, 200
                 )
 
             cell.set_property("pixbuf", pixbuf)
@@ -749,8 +768,8 @@ class PlayerControls(Gtk.ActionBar):
         column.set_resizable(True)
         self.play_queue_list.append_column(column)
 
-        renderer = Gtk.CellRendererText(markup=True, ellipsize=Pango.EllipsizeMode.END,)
-        column = Gtk.TreeViewColumn("", renderer, markup=1)
+        renderer = Gtk.CellRendererText(markup=True, ellipsize=Pango.EllipsizeMode.END)
+        column = Gtk.TreeViewColumn("", renderer, markup=2, sensitive=0)
         self.play_queue_list.append_column(column)
 
         self.play_queue_list.connect("row-activated", self.on_song_activated)

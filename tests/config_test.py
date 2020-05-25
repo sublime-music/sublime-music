@@ -46,14 +46,15 @@ def test_yaml_load_unload():
 
 
 def test_config_migrate():
-    config = AppConfiguration()
+    config = AppConfiguration(always_stream=True)
     server = ServerConfiguration(
         name="Test", server_address="https://test.host", username="test"
     )
     config.servers.append(server)
     config.migrate()
 
-    assert config.version == 3
+    assert config.version == 4
+    assert config.allow_song_downloads is False
     for server in config.servers:
         server.version == 0
 
