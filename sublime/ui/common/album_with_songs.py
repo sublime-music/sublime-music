@@ -311,8 +311,8 @@ class AlbumWithSongs(Gtk.Box):
         if any_song_playable:
             self.play_next_btn.set_action_target_value(GLib.Variant("as", song_ids))
             self.add_to_queue_btn.set_action_target_value(GLib.Variant("as", song_ids))
-            self.play_next_btn.set_action_name("app.add-to-queue")
-            self.add_to_queue_btn.set_action_name("app.play-next")
+            self.play_next_btn.set_action_name("app.play-next")
+            self.add_to_queue_btn.set_action_name("app.add-to-queue")
         else:
             self.play_next_btn.set_action_name("")
             self.add_to_queue_btn.set_action_name("")
