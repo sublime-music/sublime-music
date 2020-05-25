@@ -232,6 +232,7 @@ class ArtistDetailPanel(Gtk.Box):
             name="playlist-play-shuffle-buttons",
         )
 
+        # TODO: make these disabled if there are no songs that can be played.
         play_button = IconButton(
             "media-playback-start-symbolic", label="Play All", relief=True,
         )
@@ -341,7 +342,11 @@ class ArtistDetailPanel(Gtk.Box):
             self.artist_indicator.set_text("ARTIST")
             self.artist_stats.set_markup(self.format_stats(artist))
 
-            self.artist_bio.set_markup(util.esc(artist.biography))
+            if artist.biography:
+                self.artist_bio.set_markup(util.esc(artist.biography))
+                self.artist_bio.show()
+            else:
+                self.artist_bio.hide()
 
             if len(artist.similar_artists or []) > 0:
                 self.similar_artists_label.set_markup("<b>Similar Artists:</b> ")
@@ -450,7 +455,7 @@ class ArtistDetailPanel(Gtk.Box):
             self.albums_list.spinner.hide()
             self.artist_artwork.set_loading(False)
 
-    def make_label(self, text: str = None, name: str = None, **params,) -> Gtk.Label:
+    def make_label(self, text: str = None, name: str = None, **params) -> Gtk.Label:
         return Gtk.Label(
             label=text, name=name, halign=Gtk.Align.START, xalign=0, **params,
         )
@@ -538,7 +543,11 @@ class AlbumsListWithSongs(Gtk.Overlay):
             album_with_songs.show_all()
             self.box.add(album_with_songs)
 
-        self.spinner.stop()
+        # Update everything (no force to ensure that if we are online, then everything
+        # is clickable)
+        for c in self.box.get_children():
+            c.update(app_config=app_config)
+
         self.spinner.hide()
 
     def on_song_selected(self, album_component: AlbumWithSongs):

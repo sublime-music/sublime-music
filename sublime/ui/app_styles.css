@@ -261,3 +261,12 @@
 #artist-info-panel {
   margin-bottom: 10px;
 }
+
+@define-color detail_color rgba(0, 0, 0, 0.2);
+#artist-detail-box {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  box-shadow: inset 0 5px 5px @detail_color,
+              inset 0 -5px 5px @detail_color;
+  background-color: @detail_color;
+}

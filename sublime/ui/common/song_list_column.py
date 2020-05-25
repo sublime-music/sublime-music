@@ -17,6 +17,6 @@ class SongListColumn(Gtk.TreeViewColumn):
         )
         renderer.set_fixed_size(width or -1, 35)
 
-        super().__init__(header, renderer, text=text_idx)
+        super().__init__(header, renderer, text=text_idx, sensitive=0)
         self.set_resizable(True)
         self.set_expand(not width)

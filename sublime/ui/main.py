@@ -406,6 +406,7 @@ class MainWindow(Gtk.ApplicationWindow):
             lambda _: print("switch"),
             menu_name="switch-provider",
         )
+        # TODO
         music_provider_button.set_action_name("app.configure-servers")
         vbox.add(music_provider_button)
 

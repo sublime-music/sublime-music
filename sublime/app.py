@@ -824,9 +824,10 @@ class SublimeMusicApp(Gtk.Application):
             return False
 
         # Allow spaces to work in the text entry boxes.
-        if window.search_entry.has_focus():
-            return False
-        if window.playlists_panel.playlist_list.new_playlist_entry.has_focus():
+        if (
+            window.search_entry.has_focus()
+            or window.playlists_panel.playlist_list.new_playlist_entry.has_focus()
+        ):
             return False
 
         # Spacebar, home/prev

@@ -207,27 +207,28 @@ class MusicDirectoryList(Gtk.Box):
         self.list.bind_model(self.drilldown_directories_store, self.create_row)
         scrollbox.add(self.list)
 
-        self.directory_song_store = Gtk.ListStore(
-            str, str, str, str,  # cache status, title, duration, song ID
-        )
+        # clickable, cache status, title, duration, song ID
+        self.directory_song_store = Gtk.ListStore(bool, str, str, str, str)
 
         self.directory_song_list = Gtk.TreeView(
             model=self.directory_song_store,
             name="directory-songs-list",
             headers_visible=False,
         )
-        self.directory_song_list.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+        selection = self.directory_song_list.get_selection()
+        selection.set_mode(Gtk.SelectionMode.MULTIPLE)
+        selection.set_select_function(lambda _, model, path, current: model[path[0]][0])
 
         # Song status column.
         renderer = Gtk.CellRendererPixbuf()
         renderer.set_fixed_size(30, 35)
-        column = Gtk.TreeViewColumn("", renderer, icon_name=0)
+        column = Gtk.TreeViewColumn("", renderer, icon_name=1)
         column.set_resizable(True)
         self.directory_song_list.append_column(column)
 
-        self.directory_song_list.append_column(SongListColumn("TITLE", 1, bold=True))
+        self.directory_song_list.append_column(SongListColumn("TITLE", 2, bold=True))
         self.directory_song_list.append_column(
-            SongListColumn("DURATION", 2, align=1, width=40)
+            SongListColumn("DURATION", 3, align=1, width=40)
         )
 
         self.directory_song_list.connect("row-activated", self.on_song_activated)
@@ -253,6 +254,10 @@ class MusicDirectoryList(Gtk.Box):
         )
 
         if app_config:
+            # Deselect everything if switching online to offline.
+            if self.offline_mode != app_config.offline_mode:
+                self.directory_song_list.get_selection().unselect_all()
+
             self.offline_mode = app_config.offline_mode
 
         self.refresh_button.set_sensitive(not self.offline_mode)
@@ -316,6 +321,11 @@ class MusicDirectoryList(Gtk.Box):
 
             new_songs_store = [
                 [
+                    (
+                        not self.offline_mode
+                        or status_icon
+                        in ("folder-download-symbolic", "view-pin-symbolic")
+                    ),
                     status_icon,
                     util.esc(song.title),
                     util.format_song_duration(song.duration),
@@ -327,7 +337,15 @@ class MusicDirectoryList(Gtk.Box):
             ]
         else:
             new_songs_store = [
-                [status_icon] + song_model[1:]
+                [
+                    (
+                        not self.offline_mode
+                        or status_icon
+                        in ("folder-download-symbolic", "view-pin-symbolic")
+                    ),
+                    status_icon,
+                    *song_model[2:],
+                ]
                 for status_icon, song_model in zip(
                     util.get_cached_status_icons(song_ids), self.directory_song_store
                 )
@@ -384,6 +402,8 @@ class MusicDirectoryList(Gtk.Box):
     # Event Handlers
     # ==================================================================================
     def on_song_activated(self, treeview: Any, idx: Gtk.TreePath, column: Any):
+        if not self.directory_song_store[idx[0]][0]:
+            return
         # The song ID is in the last column of the model.
         self.emit(
             "song-clicked",

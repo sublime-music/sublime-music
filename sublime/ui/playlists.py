@@ -290,17 +290,17 @@ class PlaylistDetailPanel(Gtk.Overlay):
             name="playlist-play-shuffle-buttons",
         )
 
-        play_button = IconButton(
+        self.play_all_button = IconButton(
             "media-playback-start-symbolic", label="Play All", relief=True,
         )
-        play_button.connect("clicked", self.on_play_all_clicked)
-        self.play_shuffle_buttons.pack_start(play_button, False, False, 0)
+        self.play_all_button.connect("clicked", self.on_play_all_clicked)
+        self.play_shuffle_buttons.pack_start(self.play_all_button, False, False, 0)
 
-        shuffle_button = IconButton(
+        self.shuffle_all_button = IconButton(
             "media-playlist-shuffle-symbolic", label="Shuffle All", relief=True,
         )
-        shuffle_button.connect("clicked", self.on_shuffle_all_button)
-        self.play_shuffle_buttons.pack_start(shuffle_button, False, False, 5)
+        self.shuffle_all_button.connect("clicked", self.on_shuffle_all_button)
+        self.play_shuffle_buttons.pack_start(self.shuffle_all_button, False, False, 5)
 
         playlist_details_box.add(self.play_shuffle_buttons)
 
@@ -352,6 +352,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         playlist_view_scroll_window = Gtk.ScrolledWindow()
 
         self.playlist_song_store = Gtk.ListStore(
+            bool,  # clickable
             str,  # cache status
             str,  # title
             str,  # album
@@ -391,20 +392,22 @@ class PlaylistDetailPanel(Gtk.Overlay):
             enable_search=True,
         )
         self.playlist_songs.set_search_equal_func(playlist_song_list_search_fn)
-        self.playlist_songs.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+        selection = self.playlist_songs.get_selection()
+        selection.set_mode(Gtk.SelectionMode.MULTIPLE)
+        selection.set_select_function(lambda _, model, path, current: model[path[0]][0])
 
         # Song status column.
         renderer = Gtk.CellRendererPixbuf()
         renderer.set_fixed_size(30, 35)
-        column = Gtk.TreeViewColumn("", renderer, icon_name=0)
+        column = Gtk.TreeViewColumn("", renderer, icon_name=1)
         column.set_resizable(True)
         self.playlist_songs.append_column(column)
 
-        self.playlist_songs.append_column(SongListColumn("TITLE", 1, bold=True))
-        self.playlist_songs.append_column(SongListColumn("ALBUM", 2))
-        self.playlist_songs.append_column(SongListColumn("ARTIST", 3))
+        self.playlist_songs.append_column(SongListColumn("TITLE", 2, bold=True))
+        self.playlist_songs.append_column(SongListColumn("ALBUM", 3))
+        self.playlist_songs.append_column(SongListColumn("ARTIST", 4))
         self.playlist_songs.append_column(
-            SongListColumn("DURATION", 4, align=1, width=40)
+            SongListColumn("DURATION", 5, align=1, width=40)
         )
 
         self.playlist_songs.connect("row-activated", self.on_song_activated)
@@ -434,6 +437,10 @@ class PlaylistDetailPanel(Gtk.Overlay):
     update_playlist_view_order_token = 0
 
     def update(self, app_config: AppConfiguration, force: bool = False):
+        # Deselect everything if switching online to offline.
+        if self.offline_mode != app_config.offline_mode:
+            self.playlist_songs.get_selection().unselect_all()
+
         self.offline_mode = app_config.offline_mode
         if app_config.state.selected_playlist_id is None:
             self.playlist_box.hide()
@@ -532,32 +539,46 @@ class PlaylistDetailPanel(Gtk.Overlay):
             song_ids.append(c.id)
             songs.append(c)
 
+        new_songs_store = []
+        can_play_any_song = False
+        cached_status_icons = ("folder-download-symbolic", "view-pin-symbolic")
+
         if force:
             self._current_song_ids = song_ids
 
-            new_songs_store = [
-                [
-                    status_icon,
-                    song.title,
-                    album.name if (album := song.album) else None,
-                    artist.name if (artist := song.artist) else None,
-                    util.format_song_duration(song.duration),
-                    song.id,
-                ]
-                for status_icon, song in zip(
-                    util.get_cached_status_icons(song_ids),
-                    [cast(API.Song, s) for s in songs],
+            # Regenerate the store from the actual song data (this is more expensive
+            # because when coming from the cache, we are doing 2N fk requests to
+            # albums).
+            for status_icon, song in zip(
+                util.get_cached_status_icons(song_ids),
+                [cast(API.Song, s) for s in songs],
+            ):
+                playable = not self.offline_mode or status_icon in cached_status_icons
+                can_play_any_song |= playable
+                new_songs_store.append(
+                    [
+                        playable,
+                        status_icon,
+                        song.title,
+                        album.name if (album := song.album) else None,
+                        artist.name if (artist := song.artist) else None,
+                        util.format_song_duration(song.duration),
+                        song.id,
+                    ]
                 )
-            ]
         else:
-            new_songs_store = [
-                [status_icon] + song_model[1:]
-                for status_icon, song_model in zip(
-                    util.get_cached_status_icons(song_ids), self.playlist_song_store
-                )
-            ]
+            # Just update the clickable state and download state.
+            for status_icon, song_model in zip(
+                util.get_cached_status_icons(song_ids), self.playlist_song_store
+            ):
+                playable = not self.offline_mode or status_icon in cached_status_icons
+                can_play_any_song |= playable
+                new_songs_store.append([playable, status_icon, *song_model[2:]])
 
         util.diff_song_store(self.playlist_song_store, new_songs_store)
+
+        self.play_all_button.set_sensitive(can_play_any_song)
+        self.shuffle_all_button.set_sensitive(can_play_any_song)
 
         self.editing_playlist_song_list = False
 
@@ -657,7 +678,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         def download_state_change(song_id: str):
             GLib.idle_add(
                 lambda: self.update_playlist_view(
-                    self.playlist_id, order_token=self.update_playlist_view_order_token,
+                    self.playlist_id, order_token=self.update_playlist_view_order_token
                 )
             )
 
@@ -757,7 +778,12 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 self.offline_mode,
                 on_download_state_change=on_download_state_change,
                 extra_menu_items=[
-                    (Gtk.ModelButton(text=remove_text), on_remove_songs_click),
+                    (
+                        Gtk.ModelButton(
+                            text=remove_text, sensitive=not self.offline_mode
+                        ),
+                        on_remove_songs_click,
+                    )
                 ],
                 on_playlist_state_change=lambda: self.emit("refresh-window", {}, True),
             )

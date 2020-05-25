@@ -218,14 +218,18 @@ def show_song_popover(
     # Add all of the menu items to the popover.
     song_count = len(song_ids)
 
-    go_to_album_button = Gtk.ModelButton(
-        text="Go to album", action_name="app.go-to-album"
-    )
-    go_to_artist_button = Gtk.ModelButton(
-        text="Go to artist", action_name="app.go-to-artist"
-    )
+    play_next_button = Gtk.ModelButton(text="Play next", sensitive=False)
+    add_to_queue_button = Gtk.ModelButton(text="Add to queue", sensitive=False)
+    if not offline_mode:
+        play_next_button.set_action_name("app.play-next")
+        play_next_button.set_action_target_value(GLib.Variant("as", song_ids))
+        add_to_queue_button.set_action_name("app.add-to-queue")
+        add_to_queue_button.set_action_target_value(GLib.Variant("as", song_ids))
+
+    go_to_album_button = Gtk.ModelButton(text="Go to album", sensitive=False)
+    go_to_artist_button = Gtk.ModelButton(text="Go to artist", sensitive=False)
     browse_to_song = Gtk.ModelButton(
-        text=f"Browse to {pluralize('song', song_count)}", action_name="app.browse-to",
+        text=f"Browse to {pluralize('song', song_count)}", sensitive=False
     )
     download_song_button = Gtk.ModelButton(
         text=f"Download {pluralize('song', song_count)}", sensitive=False
@@ -246,6 +250,10 @@ def show_song_popover(
             for status in song_cache_statuses
         ):
             remove_download_button.set_sensitive(True)
+            play_next_button.set_action_target_value(GLib.Variant("as", song_ids))
+            play_next_button.set_action_name("app.play-next")
+            add_to_queue_button.set_action_target_value(GLib.Variant("as", song_ids))
+            add_to_queue_button.set_action_name("app.add-to-queue")
 
         albums, artists, parents = set(), set(), set()
         for song in songs:
@@ -258,14 +266,18 @@ def show_song_popover(
                 artists.add(id_)
 
         if len(albums) == 1 and list(albums)[0] is not None:
-            album_value = GLib.Variant("s", list(albums)[0])
-            go_to_album_button.set_action_target_value(album_value)
+            go_to_album_button.set_action_target_value(
+                GLib.Variant("s", list(albums)[0])
+            )
+            go_to_album_button.set_action_name("app.go-to-album")
         if len(artists) == 1 and list(artists)[0] is not None:
-            artist_value = GLib.Variant("s", list(artists)[0])
-            go_to_artist_button.set_action_target_value(artist_value)
+            go_to_artist_button.set_action_target_value(
+                GLib.Variant("s", list(artists)[0])
+            )
+            go_to_artist_button.set_action_name("app.go-to-artist")
         if len(parents) == 1 and list(parents)[0] is not None:
-            parent_value = GLib.Variant("s", list(parents)[0])
-            browse_to_song.set_action_target_value(parent_value)
+            browse_to_song.set_action_target_value(GLib.Variant("s", list(parents)[0]))
+            browse_to_song.set_action_name("app.browse-to")
 
     def batch_get_song_details() -> List[Song]:
         return [
@@ -278,16 +290,8 @@ def show_song_popover(
     )
 
     menu_items = [
-        Gtk.ModelButton(
-            text="Play next",
-            action_name="app.play-next",
-            action_target=GLib.Variant("as", song_ids),
-        ),
-        Gtk.ModelButton(
-            text="Add to queue",
-            action_name="app.add-to-queue",
-            action_target=GLib.Variant("as", song_ids),
-        ),
+        play_next_button,
+        add_to_queue_button,
         Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
         go_to_album_button,
         go_to_artist_button,
@@ -300,6 +304,7 @@ def show_song_popover(
             text=f"Add {pluralize('song', song_count)} to playlist",
             menu_name="add-to-playlist",
             name="menu-item-add-to-playlist",
+            sensitive=not offline_mode,
         ),
         *(extra_menu_items or []),
     ]
@@ -319,27 +324,30 @@ def show_song_popover(
     # Create the "Add song(s) to playlist" sub-menu.
     playlists_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-    # Back button
-    playlists_vbox.add(Gtk.ModelButton(inverted=True, centered=True, menu_name="main"))
+    if not offline_mode:
+        # Back button
+        playlists_vbox.add(
+            Gtk.ModelButton(inverted=True, centered=True, menu_name="main")
+        )
 
-    # Loading indicator
-    loading_indicator = Gtk.Spinner(name="menu-item-spinner")
-    loading_indicator.start()
-    playlists_vbox.add(loading_indicator)
+        # Loading indicator
+        loading_indicator = Gtk.Spinner(name="menu-item-spinner")
+        loading_indicator.start()
+        playlists_vbox.add(loading_indicator)
 
-    # Create a future to make the actual playlist buttons
-    def on_get_playlists_done(f: Result[List[Playlist]]):
-        playlists_vbox.remove(loading_indicator)
+        # Create a future to make the actual playlist buttons
+        def on_get_playlists_done(f: Result[List[Playlist]]):
+            playlists_vbox.remove(loading_indicator)
 
-        for playlist in f.result():
-            button = Gtk.ModelButton(text=playlist.name)
-            button.get_style_context().add_class("menu-button")
-            button.connect("clicked", on_add_to_playlist_click, playlist)
-            button.show()
-            playlists_vbox.pack_start(button, False, True, 0)
+            for playlist in f.result():
+                button = Gtk.ModelButton(text=playlist.name)
+                button.get_style_context().add_class("menu-button")
+                button.connect("clicked", on_add_to_playlist_click, playlist)
+                button.show()
+                playlists_vbox.pack_start(button, False, True, 0)
 
-    playlists_result = AdapterManager.get_playlists()
-    playlists_result.add_done_callback(on_get_playlists_done)
+        playlists_result = AdapterManager.get_playlists()
+        playlists_result.add_done_callback(on_get_playlists_done)
 
     popover.add(playlists_vbox)
     popover.child_set_property(playlists_vbox, "submenu", "add-to-playlist")

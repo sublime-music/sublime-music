@@ -152,6 +152,7 @@ class SubsonicAdapter(Adapter):
             sleep(15)
 
     def _set_ping_status(self):
+        # TODO don't ping in offline mode
         try:
             # Try to ping the server with a timeout of 2 seconds.
             self._get_json(self._make_url("ping"), timeout=2)

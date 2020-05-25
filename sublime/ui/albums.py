@@ -555,7 +555,9 @@ class AlbumsGrid(Gtk.Overlay):
         grid_detail_grid_box.add(self.grid_top)
 
         self.detail_box_revealer = Gtk.Revealer(valign=Gtk.Align.END)
-        self.detail_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.detail_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, name="artist-detail-box"
+        )
         self.detail_box.pack_start(Gtk.Box(), True, True, 0)
 
         self.detail_box_inner = Gtk.Box()

@@ -1,5 +1,5 @@
-v0.9.3
-======
+v0.10.0
+=======
 
 .. warning::
 
@@ -9,40 +9,47 @@ v0.9.3
    ``~/.config/sublime-music``) and re-run Sublime Music to restart the
    configuration process.
 
-**Note:** this release does not have Flatpak support due to the fact that
-Flatpak does not support Python 3.8 yet.
+Features
+--------
 
-* **UI Features**
+**Albums Tab Improvements**
 
-  * **Albums Tab**
+* The Albums tab is now paginated with configurable page sizes.
+* You can sort the Albums tab ascending or descending.
+* Opening an closing an album on the Albums tab now has a nice animation.
 
-    * The Albums tab is now paginated with configurable page sizes.
-    * You can sort the Albums tab ascending or descending.
-    * Opening an closing an album on the Albums tab now has a nice animation.
+**Player Controls**
 
-  * **Player Controls**
+* The amount of the song that is cached is now shown while streaming a song.
+* The notification for resuming a play queue is now a non-modal notification
+  that pops up right above the player controls.
 
-    * The amount of the song that is cached is now shown while streaming a song.
-    * The notification for resuming a play queue is now a non-modal
-      notification that pops up right above the player controls.
+**New Icons**
 
-  * **New Icons**
+* The Devices button now uses the Chromecast logo.
+* Custom icons for "Add to play queue", and "Play next" buttons. Thanks to
+  @samsartor for contributing the SVGs!
+* A new icon for indicating the connection state to the Subsonic server.
+  Contributed by @samsartor.
 
-    * The Devices button now uses the Chromecast logo.
-    * Custom icons for "Add to play queue", and "Play next" buttons. Thanks to
-      @samsartor for contributing the SVGs!
-    * A new icon for indicating the connection state to the Subsonic server.
-      Contributed by @samsartor.
+**Settings**
 
-  * **Settings**
+* Settings are now in the popup under the gear icon rather than in a separate
+  popup window.
+* The music provider configuration has gotten a major revamp.
+* You can now clear the cache via an option in the Downloads popup. There are
+  options for removing the entire cache and removing just the song file cache.
 
-    * Settings are now in the popup under the gear icon rather than in a
-      separate popup window.
-    * You can now clear the cache via an option in the Downloads popup. There
-      are options for removing the entire cache and removing just the song file
-      cache.
+**Offline Mode**
 
-* **Backend**
+* You can enable *Offline Mode* from the server menu.
+* Features that require network access are disabled in offline mode.
+* You can still browse anything that is already cached offline.
+
+.. MENTION man page
+
+Under The Hood
+--------------
 
   This release has a ton of under-the-hood changes to make things more robust
   and performant.

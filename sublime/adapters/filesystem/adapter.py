@@ -251,9 +251,11 @@ class FilesystemAdapter(CachingAdapter):
         )
         if cover_art:
             filename = self.cover_art_dir.joinpath(str(cover_art.file_hash))
-            if cover_art.valid and filename.exists():
-                return str(filename)
-            raise CacheMissError(partial_data=str(filename))
+            if filename.exists():
+                if cover_art.valid:
+                    return str(filename)
+                else:
+                    raise CacheMissError(partial_data=str(filename))
 
         raise CacheMissError()
 
@@ -269,9 +271,11 @@ class FilesystemAdapter(CachingAdapter):
             if (song_file := song.file) and (
                 filename := self._compute_song_filename(song_file)
             ):
-                if song_file.valid and filename.exists():
-                    return str(filename)
-                raise CacheMissError(partial_data=str(filename))
+                if filename.exists():
+                    if song_file.valid:
+                        return str(filename)
+                    else:
+                        raise CacheMissError(partial_data=str(filename))
         except models.CacheInfo.DoesNotExist:
             pass
 

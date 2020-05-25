@@ -1,5 +1,5 @@
 from random import randint
-from typing import Any, List
+from typing import Any, cast, List
 
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
@@ -125,8 +125,8 @@ class AlbumWithSongs(Gtk.Box):
         self.loading_indicator_container = Gtk.Box()
         album_details.add(self.loading_indicator_container)
 
-        # cache status, title, duration, song ID
-        self.album_song_store = Gtk.ListStore(str, str, str, str)
+        # clickable, cache status, title, duration, song ID
+        self.album_song_store = Gtk.ListStore(bool, str, str, str, str)
 
         self.album_songs = Gtk.TreeView(
             model=self.album_song_store,
@@ -137,17 +137,19 @@ class AlbumWithSongs(Gtk.Box):
             margin_right=10,
             margin_bottom=10,
         )
-        self.album_songs.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+        selection = self.album_songs.get_selection()
+        selection.set_mode(Gtk.SelectionMode.MULTIPLE)
+        selection.set_select_function(lambda _, model, path, current: model[path[0]][0])
 
         # Song status column.
         renderer = Gtk.CellRendererPixbuf()
         renderer.set_fixed_size(30, 35)
-        column = Gtk.TreeViewColumn("", renderer, icon_name=0)
+        column = Gtk.TreeViewColumn("", renderer, icon_name=1)
         column.set_resizable(True)
         self.album_songs.append_column(column)
 
-        self.album_songs.append_column(SongListColumn("TITLE", 1, bold=True))
-        self.album_songs.append_column(SongListColumn("DURATION", 2, align=1, width=40))
+        self.album_songs.append_column(SongListColumn("TITLE", 2, bold=True))
+        self.album_songs.append_column(SongListColumn("DURATION", 3, align=1, width=40))
 
         self.album_songs.connect("row-activated", self.on_song_activated)
         self.album_songs.connect("button-press-event", self.on_song_button_press)
@@ -167,6 +169,8 @@ class AlbumWithSongs(Gtk.Box):
             self.emit("song-selected")
 
     def on_song_activated(self, treeview: Any, idx: Gtk.TreePath, column: Any):
+        if not self.album_song_store[idx[0]][0]:
+            return
         # The song ID is in the last column of the model.
         self.emit(
             "song-clicked",
@@ -243,6 +247,9 @@ class AlbumWithSongs(Gtk.Box):
 
     def update(self, app_config: AppConfiguration = None, force: bool = False):
         if app_config:
+            # Deselect everything if switching online to offline.
+            if self.offline_mode != app_config.offline_mode:
+                self.album_songs.get_selection().unselect_all()
             self.offline_mode = app_config.offline_mode
 
         self.update_album_songs(self.album.id, app_config=app_config, force=force)
@@ -273,30 +280,42 @@ class AlbumWithSongs(Gtk.Box):
         order_token: int = None,
     ):
         song_ids = [s.id for s in album.songs or []]
-        new_store = [
-            [
-                cached_status,
-                util.esc(song.title),
-                util.format_song_duration(song.duration),
-                song.id,
-            ]
-            for cached_status, song in zip(
-                util.get_cached_status_icons(song_ids), album.songs or []
+        new_store = []
+        any_song_playable = False
+        for cached_status, song in zip(
+            util.get_cached_status_icons(song_ids), album.songs or []
+        ):
+            playable = not self.offline_mode or cached_status in (
+                "folder-download-symbolic",
+                "view-pin-symbolic",
             )
-        ]
+            new_store.append(
+                [
+                    playable,
+                    cached_status,
+                    util.esc(song.title),
+                    util.format_song_duration(song.duration),
+                    song.id,
+                ]
+            )
+            any_song_playable |= playable
 
-        song_ids = [song[-1] for song in new_store]
+        song_ids = [cast(str, song[-1]) for song in new_store]
 
-        self.play_btn.set_sensitive(True)
-        self.shuffle_btn.set_sensitive(True)
+        self.play_btn.set_sensitive(any_song_playable)
+        self.shuffle_btn.set_sensitive(any_song_playable)
         self.download_all_btn.set_sensitive(
             not self.offline_mode and AdapterManager.can_batch_download_songs()
         )
 
-        self.play_next_btn.set_action_target_value(GLib.Variant("as", song_ids))
-        self.add_to_queue_btn.set_action_target_value(GLib.Variant("as", song_ids))
-        self.play_next_btn.set_action_name("app.add-to-queue")
-        self.add_to_queue_btn.set_action_name("app.play-next")
+        if any_song_playable:
+            self.play_next_btn.set_action_target_value(GLib.Variant("as", song_ids))
+            self.add_to_queue_btn.set_action_target_value(GLib.Variant("as", song_ids))
+            self.play_next_btn.set_action_name("app.add-to-queue")
+            self.add_to_queue_btn.set_action_name("app.play-next")
+        else:
+            self.play_next_btn.set_action_name("")
+            self.add_to_queue_btn.set_action_name("")
 
         util.diff_song_store(self.album_song_store, new_store)
 
