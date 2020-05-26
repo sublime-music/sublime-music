@@ -554,7 +554,7 @@ class AlbumsGrid(Gtk.Overlay):
                 halign=Gtk.Align.CENTER,
                 selection_mode=Gtk.SelectionMode.SINGLE,
             )
-            flowbox.set_max_children_per_line(10)
+            flowbox.set_max_children_per_line(7)
             return flowbox
 
         self.grid_top = create_flowbox()
@@ -658,11 +658,9 @@ class AlbumsGrid(Gtk.Overlay):
             if self.sort_dir == "descending" and selected_index:
                 selected_index = len(self.current_models) - selected_index - 1
 
-            selection_changed = selected_index != self.currently_selected_index
-            self.currently_selected_index = selected_index
             self.reflow_grids(
                 force_reload_from_master=force_grid_reload_from_master,
-                selection_changed=selection_changed,
+                selected_index=selected_index,
                 models=self.current_models,
             )
             self.spinner.hide()
@@ -703,7 +701,10 @@ class AlbumsGrid(Gtk.Overlay):
 
             for c in self.error_container.get_children():
                 self.error_container.remove(c)
-            if is_partial and self.current_query.type != AlbumSearchQuery.Type.RANDOM:
+            if is_partial and (
+                len(albums) == 0
+                or self.current_query.type != AlbumSearchQuery.Type.RANDOM
+            ):
                 load_error = LoadError(
                     "Album list",
                     "load albums",
@@ -779,14 +780,17 @@ class AlbumsGrid(Gtk.Overlay):
         #              add extra padding.
         # 200     + (10      * 2) + (5      * 2) = 230
         # picture + (padding * 2) + (margin * 2)
-        new_items_per_row = min((rect.width // 230), 10)
+        new_items_per_row = min((rect.width // 230), 7)
         if new_items_per_row != self.items_per_row:
             self.items_per_row = new_items_per_row
             self.detail_box_inner.set_size_request(
                 self.items_per_row * 230 - 10, -1,
             )
 
-            self.reflow_grids(force_reload_from_master=True)
+            self.reflow_grids(
+                force_reload_from_master=True,
+                selected_index=self.currently_selected_index,
+            )
 
     # Helper Methods
     # =========================================================================
@@ -846,17 +850,18 @@ class AlbumsGrid(Gtk.Overlay):
     def reflow_grids(
         self,
         force_reload_from_master: bool = False,
-        selection_changed: bool = False,
+        selected_index: int = None,
         models: List[_AlbumModel] = None,
     ):
         # Calculate the page that the currently_selected_index is in. If it's a
         # different page, then update the window.
-        page_changed = False
-        if self.currently_selected_index is not None:
-            page_of_selected_index = self.currently_selected_index // self.page_size
+        if selected_index is not None:
+            page_of_selected_index = selected_index // self.page_size
             if page_of_selected_index != self.page:
-                page_changed = True
-                self.page = page_of_selected_index
+                self.emit(
+                    "refresh-window", {"album_page": page_of_selected_index}, False
+                )
+                return
         page_offset = self.page_size * self.page
 
         # Calculate the look-at window.
@@ -874,14 +879,14 @@ class AlbumsGrid(Gtk.Overlay):
 
         # Determine where the cuttoff is between the top and bottom grids.
         entries_before_fold = self.page_size
-        if self.currently_selected_index is not None and self.items_per_row:
-            relative_selected_index = self.currently_selected_index - page_offset
+        if selected_index is not None and self.items_per_row:
+            relative_selected_index = selected_index - page_offset
             entries_before_fold = (
                 (relative_selected_index // self.items_per_row) + 1
             ) * self.items_per_row
 
         # Unreveal the current album details first
-        if self.currently_selected_index is None:
+        if selected_index is None:
             self.detail_box_revealer.set_reveal_child(False)
 
         if force_reload_from_master:
@@ -893,7 +898,7 @@ class AlbumsGrid(Gtk.Overlay):
             self.list_store_bottom.splice(
                 0, len(self.list_store_bottom), window[entries_before_fold:],
             )
-        elif self.currently_selected_index or entries_before_fold != self.page_size:
+        elif selected_index or entries_before_fold != self.page_size:
             # This case handles when the selection changes and the entries need to be
             # re-allocated to the top and bottom grids
             # Move entries between the two stores.
@@ -913,14 +918,14 @@ class AlbumsGrid(Gtk.Overlay):
                     self.list_store_bottom.splice(0, 0, self.list_store_top[-diff:])
                     self.list_store_top.splice(top_store_len - diff, diff, [])
 
-        if self.currently_selected_index is not None:
-            relative_selected_index = self.currently_selected_index - page_offset
+        if selected_index is not None:
+            relative_selected_index = selected_index - page_offset
             to_select = self.grid_top.get_child_at_index(relative_selected_index)
             if not to_select:
                 return
             self.grid_top.select_child(to_select)
 
-            if not selection_changed:
+            if self.currently_selected_index == selected_index:
                 return
 
             for c in self.detail_box_inner.get_children():
@@ -944,9 +949,4 @@ class AlbumsGrid(Gtk.Overlay):
             self.grid_top.unselect_all()
             self.grid_bottom.unselect_all()
 
-        # If we had to change the page to select the index, then update the window. It
-        # should basically be a no-op.
-        if page_changed:
-            self.emit(
-                "refresh-window", {"album_page": self.page}, False,
-            )
+        self.currently_selected_index = selected_index

@@ -653,7 +653,7 @@ class SublimeMusicApp(Gtk.Application):
 
         self.app_config.state.current_tab = "albums"
         self.app_config.state.selected_album_id = album_id.get_string()
-        self.update_window(force=True)
+        self.update_window()
 
     def on_go_to_artist(self, action: Any, artist_id: GLib.Variant):
         self.app_config.state.current_tab = "artists"

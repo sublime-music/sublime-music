@@ -31,14 +31,19 @@ Features
   @samsartor for contributing the SVGs!
 * A new icon for indicating the connection state to the Subsonic server.
   Contributed by @samsartor.
+* A new icon for that data wasn't able to be loaded due to being offline.
+  Contributed by @samsartor.
 
-**Settings**
+**Application Menus**
 
 * Settings are now in the popup under the gear icon rather than in a separate
   popup window.
-* The music provider configuration has gotten a major revamp.
 * You can now clear the cache via an option in the Downloads popup. There are
   options for removing the entire cache and removing just the song file cache.
+
+.. * The music provider configuration has gotten a major revamp.
+.. * The Downloads popup shows the songs that are currently being downloaded.
+.. * 
 
 **Offline Mode**
 
@@ -46,19 +51,21 @@ Features
 * Features that require network access are disabled in offline mode.
 * You can still browse anything that is already cached offline.
 
-.. MENTION man page
+**Other Features**
+
+.. * A man page has been added. Contributed by @baldurmen.
 
 Under The Hood
 --------------
 
-  This release has a ton of under-the-hood changes to make things more robust
-  and performant.
+This release has a ton of under-the-hood changes to make things more robust
+and performant.
 
-  * The cache is now stored in a SQLite database.
-  * The cache no longer gets corrupted when Sublime Music fails to write to
-    disk.
-  * A generic `Adapter API`_ has been created which means that Sublime Music is
-    no longer reliant on Subsonic and in the future, more backends can be added.
+* The cache is now stored in a SQLite database.
+* The cache no longer gets corrupted when Sublime Music fails to write to disk.
+* A generic `Adapter API`_ has been created which means that Sublime Music is no
+  longer reliant on Subsonic. This means that in the future, more backends can
+  be added.
 
 .. _Adapter API: https://sumner.gitlab.io/sublime-music/adapter-api.html
 

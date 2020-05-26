@@ -556,6 +556,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
         # and the expensive parts of the second loop are avoided if the IDs haven't
         # changed.
         song_ids, songs = [], []
+        if len(self._current_song_ids) != len(playlist.songs):
+            force = True
+
         for i, c in enumerate(playlist.songs):
             if i >= len(self._current_song_ids) or c.id != self._current_song_ids[i]:
                 force = True

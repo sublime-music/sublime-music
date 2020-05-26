@@ -114,15 +114,15 @@ class AlbumSearchQuery:
         ...     AlbumSearchQuery.Type.YEAR_RANGE, year_range=(2018, 2019)
         ... )
         >>> query.strhash()
-        'a6571bb7be65984c6627f545cab9fc767fce6d07'
+        '5b0724ae23acd58bc2f9187617712775670e0b98'
         """
         if not self._strhash:
-            self._strhash = hashlib.sha1(
-                bytes(
-                    json.dumps((self.type.value, self.year_range, self.genre.name)),
-                    "utf8",
-                )
-            ).hexdigest()
+            hash_tuple: Tuple[Any, ...] = (self.type.value,)
+            if self.type.value == AlbumSearchQuery.Type.YEAR_RANGE:
+                hash_tuple += (self.year_range,)
+            elif self.type.value == AlbumSearchQuery.Type.GENRE:
+                hash_tuple += (self.genre.name,)
+            self._strhash = hashlib.sha1(bytes(str(hash_tuple), "utf8")).hexdigest()
         return self._strhash
 
 
