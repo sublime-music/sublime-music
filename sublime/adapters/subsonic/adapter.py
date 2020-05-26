@@ -50,6 +50,10 @@ if delay_str := os.environ.get("REQUEST_DELAY"):
     else:
         REQUEST_DELAY = (float(delay_str), float(delay_str))
 
+NETWORK_ALWAYS_ERROR: bool = False
+if always_error := os.environ.get("NETWORK_ALWAYS_ERROR"):
+    NETWORK_ALWAYS_ERROR = True
+
 
 class SubsonicAdapter(Adapter):
     """
@@ -248,11 +252,14 @@ class SubsonicAdapter(Adapter):
             sleep(delay)
             if timeout:
                 if type(timeout) == tuple:
-                    if cast(Tuple[float, float], timeout)[0] > delay:
+                    if delay > cast(Tuple[float, float], timeout)[0]:
                         raise TimeoutError("DUMMY TIMEOUT ERROR")
                 else:
-                    if cast(float, timeout) > delay:
+                    if delay > cast(float, timeout):
                         raise TimeoutError("DUMMY TIMEOUT ERROR")
+
+        if NETWORK_ALWAYS_ERROR:
+            raise Exception("NETWORK_ALWAYS_ERROR enabled")
 
         # Deal with datetime parameters (convert to milliseconds since 1970)
         for k, v in params.items():

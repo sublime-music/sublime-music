@@ -6,9 +6,11 @@ from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 from sublime.adapters import AdapterManager, api_objects as API, Result
 from sublime.config import AppConfiguration
 from sublime.ui import util
-from sublime.ui.common.icon_button import IconButton
-from sublime.ui.common.song_list_column import SongListColumn
-from sublime.ui.common.spinner_image import SpinnerImage
+
+from .icon_button import IconButton
+from .load_error import LoadError
+from .song_list_column import SongListColumn
+from .spinner_image import SpinnerImage
 
 
 class AlbumWithSongs(Gtk.Box):
@@ -124,6 +126,9 @@ class AlbumWithSongs(Gtk.Box):
 
         self.loading_indicator_container = Gtk.Box()
         album_details.add(self.loading_indicator_container)
+
+        self.error_container = Gtk.Box()
+        album_details.add(self.error_container)
 
         # clickable, cache status, title, duration, song ID
         self.album_song_store = Gtk.ListStore(bool, str, str, str, str)
@@ -247,9 +252,13 @@ class AlbumWithSongs(Gtk.Box):
 
     def update(self, app_config: AppConfiguration = None, force: bool = False):
         if app_config:
-            # Deselect everything if switching online to offline.
+            # Deselect everything and reset the error container if switching between
+            # online and offline.
             if self.offline_mode != app_config.offline_mode:
                 self.album_songs.get_selection().unselect_all()
+                for c in self.error_container.get_children():
+                    self.error_container.remove(c)
+
             self.offline_mode = app_config.offline_mode
 
         self.update_album_songs(self.album.id, app_config=app_config, force=force)
@@ -278,29 +287,48 @@ class AlbumWithSongs(Gtk.Box):
         app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
+        is_partial: bool = False,
     ):
-        song_ids = [s.id for s in album.songs or []]
+        songs = album.songs or []
+        if is_partial:
+            if len(self.error_container.get_children()) == 0:
+                load_error = LoadError(
+                    "Song list",
+                    "retrieve songs",
+                    has_data=len(songs) > 0,
+                    offline_mode=self.offline_mode,
+                )
+                self.error_container.pack_start(load_error, True, True, 0)
+            self.error_container.show_all()
+        else:
+            self.error_container.hide()
+
+        song_ids = [s.id for s in songs]
         new_store = []
         any_song_playable = False
-        for cached_status, song in zip(
-            util.get_cached_status_icons(song_ids), album.songs or []
-        ):
-            playable = not self.offline_mode or cached_status in (
-                "folder-download-symbolic",
-                "view-pin-symbolic",
-            )
-            new_store.append(
-                [
-                    playable,
-                    cached_status,
-                    util.esc(song.title),
-                    util.format_song_duration(song.duration),
-                    song.id,
-                ]
-            )
-            any_song_playable |= playable
 
-        song_ids = [cast(str, song[-1]) for song in new_store]
+        if len(songs) == 0:
+            self.album_songs.hide()
+        else:
+            self.album_songs.show()
+            for status, song in zip(util.get_cached_status_icons(song_ids), songs):
+                playable = not self.offline_mode or status in (
+                    "folder-download-symbolic",
+                    "view-pin-symbolic",
+                )
+                new_store.append(
+                    [
+                        playable,
+                        status,
+                        util.esc(song.title),
+                        util.format_song_duration(song.duration),
+                        song.id,
+                    ]
+                )
+                any_song_playable |= playable
+
+            song_ids = [cast(str, song[-1]) for song in new_store]
+            util.diff_song_store(self.album_song_store, new_store)
 
         self.play_btn.set_sensitive(any_song_playable)
         self.shuffle_btn.set_sensitive(any_song_playable)
@@ -316,8 +344,6 @@ class AlbumWithSongs(Gtk.Box):
         else:
             self.play_next_btn.set_action_name("")
             self.add_to_queue_btn.set_action_name("")
-
-        util.diff_song_store(self.album_song_store, new_store)
 
         # Have to idle_add here so that his happens after the component is rendered.
         self.set_loading(False)

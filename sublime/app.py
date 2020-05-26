@@ -86,6 +86,15 @@ class SublimeMusicApp(Gtk.Application):
         add_action("browse-to", self.browse_to, parameter_type="s")
         add_action("go-to-playlist", self.on_go_to_playlist, parameter_type="s")
 
+        add_action(
+            "go-online",
+            lambda *a: self.on_refresh_window(
+                None, {"__settings__": {"offline_mode": False}}
+            ),
+        )
+        add_action(
+            "refresh-window", lambda *a: self.on_refresh_window(None, {}, True),
+        )
         add_action("mute-toggle", self.on_mute_toggle)
         add_action(
             "update-play-queue-from-server",

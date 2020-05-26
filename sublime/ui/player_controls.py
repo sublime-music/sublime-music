@@ -325,6 +325,7 @@ class PlayerControls(Gtk.ActionBar):
         app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
+        is_partial: bool = False,
     ):
         if order_token != self.cover_art_update_order_token:
             return

@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Callable, Optional, Set, Tuple
+from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
@@ -127,13 +127,14 @@ class MainWindow(Gtk.ApplicationWindow):
             elif AdapterManager.get_ping_status():
                 status_label = "Connected"
             else:
-                status_label = "Error"
+                status_label = "Error Connecting to Server"
 
             self.server_connection_menu_button.set_icon(
-                f"server-subsonic-{status_label.lower()}-symbolic"
+                f"server-subsonic-{status_label.split()[0].lower()}-symbolic"
             )
             self.connection_status_icon.set_from_icon_name(
-                f"server-{status_label.lower()}-symbolic", Gtk.IconSize.BUTTON
+                f"server-{status_label.split()[0].lower()}-symbolic",
+                Gtk.IconSize.BUTTON,
             )
             self.connection_status_label.set_text(status_label)
             self.connected_status_box.show_all()
@@ -271,7 +272,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self, label: str, settings_name: str
     ) -> Tuple[Gtk.Box, Gtk.Switch]:
         def on_active_change(toggle: Gtk.Switch, _):
-            self._emit_settings_change(**{settings_name: toggle.get_active()})
+            self._emit_settings_change({settings_name: toggle.get_active()})
 
         box = Gtk.Box()
         box.add(gtk_label := Gtk.Label(label=label))
@@ -295,7 +296,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self, label: str, low: int, high: int, step: int, settings_name: str
     ) -> Tuple[Gtk.Box, Gtk.Entry]:
         def on_change(entry: Gtk.SpinButton) -> bool:
-            self._emit_settings_change(**{settings_name: int(entry.get_value())})
+            self._emit_settings_change({settings_name: int(entry.get_value())})
             return False
 
         box = Gtk.Box()
@@ -636,7 +637,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _on_replay_gain_change(self, combo: Gtk.ComboBox):
         self._emit_settings_change(
-            replay_gain=ReplayGainType.from_string(combo.get_active_id())
+            {"replay_gain": ReplayGainType.from_string(combo.get_active_id())}
         )
 
     def _on_search_entry_focus(self, *args):
@@ -690,10 +691,10 @@ class MainWindow(Gtk.ApplicationWindow):
 
     # Helper Functions
     # =========================================================================
-    def _emit_settings_change(self, **kwargs):
+    def _emit_settings_change(self, changed_settings: Dict[str, Any]):
         if self._updating_settings:
             return
-        self.emit("refresh-window", {"__settings__": kwargs}, False)
+        self.emit("refresh-window", {"__settings__": changed_settings}, False)
 
     def _show_search(self):
         self.search_entry.set_size_request(300, -1)

@@ -312,6 +312,8 @@ class Adapter(abc.ABC):
     # These properties determine if what things the adapter can be used to do
     # at the current moment.
     # ==================================================================================
+    # TODO: change these to just be "if it has the attribute, then you can try the
+    # action" and use "ping_status" to determine online/offline status.
     @property
     @abc.abstractmethod
     def can_service_requests(self) -> bool:
@@ -331,7 +333,7 @@ class Adapter(abc.ABC):
     @property
     def can_get_playlists(self) -> bool:
         """
-        Whether :class:`get_playlist` can be called on the adapter right now.
+        Whether the adapter supports :class:`get_playlist`.
         """
         return False
 

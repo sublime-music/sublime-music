@@ -318,6 +318,7 @@ class AdapterManager:
         function_name: str,
         *params: Any,
         before_download: Callable[[], None] = None,
+        partial_data: Any = None,
         **kwargs,
     ) -> Result:
         """
@@ -337,7 +338,10 @@ class AdapterManager:
             if before_download:
                 before_download()
             fn = getattr(AdapterManager._instance.ground_truth_adapter, function_name)
-            return fn(*params, **kwargs)
+            try:
+                return fn(*params, **kwargs)
+            except Exception:
+                raise CacheMissError(partial_data=partial_data)
 
         return Result(future_fn)
 
@@ -431,7 +435,7 @@ class AdapterManager:
             assert AdapterManager._instance
             assert AdapterManager._instance.caching_adapter
             AdapterManager._instance.caching_adapter.ingest_new_data(
-                cache_key, param, f.result(),
+                cache_key, param, f.result()
             )
 
         return future_finished
@@ -517,24 +521,33 @@ class AdapterManager:
                 cache_key, param_str
             )
 
+        # TODO
         # TODO (#122) If any of the following fails, do we want to return what the
         # caching adapter has?
 
-        # TODO (#188): don't short circuit if not allow_download because it could be the
-        # filesystem adapter.
-        if not allow_download or not AdapterManager._ground_truth_can_do(function_name):
+        if (
+            not allow_download
+            and AdapterManager._instance.ground_truth_adapter.is_networked
+        ) or not AdapterManager._ground_truth_can_do(function_name):
             logging.info(f"END: NO DOWNLOAD: {function_name}")
-            if partial_data:
-                # TODO (#122) indicate that this is partial data. Probably just re-throw
-                # here?
-                logging.debug("partial_data exists, returning", partial_data)
-                return Result(cast(AdapterManager.R, partial_data))
-            raise Exception(f"No adapters can service {function_name} at the moment.")
+
+            def cache_miss_result():
+                raise CacheMissError(partial_data=partial_data)
+
+            return Result(cache_miss_result)
+            # TODO
+            # raise CacheMissError(partial_data=partial_data)
+            # # TODO (#122) indicate that this is partial data. Probably just re-throw
+            # # here?
+            # logging.debug("partial_data exists, returning", partial_data)
+            # return Result(cast(AdapterManager.R, partial_data))
+            # raise Exception(f"No adapters can service {function_name} at the moment.")
 
         result: Result[AdapterManager.R] = AdapterManager._create_ground_truth_result(
             function_name,
             *((param,) if param is not None else ()),
             before_download=before_download,
+            partial_data=partial_data,
             **kwargs,
         )
 
@@ -545,7 +558,6 @@ class AdapterManager:
                 )
 
             if on_result_finished:
-                # TODO (#122): figure out a way to pass partial data here
                 result.add_done_callback(on_result_finished)
 
         logging.info(f"END: {function_name}")

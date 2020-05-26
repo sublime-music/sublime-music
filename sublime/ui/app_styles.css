@@ -214,6 +214,16 @@
   min-height: 30px;
 }
 
+/* ********** Error Indicator ********** */
+#load-error-box {
+  margin: 15px;
+}
+
+#load-error-image,
+#load-error-label {
+  margin-bottom: 10px;
+}
+
 /* ********** Artists & Albums ********** */
 #grid-artwork-spinner, #album-list-song-list-spinner {
   min-height: 35px;

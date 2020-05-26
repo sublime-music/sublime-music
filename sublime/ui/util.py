@@ -16,7 +16,7 @@ from typing import (
 from deepdiff import DeepDiff
 from gi.repository import Gdk, GLib, Gtk
 
-from sublime.adapters import AdapterManager, Result, SongCacheStatus
+from sublime.adapters import AdapterManager, CacheMissError, Result, SongCacheStatus
 from sublime.adapters.api_objects import Playlist, Song
 from sublime.config import AppConfiguration
 
@@ -395,6 +395,15 @@ def async_callback(
             def future_callback(is_immediate: bool, f: Result):
                 try:
                     result = f.result()
+                    is_partial = False
+                except CacheMissError as e:
+                    result = e.partial_data
+                    if result is None:
+                        if on_failure:
+                            GLib.idle_add(on_failure, self, e)
+                        return
+
+                    is_partial = True
                 except Exception as e:
                     if on_failure:
                         GLib.idle_add(on_failure, self, e)
@@ -407,6 +416,7 @@ def async_callback(
                     app_config=app_config,
                     force=force,
                     order_token=order_token,
+                    is_partial=is_partial,
                 )
 
                 if is_immediate:
@@ -415,8 +425,8 @@ def async_callback(
                     # event queue.
                     fn()
                 else:
-                    # We don'h have the data, and we have to idle add so that we don't
-                    # seg fault GTK.
+                    # We don't have the data yet, meaning that it is a future, and we
+                    # have to idle add so that we don't seg fault GTK.
                     GLib.idle_add(fn)
 
             result: Result = future_fn(

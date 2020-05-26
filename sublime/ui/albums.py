@@ -10,11 +10,12 @@ from sublime.adapters import (
     AdapterManager,
     AlbumSearchQuery,
     api_objects as API,
+    CacheMissError,
     Result,
 )
 from sublime.config import AppConfiguration
 from sublime.ui import util
-from sublime.ui.common import AlbumWithSongs, IconButton, SpinnerImage
+from sublime.ui.common import AlbumWithSongs, IconButton, LoadError, SpinnerImage
 
 
 def _to_type(query_type: AlbumSearchQuery.Type) -> str:
@@ -59,6 +60,7 @@ class AlbumsPanel(Gtk.Box):
         ),
     }
 
+    offline_mode = False
     populating_genre_combo = False
     grid_order_token: int = 0
     album_sort_direction: str = "ascending"
@@ -233,6 +235,7 @@ class AlbumsPanel(Gtk.Box):
 
         if app_config:
             self.current_query = app_config.state.current_album_search_query
+            self.offline_mode = app_config.offline_mode
 
         self.alphabetical_type_combo.set_active_id(
             {
@@ -301,7 +304,9 @@ class AlbumsPanel(Gtk.Box):
         self.populate_genre_combo(app_config, force=force)
 
         # At this point, the current query should be totally updated.
-        self.grid_order_token = self.grid.update_params(self.current_query)
+        self.grid_order_token = self.grid.update_params(
+            self.current_query, self.offline_mode
+        )
         self.grid.update(self.grid_order_token, app_config, force=force)
 
     def _get_opposite_sort_dir(self, sort_dir: str) -> str:
@@ -400,7 +405,7 @@ class AlbumsPanel(Gtk.Box):
         if self.to_year_spin_button == entry:
             new_year_tuple = (self.current_query.year_range[0], year)
         else:
-            new_year_tuple = (year, self.current_query.year_range[0])
+            new_year_tuple = (year, self.current_query.year_range[1])
 
         self.emit_if_not_updating(
             "refresh-window",
@@ -505,6 +510,7 @@ class AlbumsGrid(Gtk.Overlay):
     current_models: List[_AlbumModel] = []
     latest_applied_order_ratchet: int = 0
     order_ratchet: int = 0
+    offline_mode: bool = False
 
     currently_selected_index: Optional[int] = None
     currently_selected_id: Optional[str] = None
@@ -515,11 +521,14 @@ class AlbumsGrid(Gtk.Overlay):
     next_page_fn = None
     server_hash: Optional[str] = None
 
-    def update_params(self, query: AlbumSearchQuery) -> int:
+    def update_params(self, query: AlbumSearchQuery, offline_mode: bool) -> int:
         # If there's a diff, increase the ratchet.
         if self.current_query.strhash() != query.strhash():
             self.order_ratchet += 1
             self.current_query = query
+        if offline_mode != self.offline_mode:
+            self.order_ratchet += 1
+        self.offline_mode = offline_mode
         return self.order_ratchet
 
     def __init__(self, *args, **kwargs):
@@ -529,6 +538,9 @@ class AlbumsGrid(Gtk.Overlay):
 
         scrolled_window = Gtk.ScrolledWindow()
         grid_detail_grid_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        self.error_container = Gtk.Box()
+        grid_detail_grid_box.add(self.error_container)
 
         def create_flowbox(**kwargs) -> Gtk.FlowBox:
             flowbox = Gtk.FlowBox(
@@ -661,8 +673,12 @@ class AlbumsGrid(Gtk.Overlay):
                 return
             self.latest_applied_order_ratchet = self.order_ratchet
 
+            is_partial = False
             try:
-                albums = f.result()
+                albums = list(f.result())
+            except CacheMissError as e:
+                albums = cast(Optional[List[API.Album]], e.partial_data) or []
+                is_partial = True
             except Exception as e:
                 if self.error_dialog:
                     self.spinner.hide()
@@ -684,6 +700,20 @@ class AlbumsGrid(Gtk.Overlay):
                 self.error_dialog = None
                 self.spinner.hide()
                 return
+
+            for c in self.error_container.get_children():
+                self.error_container.remove(c)
+            if is_partial and self.current_query.type != AlbumSearchQuery.Type.RANDOM:
+                load_error = LoadError(
+                    "Album list",
+                    "load albums",
+                    has_data=albums is not None and len(albums) > 0,
+                    offline_mode=self.offline_mode,
+                )
+                self.error_container.pack_start(load_error, True, True, 0)
+                self.error_container.show_all()
+            else:
+                self.error_container.hide()
 
             selected_index = None
             self.current_models = []

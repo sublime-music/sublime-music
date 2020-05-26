@@ -5,12 +5,13 @@ from typing import Any, cast, Iterable, List, Tuple
 from fuzzywuzzy import process
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, api_objects as API
+from sublime.adapters import AdapterManager, api_objects as API, CacheMissError
 from sublime.config import AppConfiguration
 from sublime.ui import util
 from sublime.ui.common import (
     EditFormDialog,
     IconButton,
+    LoadError,
     SongListColumn,
     SpinnerImage,
 )
@@ -73,6 +74,8 @@ class PlaylistList(Gtk.Box):
         ),
     }
 
+    offline_mode = False
+
     class PlaylistModel(GObject.GObject):
         playlist_id = GObject.Property(type=str)
         name = GObject.Property(type=str)
@@ -98,6 +101,9 @@ class PlaylistList(Gtk.Box):
         playlist_list_actions.pack_end(self.list_refresh_button)
 
         self.add(playlist_list_actions)
+
+        self.error_container = Gtk.Box()
+        self.add(self.error_container)
 
         loading_new_playlist = Gtk.ListBox()
 
@@ -166,6 +172,7 @@ class PlaylistList(Gtk.Box):
 
     def update(self, app_config: AppConfiguration = None, force: bool = False):
         if app_config:
+            self.offline_mode = app_config.offline_mode
             self.new_playlist_button.set_sensitive(not app_config.offline_mode)
             self.list_refresh_button.set_sensitive(not app_config.offline_mode)
         self.new_playlist_row.hide()
@@ -182,7 +189,22 @@ class PlaylistList(Gtk.Box):
         app_config: AppConfiguration = None,
         force: bool = False,
         order_token: int = None,
+        is_partial: bool = False,
     ):
+        for c in self.error_container.get_children():
+            self.error_container.remove(c)
+        if is_partial:
+            load_error = LoadError(
+                "Playlist list",
+                "load playlists",
+                has_data=len(playlists) > 0,
+                offline_mode=self.offline_mode,
+            )
+            self.error_container.pack_start(load_error, True, True, 0)
+            self.error_container.show_all()
+        else:
+            self.error_container.hide()
+
         new_store = []
         selected_idx = None
         for i, playlist in enumerate(playlists or []):
@@ -471,6 +493,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         app_config: AppConfiguration = None,
         force: bool = False,
         order_token: int = None,
+        is_partial: bool = False,
     ):
         if self.update_playlist_view_order_token != order_token:
             return
@@ -596,6 +619,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
+        is_partial: bool = False,
     ):
         if self.update_playlist_view_order_token != order_token:
             return
