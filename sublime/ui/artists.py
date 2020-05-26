@@ -141,7 +141,9 @@ class ArtistList(Gtk.Box):
                 "Artist list",
                 "load artists",
                 has_data=len(artists) > 0,
-                offline_mode=self._app_config.offline_mode,
+                offline_mode=(
+                    self._app_config.offline_mode if self._app_config else False
+                ),
             )
             self.error_container.pack_start(load_error, True, True, 0)
             self.error_container.show_all()
@@ -300,6 +302,9 @@ class ArtistDetailPanel(Gtk.Box):
 
         self.pack_start(self.big_info_panel, False, True, 0)
 
+        self.error_container = Gtk.Box()
+        self.add(self.error_container)
+
         self.album_list_scrolledwindow = Gtk.ScrolledWindow()
         self.albums_list = AlbumsListWithSongs()
         self.albums_list.connect(
@@ -310,6 +315,7 @@ class ArtistDetailPanel(Gtk.Box):
 
     def update(self, app_config: AppConfiguration):
         self.artist_id = app_config.state.selected_artist_id
+        self.offline_mode = app_config.offline_mode
         if app_config.state.selected_artist_id is None:
             self.big_info_panel.hide()
             self.album_list_scrolledwindow.hide()
@@ -322,8 +328,8 @@ class ArtistDetailPanel(Gtk.Box):
                 app_config=app_config,
                 order_token=self.update_order_token,
             )
-            self.refresh_button.set_sensitive(not app_config.offline_mode)
-            self.download_all_button.set_sensitive(not app_config.offline_mode)
+            self.refresh_button.set_sensitive(not self.offline_mode)
+            self.download_all_button.set_sensitive(not self.offline_mode)
 
     @util.async_callback(
         AdapterManager.get_artist,
@@ -397,6 +403,24 @@ class ArtistDetailPanel(Gtk.Box):
         self.update_artist_artwork(
             artist.artist_image_url, force=force, order_token=order_token,
         )
+
+        for c in self.error_container.get_children():
+            self.error_container.remove(c)
+        if is_partial:
+            has_data = len(artist.albums or []) > 0
+            load_error = LoadError(
+                "Artist data",
+                "load artist details",
+                has_data=has_data,
+                offline_mode=self.offline_mode,
+            )
+            self.error_container.pack_start(load_error, True, True, 0)
+            self.error_container.show_all()
+            if not has_data:
+                self.album_list_scrolledwindow.hide()
+        else:
+            self.error_container.hide()
+            self.album_list_scrolledwindow.show()
 
         self.albums = artist.albums or []
         self.albums_list.update(artist, app_config, force=force)

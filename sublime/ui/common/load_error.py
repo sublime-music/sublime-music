@@ -15,7 +15,9 @@ class LoadError(Gtk.Box):
 
         inner_box.pack_start(Gtk.Box(), True, True, 0)
 
-        error_description_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        error_and_button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        icon_and_button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         if offline_mode:
             icon_name = "cloud-offline-symbolic"
@@ -27,30 +29,28 @@ class LoadError(Gtk.Box):
 
         image = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.DIALOG)
         image.set_name("load-error-image")
-        error_description_box.add(image)
+        icon_and_button_box.add(image)
 
-        error_description_box.add(
-            Gtk.Label(
-                label=label, justify=Gtk.Justification.CENTER, name="load-error-label"
-            )
-        )
+        icon_and_button_box.add(Gtk.Label(label=label, name="load-error-label"))
 
-        box = Gtk.Box()
-        box.pack_start(Gtk.Box(), True, True, 0)
+        error_and_button_box.add(icon_and_button_box)
+
+        button_centerer_box = Gtk.Box()
+        button_centerer_box.pack_start(Gtk.Box(), True, True, 0)
 
         if offline_mode:
             go_online_button = Gtk.Button(label="Go Online")
             go_online_button.set_action_name("app.go-online")
-            box.add(go_online_button)
+            button_centerer_box.add(go_online_button)
         else:
             retry_button = Gtk.Button(label="Retry")
             retry_button.set_action_name("app.refresh-window")
-            box.add(retry_button)
+            button_centerer_box.add(retry_button)
 
-        box.pack_start(Gtk.Box(), True, True, 0)
-        error_description_box.add(box)
+        button_centerer_box.pack_start(Gtk.Box(), True, True, 0)
+        error_and_button_box.add(button_centerer_box)
 
-        inner_box.add(error_description_box)
+        inner_box.add(error_and_button_box)
 
         inner_box.pack_start(Gtk.Box(), True, True, 0)
 

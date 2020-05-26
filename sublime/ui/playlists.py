@@ -370,8 +370,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         self.playlist_box.add(playlist_info_box)
 
+        self.error_container = Gtk.Box()
+        self.playlist_box.add(self.error_container)
+
         # Playlist songs list
-        playlist_view_scroll_window = Gtk.ScrolledWindow()
+        self.playlist_song_scroll_window = Gtk.ScrolledWindow()
 
         self.playlist_song_store = Gtk.ListStore(
             bool,  # clickable
@@ -442,9 +445,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
         self.playlist_song_store.connect("row-deleted", self.on_playlist_model_row_move)
 
-        playlist_view_scroll_window.add(self.playlist_songs)
+        self.playlist_song_scroll_window.add(self.playlist_songs)
 
-        self.playlist_box.pack_start(playlist_view_scroll_window, True, True, 0)
+        self.playlist_box.pack_start(self.playlist_song_scroll_window, True, True, 0)
         self.add(self.playlist_box)
 
         playlist_view_spinner = Gtk.Spinner(active=True)
@@ -542,6 +545,24 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         # Update the artwork.
         self.update_playlist_artwork(playlist.cover_art, order_token=order_token)
+
+        for c in self.error_container.get_children():
+            self.error_container.remove(c)
+        if is_partial:
+            has_data = len(playlist.songs) > 0
+            load_error = LoadError(
+                "Playlist data",
+                "load playlist details",
+                has_data=has_data,
+                offline_mode=self.offline_mode,
+            )
+            self.error_container.pack_start(load_error, True, True, 0)
+            self.error_container.show_all()
+            if not has_data:
+                self.playlist_song_scroll_window.hide()
+        else:
+            self.error_container.hide()
+            self.playlist_song_scroll_window.show()
 
         # Update the song list model. This requires some fancy diffing to
         # update the list.
