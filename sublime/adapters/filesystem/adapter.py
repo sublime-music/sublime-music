@@ -182,13 +182,16 @@ class FilesystemAdapter(CachingAdapter):
         return obj
 
     def _compute_song_filename(self, cache_info: models.CacheInfo) -> Path:
-        if path_str := cache_info.path:
-            # Make sure that the path is somewhere in the cache directory and a
-            # malicious server (or MITM attacker) isn't trying to override files in
-            # other parts of the system.
-            path = self.music_dir.joinpath(path_str)
-            if self.music_dir in path.parents:
-                return path
+        try:
+            if path_str := cache_info.path:
+                # Make sure that the path is somewhere in the cache directory and a
+                # malicious server (or MITM attacker) isn't trying to override files in
+                # other parts of the system.
+                path = self.music_dir.joinpath(path_str)
+                if self.music_dir in path.parents:
+                    return path
+        except Exception:
+            pass
 
         # Fall back to using the song file hash as the filename. This shouldn't happen
         # with good servers, but just to be safe.
@@ -200,15 +203,19 @@ class FilesystemAdapter(CachingAdapter):
         self, song_ids: Sequence[str]
     ) -> Dict[str, SongCacheStatus]:
         def compute_song_cache_status(song: models.Song) -> SongCacheStatus:
-            file = song.file
-            if self._compute_song_filename(file).exists():
-                if file.valid:
-                    if file.cache_permanently:
-                        return SongCacheStatus.PERMANENTLY_CACHED
-                    return SongCacheStatus.CACHED
+            try:
+                file = song.file
+                if self._compute_song_filename(file).exists():
+                    if file.valid:
+                        if file.cache_permanently:
+                            return SongCacheStatus.PERMANENTLY_CACHED
+                        return SongCacheStatus.CACHED
 
-                # The file is on disk, but marked as stale.
-                return SongCacheStatus.CACHED_STALE
+                    # The file is on disk, but marked as stale.
+                    return SongCacheStatus.CACHED_STALE
+            except Exception:
+                pass
+
             return SongCacheStatus.NOT_CACHED
 
         try:
@@ -881,4 +888,5 @@ class FilesystemAdapter(CachingAdapter):
                 table.truncate_table()
 
         if cache_info:
-            cache_info.delete_instance()
+            cache_info.valid = False
+            cache_info.save()
