@@ -18,11 +18,11 @@ class LoadError(Gtk.Box):
         error_description_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         if offline_mode:
-            icon_name = "weather-severe-alert-symbolic"
+            icon_name = "cloud-offline-symbolic"
             label = f"{entity_name} may be incomplete.\n" if has_data else ""
             label += f"Go online to {action}."
         else:
-            icon_name = "dialog-error"
+            icon_name = "network-error-symbolic"
             label = f"Error attempting to {action}."
 
         image = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.DIALOG)
