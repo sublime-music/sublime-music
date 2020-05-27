@@ -158,6 +158,7 @@ class SubsonicAdapter(Adapter):
     def _set_ping_status(self):
         now = datetime.now().timestamp()
         if now - self._last_ping_timestamp.value < 15:
+            print("ohea")
             return
 
         try:
@@ -170,10 +171,6 @@ class SubsonicAdapter(Adapter):
 
     @property
     def ping_status(self) -> bool:
-        return self._server_available.value
-
-    @property
-    def can_service_requests(self) -> bool:
         return self._server_available.value
 
     # TODO (#199) make these way smarter
@@ -271,11 +268,11 @@ class SubsonicAdapter(Adapter):
 
         if self._is_mock:
             logging.info("Using mock data")
-            return self._get_mock_data()
-
-        result = requests.get(
-            url, params=params, verify=not self.disable_cert_verify, timeout=timeout
-        )
+            result = self._get_mock_data()
+        else:
+            result = requests.get(
+                url, params=params, verify=not self.disable_cert_verify, timeout=timeout
+            )
 
         # TODO (#122): make better
         if result.status_code != 200:
@@ -324,6 +321,8 @@ class SubsonicAdapter(Adapter):
 
     def _set_mock_data(self, data: Any):
         class MockResult:
+            status_code = 200
+
             def __init__(self, content: Any):
                 self._content = content
 

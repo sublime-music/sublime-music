@@ -79,7 +79,6 @@ class FilesystemAdapter(CachingAdapter):
     # ==================================================================================
     can_be_cached = False  # Can't be cached (there's no need).
     is_networked = False  # Doesn't access the network.
-    can_service_requests = True  # Can always be used to service requests.
 
     # TODO (#200) make these dependent on cache state. Need to do this kinda efficiently
     can_get_cover_art_uri = True

@@ -286,6 +286,10 @@ class Adapter(abc.ABC):
         """
         return True
 
+    # Network Properties
+    # These properties determine whether or not the adapter requires connection over a
+    # network and whether the underlying server can be pinged.
+    # ==================================================================================
     @property
     def is_networked(self) -> bool:
         """
@@ -299,68 +303,56 @@ class Adapter(abc.ABC):
     @abc.abstractmethod
     def ping_status(self) -> bool:
         """
-        This function should return whether or not the server can be pinged, however it
-        must do it *instantly*. This function is called *very* often, and even a few
-        milliseconds delay stacks up quickly and can block the UI thread.
+        If the adapter :class:`is_networked`, then this function should return whether
+        or not the server can be pinged. This function must provide an answer
+        *instantly* (it can't actually ping the server). This function is called *very*
+        often, and even a few milliseconds delay stacks up quickly and can block the UI
+        thread.
 
         One option is to ping the server every few seconds and cache the result of the
         ping and use that as the result of this function.
         """
 
     # Availability Properties
-    # These properties determine if what things the adapter can be used to do
-    # at the current moment.
+    # These properties determine if what things the adapter can be used to do. These
+    # properties can be dynamic based on things such as underlying API version, or other
+    # factors like that. However, these properties should not be dependent on the
+    # connection state. After the initial sync, these properties are expected to be
+    # constant.
     # ==================================================================================
-    # TODO: change these to just be "if it has the attribute, then you can try the
-    # action" and use "ping_status" to determine online/offline status.
-    @property
-    @abc.abstractmethod
-    def can_service_requests(self) -> bool:
-        """
-        Specifies whether or not the adapter can currently service requests. If this is
-        ``False``, none of the other data retrieval functions are expected to work.
-
-        This property must be server *instantly*. This function is called *very* often,
-        and even a few milliseconds delay stacks up quickly and can block the UI thread.
-
-        For example, if your adapter requires access to an external service, on option
-        is to ping the server every few seconds and cache the result of the ping and use
-        that as the return value of this function.
-        """
-
     # Playlists
     @property
     def can_get_playlists(self) -> bool:
         """
-        Whether the adapter supports :class:`get_playlist`.
+        Whether or not the adapter supports :class:`get_playlist`.
         """
         return False
 
     @property
     def can_get_playlist_details(self) -> bool:
         """
-        Whether :class:`get_playlist_details` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_playlist_details`.
         """
         return False
 
     @property
     def can_create_playlist(self) -> bool:
         """
-        Whether :class:`create_playlist` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`create_playlist`.
         """
         return False
 
     @property
     def can_update_playlist(self) -> bool:
         """
-        Whether :class:`update_playlist` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`update_playlist`.
         """
         return False
 
     @property
     def can_delete_playlist(self) -> bool:
         """
-        Whether :class:`delete_playlist` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`delete_playlist`.
         """
         return False
 
@@ -380,20 +372,20 @@ class Adapter(abc.ABC):
     @property
     def can_get_cover_art_uri(self) -> bool:
         """
-        Whether :class:`get_cover_art_uri` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_cover_art_uri`.
         """
 
     @property
     def can_stream(self) -> bool:
         """
-        Whether or not the adapter can provide a stream URI right now.
+        Whether or not the adapter can provide a stream URI.
         """
         return False
 
     @property
     def can_get_song_uri(self) -> bool:
         """
-        Whether :class:`get_song_uri` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_song_uri`.
         """
         return False
 
@@ -401,14 +393,14 @@ class Adapter(abc.ABC):
     @property
     def can_get_song_details(self) -> bool:
         """
-        Whether :class:`get_song_details` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_song_details`.
         """
         return False
 
     @property
     def can_scrobble_song(self) -> bool:
         """
-        Whether :class:`scrobble_song` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`scrobble_song`.
         """
         return False
 
@@ -426,21 +418,21 @@ class Adapter(abc.ABC):
     @property
     def can_get_artists(self) -> bool:
         """
-        Whether :class:`get_aritsts` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_aritsts`.
         """
         return False
 
     @property
     def can_get_artist(self) -> bool:
         """
-        Whether :class:`get_aritst` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_aritst`.
         """
         return False
 
     @property
     def can_get_ignored_articles(self) -> bool:
         """
-        Whether :class:`get_ignored_articles` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_ignored_articles`.
         """
         return False
 
@@ -448,14 +440,14 @@ class Adapter(abc.ABC):
     @property
     def can_get_albums(self) -> bool:
         """
-        Whether :class:`get_albums` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_albums`.
         """
         return False
 
     @property
     def can_get_album(self) -> bool:
         """
-        Whether :class:`get_album` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_album`.
         """
         return False
 
@@ -463,7 +455,7 @@ class Adapter(abc.ABC):
     @property
     def can_get_directory(self) -> bool:
         """
-        Whether :class:`get_directory` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_directory`.
         """
         return False
 
@@ -471,7 +463,7 @@ class Adapter(abc.ABC):
     @property
     def can_get_genres(self) -> bool:
         """
-        Whether :class:`get_genres` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_genres`.
         """
         return False
 
@@ -479,14 +471,14 @@ class Adapter(abc.ABC):
     @property
     def can_get_play_queue(self) -> bool:
         """
-        Whether :class:`get_play_queue` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_play_queue`.
         """
         return False
 
     @property
     def can_save_play_queue(self) -> bool:
         """
-        Whether :class:`save_play_queue` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`save_play_queue`.
         """
         return False
 
@@ -494,7 +486,7 @@ class Adapter(abc.ABC):
     @property
     def can_search(self) -> bool:
         """
-        Whether :class:`search` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`search`.
         """
         return False
 

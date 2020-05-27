@@ -52,28 +52,28 @@ functions and properties first:
 * ``__init__``: Used to initialize your adapter. See the
   :class:`sublime.adapters.Adapter.__init__` documentation for the function
   signature of the ``__init__`` function.
-* ``can_service_requests``: This property which will tell the UI whether or not
-  your adapter can currently service requests. (See the
-  :class:`sublime.adapters.Adapter.can_service_requests` documentation for
-  examples of what you may want to check in this property.)
+* ``ping_status``: Assuming that your adapter requires connection to the
+  internet, this property needs to be implemented. (If your adapter doesn't
+  require connection to the internet, set
+  :class:`sublime.adapters.Adapter.is_networked` to ``False`` and ignore the
+  rest of this bullet point.)
+
+  This property will tell the UI whether or not the underlying server can be
+  pinged.
 
   .. warning::
 
      This function is called *a lot* (probably too much?) so it *must* return a
-     value *instantly*. **Do not** perform a network request in this function.
-     If your adapter depends on connection to the network use a periodic ping
-     that updates a state variable that this function returns.
+     value *instantly*. **Do not** perform the actual network request in this
+     function. Instead, use a periodic ping that updates a state variable that
+     this function returns.
+
+.. TODO: these are totally wrong
 
 * ``get_config_parameters``: Specifies the settings which can be configured on
   for the adapter. See :ref:`adapter-api:Handling Configuration` for details.
 * ``verify_configuration``: Verifies whether or not a given set of configuration
   values are valid. See :ref:`adapter-api:Handling Configuration` for details.
-
-.. tip::
-
-   While developing the adapter, setting ``can_service_requests`` to ``True``
-   will indicate to the UI that your adapter is always ready to service
-   requests. This can be a useful debugging tool.
 
 .. note::
 
@@ -118,21 +118,12 @@ to implement the actual adapter data retrieval functions.
 
 For each data retrieval function there is a corresponding ``can_``-prefixed
 property (CPP) which will be used by the UI to determine if the data retrieval
-function can be called at the given time. If the CPP is ``False``, the UI will
-never call the corresponding function (and if it does, it's a UI bug). The CPP
-can be dynamic, for example, if your adapter supports many API versions, some of
-the CPPs may depend on the API version.
-
-There is a special, global ``can_``-prefixed property which determines whether
-the adapter can currently service *any* requests. This should be used for checks
-such as making sure that the user is able to access the server. (However, this
-must be done in a non-blocking manner since this is called *a lot*.)
-
-.. code:: python
-
-    @property
-    def can_service_requests(self) -> bool:
-        return self.cached_ping_result_is_ok()
+function can be called. If the CPP is ``False``, the UI will never call the
+corresponding function (and if it does, it's a UI bug). The CPP can be dynamic,
+for example, if your adapter supports many API versions, some of the CPPs may
+depend on the API version. However, CPPs should not be dependent on connection
+status (there are times where the user may want to force a connection retry,
+even if the most recent ping failed).
 
 Here is an example of what a ``get_playlists`` interface for an external server
 might look:
@@ -155,7 +146,7 @@ might look:
    ``True``.*
 
    \* At the moment, this isn't really the case and the UI just kinda explodes
-   if it doesn't have some of the functions available, but in the future guards
+   if it doesn't have some of the functions available, but in the future, guards
    will be added around all of the function calls.
 
 Usage Parameters

@@ -3,6 +3,7 @@ import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from time import sleep
 from typing import Any, Generator, List, Tuple
 
 import pytest
@@ -87,22 +88,23 @@ def test_request_making_methods(adapter: SubsonicAdapter):
     assert adapter._make_url("foo") == "http://subsonic.example.com/rest/foo.view"
 
 
-def test_can_service_requests(adapter: SubsonicAdapter):
+def test_ping_status(adapter: SubsonicAdapter):
     # Mock a connection error
     adapter._set_mock_data(Exception())
-    assert not adapter.can_service_requests
+    assert not adapter.ping_status
 
     # Simulate some sort of ping error
     for filename, data in mock_data_files("ping_failed"):
         logging.info(filename)
         logging.debug(data)
         adapter._set_mock_data(data)
-        assert not adapter.can_service_requests
+        assert not adapter.ping_status
 
     # Simulate valid ping
     adapter._set_mock_data(mock_json())
+    adapter._last_ping_timestamp.value = 0.0
     adapter._set_ping_status()
-    assert adapter.can_service_requests
+    assert adapter.ping_status
 
 
 def test_get_playlists(adapter: SubsonicAdapter):

@@ -275,18 +275,8 @@ class AdapterManager:
     TAdapter = TypeVar("TAdapter", bound=Adapter)
 
     @staticmethod
-    def _adapter_can_do(adapter: Optional[TAdapter], action_name: str) -> bool:
-        return (
-            adapter is not None
-            and adapter.can_service_requests
-            and getattr(adapter, f"can_{action_name}", False)
-        )
-
-    @staticmethod
-    def _cache_can_do(action_name: str) -> bool:
-        return AdapterManager._instance is not None and AdapterManager._adapter_can_do(
-            AdapterManager._instance.caching_adapter, action_name
-        )
+    def _adapter_can_do(adapter: TAdapter, action_name: str) -> bool:
+        return adapter is not None and getattr(adapter, f"can_{action_name}", False)
 
     @staticmethod
     def _ground_truth_can_do(action_name: str) -> bool:
@@ -302,16 +292,13 @@ class AdapterManager:
     def _can_use_cache(force: bool, action_name: str) -> bool:
         if force:
             return False
-        return AdapterManager._cache_can_do(action_name)
-
-    @staticmethod
-    def _any_adapter_can_do(action_name: str) -> bool:
-        if AdapterManager._instance is None:
-            return False
-
-        return AdapterManager._ground_truth_can_do(
-            action_name
-        ) or AdapterManager._cache_can_do(action_name)
+        return (
+            AdapterManager._instance is not None
+            and AdapterManager._instance.caching_adapter is not None
+            and AdapterManager._adapter_can_do(
+                AdapterManager._instance.caching_adapter, action_name
+            )
+        )
 
     @staticmethod
     def _create_ground_truth_result(
@@ -557,27 +544,27 @@ class AdapterManager:
     # ==================================================================================
     @staticmethod
     def can_get_playlists() -> bool:
-        return AdapterManager._any_adapter_can_do("get_playlists")
+        return AdapterManager._ground_truth_can_do("get_playlists")
 
     @staticmethod
     def can_get_playlist_details() -> bool:
-        return AdapterManager._any_adapter_can_do("get_playlist_details")
+        return AdapterManager._ground_truth_can_do("get_playlist_details")
 
     @staticmethod
     def can_create_playlist() -> bool:
-        return AdapterManager._any_adapter_can_do("create_playlist")
+        return AdapterManager._ground_truth_can_do("create_playlist")
 
     @staticmethod
     def can_update_playlist() -> bool:
-        return AdapterManager._any_adapter_can_do("update_playlist")
+        return AdapterManager._ground_truth_can_do("update_playlist")
 
     @staticmethod
     def can_delete_playlist() -> bool:
-        return AdapterManager._any_adapter_can_do("delete_playlist")
+        return AdapterManager._ground_truth_can_do("delete_playlist")
 
     @staticmethod
     def can_get_song_filename_or_stream() -> bool:
-        return AdapterManager._any_adapter_can_do("get_song_uri")
+        return AdapterManager._ground_truth_can_do("get_song_uri")
 
     @staticmethod
     def can_batch_download_songs() -> bool:
@@ -586,23 +573,23 @@ class AdapterManager:
 
     @staticmethod
     def can_get_genres() -> bool:
-        return AdapterManager._any_adapter_can_do("get_genres")
+        return AdapterManager._ground_truth_can_do("get_genres")
 
     @staticmethod
     def can_scrobble_song() -> bool:
-        return AdapterManager._any_adapter_can_do("scrobble_song")
+        return AdapterManager._ground_truth_can_do("scrobble_song")
 
     @staticmethod
     def can_get_artists() -> bool:
-        return AdapterManager._any_adapter_can_do("get_artists")
+        return AdapterManager._ground_truth_can_do("get_artists")
 
     @staticmethod
     def can_get_artist() -> bool:
-        return AdapterManager._any_adapter_can_do("get_artist")
+        return AdapterManager._ground_truth_can_do("get_artist")
 
     @staticmethod
     def can_get_directory() -> bool:
-        return AdapterManager._any_adapter_can_do("get_directory")
+        return AdapterManager._ground_truth_can_do("get_directory")
 
     @staticmethod
     def can_get_play_queue() -> bool:
@@ -614,7 +601,7 @@ class AdapterManager:
 
     @staticmethod
     def can_search() -> bool:
-        return AdapterManager._any_adapter_can_do("search")
+        return AdapterManager._ground_truth_can_do("search")
 
     # Data Retrieval Methods
     # ==================================================================================
@@ -1017,7 +1004,7 @@ class AdapterManager:
     @staticmethod
     def _get_ignored_articles(use_ground_truth_adapter: bool) -> Set[str]:
         # TODO (#21) get this at first startup.
-        if not AdapterManager._any_adapter_can_do("get_ignored_articles"):
+        if not AdapterManager._ground_truth_can_do("get_ignored_articles"):
             return set()
         try:
             ignored_articles: Set[str] = AdapterManager._get_from_cache_or_ground_truth(
