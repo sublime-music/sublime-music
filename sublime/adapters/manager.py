@@ -59,6 +59,10 @@ if delay_str := os.environ.get("REQUEST_DELAY"):
     else:
         REQUEST_DELAY = (float(delay_str), float(delay_str))
 
+NETWORK_ALWAYS_ERROR: bool = False
+if always_error := os.environ.get("NETWORK_ALWAYS_ERROR"):
+    NETWORK_ALWAYS_ERROR = True
+
 T = TypeVar("T")
 
 
@@ -383,9 +387,12 @@ class AdapterManager:
                     if REQUEST_DELAY is not None:
                         delay = random.uniform(*REQUEST_DELAY)
                         logging.info(
-                            f"REQUEST_DELAY enabled. Pausing for {delay} seconds"  # noqa: E501
+                            f"REQUEST_DELAY enabled. Pausing for {delay} seconds"
                         )
                         sleep(delay)
+
+                    if NETWORK_ALWAYS_ERROR:
+                        raise Exception("NETWORK_ALWAYS_ERROR enabled")
 
                     data = requests.get(uri)
 

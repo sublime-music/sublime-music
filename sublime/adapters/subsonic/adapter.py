@@ -246,7 +246,7 @@ class SubsonicAdapter(Adapter):
         params = {**self._get_params(), **params}
         logging.info(f"[START] get: {url}")
 
-        if REQUEST_DELAY:
+        if REQUEST_DELAY is not None:
             delay = random.uniform(*REQUEST_DELAY)
             logging.info(f"REQUEST_DELAY enabled. Pausing for {delay} seconds")
             sleep(delay)
