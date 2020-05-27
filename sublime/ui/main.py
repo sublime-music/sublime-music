@@ -396,7 +396,7 @@ class MainWindow(Gtk.ApplicationWindow):
         vbox.add(offline_box)
 
         edit_button = self._create_model_button(
-            "Edit Configuration...", lambda _: print("edit")
+            "Edit Configuration...", self._on_edit_configuration_click
         )
         vbox.add(edit_button)
 
@@ -404,15 +404,15 @@ class MainWindow(Gtk.ApplicationWindow):
 
         music_provider_button = self._create_model_button(
             "Switch Music Provider",
-            lambda _: print("switch"),
+            self._on_switch_provider_click,
             menu_name="switch-provider",
         )
-        # TODO
+        # TODO (#197)
         music_provider_button.set_action_name("app.configure-servers")
         vbox.add(music_provider_button)
 
         add_new_music_provider_button = self._create_model_button(
-            "Add New Music Provider...", lambda _: print("add new")
+            "Add New Music Provider...", self._on_add_new_provider_click
         )
         vbox.add(add_new_music_provider_button)
 
@@ -639,6 +639,18 @@ class MainWindow(Gtk.ApplicationWindow):
         self._emit_settings_change(
             {"replay_gain": ReplayGainType.from_string(combo.get_active_id())}
         )
+
+    def _on_edit_configuration_click(self, _):
+        # TODO (#197): EDIT
+        pass
+
+    def _on_switch_provider_click(self, _):
+        # TODO (#197): switch
+        pass
+
+    def _on_add_new_provider_click(self, _):
+        # TODO (#197) add new
+        pass
 
     def _on_search_entry_focus(self, *args):
         self._show_search()

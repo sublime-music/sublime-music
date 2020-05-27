@@ -521,10 +521,6 @@ class AdapterManager:
                 cache_key, param_str
             )
 
-        # TODO
-        # TODO (#122) If any of the following fails, do we want to return what the
-        # caching adapter has?
-
         if (
             not allow_download
             and AdapterManager._instance.ground_truth_adapter.is_networked
@@ -535,13 +531,6 @@ class AdapterManager:
                 raise CacheMissError(partial_data=partial_data)
 
             return Result(cache_miss_result)
-            # TODO
-            # raise CacheMissError(partial_data=partial_data)
-            # # TODO (#122) indicate that this is partial data. Probably just re-throw
-            # # here?
-            # logging.debug("partial_data exists, returning", partial_data)
-            # return Result(cast(AdapterManager.R, partial_data))
-            # raise Exception(f"No adapters can service {function_name} at the moment.")
 
         result: Result[AdapterManager.R] = AdapterManager._create_ground_truth_result(
             function_name,
@@ -735,7 +724,6 @@ class AdapterManager:
             not AdapterManager._ground_truth_can_do("get_cover_art_uri")
             or not cover_art_id
         ):
-            # TODO return the placeholder
             return ""
 
         return AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(

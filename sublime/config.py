@@ -91,9 +91,6 @@ class AppConfiguration:
     prefetch_amount: int = 3
     concurrent_download_limit: int = 5
 
-    # TODO this should probably be moved to the cache adapter settings
-    max_cache_size_mb: int = -1  # -1 means unlimited
-
     # Deprecated
     always_stream: bool = False  # always stream instead of downloading songs
 

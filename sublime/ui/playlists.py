@@ -5,7 +5,7 @@ from typing import Any, cast, Iterable, List, Tuple
 from fuzzywuzzy import process
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, api_objects as API, CacheMissError
+from sublime.adapters import AdapterManager, api_objects as API
 from sublime.config import AppConfiguration
 from sublime.ui import util
 from sublime.ui.common import (
