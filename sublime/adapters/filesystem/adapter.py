@@ -217,19 +217,22 @@ class FilesystemAdapter(CachingAdapter):
 
             return SongCacheStatus.NOT_CACHED
 
+        cached_statuses = {song_id: SongCacheStatus.NOT_CACHED for song_id in song_ids}
         try:
             file_models = models.CacheInfo.select().where(
                 models.CacheInfo.cache_key == KEYS.SONG_FILE
             )
             song_models = models.Song.select().where(models.Song.id.in_(song_ids))
-            return {
-                s.id: compute_song_cache_status(s)
-                for s in prefetch(song_models, file_models)
-            }
+            cached_statuses.update(
+                {
+                    s.id: compute_song_cache_status(s)
+                    for s in prefetch(song_models, file_models)
+                }
+            )
         except Exception:
             pass
 
-        return {song_id: SongCacheStatus.NOT_CACHED for song_id in song_ids}
+        return cached_statuses
 
     _playlists = None
 
