@@ -132,9 +132,10 @@ class SubsonicAdapter(Adapter):
         # TODO (#112): support XML?
 
     def initial_sync(self):
-        # Wait for the ping to happen.
+        # Wait for a server ping to happen.
         tries = 0
         while not self._server_available.value and tries < 5:
+            sleep(0.1)
             self._set_ping_status()
             tries += 1
 
@@ -144,11 +145,10 @@ class SubsonicAdapter(Adapter):
     # Availability Properties
     # ==================================================================================
     _server_available = multiprocessing.Value("b", False)
+    _last_ping_timestamp = multiprocessing.Value("d", 0.0)
 
     def _check_ping_thread(self):
-        # TODO (#198): also use other requests in place of ping if they come in. If the
-        # time since the last successful request is high, then do another ping.
-        # TODO (#198): also use NM to detect when the connection changes and update
+        # TODO (#96): also use NM to detect when the connection changes and update
         # accordingly.
 
         while True:
@@ -156,14 +156,17 @@ class SubsonicAdapter(Adapter):
             sleep(15)
 
     def _set_ping_status(self):
-        # TODO don't ping in offline mode
+        now = datetime.now().timestamp()
+        if now - self._last_ping_timestamp.value < 15:
+            return
+
         try:
             # Try to ping the server with a timeout of 2 seconds.
             self._get_json(self._make_url("ping"), timeout=2)
-            self._server_available.value = True
         except Exception:
             logging.exception(f"Could not connect to {self.hostname}")
             self._server_available.value = False
+            self._last_ping_timestamp.value = now
 
     @property
     def ping_status(self) -> bool:
@@ -277,6 +280,10 @@ class SubsonicAdapter(Adapter):
         # TODO (#122): make better
         if result.status_code != 200:
             raise Exception(f"[FAIL] get: {url} status={result.status_code}")
+
+        # Any time that a server request succeeds, then we win.
+        self._server_available.value = True
+        self._last_ping_timestamp.value = datetime.now().timestamp()
 
         logging.info(f"[FINISH] get: {url}")
         return result
