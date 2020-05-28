@@ -151,6 +151,7 @@ class SubsonicAdapter(Adapter):
         # TODO (#96): also use NM to detect when the connection changes and update
         # accordingly.
 
+        # TODO don't ping in offline mode
         while True:
             self._set_ping_status()
             sleep(15)
@@ -158,7 +159,6 @@ class SubsonicAdapter(Adapter):
     def _set_ping_status(self):
         now = datetime.now().timestamp()
         if now - self._last_ping_timestamp.value < 15:
-            print("ohea")
             return
 
         try:
