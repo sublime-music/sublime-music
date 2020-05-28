@@ -12,6 +12,7 @@ class SpinnerImage(Gtk.Overlay):
         image_size: int = None,
         **kwargs,
     ):
+        """An image with a loading overlay."""
         Gtk.Overlay.__init__(self)
         self.image_size = image_size
         self.filename: Optional[str] = None
@@ -28,6 +29,7 @@ class SpinnerImage(Gtk.Overlay):
         self.add_overlay(self.spinner)
 
     def set_from_file(self, filename: Optional[str]):
+        """Set the image to the given filename."""
         if filename == "":
             filename = None
         self.filename = filename

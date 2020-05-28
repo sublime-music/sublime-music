@@ -70,6 +70,17 @@ class UIState:
     playlist_details_expanded: bool = True
     artist_details_expanded: bool = True
 
+    # State for Album sort.
+    class _DefaultGenre(Genre):
+        def __init__(self):
+            self.name = "Rock"
+
+    current_album_search_query: AlbumSearchQuery = AlbumSearchQuery(
+        AlbumSearchQuery.Type.RANDOM, genre=_DefaultGenre(), year_range=(2010, 2020),
+    )
+
+    active_playlist_id: Optional[str] = None
+
     def __getstate__(self):
         state = self.__dict__.copy()
         del state["song_stream_cache_progress"]
@@ -82,17 +93,6 @@ class UIState:
         self.song_stream_cache_progress = None
         self.current_notification = None
         self.playing = False
-
-    class _DefaultGenre(Genre):
-        def __init__(self):
-            self.name = "Rock"
-
-    # State for Album sort.
-    current_album_search_query: AlbumSearchQuery = AlbumSearchQuery(
-        AlbumSearchQuery.Type.RANDOM, genre=_DefaultGenre(), year_range=(2010, 2020),
-    )
-
-    active_playlist_id: Optional[str] = None
 
     def migrate(self):
         pass

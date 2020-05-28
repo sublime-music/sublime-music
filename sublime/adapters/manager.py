@@ -29,8 +29,6 @@ from typing import (
 
 import requests
 
-from sublime.config import AppConfiguration
-
 from .adapter_base import (
     Adapter,
     AlbumSearchQuery,
@@ -233,7 +231,12 @@ class AdapterManager:
         logging.info("AdapterManager shutdown complete")
 
     @staticmethod
-    def reset(config: AppConfiguration):
+    def reset(config: Any):
+
+        from sublime.config import AppConfiguration
+
+        assert isinstance(config, AppConfiguration)
+
         # First, shutdown the current one...
         if AdapterManager._instance:
             AdapterManager._instance.shutdown()

@@ -2,7 +2,6 @@
 These are the API objects that are returned by Subsonic.
 """
 
-import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
@@ -99,10 +98,6 @@ class ArtistAndArtistInfo(SublimeAPI.Artist):
     music_brainz_id: Optional[str] = None
     last_fm_url: Optional[str] = None
 
-    @staticmethod
-    def _strhash(string: str) -> str:
-        return hashlib.sha1(bytes(string, "utf8")).hexdigest()
-
     def __post_init__(self):
         self.album_count = self.album_count or len(self.albums)
         if not self.artist_image_url:
@@ -134,10 +129,14 @@ class ArtistInfo:
 
     def __post_init__(self):
         if self.artist_image_url:
-            if self.artist_image_url.endswith("2a96cbd8b46e442fc41c2b86b821562f.png"):
-                self.artist_image_url = ""
-            elif self.artist_image_url.endswith("-No_image_available.svg.png"):
-                self.artist_image_url = ""
+            placeholder_image_names = (
+                "2a96cbd8b46e442fc41c2b86b821562f.png",
+                "-No_image_available.svg.png",
+            )
+            for n in placeholder_image_names:
+                if self.artist_image_url.endswith(n):
+                    self.artist_image_url = ""
+                    return
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)

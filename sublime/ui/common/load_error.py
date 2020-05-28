@@ -27,11 +27,12 @@ class LoadError(Gtk.Box):
             icon_name = "network-error-symbolic"
             label = f"Error attempting to {action}."
 
-        image = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.DIALOG)
-        image.set_name("load-error-image")
-        icon_and_button_box.add(image)
+        self.image = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.DIALOG)
+        self.image.set_name("load-error-image")
+        icon_and_button_box.add(self.image)
 
-        icon_and_button_box.add(Gtk.Label(label=label, name="load-error-label"))
+        self.label = Gtk.Label(label=label, name="load-error-label")
+        icon_and_button_box.add(self.label)
 
         error_and_button_box.add(icon_and_button_box)
 

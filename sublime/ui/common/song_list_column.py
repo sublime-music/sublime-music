@@ -7,9 +7,10 @@ class SongListColumn(Gtk.TreeViewColumn):
         header: str,
         text_idx: int,
         bold: bool = False,
-        align: int = 0,
+        align: float = 0,
         width: int = None,
     ):
+        """Represents a column in a song list."""
         renderer = Gtk.CellRendererText(
             xalign=align,
             weight=Pango.Weight.BOLD if bold else Pango.Weight.NORMAL,
