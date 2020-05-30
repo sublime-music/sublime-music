@@ -1048,10 +1048,10 @@ class SublimeMusicApp(Gtk.Application):
 
                     if sys.platform == "darwin":
                         notification_lines = []
-                        if song.album:
-                            notification_lines.append(song.album)
-                        if song.artist:
-                            notification_lines.append(song.artist)
+                        if album := song.album:
+                            notification_lines.append(album.name)
+                        if artist := song.artist:
+                            notification_lines.append(artist.name)
                         notification_text = "\n".join(notification_lines)
                         osascript_command = [
                             "display",
