@@ -707,7 +707,7 @@ class Adapter(abc.ABC):
 
     def save_play_queue(
         self,
-        song_ids: Sequence[int],
+        song_ids: Sequence[str],
         current_song_index: int = None,
         position: timedelta = None,
     ):
@@ -728,7 +728,7 @@ class Adapter(abc.ABC):
         :returns: A :class:`sublime.adapters.api_objects.SearchResult` object
             representing the results of the search.
         """
-        raise self._check_can_error("can_save_play_queue")
+        raise self._check_can_error("search")
 
     @staticmethod
     def _check_can_error(method_name: str) -> NotImplementedError:

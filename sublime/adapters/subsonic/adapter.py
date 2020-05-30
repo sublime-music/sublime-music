@@ -565,7 +565,7 @@ class SubsonicAdapter(Adapter):
 
     def save_play_queue(
         self,
-        song_ids: Sequence[int],
+        song_ids: Sequence[str],
         current_song_index: int = None,
         position: timedelta = None,
     ):

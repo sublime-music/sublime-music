@@ -796,10 +796,7 @@ class AdapterManager:
     # TODO (#189): allow this to take a set of schemes
     @staticmethod
     def get_song_filename_or_stream(
-        song: Song,
-        format: str = None,
-        force_stream: bool = False,
-        allow_song_downloads: bool = True,
+        song: Song, format: str = None, force_stream: bool = False
     ) -> str:
         assert AdapterManager._instance
         cached_song_filename = None
@@ -818,25 +815,15 @@ class AdapterManager:
                     f'Error on {"get_song_filename_or_stream"} retrieving from cache.'
                 )
 
-        if not AdapterManager._ground_truth_can_do("get_song_uri"):
-            if not allow_song_downloads or cached_song_filename is None:
-                # TODO
-                raise Exception("Can't stream the song.")
-            return cached_song_filename
-
-        # TODO (subsonic-extensions-api/specification#2) implement subsonic extension to
-        # get the hash of the song and compare here. That way of the cache gets blown
-        # away, but not the song files, it will not have to re-download.
-
         if (
-            not allow_song_downloads
-            and not AdapterManager._ground_truth_can_do("stream")
-        ) or (
-            AdapterManager._instance.ground_truth_adapter.is_networked
-            and AdapterManager._offline_mode
+            not AdapterManager._ground_truth_can_do("stream")
+            or not AdapterManager._ground_truth_can_do("get_song_uri")
+            or (
+                AdapterManager._instance.ground_truth_adapter.is_networked
+                and AdapterManager._offline_mode
+            )
         ):
-            # TODO
-            raise Exception("Can't stream the song.")
+            raise CacheMissError(partial_data=cached_song_filename)
 
         return AdapterManager._instance.ground_truth_adapter.get_song_uri(
             song.id, AdapterManager._get_scheme(), stream=True,
@@ -1156,7 +1143,7 @@ class AdapterManager:
 
     @staticmethod
     def save_play_queue(
-        song_ids: Sequence[int],
+        song_ids: Sequence[str],
         current_song_index: int = None,
         position: timedelta = None,
     ):

@@ -979,9 +979,7 @@ class SublimeMusicApp(Gtk.Application):
             if order_token != self.song_playing_order_token:
                 return
 
-            uri = AdapterManager.get_song_filename_or_stream(
-                song, allow_song_downloads=self.app_config.allow_song_downloads,
-            )
+            uri = AdapterManager.get_song_filename_or_stream(song)
 
             # Prevent it from doing the thing where it continually loads
             # songs when it has to download.
@@ -1145,14 +1143,13 @@ class SublimeMusicApp(Gtk.Application):
         self.song_playing_order_token += 1
 
         if play_queue:
-
-            def save_play_queue_later(order_token: int):
-                sleep(5)
-                if order_token != self.song_playing_order_token:
-                    return
-                self.save_play_queue()
-
-            Result(partial(save_play_queue_later, self.song_playing_order_token))
+            GLib.timeout_add(
+                5000,
+                partial(
+                    self.save_play_queue,
+                    song_playing_order_token=self.song_playing_order_token,
+                ),
+            )
 
         song_details_future = AdapterManager.get_song_details(
             self.app_config.state.play_queue[self.app_config.state.current_song_index]
@@ -1163,8 +1160,15 @@ class SublimeMusicApp(Gtk.Application):
             ),
         )
 
-    def save_play_queue(self):
-        if len(self.app_config.state.play_queue) == 0:
+    def save_play_queue(self, song_playing_order_token: int = None):
+        if (
+            len(self.app_config.state.play_queue) == 0
+            or self.app_config.server is None
+            or (
+                song_playing_order_token
+                and song_playing_order_token != self.song_playing_order_token
+            )
+        ):
             return
 
         position = self.app_config.state.song_progress
