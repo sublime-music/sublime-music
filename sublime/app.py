@@ -1093,7 +1093,11 @@ class SublimeMusicApp(Gtk.Application):
                 self.update_window()
 
             if (
-                self.app_config.allow_song_downloads
+                # This only makes sense if the adapter is networked.
+                AdapterManager.ground_truth_adapter_is_networked()
+                # Don't download in offline mode.
+                and not self.app_config.offline_mode
+                and self.app_config.allow_song_downloads
                 and self.app_config.download_on_stream
                 and AdapterManager.can_batch_download_songs()
             ):

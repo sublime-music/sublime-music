@@ -866,7 +866,11 @@ class AdapterManager:
         cancelled = False
 
         def do_download_song(song_id: str):
-            if AdapterManager.is_shutting_down or cancelled:
+            if (
+                AdapterManager.is_shutting_down
+                or AdapterManager._offline_mode
+                or cancelled
+            ):
                 return
 
             assert AdapterManager._instance
@@ -915,15 +919,15 @@ class AdapterManager:
         def do_batch_download_songs():
             sleep(delay)
             for song_id in song_ids:
-                if cancelled:
+                if (
+                    AdapterManager.is_shutting_down
+                    or AdapterManager._offline_mode
+                    or cancelled
+                ):
                     return
                 # Only allow a certain number of songs to be downloaded
                 # simultaneously.
                 AdapterManager._instance.download_limiter_semaphore.acquire()
-
-                # Prevents further songs from being downloaded.
-                if AdapterManager.is_shutting_down:
-                    break
 
                 result = Result(do_download_song, song_id, is_download=True)
 
