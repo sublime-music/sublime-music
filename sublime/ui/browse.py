@@ -56,9 +56,6 @@ class BrowsePanel(Gtk.Overlay):
         self.add_overlay(self.spinner)
 
     def update(self, app_config: AppConfiguration, force: bool = False):
-        if not AdapterManager.can_get_directory():
-            return
-
         self.update_order_token += 1
 
         def do_update(update_order_token: int, id_stack: Tuple[str, ...]):

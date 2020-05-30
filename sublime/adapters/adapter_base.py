@@ -117,9 +117,9 @@ class AlbumSearchQuery:
         """
         if not self._strhash:
             hash_tuple: Tuple[Any, ...] = (self.type.value,)
-            if self.type.value == AlbumSearchQuery.Type.YEAR_RANGE:
+            if self.type == AlbumSearchQuery.Type.YEAR_RANGE:
                 hash_tuple += (self.year_range,)
-            elif self.type.value == AlbumSearchQuery.Type.GENRE:
+            elif self.type == AlbumSearchQuery.Type.GENRE:
                 hash_tuple += (self.genre.name,)
             self._strhash = hashlib.sha1(bytes(str(hash_tuple), "utf8")).hexdigest()
         return self._strhash
@@ -298,6 +298,12 @@ class Adapter(abc.ABC):
         be enabled.
         """
         return True
+
+    def on_offline_mode_change(self, offline_mode: bool):
+        """
+        This function should be used to handle any operations that need to be performed
+        when Sublime Music goes from online to offline mode or vice versa.
+        """
 
     @property
     @abc.abstractmethod

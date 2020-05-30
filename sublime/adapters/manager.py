@@ -166,7 +166,7 @@ class AdapterManager:
     executor: ThreadPoolExecutor = ThreadPoolExecutor()
     download_executor: ThreadPoolExecutor = ThreadPoolExecutor()
     is_shutting_down: bool = False
-    offline_mode: bool = False
+    _offline_mode: bool = False
 
     @dataclass
     class _AdapterManagerInternal:
@@ -241,7 +241,7 @@ class AdapterManager:
         if AdapterManager._instance:
             AdapterManager._instance.shutdown()
 
-        AdapterManager.offline_mode = config.offline_mode
+        AdapterManager._offline_mode = config.offline_mode
 
         # TODO (#197): actually do stuff with the config to determine which adapters to
         # create, etc.
@@ -277,6 +277,14 @@ class AdapterManager:
             concurrent_download_limit=config.concurrent_download_limit,
         )
 
+    @staticmethod
+    def on_offline_mode_change(offline_mode: bool):
+        AdapterManager._offline_mode = offline_mode
+        if (instance := AdapterManager._instance) and (
+            (ground_truth_adapter := instance.ground_truth_adapter).is_networked
+        ):
+            ground_truth_adapter.on_offline_mode_change(offline_mode)
+
     # Data Helper Methods
     # ==================================================================================
     TAdapter = TypeVar("TAdapter", bound=Adapter)
@@ -289,11 +297,9 @@ class AdapterManager:
     def _ground_truth_can_do(action_name: str) -> bool:
         if not AdapterManager._instance:
             return False
-        ground_truth_adapter = AdapterManager._instance.ground_truth_adapter
-        if AdapterManager.offline_mode and ground_truth_adapter.is_networked:
-            return False
-
-        return AdapterManager._adapter_can_do(ground_truth_adapter, action_name)
+        return AdapterManager._adapter_can_do(
+            AdapterManager._instance.ground_truth_adapter, action_name
+        )
 
     @staticmethod
     def _can_use_cache(force: bool, action_name: str) -> bool:
@@ -318,17 +324,15 @@ class AdapterManager:
         """
         Creates a Result using the given ``function_name`` on the ground truth adapter.
         """
-        if (
-            AdapterManager.offline_mode
-            and AdapterManager._instance
-            and AdapterManager._instance.ground_truth_adapter.is_networked
-        ):
-            raise AssertionError(
-                "You should never call _create_ground_truth_result in offline mode"
-            )
 
         def future_fn() -> Any:
             assert AdapterManager._instance
+            if (
+                AdapterManager._offline_mode
+                and AdapterManager._instance.ground_truth_adapter.is_networked
+            ):
+                raise CacheMissError(partial_data=partial_data)
+
             if before_download:
                 before_download()
             fn = getattr(AdapterManager._instance.ground_truth_adapter, function_name)
@@ -348,14 +352,6 @@ class AdapterManager:
         filename. The returned function will spin-loop if the resource is already being
         downloaded to prevent multiple requests for the same download.
         """
-        if (
-            AdapterManager.offline_mode
-            and AdapterManager._instance
-            and AdapterManager._instance.ground_truth_adapter.is_networked
-        ):
-            raise AssertionError(
-                "You should never call _create_download_fn in offline mode"
-            )
 
         def download_fn() -> str:
             assert AdapterManager._instance
@@ -699,9 +695,9 @@ class AdapterManager:
     def delete_playlist(playlist_id: str):
         assert AdapterManager._instance
         ground_truth_adapter = AdapterManager._instance.ground_truth_adapter
-        if AdapterManager.offline_mode and ground_truth_adapter.is_networked:
+        if AdapterManager._offline_mode and ground_truth_adapter.is_networked:
             raise AssertionError(
-                "You should never call _create_download_fn in offline mode"
+                "You should never call delete_playlist in offline mode"
             )
 
         # TODO (#190): make non-blocking?
@@ -742,6 +738,10 @@ class AdapterManager:
 
         assert AdapterManager._instance
 
+        # If the ground truth adapter can't provide cover art, just give up immediately.
+        if not AdapterManager._ground_truth_can_do("get_cover_art_uri"):
+            return Result(existing_cover_art_filename)
+
         # There could be partial data if the cover art exists, but for some reason was
         # marked out-of-date.
         if AdapterManager._can_use_cache(force, "get_cover_art_uri"):
@@ -761,15 +761,15 @@ class AdapterManager:
                     f'Error on {"get_cover_art_uri"} retrieving from cache.'
                 )
 
-        if not allow_download:
-            return Result(existing_cover_art_filename)
-
         if AdapterManager._instance.caching_adapter and force:
             AdapterManager._instance.caching_adapter.invalidate_data(
                 CachingAdapter.CachedDataKey.COVER_ART_FILE, cover_art_id
             )
 
-        if not AdapterManager._ground_truth_can_do("get_cover_art_uri"):
+        if not allow_download or (
+            AdapterManager._offline_mode
+            and AdapterManager._instance.ground_truth_adapter.is_networked
+        ):
             return Result(existing_cover_art_filename)
 
         future: Result[str] = Result(
@@ -848,7 +848,7 @@ class AdapterManager:
     ) -> Result[None]:
         assert AdapterManager._instance
         if (
-            AdapterManager.offline_mode
+            AdapterManager._offline_mode
             and AdapterManager._instance.ground_truth_adapter.is_networked
         ):
             raise AssertionError(
@@ -883,6 +883,7 @@ class AdapterManager:
                         before_download(song_id)
 
                     # Download the song.
+                    # TODO (#64) handle download errors?
                     song_tmp_filename = AdapterManager._create_download_fn(
                         AdapterManager._instance.ground_truth_adapter.get_song_uri(
                             song_id, AdapterManager._get_scheme()

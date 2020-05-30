@@ -515,7 +515,7 @@ class SublimeMusicApp(Gtk.Application):
             for k, v in settings.items():
                 setattr(self.app_config, k, v)
             if (offline_mode := settings.get("offline_mode")) is not None:
-                AdapterManager.offline_mode = offline_mode
+                AdapterManager.on_offline_mode_change(offline_mode)
 
             del state_updates["__settings__"]
 
