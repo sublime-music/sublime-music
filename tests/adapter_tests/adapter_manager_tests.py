@@ -19,7 +19,7 @@ def adapter_manager(tmp_path: Path):
         current_server_index=0,
         cache_location=tmp_path.as_posix(),
     )
-    AdapterManager.reset(config)
+    AdapterManager.reset(config, lambda *a: None)
     yield
     AdapterManager.shutdown()
 

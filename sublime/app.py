@@ -31,7 +31,13 @@ except Exception:
     )
     glib_notify_exists = False
 
-from .adapters import AdapterManager, AlbumSearchQuery, Result, SongCacheStatus
+from .adapters import (
+    AdapterManager,
+    AlbumSearchQuery,
+    DownloadProgress,
+    Result,
+    SongCacheStatus,
+)
 from .adapters.api_objects import Playlist, PlayQueue, Song
 from .config import AppConfiguration
 from .dbus import dbus_propagate, DBusManager
@@ -133,6 +139,7 @@ class SublimeMusicApp(Gtk.Application):
 
         # Load the state for the server, if it exists.
         self.app_config.load_state()
+        AdapterManager.reset(self.app_config, self.on_song_download_progress)
 
         # If there is no current server, show the dialog to select a server.
         if self.app_config.server is None:
@@ -823,6 +830,7 @@ class SublimeMusicApp(Gtk.Application):
 
     @dbus_propagate()
     def on_volume_change(self, _, value: float):
+        assert self.player
         self.app_config.state.volume = value
         self.player.volume = self.app_config.state.volume
         self.update_window()
@@ -855,6 +863,10 @@ class SublimeMusicApp(Gtk.Application):
 
         return False
 
+    def on_song_download_progress(self, song_id: str, progress: DownloadProgress):
+        assert self.window
+        self.window.update_song_download_progress(song_id, progress)
+
     def on_app_shutdown(self, app: "SublimeMusicApp"):
         self.exiting = True
         if glib_notify_exists:
@@ -866,7 +878,8 @@ class SublimeMusicApp(Gtk.Application):
         if self.app_config.server is None:
             return
 
-        self.player.pause()
+        if self.player:
+            self.player.pause()
         self.chromecast_player.shutdown()
         self.mpv_player.shutdown()
 

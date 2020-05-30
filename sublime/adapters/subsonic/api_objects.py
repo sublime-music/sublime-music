@@ -188,6 +188,7 @@ class Song(SublimeAPI.Song, DataClassJsonMixin):
     track: Optional[int] = None
     disc_number: Optional[int] = None
     year: Optional[int] = None
+    size: Optional[int] = None
     cover_art: Optional[str] = None
     user_rating: Optional[int] = None
     starred: Optional[datetime] = None

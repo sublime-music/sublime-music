@@ -6,7 +6,7 @@ from .adapter_base import (
     ConfigParamDescriptor,
     SongCacheStatus,
 )
-from .manager import AdapterManager, Result, SearchResult
+from .manager import AdapterManager, DownloadProgress, Result, SearchResult
 
 __all__ = (
     "Adapter",
@@ -15,6 +15,7 @@ __all__ = (
     "CacheMissError",
     "CachingAdapter",
     "ConfigParamDescriptor",
+    "DownloadProgress",
     "Result",
     "SearchResult",
     "SongCacheStatus",

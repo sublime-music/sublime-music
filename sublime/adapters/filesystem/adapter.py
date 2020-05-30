@@ -614,7 +614,9 @@ class FilesystemAdapter(CachingAdapter):
                 if api_song.cover_art
                 else None,
                 "file": self._do_ingest_new_data(
-                    KEYS.SONG_FILE, api_song.id, data=(api_song.path, None)
+                    KEYS.SONG_FILE,
+                    api_song.id,
+                    data=(api_song.path, None, api_song.size),
                 )
                 if api_song.path
                 else None,
@@ -788,10 +790,13 @@ class FilesystemAdapter(CachingAdapter):
 
         # Special handling for Song
         if data_key == KEYS.SONG_FILE and data:
-            path, buffer_filename = data
+            path, buffer_filename, size = data
 
             if path:
                 cache_info.path = path
+
+            if size:
+                cache_info.size = size
 
             if buffer_filename:
                 cache_info.file_hash = compute_file_hash(buffer_filename)

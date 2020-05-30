@@ -3,7 +3,12 @@ from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, api_objects as API, Result
+from sublime.adapters import (
+    AdapterManager,
+    api_objects as API,
+    DownloadProgress,
+    Result,
+)
 from sublime.config import AppConfiguration, ReplayGainType
 from sublime.ui import albums, artists, browse, player_controls, playlists, util
 from sublime.ui.common import IconButton, IconMenuButton, SpinnerImage
@@ -29,6 +34,7 @@ class MainWindow(Gtk.ApplicationWindow):
     }
 
     _updating_settings: bool = False
+    _current_download_boxes: Dict[str, Gtk.Box] = {}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -183,6 +189,39 @@ class MainWindow(Gtk.ApplicationWindow):
             active_panel.update(app_config, force=force)
 
         self.player_controls.update(app_config, force=force)
+
+    def update_song_download_progress(self, song_id: str, progress: DownloadProgress):
+        if progress.type == DownloadProgress.Type.QUEUED:
+            # Create and add the box to show the progress.
+            self._current_download_boxes[song_id] = DownloadStatusBox(song_id)
+            self.current_downloads_box.add(self._current_download_boxes[song_id])
+        elif progress.type in (
+            DownloadProgress.Type.DONE,
+            DownloadProgress.Type.CANCELLED,
+        ):
+            # Remove and delet the box for the download.
+            if song_id in self._current_download_boxes:
+                self.current_downloads_box.remove(self._current_download_boxes[song_id])
+                del self._current_download_boxes[song_id]
+        elif progress.type == DownloadProgress.Type.ERROR:
+            GLib.idle_add(
+                self._current_download_boxes[song_id].set_error, progress.exception
+            )
+        elif progress.type == DownloadProgress.Type.PROGRESS:
+            GLib.idle_add(
+                self._current_download_boxes[song_id].update_progress,
+                progress.progress_fraction,
+            )
+
+        if len(self._current_download_boxes) == 0:
+            self.current_downloads_placeholder.show()
+        else:
+            self.current_downloads_placeholder.hide()
+
+    def _create_download_status_box(self, song_id: str) -> Gtk.Box:
+        status_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+
+        return status_box
 
     def _create_stack(self, **kwargs: Gtk.Widget) -> Gtk.Stack:
         stack = Gtk.Stack()
@@ -340,6 +379,12 @@ class MainWindow(Gtk.ApplicationWindow):
         self.current_downloads_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL, name="current-downloads-list"
         )
+        self.current_downloads_placeholder = Gtk.Label(
+            label="<i>No current downloads</i>",
+            use_markup=True,
+            name="current-downloads-list-placeholder",
+        )
+        self.current_downloads_box.add(self.current_downloads_placeholder)
         vbox.add(self.current_downloads_box)
 
         clear_cache = self._create_model_button("Clear Cache", menu_name="clear-cache")
@@ -847,3 +892,28 @@ class MainWindow(Gtk.ApplicationWindow):
                 return True
 
         return False
+
+
+class DownloadStatusBox(Gtk.Box):
+    def __init__(self, song_id: str):
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.HORIZONTAL)
+
+        song = AdapterManager.get_song_details(song_id).result()
+
+        self.song_label = Gtk.Label(label=song.title, halign=Gtk.Align.START)
+        self.pack_start(self.song_label, True, True, 5)
+
+        self.download_progress = Gtk.ProgressBar(show_text=True)
+        self.download_progress.set_text(song.title)
+        self.add(self.download_progress)
+
+        self.cancel_button = IconButton(
+            "process-stop-symbolic", tooltip_text="Cancel download", relief=True
+        )
+        self.add(self.cancel_button)
+
+    def update_progress(self, progress_fraction: float):
+        self.download_progress.set_fraction(progress_fraction)
+
+    def set_error(self, exception: Exception):
+        print(exception)

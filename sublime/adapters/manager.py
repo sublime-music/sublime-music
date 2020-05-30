@@ -8,6 +8,7 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import timedelta
+from enum import Enum
 from functools import partial
 from pathlib import Path
 from time import sleep
@@ -58,8 +59,12 @@ if delay_str := os.environ.get("REQUEST_DELAY"):
         REQUEST_DELAY = (float(delay_str), float(delay_str))
 
 NETWORK_ALWAYS_ERROR: bool = False
-if always_error := os.environ.get("NETWORK_ALWAYS_ERROR"):
+if os.environ.get("NETWORK_ALWAYS_ERROR"):
     NETWORK_ALWAYS_ERROR = True
+
+DOWNLOAD_BLOCK_DELAY: Optional[float] = None
+if delay_str := os.environ.get("DOWNLOAD_BLOCK_DELAY"):
+    DOWNLOAD_BLOCK_DELAY = float(delay_str)
 
 T = TypeVar("T")
 
@@ -159,6 +164,27 @@ class Result(Generic[T]):
         return self._data is not None
 
 
+@dataclass
+class DownloadProgress:
+    class Type(Enum):
+        QUEUED = 0
+        PROGRESS = 1
+        DONE = 2
+        CANCELLED = 3
+        ERROR = 4
+
+    type: Type
+    total_bytes: Optional[int] = None
+    current_bytes: Optional[int] = None
+    exception: Optional[Exception] = None
+
+    @property
+    def progress_fraction(self) -> Optional[float]:
+        if not self.current_bytes or not self.total_bytes:
+            return None
+        return self.current_bytes / self.total_bytes
+
+
 class AdapterManager:
     available_adapters: Set[Any] = {FilesystemAdapter, SubsonicAdapter}
     current_download_ids: Set[str] = set()
@@ -171,6 +197,7 @@ class AdapterManager:
     @dataclass
     class _AdapterManagerInternal:
         ground_truth_adapter: Adapter
+        on_song_download_progress: Callable[[Any, str, DownloadProgress], None]
         caching_adapter: Optional[CachingAdapter] = None
         concurrent_download_limit: int = 5
 
@@ -180,6 +207,9 @@ class AdapterManager:
             self.download_limiter_semaphore = threading.Semaphore(
                 self.concurrent_download_limit
             )
+
+        def song_download_progress(self, file_id: str, progress: DownloadProgress):
+            self.on_song_download_progress(file_id, progress)
 
         def shutdown(self):
             self.ground_truth_adapter.shutdown()
@@ -231,8 +261,10 @@ class AdapterManager:
         logging.info("AdapterManager shutdown complete")
 
     @staticmethod
-    def reset(config: Any):
-
+    def reset(
+        config: Any,
+        on_song_download_progress: Callable[[Any, str, DownloadProgress], None],
+    ):
         from sublime.config import AppConfiguration
 
         assert isinstance(config, AppConfiguration)
@@ -273,6 +305,7 @@ class AdapterManager:
 
         AdapterManager._instance = AdapterManager._AdapterManagerInternal(
             ground_truth_adapter,
+            on_song_download_progress,
             caching_adapter=caching_adapter,
             concurrent_download_limit=config.concurrent_download_limit,
         )
@@ -345,7 +378,10 @@ class AdapterManager:
 
     @staticmethod
     def _create_download_fn(
-        uri: str, id: str, before_download: Callable[[], None] = None,
+        uri: str,
+        id: str,
+        before_download: Callable[[], None] = None,
+        expected_size: int = None,
     ) -> Callable[[], str]:
         """
         Create a function to download the given URI to a temporary file, and return the
@@ -367,6 +403,8 @@ class AdapterManager:
 
             if before_download:
                 before_download()
+
+            expected_size_exists = expected_size is not None
 
             # TODO (#122): figure out how to retry if the other request failed.
             if resource_downloading:
@@ -393,16 +431,57 @@ class AdapterManager:
                     if NETWORK_ALWAYS_ERROR:
                         raise Exception("NETWORK_ALWAYS_ERROR enabled")
 
-                    data = requests.get(uri)
-
-                    # TODO (#122): make better
-                    if not data:
-                        raise Exception("Download failed!")
-                    if "json" in data.headers.get("Content-Type", ""):
+                    # Wait 10 seconds to connect to the server and start downloading.
+                    # Then, for each of the blocks, give 5 seconds to download (which
+                    # should be more than enough for 1 KiB).
+                    request = requests.get(uri, stream=True, timeout=(10, 5))
+                    if "json" in request.headers.get("Content-Type", ""):
                         raise Exception("Didn't expect JSON!")
 
+                    total_size = int(request.headers.get("Content-Length", 0))
+                    if expected_size_exists:
+                        if total_size != expected_size:
+                            raise Exception(
+                                f"Download content size ({total_size})is not the "
+                                f"expected size ({expected_size})."
+                            )
+
+                    block_size = 1024  # 1 KiB
+                    total_consumed = 0
+
                     with open(download_tmp_filename, "wb+") as f:
-                        f.write(data.content)
+                        for i, data in enumerate(request.iter_content(block_size)):
+                            total_consumed += len(data)
+                            f.write(data)
+
+                            if i % 5 == 0:
+                                # Only delay (if configured) and update the progress UI
+                                # every 5 KiB.
+                                if DOWNLOAD_BLOCK_DELAY is not None:
+                                    sleep(DOWNLOAD_BLOCK_DELAY)
+
+                                if expected_size_exists:
+                                    AdapterManager._instance.song_download_progress(
+                                        id,
+                                        DownloadProgress(
+                                            DownloadProgress.Type.PROGRESS,
+                                            total_bytes=total_size,
+                                            current_bytes=total_consumed,
+                                        ),
+                                    )
+
+                    # Everything succeeded.
+                    if expected_size_exists:
+                        AdapterManager._instance.song_download_progress(
+                            id, DownloadProgress(DownloadProgress.Type.DONE),
+                        )
+                except Exception as e:
+                    if expected_size_exists:
+                        # Something failed. Post an error.
+                        AdapterManager._instance.song_download_progress(
+                            id,
+                            DownloadProgress(DownloadProgress.Type.ERROR, exception=e),
+                        )
                 finally:
                     # Always release the download set lock, even if there's an error.
                     with AdapterManager.download_set_lock:
@@ -872,10 +951,16 @@ class AdapterManager:
                     AdapterManager._instance.caching_adapter.get_song_uri(
                         song_id, "file"
                     )
+                    AdapterManager._instance.song_download_progress(
+                        song_id, DownloadProgress(DownloadProgress.Type.DONE),
+                    )
+                    song = AdapterManager.get_song_details(song_id).result()
                 except CacheMissError:
                     # The song is not already cached.
                     if before_download:
                         before_download(song_id)
+
+                    song = AdapterManager.get_song_details(song_id).result()
 
                     # Download the song.
                     # TODO (#64) handle download errors?
@@ -885,16 +970,16 @@ class AdapterManager:
                         ),
                         song_id,
                         lambda: before_download(song_id),
+                        expected_size=song.size,
                     )()
                     AdapterManager._instance.caching_adapter.ingest_new_data(
                         CachingAdapter.CachedDataKey.SONG_FILE,
                         song_id,
-                        (None, song_tmp_filename),
+                        (None, song_tmp_filename, None),
                     )
                     on_song_download_complete(song_id)
 
                 # Download the corresponding cover art.
-                song = AdapterManager.get_song_details(song_id).result()
                 AdapterManager.get_cover_art_filename(song.cover_art).result()
             finally:
                 # Release the semaphore lock. This will allow the next song in the queue
@@ -905,6 +990,20 @@ class AdapterManager:
 
         def do_batch_download_songs():
             sleep(delay)
+            if (
+                AdapterManager.is_shutting_down
+                or AdapterManager._offline_mode
+                or cancelled
+            ):
+                return
+
+            # Alert the UI that the downloads are queue.
+            for song_id in song_ids:
+                # Everything succeeded.
+                AdapterManager._instance.song_download_progress(
+                    song_id, DownloadProgress(DownloadProgress.Type.QUEUED),
+                )
+
             for song_id in song_ids:
                 if (
                     AdapterManager.is_shutting_down
@@ -925,6 +1024,13 @@ class AdapterManager:
         def on_cancel():
             nonlocal cancelled
             cancelled = True
+
+            # Alert the UI that the downloads are cancelled.
+            for song_id in song_ids:
+                # Everything succeeded.
+                AdapterManager._instance.song_download_progress(
+                    song_id, DownloadProgress(DownloadProgress.Type.CANCELLED),
+                )
 
         return Result(do_batch_download_songs, is_download=True, on_cancel=on_cancel)
 

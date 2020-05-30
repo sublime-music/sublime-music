@@ -43,6 +43,7 @@ class CacheInfo(BaseModel):
     # Used for cached files.
     file_id = TextField(null=True)
     file_hash = TextField(null=True)
+    size = IntegerField(null=True)
     path = TextField(null=True)
     cache_permanently = BooleanField(null=True)
 
@@ -164,6 +165,13 @@ class Song(BaseModel):
 
     # figure out how to deal with different transcodings, etc.
     file = ForeignKeyField(CacheInfo, null=True)
+
+    @property
+    def size(self) -> Optional[int]:
+        try:
+            return self.file.size
+        except Exception:
+            return None
 
     @property
     def path(self) -> Optional[str]:

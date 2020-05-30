@@ -172,11 +172,6 @@ class AppConfiguration:
                 # Just ignore any errors, it is only UI state.
                 self._state = UIState()
 
-        # Do the import in the function to avoid circular imports.
-        from sublime.adapters import AdapterManager
-
-        AdapterManager.reset(self)
-
     @property
     def state_file_location(self) -> Optional[Path]:
         if self.server is None:

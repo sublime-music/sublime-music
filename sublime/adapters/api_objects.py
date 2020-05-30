@@ -95,6 +95,7 @@ class Song(abc.ABC):
     disc_number: Optional[int]
     year: Optional[int]
     cover_art: Optional[str]
+    size: Optional[int]
     user_rating: Optional[int]
     starred: Optional[datetime]
 

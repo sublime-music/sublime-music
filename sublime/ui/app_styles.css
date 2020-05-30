@@ -2,6 +2,7 @@
 #connected-to-label {
   margin: 5px 15px;
   font-size: 1.2em;
+  min-width: 200px;
 }
 
 #connected-status-row {
@@ -25,6 +26,10 @@
 #current-downloads-list {
   min-height: 30px;
   min-width: 250px;
+}
+
+#current-downloads-list-placeholder {
+  margin: 10px;
 }
 
 .menu-label {
