@@ -109,11 +109,16 @@ class AlbumSearchQuery:
         """
         Returns a deterministic hash of the query as a string.
 
-        >>> query = AlbumSearchQuery(
+        >>> AlbumSearchQuery(
         ...     AlbumSearchQuery.Type.YEAR_RANGE, year_range=(2018, 2019)
-        ... )
-        >>> query.strhash()
-        '5b0724ae23acd58bc2f9187617712775670e0b98'
+        ... ).strhash()
+        '275c58cac77c5ea9ccd34ab870f59627ab98e73c'
+        >>> AlbumSearchQuery(
+        ...     AlbumSearchQuery.Type.YEAR_RANGE, year_range=(2018, 2020)
+        ... ).strhash()
+        'e5dc424e8fc3b7d9ff7878b38cbf2c9fbdc19ec2'
+        >>> AlbumSearchQuery(AlbumSearchQuery.Type.STARRED).strhash()
+        '861b6ff011c97d53945ca89576463d0aeb78e3d2'
         """
         if not self._strhash:
             hash_tuple: Tuple[Any, ...] = (self.type.value,)
