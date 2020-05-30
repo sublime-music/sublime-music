@@ -4,7 +4,12 @@ from typing import cast, List, Sequence
 
 from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, api_objects as API, CacheMissError
+from sublime.adapters import (
+    AdapterManager,
+    api_objects as API,
+    CacheMissError,
+    SongCacheStatus,
+)
 from sublime.config import AppConfiguration
 from sublime.ui import util
 from sublime.ui.common import AlbumWithSongs, IconButton, LoadError, SpinnerImage
@@ -252,18 +257,17 @@ class ArtistDetailPanel(Gtk.Box):
             name="playlist-play-shuffle-buttons",
         )
 
-        # TODO: make these disabled if there are no songs that can be played.
-        play_button = IconButton(
+        self.play_button = IconButton(
             "media-playback-start-symbolic", label="Play All", relief=True
         )
-        play_button.connect("clicked", self.on_play_all_clicked)
-        self.play_shuffle_buttons.pack_start(play_button, False, False, 0)
+        self.play_button.connect("clicked", self.on_play_all_clicked)
+        self.play_shuffle_buttons.pack_start(self.play_button, False, False, 0)
 
-        shuffle_button = IconButton(
+        self.shuffle_button = IconButton(
             "media-playlist-shuffle-symbolic", label="Shuffle All", relief=True
         )
-        shuffle_button.connect("clicked", self.on_shuffle_all_button)
-        self.play_shuffle_buttons.pack_start(shuffle_button, False, False, 5)
+        self.shuffle_button.connect("clicked", self.on_shuffle_all_button)
+        self.play_shuffle_buttons.pack_start(self.shuffle_button, False, False, 5)
         artist_details_box.add(self.play_shuffle_buttons)
 
         self.big_info_panel.pack_start(artist_details_box, True, True, 0)
@@ -423,6 +427,36 @@ class ArtistDetailPanel(Gtk.Box):
             self.album_list_scrolledwindow.show()
 
         self.albums = artist.albums or []
+
+        # (Dis|En)able the "Play All" and "Shuffle All" buttons. If in offline mode, it
+        # depends on whether or not there are any cached songs.
+        if self.offline_mode:
+            has_cached_song = False
+            playable_statuses = (
+                SongCacheStatus.CACHED,
+                SongCacheStatus.PERMANENTLY_CACHED,
+            )
+
+            for album in self.albums:
+                if album.id:
+                    try:
+                        songs = AdapterManager.get_album(album.id).result().songs or []
+                    except CacheMissError as e:
+                        if e.partial_data:
+                            songs = cast(API.Album, e.partial_data).songs or []
+                        else:
+                            songs = []
+                    statuses = AdapterManager.get_cached_statuses([s.id for s in songs])
+                    if any(s in playable_statuses for s in statuses):
+                        has_cached_song = True
+                        break
+
+            self.play_button.set_sensitive(has_cached_song)
+            self.shuffle_button.set_sensitive(has_cached_song)
+        else:
+            self.play_button.set_sensitive(not self.offline_mode)
+            self.shuffle_button.set_sensitive(not self.offline_mode)
+
         self.albums_list.update(artist, app_config, force=force)
 
     @util.async_callback(
