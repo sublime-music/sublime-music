@@ -33,6 +33,7 @@ RUN apt update && \
         python3-pip \
         tk-dev \
         wget \
+        xvfb \
         xz-utils \
         zlib1g-dev
 

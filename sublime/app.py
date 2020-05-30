@@ -258,14 +258,14 @@ class SublimeMusicApp(Gtk.Application):
         inital_sync_result = AdapterManager.initial_sync()
         inital_sync_result.add_done_callback(lambda _: self.update_window())
 
-        # Start a loop for testing the ping.
-        def ping_update():
+        # Start a loop for periodically updating the window every 10 seconds.
+        def periodic_update():
             if self.exiting:
                 return
             self.update_window()
-            GLib.timeout_add(10000, ping_update)
+            GLib.timeout_add(10000, periodic_update)
 
-        GLib.timeout_add(10000, ping_update)
+        GLib.timeout_add(10000, periodic_update)
 
         # Prompt to load the play queue from the server.
         if self.app_config.server.sync_enabled:
@@ -536,6 +536,8 @@ class SublimeMusicApp(Gtk.Application):
         if self.app_config.state.current_song_index < 0:
             return
 
+        self.app_config.state.playing = not self.app_config.state.playing
+
         if self.player.song_loaded:
             self.player.toggle_play()
             self.save_play_queue()
@@ -543,7 +545,6 @@ class SublimeMusicApp(Gtk.Application):
             # This is from a restart, start playing the file.
             self.play_song(self.app_config.state.current_song_index)
 
-        self.app_config.state.playing = not self.app_config.state.playing
         self.update_window()
 
     def on_next_track(self, *args):
