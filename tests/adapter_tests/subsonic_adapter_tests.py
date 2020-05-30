@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Generator, List, Tuple
 
 import pytest
+from dateutil.tz import tzutc
 
 from sublime.adapters.subsonic import (
     api_objects as SubsonicAPI,
@@ -86,22 +87,23 @@ def test_request_making_methods(adapter: SubsonicAdapter):
     assert adapter._make_url("foo") == "http://subsonic.example.com/rest/foo.view"
 
 
-def test_can_service_requests(adapter: SubsonicAdapter):
+def test_ping_status(adapter: SubsonicAdapter):
     # Mock a connection error
     adapter._set_mock_data(Exception())
-    assert not adapter.can_service_requests
+    assert not adapter.ping_status
 
     # Simulate some sort of ping error
     for filename, data in mock_data_files("ping_failed"):
         logging.info(filename)
         logging.debug(data)
         adapter._set_mock_data(data)
-        assert not adapter.can_service_requests
+        assert not adapter.ping_status
 
     # Simulate valid ping
     adapter._set_mock_data(mock_json())
+    adapter._last_ping_timestamp.value = 0.0
     adapter._set_ping_status()
-    assert adapter.can_service_requests
+    assert adapter.ping_status
 
 
 def test_get_playlists(adapter: SubsonicAdapter):
@@ -111,8 +113,8 @@ def test_get_playlists(adapter: SubsonicAdapter):
             name="Test",
             song_count=132,
             duration=timedelta(seconds=33072),
-            created=datetime(2020, 3, 27, 5, 38, 45, 0, tzinfo=timezone.utc),
-            changed=datetime(2020, 4, 9, 16, 3, 26, 0, tzinfo=timezone.utc),
+            created=datetime(2020, 3, 27, 5, 38, 45, 0, tzinfo=tzutc()),
+            changed=datetime(2020, 4, 9, 16, 3, 26, 0, tzinfo=tzutc()),
             comment="Foo",
             owner="foo",
             public=True,
@@ -123,8 +125,8 @@ def test_get_playlists(adapter: SubsonicAdapter):
             name="Bar",
             song_count=23,
             duration=timedelta(seconds=847),
-            created=datetime(2020, 3, 27, 5, 39, 4, 0, tzinfo=timezone.utc),
-            changed=datetime(2020, 3, 27, 5, 45, 23, 0, tzinfo=timezone.utc),
+            created=datetime(2020, 3, 27, 5, 39, 4, 0, tzinfo=tzutc()),
+            changed=datetime(2020, 3, 27, 5, 45, 23, 0, tzinfo=tzutc()),
             comment="",
             owner="foo",
             public=False,
@@ -136,7 +138,7 @@ def test_get_playlists(adapter: SubsonicAdapter):
         logging.info(filename)
         logging.debug(data)
         adapter._set_mock_data(data)
-        assert adapter.get_playlists() == expected
+        assert adapter.get_playlists() == sorted(expected, key=lambda e: e.name)
 
     # When playlists is null, expect an empty list.
     adapter._set_mock_data(mock_json())

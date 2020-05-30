@@ -5,7 +5,7 @@
     <metadata_license>FSFAP</metadata_license>
     <project_license>GPL-3.0+</project_license>
     <name>Sublime Music</name>
-    <summary>Native Subsonic client for Linux</summary>
+    <summary>A native GTK music player with *sonic support</summary>
 
     <description>
         <p>
@@ -77,7 +77,6 @@
     <update_contact>me_AT_sumnerevans.com</update_contact>
 
     <releases>
-        <release version="0.9.2" date="2020-05-07">
-        </release>
+        <release version="0.10.0" date="2020-05-07"></release>
     </releases>
 </component>

@@ -11,6 +11,10 @@ variables:
   LC_ALL: "C.UTF-8"
   LANG: "C.UTF-8"
 
+cache:
+  paths:
+    - .venv/
+
 image: registry.gitlab.com/sumner/sublime-music/python-build:latest
 
 lint:
@@ -29,6 +33,9 @@ test:
   before_script:
     - ./cicd/install-project-deps.sh
     - ./cicd/start-dbus.sh
+    - apt install xvfb
+    - Xvfb :119 -screen 0 1024x768x16 &
+    - export DISPLAY=:119
   script:
     - pipenv run ./cicd/pytest.sh
   artifacts:
@@ -74,6 +81,7 @@ pages:
 deploy_pypi:
   image: python:3.8-alpine
   stage: deploy
+  cache: {}
   only:
     variables:
       # Only do a deploy if it's a version tag.
@@ -91,6 +99,7 @@ deploy_pypi:
 
 verify_deploy:
   stage: verify
+  cache: {}
   only:
     variables:
       # Only verify the deploy if it's a version tag.

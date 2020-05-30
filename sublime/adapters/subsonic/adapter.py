@@ -50,6 +50,10 @@ if delay_str := os.environ.get("REQUEST_DELAY"):
     else:
         REQUEST_DELAY = (float(delay_str), float(delay_str))
 
+NETWORK_ALWAYS_ERROR: bool = False
+if always_error := os.environ.get("NETWORK_ALWAYS_ERROR"):
+    NETWORK_ALWAYS_ERROR = True
+
 
 class SubsonicAdapter(Adapter):
     """
@@ -122,46 +126,61 @@ class SubsonicAdapter(Adapter):
         self.disable_cert_verify = config.get("disable_cert_verify")
 
         self.is_shutting_down = False
-        self.ping_process = multiprocessing.Process(target=self._check_ping_thread)
-        self.ping_process.start()
 
         # TODO (#112): support XML?
 
+    _ping_process: Optional[multiprocessing.Process] = None
+    _offline_mode = False
+
     def initial_sync(self):
-        # Wait for the ping to happen.
-        tries = 0
-        while not self._server_available.value and tries < 5:
-            self._set_ping_status()
-            tries += 1
+        # Try to ping the server five times using exponential backoff (2^5 = 32s).
+        self._exponential_backoff(5)
 
     def shutdown(self):
-        self.ping_process.terminate()
+        if self._ping_process:
+            self._ping_process.terminate()
 
     # Availability Properties
     # ==================================================================================
     _server_available = multiprocessing.Value("b", False)
+    _last_ping_timestamp = multiprocessing.Value("d", 0.0)
 
-    def _check_ping_thread(self):
-        # TODO (#198): also use other requests in place of ping if they come in. If the
-        # time since the last successful request is high, then do another ping.
-        # TODO (#198): also use NM to detect when the connection changes and update
-        # accordingly.
+    def _exponential_backoff(self, n: int):
+        logging.info(f"Starting Exponential Backoff: n={n}")
+        if self._ping_process:
+            self._ping_process.terminate()
 
-        while True:
-            self._set_ping_status()
-            sleep(15)
+        self._ping_process = multiprocessing.Process(
+            target=self._check_ping_thread, args=(n,)
+        )
+        self._ping_process.start()
 
-    def _set_ping_status(self):
-        try:
-            # Try to ping the server with a timeout of 2 seconds.
-            self._get_json(self._make_url("ping"), timeout=2)
-            self._server_available.value = True
-        except Exception:
-            logging.exception(f"Could not connect to {self.hostname}")
-            self._server_available.value = False
+    def _check_ping_thread(self, n: int):
+        i = 0
+        while i < n and not self._offline_mode and not self._server_available.value:
+            try:
+                self._set_ping_status(timeout=2 * (i + 1))
+            except Exception:
+                pass
+            sleep(2 ** i)
+            i += 1
+
+    def _set_ping_status(self, timeout: int = 2):
+        logging.info(f"SET PING STATUS timeout={timeout}")
+        now = datetime.now().timestamp()
+        if now - self._last_ping_timestamp.value < 15:
+            return
+
+        # Try to ping the server.
+        self._get_json(
+            self._make_url("ping"), timeout=timeout, is_exponential_backoff_ping=True,
+        )
+
+    def on_offline_mode_change(self, offline_mode: bool):
+        self._offline_mode = offline_mode
 
     @property
-    def can_service_requests(self) -> bool:
+    def ping_status(self) -> bool:
         return self._server_available.value
 
     # TODO (#199) make these way smarter
@@ -232,39 +251,59 @@ class SubsonicAdapter(Adapter):
         url: str,
         timeout: Union[float, Tuple[float, float], None] = None,
         # TODO (#122): retry count
+        is_exponential_backoff_ping: bool = False,
         **params,
     ) -> Any:
         params = {**self._get_params(), **params}
         logging.info(f"[START] get: {url}")
 
-        if REQUEST_DELAY:
-            delay = random.uniform(*REQUEST_DELAY)
-            logging.info(f"REQUEST_DELAY enabled. Pausing for {delay} seconds")
-            sleep(delay)
-            if timeout:
-                if type(timeout) == tuple:
-                    if cast(Tuple[float, float], timeout)[0] > delay:
-                        raise TimeoutError("DUMMY TIMEOUT ERROR")
-                else:
-                    if cast(float, timeout) > delay:
-                        raise TimeoutError("DUMMY TIMEOUT ERROR")
+        try:
+            if REQUEST_DELAY is not None:
+                delay = random.uniform(*REQUEST_DELAY)
+                logging.info(f"REQUEST_DELAY enabled. Pausing for {delay} seconds")
+                sleep(delay)
+                if timeout:
+                    if type(timeout) == tuple:
+                        if delay > cast(Tuple[float, float], timeout)[0]:
+                            raise TimeoutError("DUMMY TIMEOUT ERROR")
+                    else:
+                        if delay > cast(float, timeout):
+                            raise TimeoutError("DUMMY TIMEOUT ERROR")
 
-        # Deal with datetime parameters (convert to milliseconds since 1970)
-        for k, v in params.items():
-            if isinstance(v, datetime):
-                params[k] = int(v.timestamp() * 1000)
+            if NETWORK_ALWAYS_ERROR:
+                raise Exception("NETWORK_ALWAYS_ERROR enabled")
 
-        if self._is_mock:
-            logging.info("Using mock data")
-            return self._get_mock_data()
+            # Deal with datetime parameters (convert to milliseconds since 1970)
+            for k, v in params.items():
+                if isinstance(v, datetime):
+                    params[k] = int(v.timestamp() * 1000)
 
-        result = requests.get(
-            url, params=params, verify=not self.disable_cert_verify, timeout=timeout
-        )
+            if self._is_mock:
+                logging.info("Using mock data")
+                result = self._get_mock_data()
+            else:
+                result = requests.get(
+                    url,
+                    params=params,
+                    verify=not self.disable_cert_verify,
+                    timeout=timeout,
+                )
 
-        # TODO (#122): make better
-        if result.status_code != 200:
-            raise Exception(f"[FAIL] get: {url} status={result.status_code}")
+            # TODO (#122): make better
+            if result.status_code != 200:
+                raise Exception(f"[FAIL] get: {url} status={result.status_code}")
+
+            # Any time that a server request succeeds, then we win.
+            self._server_available.value = True
+            self._last_ping_timestamp.value = datetime.now().timestamp()
+
+        except Exception:
+            logging.exception(f"get: {url} failed")
+            self._server_available.value = False
+            self._last_ping_timestamp.value = datetime.now().timestamp()
+            if not is_exponential_backoff_ping:
+                self._exponential_backoff(5)
+            raise
 
         logging.info(f"[FINISH] get: {url}")
         return result
@@ -273,6 +312,7 @@ class SubsonicAdapter(Adapter):
         self,
         url: str,
         timeout: Union[float, Tuple[float, float], None] = None,
+        is_exponential_backoff_ping: bool = False,
         **params: Union[None, str, datetime, int, Sequence[int], Sequence[str]],
     ) -> Response:
         """
@@ -282,7 +322,12 @@ class SubsonicAdapter(Adapter):
         :returns: a dictionary of the subsonic response.
         :raises Exception: needs some work
         """
-        result = self._get(url, timeout=timeout, **params)
+        result = self._get(
+            url,
+            timeout=timeout,
+            is_exponential_backoff_ping=is_exponential_backoff_ping,
+            **params,
+        )
         subsonic_response = result.json().get("subsonic-response")
 
         # TODO (#122): make better
@@ -305,6 +350,8 @@ class SubsonicAdapter(Adapter):
 
     def _set_mock_data(self, data: Any):
         class MockResult:
+            status_code = 200
+
             def __init__(self, content: Any):
                 self._content = content
 
@@ -331,7 +378,7 @@ class SubsonicAdapter(Adapter):
     # ==================================================================================
     def get_playlists(self) -> Sequence[API.Playlist]:
         if playlists := self._get_json(self._make_url("getPlaylists")).playlists:
-            return playlists.playlist
+            return sorted(playlists.playlist, key=lambda p: p.name.lower())
         return []
 
     def get_playlist_details(self, playlist_id: str) -> API.Playlist:
@@ -518,7 +565,7 @@ class SubsonicAdapter(Adapter):
 
     def save_play_queue(
         self,
-        song_ids: Sequence[int],
+        song_ids: Sequence[str],
         current_song_index: int = None,
         position: timedelta = None,
     ):

@@ -1,13 +1,18 @@
 from datetime import timedelta
 from random import randint
-from typing import List, Sequence
+from typing import cast, List, Sequence
 
 from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, api_objects as API
+from sublime.adapters import (
+    AdapterManager,
+    api_objects as API,
+    CacheMissError,
+    SongCacheStatus,
+)
 from sublime.config import AppConfiguration
 from sublime.ui import util
-from sublime.ui.common import AlbumWithSongs, IconButton, SpinnerImage
+from sublime.ui.common import AlbumWithSongs, IconButton, LoadError, SpinnerImage
 
 
 class ArtistsPanel(Gtk.Paned):
@@ -64,11 +69,16 @@ class ArtistList(Gtk.Box):
 
         list_actions = Gtk.ActionBar()
 
-        refresh = IconButton("view-refresh-symbolic", "Refresh list of artists")
-        refresh.connect("clicked", lambda *a: self.update(force=True))
-        list_actions.pack_end(refresh)
+        self.refresh_button = IconButton(
+            "view-refresh-symbolic", "Refresh list of artists"
+        )
+        self.refresh_button.connect("clicked", lambda *a: self.update(force=True))
+        list_actions.pack_end(self.refresh_button)
 
         self.add(list_actions)
+
+        self.error_container = Gtk.Box()
+        self.add(self.error_container)
 
         self.loading_indicator = Gtk.ListBox()
         spinner_row = Gtk.ListBoxRow(activatable=False, selectable=False)
@@ -122,10 +132,28 @@ class ArtistList(Gtk.Box):
         self,
         artists: Sequence[API.Artist],
         app_config: AppConfiguration = None,
+        is_partial: bool = False,
         **kwargs,
     ):
         if app_config:
             self._app_config = app_config
+            self.refresh_button.set_sensitive(not app_config.offline_mode)
+
+        for c in self.error_container.get_children():
+            self.error_container.remove(c)
+        if is_partial:
+            load_error = LoadError(
+                "Artist list",
+                "load artists",
+                has_data=len(artists) > 0,
+                offline_mode=(
+                    self._app_config.offline_mode if self._app_config else False
+                ),
+            )
+            self.error_container.pack_start(load_error, True, True, 0)
+            self.error_container.show_all()
+        else:
+            self.error_container.hide()
 
         new_store = []
         selected_idx = None
@@ -229,17 +257,17 @@ class ArtistDetailPanel(Gtk.Box):
             name="playlist-play-shuffle-buttons",
         )
 
-        play_button = IconButton(
-            "media-playback-start-symbolic", label="Play All", relief=True,
+        self.play_button = IconButton(
+            "media-playback-start-symbolic", label="Play All", relief=True
         )
-        play_button.connect("clicked", self.on_play_all_clicked)
-        self.play_shuffle_buttons.pack_start(play_button, False, False, 0)
+        self.play_button.connect("clicked", self.on_play_all_clicked)
+        self.play_shuffle_buttons.pack_start(self.play_button, False, False, 0)
 
-        shuffle_button = IconButton(
-            "media-playlist-shuffle-symbolic", label="Shuffle All", relief=True,
+        self.shuffle_button = IconButton(
+            "media-playlist-shuffle-symbolic", label="Shuffle All", relief=True
         )
-        shuffle_button.connect("clicked", self.on_shuffle_all_button)
-        self.play_shuffle_buttons.pack_start(shuffle_button, False, False, 5)
+        self.shuffle_button.connect("clicked", self.on_shuffle_all_button)
+        self.play_shuffle_buttons.pack_start(self.shuffle_button, False, False, 5)
         artist_details_box.add(self.play_shuffle_buttons)
 
         self.big_info_panel.pack_start(artist_details_box, True, True, 0)
@@ -250,15 +278,15 @@ class ArtistDetailPanel(Gtk.Box):
             orientation=Gtk.Orientation.HORIZONTAL, spacing=10
         )
 
-        download_all_btn = IconButton(
+        self.download_all_button = IconButton(
             "folder-download-symbolic", "Download all songs by this artist"
         )
-        download_all_btn.connect("clicked", self.on_download_all_click)
-        self.artist_action_buttons.add(download_all_btn)
+        self.download_all_button.connect("clicked", self.on_download_all_click)
+        self.artist_action_buttons.add(self.download_all_button)
 
-        view_refresh_button = IconButton("view-refresh-symbolic", "Refresh artist info")
-        view_refresh_button.connect("clicked", self.on_view_refresh_click)
-        self.artist_action_buttons.add(view_refresh_button)
+        self.refresh_button = IconButton("view-refresh-symbolic", "Refresh artist info")
+        self.refresh_button.connect("clicked", self.on_view_refresh_click)
+        self.artist_action_buttons.add(self.refresh_button)
 
         action_buttons_container.pack_start(
             self.artist_action_buttons, False, False, 10
@@ -278,6 +306,9 @@ class ArtistDetailPanel(Gtk.Box):
 
         self.pack_start(self.big_info_panel, False, True, 0)
 
+        self.error_container = Gtk.Box()
+        self.add(self.error_container)
+
         self.album_list_scrolledwindow = Gtk.ScrolledWindow()
         self.albums_list = AlbumsListWithSongs()
         self.albums_list.connect(
@@ -288,6 +319,7 @@ class ArtistDetailPanel(Gtk.Box):
 
     def update(self, app_config: AppConfiguration):
         self.artist_id = app_config.state.selected_artist_id
+        self.offline_mode = app_config.offline_mode
         if app_config.state.selected_artist_id is None:
             self.big_info_panel.hide()
             self.album_list_scrolledwindow.hide()
@@ -300,6 +332,8 @@ class ArtistDetailPanel(Gtk.Box):
                 app_config=app_config,
                 order_token=self.update_order_token,
             )
+            self.refresh_button.set_sensitive(not self.offline_mode)
+            self.download_all_button.set_sensitive(not self.offline_mode)
 
     @util.async_callback(
         AdapterManager.get_artist,
@@ -312,11 +346,12 @@ class ArtistDetailPanel(Gtk.Box):
         app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
+        is_partial: bool = False,
     ):
         if order_token != self.update_order_token:
             return
 
-        self.big_info_panel.show()
+        self.big_info_panel.show_all()
 
         if app_config:
             self.artist_details_expanded = app_config.state.artist_details_expanded
@@ -333,11 +368,14 @@ class ArtistDetailPanel(Gtk.Box):
         if self.artist_details_expanded:
             self.artist_artwork.get_style_context().remove_class("collapsed")
             self.artist_name.get_style_context().remove_class("collapsed")
-            self.artist_artwork.set_image_size(300)
             self.artist_indicator.set_text("ARTIST")
             self.artist_stats.set_markup(self.format_stats(artist))
 
-            self.artist_bio.set_markup(util.esc(artist.biography))
+            if artist.biography:
+                self.artist_bio.set_markup(util.esc(artist.biography))
+                self.artist_bio.show()
+            else:
+                self.artist_bio.hide()
 
             if len(artist.similar_artists or []) > 0:
                 self.similar_artists_label.set_markup("<b>Similar Artists:</b> ")
@@ -359,7 +397,6 @@ class ArtistDetailPanel(Gtk.Box):
         else:
             self.artist_artwork.get_style_context().add_class("collapsed")
             self.artist_name.get_style_context().add_class("collapsed")
-            self.artist_artwork.set_image_size(70)
             self.artist_indicator.hide()
             self.artist_stats.hide()
             self.artist_bio.hide()
@@ -371,8 +408,56 @@ class ArtistDetailPanel(Gtk.Box):
             artist.artist_image_url, force=force, order_token=order_token,
         )
 
+        for c in self.error_container.get_children():
+            self.error_container.remove(c)
+        if is_partial:
+            has_data = len(artist.albums or []) > 0
+            load_error = LoadError(
+                "Artist data",
+                "load artist details",
+                has_data=has_data,
+                offline_mode=self.offline_mode,
+            )
+            self.error_container.pack_start(load_error, True, True, 0)
+            self.error_container.show_all()
+            if not has_data:
+                self.album_list_scrolledwindow.hide()
+        else:
+            self.error_container.hide()
+            self.album_list_scrolledwindow.show()
+
         self.albums = artist.albums or []
-        self.albums_list.update(artist)
+
+        # (Dis|En)able the "Play All" and "Shuffle All" buttons. If in offline mode, it
+        # depends on whether or not there are any cached songs.
+        if self.offline_mode:
+            has_cached_song = False
+            playable_statuses = (
+                SongCacheStatus.CACHED,
+                SongCacheStatus.PERMANENTLY_CACHED,
+            )
+
+            for album in self.albums:
+                if album.id:
+                    try:
+                        songs = AdapterManager.get_album(album.id).result().songs or []
+                    except CacheMissError as e:
+                        if e.partial_data:
+                            songs = cast(API.Album, e.partial_data).songs or []
+                        else:
+                            songs = []
+                    statuses = AdapterManager.get_cached_statuses([s.id for s in songs])
+                    if any(s in playable_statuses for s in statuses):
+                        has_cached_song = True
+                        break
+
+            self.play_button.set_sensitive(has_cached_song)
+            self.shuffle_button.set_sensitive(has_cached_song)
+        else:
+            self.play_button.set_sensitive(not self.offline_mode)
+            self.shuffle_button.set_sensitive(not self.offline_mode)
+
+        self.albums_list.update(artist, app_config, force=force)
 
     @util.async_callback(
         AdapterManager.get_cover_art_filename,
@@ -385,11 +470,17 @@ class ArtistDetailPanel(Gtk.Box):
         app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
+        is_partial: bool = False,
     ):
         if order_token != self.update_order_token:
             return
         self.artist_artwork.set_from_file(cover_art_filename)
         self.artist_artwork.set_loading(False)
+
+        if self.artist_details_expanded:
+            self.artist_artwork.set_image_size(300)
+        else:
+            self.artist_artwork.set_image_size(70)
 
     # Event Handlers
     # =========================================================================
@@ -442,7 +533,7 @@ class ArtistDetailPanel(Gtk.Box):
             self.albums_list.spinner.hide()
             self.artist_artwork.set_loading(False)
 
-    def make_label(self, text: str = None, name: str = None, **params,) -> Gtk.Label:
+    def make_label(self, text: str = None, name: str = None, **params) -> Gtk.Label:
         return Gtk.Label(
             label=text, name=name, halign=Gtk.Align.START, xalign=0, **params,
         )
@@ -461,11 +552,24 @@ class ArtistDetailPanel(Gtk.Box):
         )
 
     def get_artist_song_ids(self) -> List[str]:
+        try:
+            artist = AdapterManager.get_artist(self.artist_id).result()
+        except CacheMissError as c:
+            artist = cast(API.Artist, c.partial_data)
+
+        if not artist:
+            return []
+
         songs = []
-        for album in AdapterManager.get_artist(self.artist_id).result().albums or []:
+        for album in artist.albums or []:
             assert album.id
-            album_songs = AdapterManager.get_album(album.id).result()
-            for song in album_songs.songs or []:
+            try:
+                album_with_songs = AdapterManager.get_album(album.id).result()
+            except CacheMissError as c:
+                album_with_songs = cast(API.Album, c.partial_data)
+            if not album_with_songs:
+                continue
+            for song in album_with_songs.songs or []:
                 songs.append(song.id)
 
         return songs
@@ -495,7 +599,9 @@ class AlbumsListWithSongs(Gtk.Overlay):
 
         self.albums = []
 
-    def update(self, artist: API.Artist):
+    def update(
+        self, artist: API.Artist, app_config: AppConfiguration, force: bool = False
+    ):
         def remove_all():
             for c in self.box.get_children():
                 self.box.remove(c)
@@ -510,7 +616,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
         if self.albums == new_albums:
             # Just go through all of the colidren and update them.
             for c in self.box.get_children():
-                c.update()
+                c.update(app_config=app_config, force=force)
 
             self.spinner.hide()
             return
@@ -528,7 +634,11 @@ class AlbumsListWithSongs(Gtk.Overlay):
             album_with_songs.show_all()
             self.box.add(album_with_songs)
 
-        self.spinner.stop()
+        # Update everything (no force to ensure that if we are online, then everything
+        # is clickable)
+        for c in self.box.get_children():
+            c.update(app_config=app_config)
+
         self.spinner.hide()
 
     def on_song_selected(self, album_component: AlbumWithSongs):

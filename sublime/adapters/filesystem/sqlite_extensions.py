@@ -75,8 +75,9 @@ class SortedManyToManyFieldAccessor(ManyToManyFieldAccessor):
         if instance is not None:
             if not force_query and self.src_fk.backref != "+":
                 backref = getattr(instance, self.src_fk.backref)
-                if isinstance(backref, list):
-                    return [getattr(obj, self.dest_fk.name) for obj in backref]
+                assert not isinstance(backref, list)
+                # if isinstance(backref, list):
+                #     return [getattr(obj, self.dest_fk.name) for obj in backref]
 
             src_id = getattr(instance, self.src_fk.rel_field.name)
             return (

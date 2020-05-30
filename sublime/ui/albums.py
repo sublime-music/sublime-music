@@ -10,11 +10,12 @@ from sublime.adapters import (
     AdapterManager,
     AlbumSearchQuery,
     api_objects as API,
+    CacheMissError,
     Result,
 )
 from sublime.config import AppConfiguration
 from sublime.ui import util
-from sublime.ui.common import AlbumWithSongs, IconButton, SpinnerImage
+from sublime.ui.common import AlbumWithSongs, IconButton, LoadError, SpinnerImage
 
 
 def _to_type(query_type: AlbumSearchQuery.Type) -> str:
@@ -59,6 +60,7 @@ class AlbumsPanel(Gtk.Box):
         ),
     }
 
+    offline_mode = False
     populating_genre_combo = False
     grid_order_token: int = 0
     album_sort_direction: str = "ascending"
@@ -143,11 +145,11 @@ class AlbumsPanel(Gtk.Box):
         page_widget.add(self.next_page)
         actionbar.set_center_widget(page_widget)
 
-        refresh = IconButton(
+        self.refresh_button = IconButton(
             "view-refresh-symbolic", "Refresh list of albums", relief=True
         )
-        refresh.connect("clicked", self.on_refresh_clicked)
-        actionbar.pack_end(refresh)
+        self.refresh_button.connect("clicked", self.on_refresh_clicked)
+        actionbar.pack_end(self.refresh_button)
 
         actionbar.pack_end(Gtk.Label(label="albums per page"))
         self.show_count_dropdown, _ = self.make_combobox(
@@ -233,6 +235,7 @@ class AlbumsPanel(Gtk.Box):
 
         if app_config:
             self.current_query = app_config.state.current_album_search_query
+            self.offline_mode = app_config.offline_mode
 
         self.alphabetical_type_combo.set_active_id(
             {
@@ -251,6 +254,7 @@ class AlbumsPanel(Gtk.Box):
         if app_config:
             self.album_page = app_config.state.album_page
             self.album_page_size = app_config.state.album_page_size
+            self.refresh_button.set_sensitive(not app_config.offline_mode)
 
         self.prev_page.set_sensitive(self.album_page > 0)
         self.page_entry.set_text(str(self.album_page + 1))
@@ -300,7 +304,9 @@ class AlbumsPanel(Gtk.Box):
         self.populate_genre_combo(app_config, force=force)
 
         # At this point, the current query should be totally updated.
-        self.grid_order_token = self.grid.update_params(self.current_query)
+        self.grid_order_token = self.grid.update_params(
+            self.current_query, self.offline_mode
+        )
         self.grid.update(self.grid_order_token, app_config, force=force)
 
     def _get_opposite_sort_dir(self, sort_dir: str) -> str:
@@ -399,7 +405,7 @@ class AlbumsPanel(Gtk.Box):
         if self.to_year_spin_button == entry:
             new_year_tuple = (self.current_query.year_range[0], year)
         else:
-            new_year_tuple = (year, self.current_query.year_range[0])
+            new_year_tuple = (year, self.current_query.year_range[1])
 
         self.emit_if_not_updating(
             "refresh-window",
@@ -504,6 +510,7 @@ class AlbumsGrid(Gtk.Overlay):
     current_models: List[_AlbumModel] = []
     latest_applied_order_ratchet: int = 0
     order_ratchet: int = 0
+    offline_mode: bool = False
 
     currently_selected_index: Optional[int] = None
     currently_selected_id: Optional[str] = None
@@ -514,11 +521,14 @@ class AlbumsGrid(Gtk.Overlay):
     next_page_fn = None
     server_hash: Optional[str] = None
 
-    def update_params(self, query: AlbumSearchQuery) -> int:
+    def update_params(self, query: AlbumSearchQuery, offline_mode: bool) -> int:
         # If there's a diff, increase the ratchet.
         if self.current_query.strhash() != query.strhash():
             self.order_ratchet += 1
             self.current_query = query
+        if offline_mode != self.offline_mode:
+            self.order_ratchet += 1
+        self.offline_mode = offline_mode
         return self.order_ratchet
 
     def __init__(self, *args, **kwargs):
@@ -528,6 +538,9 @@ class AlbumsGrid(Gtk.Overlay):
 
         scrolled_window = Gtk.ScrolledWindow()
         grid_detail_grid_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        self.error_container = Gtk.Box()
+        grid_detail_grid_box.add(self.error_container)
 
         def create_flowbox(**kwargs) -> Gtk.FlowBox:
             flowbox = Gtk.FlowBox(
@@ -541,7 +554,7 @@ class AlbumsGrid(Gtk.Overlay):
                 halign=Gtk.Align.CENTER,
                 selection_mode=Gtk.SelectionMode.SINGLE,
             )
-            flowbox.set_max_children_per_line(10)
+            flowbox.set_max_children_per_line(7)
             return flowbox
 
         self.grid_top = create_flowbox()
@@ -554,7 +567,9 @@ class AlbumsGrid(Gtk.Overlay):
         grid_detail_grid_box.add(self.grid_top)
 
         self.detail_box_revealer = Gtk.Revealer(valign=Gtk.Align.END)
-        self.detail_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.detail_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, name="artist-detail-box"
+        )
         self.detail_box.pack_start(Gtk.Box(), True, True, 0)
 
         self.detail_box_inner = Gtk.Box()
@@ -619,7 +634,7 @@ class AlbumsGrid(Gtk.Overlay):
         # Update the detail panel.
         children = self.detail_box_inner.get_children()
         if len(children) > 0 and hasattr(children[0], "update"):
-            children[0].update(force=force)
+            children[0].update(app_config=app_config, force=force)
 
     error_dialog = None
 
@@ -643,11 +658,9 @@ class AlbumsGrid(Gtk.Overlay):
             if self.sort_dir == "descending" and selected_index:
                 selected_index = len(self.current_models) - selected_index - 1
 
-            selection_changed = selected_index != self.currently_selected_index
-            self.currently_selected_index = selected_index
             self.reflow_grids(
                 force_reload_from_master=force_grid_reload_from_master,
-                selection_changed=selection_changed,
+                selected_index=selected_index,
                 models=self.current_models,
             )
             self.spinner.hide()
@@ -658,8 +671,12 @@ class AlbumsGrid(Gtk.Overlay):
                 return
             self.latest_applied_order_ratchet = self.order_ratchet
 
+            is_partial = False
             try:
-                albums = f.result()
+                albums = list(f.result())
+            except CacheMissError as e:
+                albums = cast(Optional[List[API.Album]], e.partial_data) or []
+                is_partial = True
             except Exception as e:
                 if self.error_dialog:
                     self.spinner.hide()
@@ -681,6 +698,23 @@ class AlbumsGrid(Gtk.Overlay):
                 self.error_dialog = None
                 self.spinner.hide()
                 return
+
+            for c in self.error_container.get_children():
+                self.error_container.remove(c)
+            if is_partial and (
+                len(albums) == 0
+                or self.current_query.type != AlbumSearchQuery.Type.RANDOM
+            ):
+                load_error = LoadError(
+                    "Album list",
+                    "load albums",
+                    has_data=albums is not None and len(albums) > 0,
+                    offline_mode=self.offline_mode,
+                )
+                self.error_container.pack_start(load_error, True, True, 0)
+                self.error_container.show_all()
+            else:
+                self.error_container.hide()
 
             selected_index = None
             self.current_models = []
@@ -746,14 +780,17 @@ class AlbumsGrid(Gtk.Overlay):
         #              add extra padding.
         # 200     + (10      * 2) + (5      * 2) = 230
         # picture + (padding * 2) + (margin * 2)
-        new_items_per_row = min((rect.width // 230), 10)
+        new_items_per_row = min((rect.width // 230), 7)
         if new_items_per_row != self.items_per_row:
             self.items_per_row = new_items_per_row
             self.detail_box_inner.set_size_request(
                 self.items_per_row * 230 - 10, -1,
             )
 
-            self.reflow_grids(force_reload_from_master=True)
+            self.reflow_grids(
+                force_reload_from_master=True,
+                selected_index=self.currently_selected_index,
+            )
 
     # Helper Methods
     # =========================================================================
@@ -763,7 +800,7 @@ class AlbumsGrid(Gtk.Overlay):
             label=text,
             tooltip_text=text,
             ellipsize=Pango.EllipsizeMode.END,
-            max_width_chars=20,
+            max_width_chars=22,
             halign=Gtk.Align.START,
         )
 
@@ -813,17 +850,18 @@ class AlbumsGrid(Gtk.Overlay):
     def reflow_grids(
         self,
         force_reload_from_master: bool = False,
-        selection_changed: bool = False,
+        selected_index: int = None,
         models: List[_AlbumModel] = None,
     ):
         # Calculate the page that the currently_selected_index is in. If it's a
         # different page, then update the window.
-        page_changed = False
-        if self.currently_selected_index is not None:
-            page_of_selected_index = self.currently_selected_index // self.page_size
+        if selected_index is not None:
+            page_of_selected_index = selected_index // self.page_size
             if page_of_selected_index != self.page:
-                page_changed = True
-                self.page = page_of_selected_index
+                self.emit(
+                    "refresh-window", {"album_page": page_of_selected_index}, False
+                )
+                return
         page_offset = self.page_size * self.page
 
         # Calculate the look-at window.
@@ -841,14 +879,14 @@ class AlbumsGrid(Gtk.Overlay):
 
         # Determine where the cuttoff is between the top and bottom grids.
         entries_before_fold = self.page_size
-        if self.currently_selected_index is not None and self.items_per_row:
-            relative_selected_index = self.currently_selected_index - page_offset
+        if selected_index is not None and self.items_per_row:
+            relative_selected_index = selected_index - page_offset
             entries_before_fold = (
                 (relative_selected_index // self.items_per_row) + 1
             ) * self.items_per_row
 
         # Unreveal the current album details first
-        if self.currently_selected_index is None:
+        if selected_index is None:
             self.detail_box_revealer.set_reveal_child(False)
 
         if force_reload_from_master:
@@ -860,7 +898,7 @@ class AlbumsGrid(Gtk.Overlay):
             self.list_store_bottom.splice(
                 0, len(self.list_store_bottom), window[entries_before_fold:],
             )
-        elif self.currently_selected_index or entries_before_fold != self.page_size:
+        elif selected_index or entries_before_fold != self.page_size:
             # This case handles when the selection changes and the entries need to be
             # re-allocated to the top and bottom grids
             # Move entries between the two stores.
@@ -880,14 +918,14 @@ class AlbumsGrid(Gtk.Overlay):
                     self.list_store_bottom.splice(0, 0, self.list_store_top[-diff:])
                     self.list_store_top.splice(top_store_len - diff, diff, [])
 
-        if self.currently_selected_index is not None:
-            relative_selected_index = self.currently_selected_index - page_offset
+        if selected_index is not None:
+            relative_selected_index = selected_index - page_offset
             to_select = self.grid_top.get_child_at_index(relative_selected_index)
             if not to_select:
                 return
             self.grid_top.select_child(to_select)
 
-            if not selection_changed:
+            if self.currently_selected_index == selected_index:
                 return
 
             for c in self.detail_box_inner.get_children():
@@ -911,9 +949,4 @@ class AlbumsGrid(Gtk.Overlay):
             self.grid_top.unselect_all()
             self.grid_bottom.unselect_all()
 
-        # If we had to change the page to select the index, then update the window. It
-        # should basically be a no-op.
-        if page_changed:
-            self.emit(
-                "refresh-window", {"album_page": self.page}, False,
-            )
+        self.currently_selected_index = selected_index

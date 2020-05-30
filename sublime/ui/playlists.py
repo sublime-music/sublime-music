@@ -11,6 +11,7 @@ from sublime.ui import util
 from sublime.ui.common import (
     EditFormDialog,
     IconButton,
+    LoadError,
     SongListColumn,
     SpinnerImage,
 )
@@ -73,6 +74,8 @@ class PlaylistList(Gtk.Box):
         ),
     }
 
+    offline_mode = False
+
     class PlaylistModel(GObject.GObject):
         playlist_id = GObject.Property(type=str)
         name = GObject.Property(type=str)
@@ -87,17 +90,20 @@ class PlaylistList(Gtk.Box):
 
         playlist_list_actions = Gtk.ActionBar()
 
-        new_playlist_button = IconButton("list-add-symbolic", label="New Playlist")
-        new_playlist_button.connect("clicked", self.on_new_playlist_clicked)
-        playlist_list_actions.pack_start(new_playlist_button)
+        self.new_playlist_button = IconButton("list-add-symbolic", label="New Playlist")
+        self.new_playlist_button.connect("clicked", self.on_new_playlist_clicked)
+        playlist_list_actions.pack_start(self.new_playlist_button)
 
-        list_refresh_button = IconButton(
+        self.list_refresh_button = IconButton(
             "view-refresh-symbolic", "Refresh list of playlists"
         )
-        list_refresh_button.connect("clicked", self.on_list_refresh_click)
-        playlist_list_actions.pack_end(list_refresh_button)
+        self.list_refresh_button.connect("clicked", self.on_list_refresh_click)
+        playlist_list_actions.pack_end(self.list_refresh_button)
 
         self.add(playlist_list_actions)
+
+        self.error_container = Gtk.Box()
+        self.add(self.error_container)
 
         loading_new_playlist = Gtk.ListBox()
 
@@ -164,9 +170,13 @@ class PlaylistList(Gtk.Box):
         list_scroll_window.add(self.list)
         self.pack_start(list_scroll_window, True, True, 0)
 
-    def update(self, **kwargs):
+    def update(self, app_config: AppConfiguration = None, force: bool = False):
+        if app_config:
+            self.offline_mode = app_config.offline_mode
+            self.new_playlist_button.set_sensitive(not app_config.offline_mode)
+            self.list_refresh_button.set_sensitive(not app_config.offline_mode)
         self.new_playlist_row.hide()
-        self.update_list(**kwargs)
+        self.update_list(app_config=app_config, force=force)
 
     @util.async_callback(
         AdapterManager.get_playlists,
@@ -176,10 +186,25 @@ class PlaylistList(Gtk.Box):
     def update_list(
         self,
         playlists: List[API.Playlist],
-        app_config: AppConfiguration,
+        app_config: AppConfiguration = None,
         force: bool = False,
         order_token: int = None,
+        is_partial: bool = False,
     ):
+        for c in self.error_container.get_children():
+            self.error_container.remove(c)
+        if is_partial:
+            load_error = LoadError(
+                "Playlist list",
+                "load playlists",
+                has_data=len(playlists) > 0,
+                offline_mode=self.offline_mode,
+            )
+            self.error_container.pack_start(load_error, True, True, 0)
+            self.error_container.show_all()
+        else:
+            self.error_container.hide()
+
         new_store = []
         selected_idx = None
         for i, playlist in enumerate(playlists or []):
@@ -247,6 +272,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     playlist_id = None
     playlist_details_expanded = False
+    offline_mode = False
 
     editing_playlist_song_list: bool = False
     reordering_playlist_song_list: bool = False
@@ -286,17 +312,17 @@ class PlaylistDetailPanel(Gtk.Overlay):
             name="playlist-play-shuffle-buttons",
         )
 
-        play_button = IconButton(
+        self.play_all_button = IconButton(
             "media-playback-start-symbolic", label="Play All", relief=True,
         )
-        play_button.connect("clicked", self.on_play_all_clicked)
-        self.play_shuffle_buttons.pack_start(play_button, False, False, 0)
+        self.play_all_button.connect("clicked", self.on_play_all_clicked)
+        self.play_shuffle_buttons.pack_start(self.play_all_button, False, False, 0)
 
-        shuffle_button = IconButton(
+        self.shuffle_all_button = IconButton(
             "media-playlist-shuffle-symbolic", label="Shuffle All", relief=True,
         )
-        shuffle_button.connect("clicked", self.on_shuffle_all_button)
-        self.play_shuffle_buttons.pack_start(shuffle_button, False, False, 5)
+        self.shuffle_all_button.connect("clicked", self.on_shuffle_all_button)
+        self.play_shuffle_buttons.pack_start(self.shuffle_all_button, False, False, 5)
 
         playlist_details_box.add(self.play_shuffle_buttons)
 
@@ -308,23 +334,23 @@ class PlaylistDetailPanel(Gtk.Overlay):
             orientation=Gtk.Orientation.HORIZONTAL, spacing=10
         )
 
-        download_all_button = IconButton(
+        self.download_all_button = IconButton(
             "folder-download-symbolic", "Download all songs in the playlist"
         )
-        download_all_button.connect(
+        self.download_all_button.connect(
             "clicked", self.on_playlist_list_download_all_button_click
         )
-        self.playlist_action_buttons.add(download_all_button)
+        self.playlist_action_buttons.add(self.download_all_button)
 
-        playlist_edit_button = IconButton("document-edit-symbolic", "Edit paylist")
-        playlist_edit_button.connect("clicked", self.on_playlist_edit_button_click)
-        self.playlist_action_buttons.add(playlist_edit_button)
+        self.playlist_edit_button = IconButton("document-edit-symbolic", "Edit paylist")
+        self.playlist_edit_button.connect("clicked", self.on_playlist_edit_button_click)
+        self.playlist_action_buttons.add(self.playlist_edit_button)
 
-        view_refresh_button = IconButton(
+        self.view_refresh_button = IconButton(
             "view-refresh-symbolic", "Refresh playlist info"
         )
-        view_refresh_button.connect("clicked", self.on_view_refresh_click)
-        self.playlist_action_buttons.add(view_refresh_button)
+        self.view_refresh_button.connect("clicked", self.on_view_refresh_click)
+        self.playlist_action_buttons.add(self.view_refresh_button)
 
         action_buttons_container.pack_start(
             self.playlist_action_buttons, False, False, 10
@@ -344,10 +370,14 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         self.playlist_box.add(playlist_info_box)
 
+        self.error_container = Gtk.Box()
+        self.playlist_box.add(self.error_container)
+
         # Playlist songs list
-        playlist_view_scroll_window = Gtk.ScrolledWindow()
+        self.playlist_song_scroll_window = Gtk.ScrolledWindow()
 
         self.playlist_song_store = Gtk.ListStore(
+            bool,  # clickable
             str,  # cache status
             str,  # title
             str,  # album
@@ -387,20 +417,22 @@ class PlaylistDetailPanel(Gtk.Overlay):
             enable_search=True,
         )
         self.playlist_songs.set_search_equal_func(playlist_song_list_search_fn)
-        self.playlist_songs.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+        selection = self.playlist_songs.get_selection()
+        selection.set_mode(Gtk.SelectionMode.MULTIPLE)
+        selection.set_select_function(lambda _, model, path, current: model[path[0]][0])
 
         # Song status column.
         renderer = Gtk.CellRendererPixbuf()
         renderer.set_fixed_size(30, 35)
-        column = Gtk.TreeViewColumn("", renderer, icon_name=0)
+        column = Gtk.TreeViewColumn("", renderer, icon_name=1)
         column.set_resizable(True)
         self.playlist_songs.append_column(column)
 
-        self.playlist_songs.append_column(SongListColumn("TITLE", 1, bold=True))
-        self.playlist_songs.append_column(SongListColumn("ALBUM", 2))
-        self.playlist_songs.append_column(SongListColumn("ARTIST", 3))
+        self.playlist_songs.append_column(SongListColumn("TITLE", 2, bold=True))
+        self.playlist_songs.append_column(SongListColumn("ALBUM", 3))
+        self.playlist_songs.append_column(SongListColumn("ARTIST", 4))
         self.playlist_songs.append_column(
-            SongListColumn("DURATION", 4, align=1, width=40)
+            SongListColumn("DURATION", 5, align=1, width=40)
         )
 
         self.playlist_songs.connect("row-activated", self.on_song_activated)
@@ -413,9 +445,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
         self.playlist_song_store.connect("row-deleted", self.on_playlist_model_row_move)
 
-        playlist_view_scroll_window.add(self.playlist_songs)
+        self.playlist_song_scroll_window.add(self.playlist_songs)
 
-        self.playlist_box.pack_start(playlist_view_scroll_window, True, True, 0)
+        self.playlist_box.pack_start(self.playlist_song_scroll_window, True, True, 0)
         self.add(self.playlist_box)
 
         playlist_view_spinner = Gtk.Spinner(active=True)
@@ -430,6 +462,11 @@ class PlaylistDetailPanel(Gtk.Overlay):
     update_playlist_view_order_token = 0
 
     def update(self, app_config: AppConfiguration, force: bool = False):
+        # Deselect everything if switching online to offline.
+        if self.offline_mode != app_config.offline_mode:
+            self.playlist_songs.get_selection().unselect_all()
+
+        self.offline_mode = app_config.offline_mode
         if app_config.state.selected_playlist_id is None:
             self.playlist_box.hide()
             self.playlist_view_loading_box.hide()
@@ -442,6 +479,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 force=force,
                 order_token=self.update_playlist_view_order_token,
             )
+            self.download_all_button.set_sensitive(not app_config.offline_mode)
+            self.playlist_edit_button.set_sensitive(not app_config.offline_mode)
+            self.view_refresh_button.set_sensitive(not app_config.offline_mode)
 
     _current_song_ids: List[str] = []
 
@@ -456,6 +496,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         app_config: AppConfiguration = None,
         force: bool = False,
         order_token: int = None,
+        is_partial: bool = False,
     ):
         if self.update_playlist_view_order_token != order_token:
             return
@@ -481,9 +522,9 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_name.set_tooltip_text(playlist.name)
 
         if self.playlist_details_expanded:
+            self.playlist_artwork.get_style_context().remove_class("collapsed")
             self.playlist_name.get_style_context().remove_class("collapsed")
             self.playlist_box.show_all()
-            self.playlist_artwork.set_image_size(200)
             self.playlist_indicator.set_markup("PLAYLIST")
 
             if playlist.comment:
@@ -495,15 +536,33 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
             self.playlist_stats.set_markup(self._format_stats(playlist))
         else:
+            self.playlist_artwork.get_style_context().add_class("collapsed")
             self.playlist_name.get_style_context().add_class("collapsed")
             self.playlist_box.show_all()
-            self.playlist_artwork.set_image_size(70)
             self.playlist_indicator.hide()
             self.playlist_comment.hide()
             self.playlist_stats.hide()
 
         # Update the artwork.
         self.update_playlist_artwork(playlist.cover_art, order_token=order_token)
+
+        for c in self.error_container.get_children():
+            self.error_container.remove(c)
+        if is_partial:
+            has_data = len(playlist.songs) > 0
+            load_error = LoadError(
+                "Playlist data",
+                "load playlist details",
+                has_data=has_data,
+                offline_mode=self.offline_mode,
+            )
+            self.error_container.pack_start(load_error, True, True, 0)
+            self.error_container.show_all()
+            if not has_data:
+                self.playlist_song_scroll_window.hide()
+        else:
+            self.error_container.hide()
+            self.playlist_song_scroll_window.show()
 
         # Update the song list model. This requires some fancy diffing to
         # update the list.
@@ -518,38 +577,55 @@ class PlaylistDetailPanel(Gtk.Overlay):
         # and the expensive parts of the second loop are avoided if the IDs haven't
         # changed.
         song_ids, songs = [], []
+        if len(self._current_song_ids) != len(playlist.songs):
+            force = True
+
         for i, c in enumerate(playlist.songs):
             if i >= len(self._current_song_ids) or c.id != self._current_song_ids[i]:
                 force = True
             song_ids.append(c.id)
             songs.append(c)
 
+        new_songs_store = []
+        can_play_any_song = False
+        cached_status_icons = ("folder-download-symbolic", "view-pin-symbolic")
+
         if force:
             self._current_song_ids = song_ids
 
-            new_songs_store = [
-                [
-                    status_icon,
-                    song.title,
-                    album.name if (album := song.album) else None,
-                    artist.name if (artist := song.artist) else None,
-                    util.format_song_duration(song.duration),
-                    song.id,
-                ]
-                for status_icon, song in zip(
-                    util.get_cached_status_icons(song_ids),
-                    [cast(API.Song, s) for s in songs],
+            # Regenerate the store from the actual song data (this is more expensive
+            # because when coming from the cache, we are doing 2N fk requests to
+            # albums).
+            for status_icon, song in zip(
+                util.get_cached_status_icons(song_ids),
+                [cast(API.Song, s) for s in songs],
+            ):
+                playable = not self.offline_mode or status_icon in cached_status_icons
+                can_play_any_song |= playable
+                new_songs_store.append(
+                    [
+                        playable,
+                        status_icon,
+                        song.title,
+                        album.name if (album := song.album) else None,
+                        artist.name if (artist := song.artist) else None,
+                        util.format_song_duration(song.duration),
+                        song.id,
+                    ]
                 )
-            ]
         else:
-            new_songs_store = [
-                [status_icon] + song_model[1:]
-                for status_icon, song_model in zip(
-                    util.get_cached_status_icons(song_ids), self.playlist_song_store
-                )
-            ]
+            # Just update the clickable state and download state.
+            for status_icon, song_model in zip(
+                util.get_cached_status_icons(song_ids), self.playlist_song_store
+            ):
+                playable = not self.offline_mode or status_icon in cached_status_icons
+                can_play_any_song |= playable
+                new_songs_store.append([playable, status_icon, *song_model[2:]])
 
         util.diff_song_store(self.playlist_song_store, new_songs_store)
+
+        self.play_all_button.set_sensitive(can_play_any_song)
+        self.shuffle_all_button.set_sensitive(can_play_any_song)
 
         self.editing_playlist_song_list = False
 
@@ -567,12 +643,18 @@ class PlaylistDetailPanel(Gtk.Overlay):
         app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
+        is_partial: bool = False,
     ):
         if self.update_playlist_view_order_token != order_token:
             return
 
         self.playlist_artwork.set_from_file(cover_art_filename)
         self.playlist_artwork.set_loading(False)
+
+        if self.playlist_details_expanded:
+            self.playlist_artwork.set_image_size(200)
+        else:
+            self.playlist_artwork.set_image_size(70)
 
     # Event Handlers
     # =========================================================================
@@ -614,8 +696,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
                     Gtk.ResponseType.CANCEL,
                 )
                 confirm_dialog.format_secondary_markup(
-                    "Are you sure you want to delete the "
-                    f'"{playlist.name}" playlist?'
+                    f'Are you sure you want to delete the "{playlist.name}" playlist?'
                 )
                 result = confirm_dialog.run()
                 confirm_dialog.destroy()
@@ -645,7 +726,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         def download_state_change(song_id: str):
             GLib.idle_add(
                 lambda: self.update_playlist_view(
-                    self.playlist_id, order_token=self.update_playlist_view_order_token,
+                    self.playlist_id, order_token=self.update_playlist_view_order_token
                 )
             )
 
@@ -680,6 +761,8 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
     def on_song_activated(self, _, idx: Gtk.TreePath, col: Any):
+        if not self.playlist_song_store[idx[0]][0]:
+            return
         # The song ID is in the last column of the model.
         self.emit(
             "song-clicked",
@@ -742,9 +825,15 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 event.x,
                 event.y + abs(bin_coords.by - widget_coords.wy),
                 tree,
+                self.offline_mode,
                 on_download_state_change=on_download_state_change,
                 extra_menu_items=[
-                    (Gtk.ModelButton(text=remove_text), on_remove_songs_click),
+                    (
+                        Gtk.ModelButton(
+                            text=remove_text, sensitive=not self.offline_mode
+                        ),
+                        on_remove_songs_click,
+                    )
                 ],
                 on_playlist_state_change=lambda: self.emit("refresh-window", {}, True),
             )

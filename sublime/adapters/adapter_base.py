@@ -1,6 +1,5 @@
 import abc
 import hashlib
-import json
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
@@ -110,19 +109,24 @@ class AlbumSearchQuery:
         """
         Returns a deterministic hash of the query as a string.
 
-        >>> query = AlbumSearchQuery(
+        >>> AlbumSearchQuery(
         ...     AlbumSearchQuery.Type.YEAR_RANGE, year_range=(2018, 2019)
-        ... )
-        >>> query.strhash()
-        'a6571bb7be65984c6627f545cab9fc767fce6d07'
+        ... ).strhash()
+        '275c58cac77c5ea9ccd34ab870f59627ab98e73c'
+        >>> AlbumSearchQuery(
+        ...     AlbumSearchQuery.Type.YEAR_RANGE, year_range=(2018, 2020)
+        ... ).strhash()
+        'e5dc424e8fc3b7d9ff7878b38cbf2c9fbdc19ec2'
+        >>> AlbumSearchQuery(AlbumSearchQuery.Type.STARRED).strhash()
+        '861b6ff011c97d53945ca89576463d0aeb78e3d2'
         """
         if not self._strhash:
-            self._strhash = hashlib.sha1(
-                bytes(
-                    json.dumps((self.type.value, self.year_range, self.genre.name)),
-                    "utf8",
-                )
-            ).hexdigest()
+            hash_tuple: Tuple[Any, ...] = (self.type.value,)
+            if self.type == AlbumSearchQuery.Type.YEAR_RANGE:
+                hash_tuple += (self.year_range,)
+            elif self.type == AlbumSearchQuery.Type.GENRE:
+                hash_tuple += (self.genre.name,)
+            self._strhash = hashlib.sha1(bytes(str(hash_tuple), "utf8")).hexdigest()
         return self._strhash
 
 
@@ -287,6 +291,10 @@ class Adapter(abc.ABC):
         """
         return True
 
+    # Network Properties
+    # These properties determine whether or not the adapter requires connection over a
+    # network and whether the underlying server can be pinged.
+    # ==================================================================================
     @property
     def is_networked(self) -> bool:
         """
@@ -296,58 +304,66 @@ class Adapter(abc.ABC):
         """
         return True
 
-    # Availability Properties
-    # These properties determine if what things the adapter can be used to do
-    # at the current moment.
-    # ==================================================================================
+    def on_offline_mode_change(self, offline_mode: bool):
+        """
+        This function should be used to handle any operations that need to be performed
+        when Sublime Music goes from online to offline mode or vice versa.
+        """
+
     @property
     @abc.abstractmethod
-    def can_service_requests(self) -> bool:
+    def ping_status(self) -> bool:
         """
-        Specifies whether or not the adapter can currently service requests. If this is
-        ``False``, none of the other data retrieval functions are expected to work.
+        If the adapter :class:`is_networked`, then this function should return whether
+        or not the server can be pinged. This function must provide an answer
+        *instantly* (it can't actually ping the server). This function is called *very*
+        often, and even a few milliseconds delay stacks up quickly and can block the UI
+        thread.
 
-        This property must be server *instantly*. This function is called *very* often,
-        and even a few milliseconds delay stacks up quickly and can block the UI thread.
-
-        For example, if your adapter requires access to an external service, on option
-        is to ping the server every few seconds and cache the result of the ping and use
-        that as the return value of this function.
+        One option is to ping the server every few seconds and cache the result of the
+        ping and use that as the result of this function.
         """
 
+    # Availability Properties
+    # These properties determine if what things the adapter can be used to do. These
+    # properties can be dynamic based on things such as underlying API version, or other
+    # factors like that. However, these properties should not be dependent on the
+    # connection state. After the initial sync, these properties are expected to be
+    # constant.
+    # ==================================================================================
     # Playlists
     @property
     def can_get_playlists(self) -> bool:
         """
-        Whether :class:`get_playlist` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_playlist`.
         """
         return False
 
     @property
     def can_get_playlist_details(self) -> bool:
         """
-        Whether :class:`get_playlist_details` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_playlist_details`.
         """
         return False
 
     @property
     def can_create_playlist(self) -> bool:
         """
-        Whether :class:`create_playlist` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`create_playlist`.
         """
         return False
 
     @property
     def can_update_playlist(self) -> bool:
         """
-        Whether :class:`update_playlist` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`update_playlist`.
         """
         return False
 
     @property
     def can_delete_playlist(self) -> bool:
         """
-        Whether :class:`delete_playlist` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`delete_playlist`.
         """
         return False
 
@@ -367,20 +383,20 @@ class Adapter(abc.ABC):
     @property
     def can_get_cover_art_uri(self) -> bool:
         """
-        Whether :class:`get_cover_art_uri` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_cover_art_uri`.
         """
 
     @property
     def can_stream(self) -> bool:
         """
-        Whether or not the adapter can provide a stream URI right now.
+        Whether or not the adapter can provide a stream URI.
         """
         return False
 
     @property
     def can_get_song_uri(self) -> bool:
         """
-        Whether :class:`get_song_uri` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_song_uri`.
         """
         return False
 
@@ -388,14 +404,14 @@ class Adapter(abc.ABC):
     @property
     def can_get_song_details(self) -> bool:
         """
-        Whether :class:`get_song_details` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_song_details`.
         """
         return False
 
     @property
     def can_scrobble_song(self) -> bool:
         """
-        Whether :class:`scrobble_song` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`scrobble_song`.
         """
         return False
 
@@ -413,21 +429,21 @@ class Adapter(abc.ABC):
     @property
     def can_get_artists(self) -> bool:
         """
-        Whether :class:`get_aritsts` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_aritsts`.
         """
         return False
 
     @property
     def can_get_artist(self) -> bool:
         """
-        Whether :class:`get_aritst` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_aritst`.
         """
         return False
 
     @property
     def can_get_ignored_articles(self) -> bool:
         """
-        Whether :class:`get_ignored_articles` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_ignored_articles`.
         """
         return False
 
@@ -435,14 +451,14 @@ class Adapter(abc.ABC):
     @property
     def can_get_albums(self) -> bool:
         """
-        Whether :class:`get_albums` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_albums`.
         """
         return False
 
     @property
     def can_get_album(self) -> bool:
         """
-        Whether :class:`get_album` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_album`.
         """
         return False
 
@@ -450,7 +466,7 @@ class Adapter(abc.ABC):
     @property
     def can_get_directory(self) -> bool:
         """
-        Whether :class:`get_directory` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_directory`.
         """
         return False
 
@@ -458,7 +474,7 @@ class Adapter(abc.ABC):
     @property
     def can_get_genres(self) -> bool:
         """
-        Whether :class:`get_genres` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_genres`.
         """
         return False
 
@@ -466,14 +482,14 @@ class Adapter(abc.ABC):
     @property
     def can_get_play_queue(self) -> bool:
         """
-        Whether :class:`get_play_queue` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`get_play_queue`.
         """
         return False
 
     @property
     def can_save_play_queue(self) -> bool:
         """
-        Whether :class:`save_play_queue` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`save_play_queue`.
         """
         return False
 
@@ -481,7 +497,7 @@ class Adapter(abc.ABC):
     @property
     def can_search(self) -> bool:
         """
-        Whether :class:`search` can be called on the adapter right now.
+        Whether or not the adapter supports :class:`search`.
         """
         return False
 
@@ -691,7 +707,7 @@ class Adapter(abc.ABC):
 
     def save_play_queue(
         self,
-        song_ids: Sequence[int],
+        song_ids: Sequence[str],
         current_song_index: int = None,
         position: timedelta = None,
     ):
@@ -712,7 +728,7 @@ class Adapter(abc.ABC):
         :returns: A :class:`sublime.adapters.api_objects.SearchResult` object
             representing the results of the search.
         """
-        raise self._check_can_error("can_save_play_queue")
+        raise self._check_can_error("search")
 
     @staticmethod
     def _check_can_error(method_name: str) -> NotImplementedError:
@@ -751,6 +767,8 @@ class CachingAdapter(Adapter):
         :param is_cache: whether or not the adapter is being used as a cache.
         """
 
+    ping_status = True
+
     # Data Ingestion Methods
     # ==================================================================================
     class CachedDataKey(Enum):
@@ -768,6 +786,10 @@ class CachingAdapter(Adapter):
         SONG = "song"
         SONG_FILE = "song_file"
         SONG_FILE_PERMANENT = "song_file_permanent"
+
+        # These are only for clearing the cache, and will only do deletion
+        ALL_SONGS = "all_songs"
+        EVERYTHING = "everything"
 
     @abc.abstractmethod
     def ingest_new_data(self, data_key: CachedDataKey, param: Optional[str], data: Any):

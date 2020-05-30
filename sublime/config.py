@@ -72,29 +72,39 @@ class ServerConfiguration:
 
 @dataclass
 class AppConfiguration:
+    version: int = 3
+    cache_location: str = ""
+    filename: Optional[Path] = None
+
+    # Servers
     servers: List[ServerConfiguration] = field(default_factory=list)
     current_server_index: int = -1
-    cache_location: str = ""
-    max_cache_size_mb: int = -1  # -1 means unlimited
-    always_stream: bool = False  # always stream instead of downloading songs
-    download_on_stream: bool = True  # also download when streaming a song
+
+    # Global Settings
     song_play_notification: bool = True
+    offline_mode: bool = False
+    serve_over_lan: bool = True
+    port_number: int = 8282
+    replay_gain: ReplayGainType = ReplayGainType.NO
+    allow_song_downloads: bool = True
+    download_on_stream: bool = True  # also download when streaming a song
     prefetch_amount: int = 3
     concurrent_download_limit: int = 5
-    port_number: int = 8282
-    version: int = 3
-    serve_over_lan: bool = True
-    replay_gain: ReplayGainType = ReplayGainType.NO
-    filename: Optional[Path] = None
+
+    # Deprecated
+    always_stream: bool = False  # always stream instead of downloading songs
 
     @staticmethod
     def load_from_file(filename: Path) -> "AppConfiguration":
         args = {}
-        if filename.exists():
-            with open(filename, "r") as f:
-                field_names = {f.name for f in fields(AppConfiguration)}
-                args = yaml.load(f, Loader=yaml.CLoader).items()
-                args = dict(filter(lambda kv: kv[0] in field_names, args))
+        try:
+            if filename.exists():
+                with open(filename, "r") as f:
+                    field_names = {f.name for f in fields(AppConfiguration)}
+                    args = yaml.load(f, Loader=yaml.CLoader).items()
+                    args = dict(filter(lambda kv: kv[0] in field_names, args))
+        except Exception:
+            pass
 
         config = AppConfiguration(**args)
         config.filename = filename
@@ -114,11 +124,16 @@ class AppConfiguration:
 
         self._state = None
         self._current_server_hash = None
+        self.migrate()
 
     def migrate(self):
         for server in self.servers:
             server.migrate()
-        self.version = 3
+
+        if self.version < 4:
+            self.allow_song_downloads = not self.always_stream
+
+        self.version = 4
         self.state.migrate()
 
     @property

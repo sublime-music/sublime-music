@@ -5,7 +5,6 @@ import sys
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
-from time import sleep
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 try:
@@ -32,14 +31,13 @@ except Exception:
     )
     glib_notify_exists = False
 
-from .adapters import AdapterManager, AlbumSearchQuery, Result
+from .adapters import AdapterManager, AlbumSearchQuery, Result, SongCacheStatus
 from .adapters.api_objects import Playlist, PlayQueue, Song
-from .config import AppConfiguration, ReplayGainType
+from .config import AppConfiguration
 from .dbus import dbus_propagate, DBusManager
 from .players import ChromecastPlayer, MPVPlayer, Player, PlayerEvent
 from .ui.configure_servers import ConfigureServersDialog
 from .ui.main import MainWindow
-from .ui.settings import SettingsDialog
 from .ui.state import RepeatType, UIState
 
 
@@ -56,6 +54,7 @@ class SublimeMusicApp(Gtk.Application):
         self.connect("shutdown", self.on_app_shutdown)
 
     player: Player
+    exiting: bool = False
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
@@ -70,7 +69,6 @@ class SublimeMusicApp(Gtk.Application):
 
         # Add action for menu items.
         add_action("configure-servers", self.on_configure_servers)
-        add_action("settings", self.on_settings)
 
         # Add actions for player controls
         add_action("play-pause", self.on_play_pause)
@@ -87,6 +85,10 @@ class SublimeMusicApp(Gtk.Application):
         add_action("browse-to", self.browse_to, parameter_type="s")
         add_action("go-to-playlist", self.on_go_to_playlist, parameter_type="s")
 
+        add_action("go-online", self.on_go_online)
+        add_action(
+            "refresh-window", lambda *a: self.on_refresh_window(None, {}, True),
+        )
         add_action("mute-toggle", self.on_mute_toggle)
         add_action(
             "update-play-queue-from-server",
@@ -105,6 +107,10 @@ class SublimeMusicApp(Gtk.Application):
         if self.window:
             self.window.present()
             return
+
+        # Configure Icons
+        icon_dir = Path(__file__).parent.joinpath("ui", "icons")
+        Gtk.IconTheme.get_default().append_search_path(str(icon_dir))
 
         # Windows are associated with the application when the last one is
         # closed the application shuts down.
@@ -202,13 +208,13 @@ class SublimeMusicApp(Gtk.Application):
 
         def on_player_event(event: PlayerEvent):
             if event.type == PlayerEvent.Type.PLAY_STATE_CHANGE:
-                assert event.playing
+                assert event.playing is not None
                 self.app_config.state.playing = event.playing
                 if self.dbus_manager:
                     self.dbus_manager.property_diff()
                 self.update_window()
             elif event.type == PlayerEvent.Type.VOLUME_CHANGE:
-                assert event.volume
+                assert event.volume is not None
                 self.app_config.state.volume = event.volume
                 if self.dbus_manager:
                     self.dbus_manager.property_diff()
@@ -218,7 +224,7 @@ class SublimeMusicApp(Gtk.Application):
                     self.loading_state
                     or not self.window
                     or not self.app_config.state.current_song
-                    or not event.stream_cache_duration
+                    or event.stream_cache_duration is None
                 ):
                     return
                 self.app_config.state.song_stream_cache_progress = timedelta(
@@ -251,6 +257,15 @@ class SublimeMusicApp(Gtk.Application):
         # Update after Adapter Initial Sync
         inital_sync_result = AdapterManager.initial_sync()
         inital_sync_result.add_done_callback(lambda _: self.update_window())
+
+        # Start a loop for periodically updating the window every 10 seconds.
+        def periodic_update():
+            if self.exiting:
+                return
+            self.update_window()
+            GLib.timeout_add(10000, periodic_update)
+
+        GLib.timeout_add(10000, periodic_update)
 
         # Prompt to load the play queue from the server.
         if self.app_config.server.sync_enabled:
@@ -490,6 +505,14 @@ class SublimeMusicApp(Gtk.Application):
     def on_refresh_window(
         self, _, state_updates: Dict[str, Any], force: bool = False,
     ):
+        if settings := state_updates.get("__settings__"):
+            for k, v in settings.items():
+                setattr(self.app_config, k, v)
+            if (offline_mode := settings.get("offline_mode")) is not None:
+                AdapterManager.on_offline_mode_change(offline_mode)
+
+            del state_updates["__settings__"]
+
         for k, v in state_updates.items():
             setattr(self.app_config.state, k, v)
         self.update_window(force=force)
@@ -500,33 +523,6 @@ class SublimeMusicApp(Gtk.Application):
 
     def on_configure_servers(self, *args):
         self.show_configure_servers_dialog()
-
-    def on_settings(self, *args):
-        """Show the Settings dialog."""
-        dialog = SettingsDialog(self.window, self.app_config)
-        result = dialog.run()
-        if result == Gtk.ResponseType.OK:
-            self.app_config.port_number = int(dialog.data["port_number"].get_text())
-            self.app_config.always_stream = dialog.data["always_stream"].get_active()
-            self.app_config.download_on_stream = dialog.data[
-                "download_on_stream"
-            ].get_active()
-            self.app_config.song_play_notification = dialog.data[
-                "song_play_notification"
-            ].get_active()
-            self.app_config.serve_over_lan = dialog.data["serve_over_lan"].get_active()
-            self.app_config.prefetch_amount = dialog.data[
-                "prefetch_amount"
-            ].get_value_as_int()
-            self.app_config.concurrent_download_limit = dialog.data[
-                "concurrent_download_limit"
-            ].get_value_as_int()
-            self.app_config.replay_gain = ReplayGainType.from_string(
-                dialog.data["replay_gain"].get_active_id()
-            )
-            self.app_config.save()
-            self.reset_state()
-        dialog.destroy()
 
     def on_window_go_to(self, win: Any, action: str, value: str):
         {
@@ -540,6 +536,8 @@ class SublimeMusicApp(Gtk.Application):
         if self.app_config.state.current_song_index < 0:
             return
 
+        self.app_config.state.playing = not self.app_config.state.playing
+
         if self.player.song_loaded:
             self.player.toggle_play()
             self.save_play_queue()
@@ -547,7 +545,6 @@ class SublimeMusicApp(Gtk.Application):
             # This is from a restart, start playing the file.
             self.play_song(self.app_config.state.current_song_index)
 
-        self.app_config.state.playing = not self.app_config.state.playing
         self.update_window()
 
     def on_next_track(self, *args):
@@ -585,7 +582,12 @@ class SublimeMusicApp(Gtk.Application):
             # Go back to the beginning of the song.
             song_index_to_play = self.app_config.state.current_song_index
 
-        self.play_song(song_index_to_play, reset=True)
+        self.play_song(
+            song_index_to_play,
+            reset=True,
+            # search backwards for a song to play if offline
+            playable_song_search_direction=-1,
+        )
 
     @dbus_propagate()
     def on_repeat_press(self, *args):
@@ -651,7 +653,7 @@ class SublimeMusicApp(Gtk.Application):
 
         self.app_config.state.current_tab = "albums"
         self.app_config.state.selected_album_id = album_id.get_string()
-        self.update_window(force=True)
+        self.update_window()
 
     def on_go_to_artist(self, action: Any, artist_id: GLib.Variant):
         self.app_config.state.current_tab = "artists"
@@ -667,6 +669,9 @@ class SublimeMusicApp(Gtk.Application):
         self.app_config.state.current_tab = "playlists"
         self.app_config.state.selected_playlist_id = playlist_id.get_string()
         self.update_window()
+
+    def on_go_online(self, *args):
+        self.on_refresh_window(None, {"__settings__": {"offline_mode": False}})
 
     def on_server_list_changed(self, action: Any, servers: GLib.Variant):
         self.app_config.servers = servers
@@ -823,16 +828,21 @@ class SublimeMusicApp(Gtk.Application):
         self.player.volume = self.app_config.state.volume
         self.update_window()
 
-    def on_window_key_press(self, window: Gtk.Window, event: Gdk.EventKey,) -> bool:
+    def on_window_key_press(self, window: Gtk.Window, event: Gdk.EventKey) -> bool:
         # Need to use bitwise & here to see if CTRL is pressed.
         if event.keyval == 102 and event.state & Gdk.ModifierType.CONTROL_MASK:
             # Ctrl + F
             window.search_entry.grab_focus()
             return False
 
-        if window.search_entry.has_focus():
+        # Allow spaces to work in the text entry boxes.
+        if (
+            window.search_entry.has_focus()
+            or window.playlists_panel.playlist_list.new_playlist_entry.has_focus()
+        ):
             return False
 
+        # Spacebar, home/prev
         keymap = {
             32: self.on_play_pause,
             65360: self.on_prev_track,
@@ -847,6 +857,7 @@ class SublimeMusicApp(Gtk.Application):
         return False
 
     def on_app_shutdown(self, app: "SublimeMusicApp"):
+        self.exiting = True
         if glib_notify_exists:
             Notify.uninit()
 
@@ -963,7 +974,13 @@ class SublimeMusicApp(Gtk.Application):
         reset: bool = False,
         old_play_queue: Tuple[str, ...] = None,
         play_queue: Tuple[str, ...] = None,
+        playable_song_search_direction: int = 1,
     ):
+        def do_reset():
+            self.player.reset()
+            self.app_config.state.song_progress = timedelta(0)
+            self.should_scrobble_song = True
+
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.
         @dbus_propagate(self)
@@ -971,16 +988,12 @@ class SublimeMusicApp(Gtk.Application):
             if order_token != self.song_playing_order_token:
                 return
 
-            uri = AdapterManager.get_song_filename_or_stream(
-                song, force_stream=self.app_config.always_stream,
-            )
+            uri = AdapterManager.get_song_filename_or_stream(song)
 
             # Prevent it from doing the thing where it continually loads
             # songs when it has to download.
             if reset:
-                self.player.reset()
-                self.app_config.state.song_progress = timedelta(0)
-                self.should_scrobble_song = True
+                do_reset()
 
             # Start playing the song.
             if order_token != self.song_playing_order_token:
@@ -1055,8 +1068,9 @@ class SublimeMusicApp(Gtk.Application):
                         "Unable to display notification. Is a notification daemon running?"  # noqa: E501
                     )
 
-            # Download current song and prefetch songs. Only do this if
-            # download_on_stream is True and always_stream is off.
+            # Download current song and prefetch songs. Only do this if the adapter can
+            # download songs and allow_song_downloads is True and download_on_stream is
+            # True.
             def on_song_download_complete(song_id: str):
                 if order_token != self.song_playing_order_token:
                     return
@@ -1084,8 +1098,12 @@ class SublimeMusicApp(Gtk.Application):
                 self.update_window()
 
             if (
-                self.app_config.download_on_stream
-                and not self.app_config.always_stream
+                # This only makes sense if the adapter is networked.
+                AdapterManager.ground_truth_adapter_is_networked()
+                # Don't download in offline mode.
+                and not self.app_config.offline_mode
+                and self.app_config.allow_song_downloads
+                and self.app_config.download_on_stream
                 and AdapterManager.can_batch_download_songs()
             ):
                 song_ids = [song.id]
@@ -1132,26 +1150,115 @@ class SublimeMusicApp(Gtk.Application):
         self.song_playing_order_token += 1
 
         if play_queue:
+            GLib.timeout_add(
+                5000,
+                partial(
+                    self.save_play_queue,
+                    song_playing_order_token=self.song_playing_order_token,
+                ),
+            )
 
-            def save_play_queue_later(order_token: int):
-                sleep(5)
-                if order_token != self.song_playing_order_token:
-                    return
-                self.save_play_queue()
+        # If in offline mode, go to the first song in the play queue after the given
+        # song that is actually playable.
+        if self.app_config.offline_mode:
+            statuses = AdapterManager.get_cached_statuses(
+                self.app_config.state.play_queue
+            )
+            playable_statuses = (
+                SongCacheStatus.CACHED,
+                SongCacheStatus.PERMANENTLY_CACHED,
+            )
+            can_play = False
+            current_song_index = self.app_config.state.current_song_index
 
-            Result(partial(save_play_queue_later, self.song_playing_order_token))
+            if statuses[current_song_index] in playable_statuses:
+                can_play = True
+            elif self.app_config.state.repeat_type != RepeatType.REPEAT_SONG:
+                # See if any other songs in the queue are playable.
+                play_queue_len = len(self.app_config.state.play_queue)
+                cursor = (
+                    current_song_index + playable_song_search_direction
+                ) % play_queue_len
+                for _ in range(play_queue_len):  # Don't infinite loop.
+                    if self.app_config.state.repeat_type == RepeatType.NO_REPEAT:
+                        if (
+                            playable_song_search_direction == 1
+                            and cursor < current_song_index
+                        ) or (
+                            playable_song_search_direction == -1
+                            and cursor > current_song_index
+                        ):
+                            # We wrapped around to the end of the play queue without
+                            # finding a song that can be played, and we aren't allowed
+                            # to loop back.
+                            break
+
+                    # If we find a playable song, stop and play it.
+                    if statuses[cursor] in playable_statuses:
+                        self.play_song(cursor, reset)
+                        return
+
+                    cursor = (cursor + playable_song_search_direction) % play_queue_len
+
+            if not can_play:
+                # There are no songs that can be played. Show a notification that you
+                # have to go online to play anything and then don't go further.
+                was_playing = False
+                if self.app_config.state.playing:
+                    was_playing = True
+                    self.on_play_pause()
+
+                def go_online_clicked():
+                    self.app_config.state.current_notification = None
+                    self.on_go_online()
+                    if was_playing:
+                        self.on_play_pause()
+
+                if all(s == SongCacheStatus.NOT_CACHED for s in statuses):
+                    markup = (
+                        "<b>None of the songs in your play queue are cached for "
+                        "offline playback.</b>\nGo online to start playing your queue."
+                    )
+                else:
+                    markup = (
+                        "<b>None of the remaining songs in your play queue are cached "
+                        "for offline playback.</b>\nGo online to contiue playing your "
+                        "queue."
+                    )
+
+                self.app_config.state.current_notification = UIState.UINotification(
+                    icon="cloud-offline-symbolic",
+                    markup=markup,
+                    actions=(("Go Online", go_online_clicked),),
+                )
+                if reset:
+                    do_reset()
+                self.update_window()
+                return
 
         song_details_future = AdapterManager.get_song_details(
             self.app_config.state.play_queue[self.app_config.state.current_song_index]
         )
-        song_details_future.add_done_callback(
-            lambda f: GLib.idle_add(
-                partial(do_play_song, self.song_playing_order_token), f.result()
-            ),
-        )
+        if song_details_future.data_is_available:
+            song_details_future.add_done_callback(
+                lambda f: do_play_song(self.song_playing_order_token, f.result())
+            )
+        else:
+            song_details_future.add_done_callback(
+                lambda f: GLib.idle_add(
+                    partial(do_play_song, self.song_playing_order_token), f.result()
+                ),
+            )
 
-    def save_play_queue(self):
-        if len(self.app_config.state.play_queue) == 0:
+    def save_play_queue(self, song_playing_order_token: int = None):
+        if (
+            len(self.app_config.state.play_queue) == 0
+            or self.app_config.server is None
+            or (
+                song_playing_order_token
+                and song_playing_order_token != self.song_playing_order_token
+            )
+        ):
             return
 
         position = self.app_config.state.song_progress

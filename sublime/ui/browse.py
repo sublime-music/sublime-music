@@ -3,10 +3,10 @@ from typing import Any, cast, List, Optional, Tuple
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, api_objects as API, Result
+from sublime.adapters import AdapterManager, api_objects as API, CacheMissError, Result
 from sublime.config import AppConfiguration
 from sublime.ui import util
-from sublime.ui.common import IconButton, SongListColumn
+from sublime.ui.common import IconButton, LoadError, SongListColumn
 
 
 class BrowsePanel(Gtk.Overlay):
@@ -30,6 +30,10 @@ class BrowsePanel(Gtk.Overlay):
     def __init__(self):
         super().__init__()
         scrolled_window = Gtk.ScrolledWindow()
+        window_box = Gtk.Box()
+
+        self.error_container = Gtk.Box()
+        window_box.pack_start(self.error_container, True, True, 0)
 
         self.root_directory_listing = ListAndDrilldown()
         self.root_directory_listing.connect(
@@ -38,8 +42,9 @@ class BrowsePanel(Gtk.Overlay):
         self.root_directory_listing.connect(
             "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
         )
-        scrolled_window.add(self.root_directory_listing)
+        window_box.add(self.root_directory_listing)
 
+        scrolled_window.add(window_box)
         self.add(scrolled_window)
 
         self.spinner = Gtk.Spinner(
@@ -51,16 +56,28 @@ class BrowsePanel(Gtk.Overlay):
         self.add_overlay(self.spinner)
 
     def update(self, app_config: AppConfiguration, force: bool = False):
-        if not AdapterManager.can_get_directory():
-            return
-
         self.update_order_token += 1
 
         def do_update(update_order_token: int, id_stack: Tuple[str, ...]):
             if self.update_order_token != update_order_token:
                 return
 
-            self.root_directory_listing.update(id_stack, app_config, force)
+            if len(id_stack) == 0:
+                self.root_directory_listing.hide()
+                if len(self.error_container.get_children()) == 0:
+                    load_error = LoadError(
+                        "Directory list",
+                        "browse to song",
+                        has_data=False,
+                        offline_mode=app_config.offline_mode,
+                    )
+                    self.error_container.pack_start(load_error, True, True, 0)
+                self.error_container.show_all()
+            else:
+                for c in self.error_container.get_children():
+                    self.error_container.remove(c)
+                self.error_container.hide()
+                self.root_directory_listing.update(id_stack, app_config, force)
             self.spinner.hide()
 
         def calculate_path() -> Tuple[str, ...]:
@@ -68,13 +85,19 @@ class BrowsePanel(Gtk.Overlay):
                 return ("root",)
 
             id_stack = []
-            while current_dir_id and (
-                directory := AdapterManager.get_directory(
-                    current_dir_id, before_download=self.spinner.show,
-                ).result()
-            ):
-                id_stack.append(directory.id)
-                current_dir_id = directory.parent_id
+            while current_dir_id:
+                try:
+                    directory = AdapterManager.get_directory(
+                        current_dir_id, before_download=self.spinner.show,
+                    ).result()
+                except CacheMissError as e:
+                    directory = cast(API.Directory, e.partial_data)
+
+                if not directory:
+                    break
+                else:
+                    id_stack.append(directory.id)
+                    current_dir_id = directory.parent_id
 
             return tuple(id_stack)
 
@@ -123,6 +146,7 @@ class ListAndDrilldown(Gtk.Paned):
     ):
         *child_id_stack, dir_id = id_stack
         selected_id = child_id_stack[-1] if len(child_id_stack) > 0 else None
+        self.show()
 
         self.list.update(
             directory_id=dir_id,
@@ -170,6 +194,7 @@ class MusicDirectoryList(Gtk.Box):
     update_order_token = 0
     directory_id: Optional[str] = None
     selected_id: Optional[str] = None
+    offline_mode = False
 
     class DrilldownElement(GObject.GObject):
         id = GObject.Property(type=str)
@@ -185,9 +210,9 @@ class MusicDirectoryList(Gtk.Box):
 
         list_actions = Gtk.ActionBar()
 
-        refresh = IconButton("view-refresh-symbolic", "Refresh folder")
-        refresh.connect("clicked", lambda *a: self.update(force=True))
-        list_actions.pack_end(refresh)
+        self.refresh_button = IconButton("view-refresh-symbolic", "Refresh folder")
+        self.refresh_button.connect("clicked", lambda *a: self.update(force=True))
+        list_actions.pack_end(self.refresh_button)
 
         self.add(list_actions)
 
@@ -198,6 +223,9 @@ class MusicDirectoryList(Gtk.Box):
         self.loading_indicator.add(spinner_row)
         self.pack_start(self.loading_indicator, False, False, 0)
 
+        self.error_container = Gtk.Box()
+        self.add(self.error_container)
+
         self.scroll_window = Gtk.ScrolledWindow(min_content_width=250)
         scrollbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
@@ -206,27 +234,28 @@ class MusicDirectoryList(Gtk.Box):
         self.list.bind_model(self.drilldown_directories_store, self.create_row)
         scrollbox.add(self.list)
 
-        self.directory_song_store = Gtk.ListStore(
-            str, str, str, str,  # cache status, title, duration, song ID
-        )
+        # clickable, cache status, title, duration, song ID
+        self.directory_song_store = Gtk.ListStore(bool, str, str, str, str)
 
         self.directory_song_list = Gtk.TreeView(
             model=self.directory_song_store,
             name="directory-songs-list",
             headers_visible=False,
         )
-        self.directory_song_list.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+        selection = self.directory_song_list.get_selection()
+        selection.set_mode(Gtk.SelectionMode.MULTIPLE)
+        selection.set_select_function(lambda _, model, path, current: model[path[0]][0])
 
         # Song status column.
         renderer = Gtk.CellRendererPixbuf()
         renderer.set_fixed_size(30, 35)
-        column = Gtk.TreeViewColumn("", renderer, icon_name=0)
+        column = Gtk.TreeViewColumn("", renderer, icon_name=1)
         column.set_resizable(True)
         self.directory_song_list.append_column(column)
 
-        self.directory_song_list.append_column(SongListColumn("TITLE", 1, bold=True))
+        self.directory_song_list.append_column(SongListColumn("TITLE", 2, bold=True))
         self.directory_song_list.append_column(
-            SongListColumn("DURATION", 2, align=1, width=40)
+            SongListColumn("DURATION", 3, align=1, width=40)
         )
 
         self.directory_song_list.connect("row-activated", self.on_song_activated)
@@ -251,6 +280,17 @@ class MusicDirectoryList(Gtk.Box):
             self.directory_id, force=force, order_token=self.update_order_token,
         )
 
+        if app_config:
+            # Deselect everything if switching online to offline.
+            if self.offline_mode != app_config.offline_mode:
+                self.directory_song_list.get_selection().unselect_all()
+                for c in self.error_container.get_children():
+                    self.error_container.remove(c)
+
+            self.offline_mode = app_config.offline_mode
+
+        self.refresh_button.set_sensitive(not self.offline_mode)
+
     _current_child_ids: List[str] = []
 
     @util.async_callback(
@@ -264,9 +304,25 @@ class MusicDirectoryList(Gtk.Box):
         app_config: AppConfiguration = None,
         force: bool = False,
         order_token: int = None,
+        is_partial: bool = False,
     ):
         if order_token != self.update_order_token:
             return
+
+        dir_children = directory.children or []
+        for c in self.error_container.get_children():
+            self.error_container.remove(c)
+        if is_partial:
+            load_error = LoadError(
+                "Directory listing",
+                "load directory",
+                has_data=len(dir_children) > 0,
+                offline_mode=self.offline_mode,
+            )
+            self.error_container.pack_start(load_error, True, True, 0)
+            self.error_container.show_all()
+        else:
+            self.error_container.hide()
 
         # This doesn't look efficient, since it's doing a ton of passses over the data,
         # but there is some annoying memory overhead for generating the stores to diff,
@@ -278,7 +334,10 @@ class MusicDirectoryList(Gtk.Box):
         # changed.
         children_ids, children, song_ids = [], [], []
         selected_dir_idx = None
-        for i, c in enumerate(directory.children):
+        if len(self._current_child_ids) != len(dir_children):
+            force = True
+
+        for i, c in enumerate(dir_children):
             if i >= len(self._current_child_ids) or c.id != self._current_child_ids[i]:
                 force = True
 
@@ -310,6 +369,11 @@ class MusicDirectoryList(Gtk.Box):
 
             new_songs_store = [
                 [
+                    (
+                        not self.offline_mode
+                        or status_icon
+                        in ("folder-download-symbolic", "view-pin-symbolic")
+                    ),
                     status_icon,
                     util.esc(song.title),
                     util.format_song_duration(song.duration),
@@ -321,13 +385,22 @@ class MusicDirectoryList(Gtk.Box):
             ]
         else:
             new_songs_store = [
-                [status_icon] + song_model[1:]
+                [
+                    (
+                        not self.offline_mode
+                        or status_icon
+                        in ("folder-download-symbolic", "view-pin-symbolic")
+                    ),
+                    status_icon,
+                    *song_model[2:],
+                ]
                 for status_icon, song_model in zip(
                     util.get_cached_status_icons(song_ids), self.directory_song_store
                 )
             ]
 
         util.diff_song_store(self.directory_song_store, new_songs_store)
+        self.directory_song_list.show()
 
         if len(self.drilldown_directories_store) == 0:
             self.list.hide()
@@ -378,6 +451,8 @@ class MusicDirectoryList(Gtk.Box):
     # Event Handlers
     # ==================================================================================
     def on_song_activated(self, treeview: Any, idx: Gtk.TreePath, column: Any):
+        if not self.directory_song_store[idx[0]][0]:
+            return
         # The song ID is in the last column of the model.
         self.emit(
             "song-clicked",
@@ -412,6 +487,7 @@ class MusicDirectoryList(Gtk.Box):
                 event.x,
                 event.y + abs(bin_coords.by - widget_coords.wy),
                 tree,
+                self.offline_mode,
                 on_download_state_change=self.on_download_state_change,
             )
 

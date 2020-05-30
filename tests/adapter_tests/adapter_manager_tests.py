@@ -4,6 +4,7 @@ from time import sleep
 import pytest
 
 from sublime.adapters import AdapterManager, Result, SearchResult
+from sublime.adapters.subsonic import api_objects as SubsonicAPI
 from sublime.config import AppConfiguration, ServerConfiguration
 
 
@@ -114,6 +115,52 @@ def test_get_song_details(adapter_manager: AdapterManager):
     # assert 0
     # TODO
     pass
+
+
+def test_search_result_sort():
+    search_results1 = SearchResult(query="foo")
+    search_results1.add_results(
+        "artists",
+        [
+            # boo != foo so low match rate
+            SubsonicAPI.ArtistAndArtistInfo(id=str(i), name=f"boo{i}")
+            for i in range(30)
+        ],
+    )
+
+    search_results2 = SearchResult(query="foo")
+    search_results1.add_results(
+        "artists",
+        [
+            # foo == foo, so high match rate
+            SubsonicAPI.ArtistAndArtistInfo(id=str(i), name=f"foo{i}")
+            for i in range(30)
+        ],
+    )
+
+    # After unioning, the high match rate ones should be first, and only the top 20
+    # should be included.
+    search_results1.update(search_results2)
+    assert [a.name for a in search_results1.artists] == [f"foo{i}" for i in range(20)]
+
+
+def test_search_result_update():
+    search_results1 = SearchResult(query="foo")
+    search_results1.add_results(
+        "artists",
+        [
+            SubsonicAPI.ArtistAndArtistInfo(id="1", name="foo"),
+            SubsonicAPI.ArtistAndArtistInfo(id="2", name="another foo"),
+        ],
+    )
+
+    search_results2 = SearchResult(query="foo")
+    search_results2.add_results(
+        "artists", [SubsonicAPI.ArtistAndArtistInfo(id="3", name="foo2")],
+    )
+
+    search_results1.update(search_results2)
+    assert [a.name for a in search_results1.artists] == ["foo", "another foo", "foo2"]
 
 
 def test_search(adapter_manager: AdapterManager):

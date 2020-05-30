@@ -27,7 +27,6 @@ termcolor = "*"
 
 [packages]
 sublime-music = {editable = true,extras = ["keyring"],path = "."}
-dataclasses-json = {editable = true,git = "https://github.com/lidatong/dataclasses-json",ref = "master"}
 
 [requires]
 python_version = "3.8"

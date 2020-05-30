@@ -79,7 +79,6 @@ class FilesystemAdapter(CachingAdapter):
     # ==================================================================================
     can_be_cached = False  # Can't be cached (there's no need).
     is_networked = False  # Doesn't access the network.
-    can_service_requests = True  # Can always be used to service requests.
 
     # TODO (#200) make these dependent on cache state. Need to do this kinda efficiently
     can_get_cover_art_uri = True
@@ -182,13 +181,16 @@ class FilesystemAdapter(CachingAdapter):
         return obj
 
     def _compute_song_filename(self, cache_info: models.CacheInfo) -> Path:
-        if path_str := cache_info.path:
-            # Make sure that the path is somewhere in the cache directory and a
-            # malicious server (or MITM attacker) isn't trying to override files in
-            # other parts of the system.
-            path = self.music_dir.joinpath(path_str)
-            if self.music_dir in path.parents:
-                return path
+        try:
+            if path_str := cache_info.path:
+                # Make sure that the path is somewhere in the cache directory and a
+                # malicious server (or MITM attacker) isn't trying to override files in
+                # other parts of the system.
+                path = self.music_dir.joinpath(path_str)
+                if self.music_dir in path.parents:
+                    return path
+        except Exception:
+            pass
 
         # Fall back to using the song file hash as the filename. This shouldn't happen
         # with good servers, but just to be safe.
@@ -200,30 +202,37 @@ class FilesystemAdapter(CachingAdapter):
         self, song_ids: Sequence[str]
     ) -> Dict[str, SongCacheStatus]:
         def compute_song_cache_status(song: models.Song) -> SongCacheStatus:
-            file = song.file
-            if self._compute_song_filename(file).exists():
-                if file.valid:
-                    if file.cache_permanently:
-                        return SongCacheStatus.PERMANENTLY_CACHED
-                    return SongCacheStatus.CACHED
+            try:
+                file = song.file
+                if self._compute_song_filename(file).exists():
+                    if file.valid:
+                        if file.cache_permanently:
+                            return SongCacheStatus.PERMANENTLY_CACHED
+                        return SongCacheStatus.CACHED
 
-                # The file is on disk, but marked as stale.
-                return SongCacheStatus.CACHED_STALE
+                    # The file is on disk, but marked as stale.
+                    return SongCacheStatus.CACHED_STALE
+            except Exception:
+                pass
+
             return SongCacheStatus.NOT_CACHED
 
+        cached_statuses = {song_id: SongCacheStatus.NOT_CACHED for song_id in song_ids}
         try:
             file_models = models.CacheInfo.select().where(
                 models.CacheInfo.cache_key == KEYS.SONG_FILE
             )
             song_models = models.Song.select().where(models.Song.id.in_(song_ids))
-            return {
-                s.id: compute_song_cache_status(s)
-                for s in prefetch(song_models, file_models)
-            }
+            cached_statuses.update(
+                {
+                    s.id: compute_song_cache_status(s)
+                    for s in prefetch(song_models, file_models)
+                }
+            )
         except Exception:
             pass
 
-        return {song_id: SongCacheStatus.NOT_CACHED for song_id in song_ids}
+        return cached_statuses
 
     _playlists = None
 
@@ -251,9 +260,11 @@ class FilesystemAdapter(CachingAdapter):
         )
         if cover_art:
             filename = self.cover_art_dir.joinpath(str(cover_art.file_hash))
-            if cover_art.valid and filename.exists():
-                return str(filename)
-            raise CacheMissError(partial_data=str(filename))
+            if filename.exists():
+                if cover_art.valid:
+                    return str(filename)
+                else:
+                    raise CacheMissError(partial_data=str(filename))
 
         raise CacheMissError()
 
@@ -269,9 +280,11 @@ class FilesystemAdapter(CachingAdapter):
             if (song_file := song.file) and (
                 filename := self._compute_song_filename(song_file)
             ):
-                if song_file.valid and filename.exists():
-                    return str(filename)
-                raise CacheMissError(partial_data=str(filename))
+                if filename.exists():
+                    if song_file.valid:
+                        return str(filename)
+                    else:
+                        raise CacheMissError(partial_data=str(filename))
         except models.CacheInfo.DoesNotExist:
             pass
 
@@ -857,4 +870,25 @@ class FilesystemAdapter(CachingAdapter):
             if cache_info:
                 self._compute_song_filename(cache_info).unlink(missing_ok=True)
 
-        cache_info.delete_instance()
+        elif data_key == CachingAdapter.CachedDataKey.ALL_SONGS:
+            shutil.rmtree(str(self.music_dir))
+            shutil.rmtree(str(self.cover_art_dir))
+            self.music_dir.mkdir(parents=True, exist_ok=True)
+            self.cover_art_dir.mkdir(parents=True, exist_ok=True)
+
+            models.CacheInfo.update({"valid": False}).where(
+                models.CacheInfo.cache_key == CachingAdapter.CachedDataKey.SONG_FILE
+            ).execute()
+            models.CacheInfo.update({"valid": False}).where(
+                models.CacheInfo.cache_key
+                == CachingAdapter.CachedDataKey.COVER_ART_FILE
+            ).execute()
+
+        elif data_key == CachingAdapter.CachedDataKey.EVERYTHING:
+            self._do_delete_data(CachingAdapter.CachedDataKey.ALL_SONGS, None)
+            for table in models.ALL_TABLES:
+                table.truncate_table()
+
+        if cache_info:
+            cache_info.valid = False
+            cache_info.save()
