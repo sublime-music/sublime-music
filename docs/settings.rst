@@ -19,6 +19,10 @@ Port Number : (int)
 
     This will not take effect until the application is restarted.
 
+Replay Gain : (Disabled | Track | Album)
+    Configures the replay gain setting for the MPV player. You can disable this
+    setting, or configure it to work on a track or album basis.
+
 Always stream songs : (bool)
     If checked, this will disable using the local song cache.
 

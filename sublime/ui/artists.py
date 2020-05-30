@@ -1,33 +1,30 @@
+from datetime import timedelta
 from random import randint
-from typing import Any, cast, List, Union
+from typing import cast, List, Sequence
 
-import gi
-gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
-from sublime.cache_manager import CacheManager
-from sublime.server.api_objects import (
-    AlbumID3,
-    ArtistID3,
-    ArtistInfo2,
-    ArtistWithAlbumsID3,
-    Child,
+from sublime.adapters import (
+    AdapterManager,
+    api_objects as API,
+    CacheMissError,
+    SongCacheStatus,
 )
-from sublime.state_manager import ApplicationState
+from sublime.config import AppConfiguration
 from sublime.ui import util
-from sublime.ui.common import AlbumWithSongs, IconButton, SpinnerImage
+from sublime.ui.common import AlbumWithSongs, IconButton, LoadError, SpinnerImage
 
 
 class ArtistsPanel(Gtk.Paned):
     """Defines the arist panel."""
 
     __gsignals__ = {
-        'song-clicked': (
+        "song-clicked": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (int, object, object),
         ),
-        'refresh-window': (
+        "refresh-window": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (object, bool),
@@ -42,14 +39,16 @@ class ArtistsPanel(Gtk.Paned):
 
         self.artist_detail_panel = ArtistDetailPanel()
         self.artist_detail_panel.connect(
-            'song-clicked',
-            lambda _, *args: self.emit('song-clicked', *args),
+            "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+        )
+        self.artist_detail_panel.connect(
+            "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
         )
         self.pack2(self.artist_detail_panel, True, False)
 
-    def update(self, state: ApplicationState, force: bool = False):
-        self.artist_list.update(state=state)
-        self.artist_detail_panel.update(state=state)
+    def update(self, app_config: AppConfiguration, force: bool = False):
+        self.artist_list.update(app_config=app_config)
+        self.artist_detail_panel.update(app_config=app_config)
 
 
 class _ArtistModel(GObject.GObject):
@@ -57,11 +56,11 @@ class _ArtistModel(GObject.GObject):
     name = GObject.Property(type=str)
     album_count = GObject.Property(type=int)
 
-    def __init__(self, artist_id: str, name: str, album_count: int):
+    def __init__(self, artist: API.Artist):
         GObject.GObject.__init__(self)
-        self.artist_id = artist_id
-        self.name = name
-        self.album_count = album_count
+        self.artist_id = artist.id
+        self.name = artist.name
+        self.album_count = artist.album_count or 0
 
 
 class ArtistList(Gtk.Box):
@@ -70,15 +69,20 @@ class ArtistList(Gtk.Box):
 
         list_actions = Gtk.ActionBar()
 
-        refresh = IconButton('view-refresh-symbolic')
-        refresh.connect('clicked', lambda *a: self.update(force=True))
-        list_actions.pack_end(refresh)
+        self.refresh_button = IconButton(
+            "view-refresh-symbolic", "Refresh list of artists"
+        )
+        self.refresh_button.connect("clicked", lambda *a: self.update(force=True))
+        list_actions.pack_end(self.refresh_button)
 
         self.add(list_actions)
 
+        self.error_container = Gtk.Box()
+        self.add(self.error_container)
+
         self.loading_indicator = Gtk.ListBox()
         spinner_row = Gtk.ListBoxRow(activatable=False, selectable=False)
-        spinner = Gtk.Spinner(name='artist-list-spinner', active=True)
+        spinner = Gtk.Spinner(name="artist-list-spinner", active=True)
         spinner_row.add(spinner)
         self.loading_indicator.add(spinner_row)
         self.pack_start(self.loading_indicator, False, False, 0)
@@ -86,60 +90,81 @@ class ArtistList(Gtk.Box):
         list_scroll_window = Gtk.ScrolledWindow(min_content_width=250)
 
         def create_artist_row(model: _ArtistModel) -> Gtk.ListBoxRow:
-            label_text = [f'<b>{util.esc(model.name)}</b>']
+            label_text = [f"<b>{util.esc(model.name)}</b>"]
 
             album_count = model.album_count
             if album_count:
                 label_text.append(
-                    '{} {}'.format(
-                        album_count, util.pluralize('album', album_count)))
+                    "{} {}".format(album_count, util.pluralize("album", album_count))
+                )
 
             row = Gtk.ListBoxRow(
-                action_name='app.go-to-artist',
-                action_target=GLib.Variant('s', model.artist_id),
+                action_name="app.go-to-artist",
+                action_target=GLib.Variant("s", model.artist_id),
             )
             row.add(
                 Gtk.Label(
-                    label='\n'.join(label_text),
+                    label="\n".join(label_text),
                     use_markup=True,
                     margin=12,
                     halign=Gtk.Align.START,
                     ellipsize=Pango.EllipsizeMode.END,
-                    max_width_chars=30,
-                ))
+                )
+            )
             row.show_all()
             return row
 
         self.artists_store = Gio.ListStore()
-        self.list = Gtk.ListBox(name='artist-list')
+        self.list = Gtk.ListBox(name="artist-list")
         self.list.bind_model(self.artists_store, create_artist_row)
         list_scroll_window.add(self.list)
 
         self.pack_start(list_scroll_window, True, True, 0)
 
+    _app_config = None
+
     @util.async_callback(
-        lambda *a, **k: CacheManager.get_artists(*a, **k),
+        AdapterManager.get_artists,
         before_download=lambda self: self.loading_indicator.show_all(),
         on_failure=lambda self, e: self.loading_indicator.hide(),
     )
     def update(
         self,
-        artists: List[ArtistID3],
-        state: ApplicationState,
+        artists: Sequence[API.Artist],
+        app_config: AppConfiguration = None,
+        is_partial: bool = False,
         **kwargs,
     ):
+        if app_config:
+            self._app_config = app_config
+            self.refresh_button.set_sensitive(not app_config.offline_mode)
+
+        for c in self.error_container.get_children():
+            self.error_container.remove(c)
+        if is_partial:
+            load_error = LoadError(
+                "Artist list",
+                "load artists",
+                has_data=len(artists) > 0,
+                offline_mode=(
+                    self._app_config.offline_mode if self._app_config else False
+                ),
+            )
+            self.error_container.pack_start(load_error, True, True, 0)
+            self.error_container.show_all()
+        else:
+            self.error_container.hide()
+
         new_store = []
         selected_idx = None
         for i, artist in enumerate(artists):
-            if state and state.selected_artist_id == artist.id:
+            if (
+                self._app_config
+                and self._app_config.state
+                and self._app_config.state.selected_artist_id == artist.id
+            ):
                 selected_idx = i
-
-            new_store.append(
-                _ArtistModel(
-                    artist.id,
-                    artist.name,
-                    artist.get('albumCount', ''),
-                ))
+            new_store.append(_ArtistModel(artist))
 
         util.diff_model_store(self.artists_store, new_store)
 
@@ -155,34 +180,40 @@ class ArtistDetailPanel(Gtk.Box):
     """Defines the artists list."""
 
     __gsignals__ = {
-        'song-clicked': (
+        "song-clicked": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (int, object, object),
         ),
+        "refresh-window": (
+            GObject.SignalFlags.RUN_FIRST,
+            GObject.TYPE_NONE,
+            (object, bool),
+        ),
     }
 
     update_order_token = 0
+    artist_details_expanded = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(
             *args,
+            name="artist-detail-panel",
             orientation=Gtk.Orientation.VERTICAL,
-            name='artist-detail-panel',
             **kwargs,
         )
-        self.albums: Union[List[AlbumID3], List[Child]] = []
+        self.albums: Sequence[API.Album] = []
         self.artist_id = None
 
-        artist_info_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-
         # Artist info panel
-        self.big_info_panel = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.big_info_panel = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, name="artist-info-panel"
+        )
 
         self.artist_artwork = SpinnerImage(
             loading=False,
-            image_name='artist-album-artwork',
-            spinner_name='artist-artwork-spinner',
+            image_name="artist-album-artwork",
+            spinner_name="artist-artwork-spinner",
             image_size=300,
         )
         self.big_info_panel.pack_start(self.artist_artwork, False, False, 0)
@@ -190,235 +221,305 @@ class ArtistDetailPanel(Gtk.Box):
         # Action buttons, name, comment, number of songs, etc.
         artist_details_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-        # Action buttons (note we are packing end here, so we have to put them
-        # in right-to-left).
-        self.artist_action_buttons = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL)
-
-        view_refresh_button = IconButton('view-refresh-symbolic')
-        view_refresh_button.connect('clicked', self.on_view_refresh_click)
-        self.artist_action_buttons.pack_end(
-            view_refresh_button, False, False, 5)
-
-        download_all_btn = IconButton('folder-download-symbolic')
-        download_all_btn.connect('clicked', self.on_download_all_click)
-        self.artist_action_buttons.pack_end(download_all_btn, False, False, 5)
-
-        artist_details_box.pack_start(
-            self.artist_action_buttons, False, False, 5)
-
         artist_details_box.pack_start(Gtk.Box(), True, False, 0)
 
-        self.artist_indicator = self.make_label(name='artist-indicator')
+        self.artist_indicator = self.make_label(name="artist-indicator")
         artist_details_box.add(self.artist_indicator)
 
-        self.artist_name = self.make_label(name='artist-name')
+        self.artist_name = self.make_label(name="artist-name")
         artist_details_box.add(self.artist_name)
 
         self.artist_bio = self.make_label(
-            name='artist-bio', justify=Gtk.Justification.LEFT)
+            name="artist-bio", justify=Gtk.Justification.LEFT
+        )
         self.artist_bio.set_line_wrap(True)
         artist_details_box.add(self.artist_bio)
 
         self.similar_artists_scrolledwindow = Gtk.ScrolledWindow()
         similar_artists_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
-        self.similar_artists_label = self.make_label(name='similar-artists')
+        self.similar_artists_label = self.make_label(name="similar-artists")
         similar_artists_box.add(self.similar_artists_label)
 
         self.similar_artists_button_box = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL)
+            orientation=Gtk.Orientation.HORIZONTAL
+        )
         similar_artists_box.add(self.similar_artists_button_box)
         self.similar_artists_scrolledwindow.add(similar_artists_box)
 
         artist_details_box.add(self.similar_artists_scrolledwindow)
 
-        self.artist_stats = self.make_label(name='artist-stats')
+        self.artist_stats = self.make_label(name="artist-stats")
         artist_details_box.add(self.artist_stats)
 
         self.play_shuffle_buttons = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL,
-            name='playlist-play-shuffle-buttons',
+            name="playlist-play-shuffle-buttons",
         )
 
-        play_button = IconButton(
-            'media-playback-start-symbolic',
-            label='Play All',
-            relief=True,
+        self.play_button = IconButton(
+            "media-playback-start-symbolic", label="Play All", relief=True
         )
-        play_button.connect('clicked', self.on_play_all_clicked)
-        self.play_shuffle_buttons.pack_start(play_button, False, False, 0)
+        self.play_button.connect("clicked", self.on_play_all_clicked)
+        self.play_shuffle_buttons.pack_start(self.play_button, False, False, 0)
 
-        shuffle_button = IconButton(
-            'media-playlist-shuffle-symbolic',
-            label='Shuffle All',
-            relief=True,
+        self.shuffle_button = IconButton(
+            "media-playlist-shuffle-symbolic", label="Shuffle All", relief=True
         )
-        shuffle_button.connect('clicked', self.on_shuffle_all_button)
-        self.play_shuffle_buttons.pack_start(shuffle_button, False, False, 5)
+        self.shuffle_button.connect("clicked", self.on_shuffle_all_button)
+        self.play_shuffle_buttons.pack_start(self.shuffle_button, False, False, 5)
         artist_details_box.add(self.play_shuffle_buttons)
 
-        self.big_info_panel.pack_start(artist_details_box, True, True, 10)
+        self.big_info_panel.pack_start(artist_details_box, True, True, 0)
 
-        artist_info_box.pack_start(self.big_info_panel, False, True, 0)
+        # Action buttons
+        action_buttons_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.artist_action_buttons = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=10
+        )
 
+        self.download_all_button = IconButton(
+            "folder-download-symbolic", "Download all songs by this artist"
+        )
+        self.download_all_button.connect("clicked", self.on_download_all_click)
+        self.artist_action_buttons.add(self.download_all_button)
+
+        self.refresh_button = IconButton("view-refresh-symbolic", "Refresh artist info")
+        self.refresh_button.connect("clicked", self.on_view_refresh_click)
+        self.artist_action_buttons.add(self.refresh_button)
+
+        action_buttons_container.pack_start(
+            self.artist_action_buttons, False, False, 10
+        )
+
+        action_buttons_container.pack_start(Gtk.Box(), True, True, 0)
+
+        expand_button_container = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.expand_collapse_button = IconButton(
+            "pan-up-symbolic", "Expand playlist details"
+        )
+        self.expand_collapse_button.connect("clicked", self.on_expand_collapse_click)
+        expand_button_container.pack_end(self.expand_collapse_button, False, False, 0)
+        action_buttons_container.add(expand_button_container)
+
+        self.big_info_panel.pack_start(action_buttons_container, False, False, 5)
+
+        self.pack_start(self.big_info_panel, False, True, 0)
+
+        self.error_container = Gtk.Box()
+        self.add(self.error_container)
+
+        self.album_list_scrolledwindow = Gtk.ScrolledWindow()
         self.albums_list = AlbumsListWithSongs()
         self.albums_list.connect(
-            'song-clicked',
-            lambda _, *args: self.emit('song-clicked', *args),
+            "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
         )
-        artist_info_box.pack_start(self.albums_list, True, True, 0)
+        self.album_list_scrolledwindow.add(self.albums_list)
+        self.pack_start(self.album_list_scrolledwindow, True, True, 0)
 
-        self.add(artist_info_box)
-
-    def update(self, state: ApplicationState):
-        self.artist_id = state.selected_artist_id
-        if state.selected_artist_id is None:
-            self.artist_action_buttons.hide()
-            self.artist_indicator.set_text('')
-            self.artist_name.set_markup('')
-            self.artist_stats.set_markup('')
-
-            self.artist_bio.set_markup('')
-            self.similar_artists_scrolledwindow.hide()
+    def update(self, app_config: AppConfiguration):
+        self.artist_id = app_config.state.selected_artist_id
+        self.offline_mode = app_config.offline_mode
+        if app_config.state.selected_artist_id is None:
+            self.big_info_panel.hide()
+            self.album_list_scrolledwindow.hide()
             self.play_shuffle_buttons.hide()
-
-            self.artist_artwork.set_from_file(None)
-
-            self.albums = cast(List[Child], [])
-            self.albums_list.update(None)
         else:
             self.update_order_token += 1
-            self.artist_action_buttons.show()
+            self.album_list_scrolledwindow.show()
             self.update_artist_view(
-                state.selected_artist_id,
-                state=state,
+                app_config.state.selected_artist_id,
+                app_config=app_config,
                 order_token=self.update_order_token,
             )
+            self.refresh_button.set_sensitive(not self.offline_mode)
+            self.download_all_button.set_sensitive(not self.offline_mode)
 
     @util.async_callback(
-        lambda *a, **k: CacheManager.get_artist(*a, **k),
+        AdapterManager.get_artist,
         before_download=lambda self: self.set_all_loading(True),
         on_failure=lambda self, e: self.set_all_loading(False),
     )
     def update_artist_view(
         self,
-        artist: ArtistWithAlbumsID3,
-        state: ApplicationState,
+        artist: API.Artist,
+        app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
+        is_partial: bool = False,
     ):
         if order_token != self.update_order_token:
             return
 
-        self.artist_indicator.set_text('ARTIST')
-        self.artist_name.set_markup(util.esc(f'<b>{artist.name}</b>'))
-        self.artist_stats.set_markup(self.format_stats(artist))
+        self.big_info_panel.show_all()
 
-        self.update_artist_info(
-            artist.id,
-            force=force,
-            order_token=order_token,
-        )
-        self.update_artist_artwork(
-            artist,
-            force=force,
-            order_token=order_token,
+        if app_config:
+            self.artist_details_expanded = app_config.state.artist_details_expanded
+
+        up_down = "up" if self.artist_details_expanded else "down"
+        self.expand_collapse_button.set_icon(f"pan-{up_down}-symbolic")
+        self.expand_collapse_button.set_tooltip_text(
+            "Collapse" if self.artist_details_expanded else "Expand"
         )
 
-        self.albums = artist.get('album', artist.get('child', []))
-        self.albums_list.update(artist)
+        self.artist_name.set_markup(util.esc(f"<b>{artist.name}</b>"))
+        self.artist_name.set_tooltip_text(artist.name)
 
-    @util.async_callback(
-        lambda *a, **k: CacheManager.get_artist_info(*a, **k),
-    )
-    def update_artist_info(
-        self,
-        artist_info: ArtistInfo2,
-        state: ApplicationState,
-        force: bool = False,
-        order_token: int = None,
-    ):
-        if order_token != self.update_order_token:
-            return
+        if self.artist_details_expanded:
+            self.artist_artwork.get_style_context().remove_class("collapsed")
+            self.artist_name.get_style_context().remove_class("collapsed")
+            self.artist_indicator.set_text("ARTIST")
+            self.artist_stats.set_markup(self.format_stats(artist))
 
-        self.artist_bio.set_markup(util.esc(''.join(artist_info.biography)))
-        self.play_shuffle_buttons.show_all()
+            if artist.biography:
+                self.artist_bio.set_markup(util.esc(artist.biography))
+                self.artist_bio.show()
+            else:
+                self.artist_bio.hide()
 
-        if len(artist_info.similarArtist or []) > 0:
-            self.similar_artists_label.set_markup('<b>Similar Artists:</b> ')
-            for c in self.similar_artists_button_box.get_children():
-                self.similar_artists_button_box.remove(c)
+            if len(artist.similar_artists or []) > 0:
+                self.similar_artists_label.set_markup("<b>Similar Artists:</b> ")
+                for c in self.similar_artists_button_box.get_children():
+                    self.similar_artists_button_box.remove(c)
 
-            for artist in artist_info.similarArtist[:5]:
-                self.similar_artists_button_box.add(
-                    Gtk.LinkButton(
-                        label=artist.name,
-                        name='similar-artist-button',
-                        action_name='app.go-to-artist',
-                        action_target=GLib.Variant('s', artist.id),
-                    ))
-            self.similar_artists_scrolledwindow.show_all()
+                for similar_artist in (artist.similar_artists or [])[:5]:
+                    self.similar_artists_button_box.add(
+                        Gtk.LinkButton(
+                            label=similar_artist.name,
+                            name="similar-artist-button",
+                            action_name="app.go-to-artist",
+                            action_target=GLib.Variant("s", similar_artist.id),
+                        )
+                    )
+                self.similar_artists_scrolledwindow.show_all()
+            else:
+                self.similar_artists_scrolledwindow.hide()
         else:
+            self.artist_artwork.get_style_context().add_class("collapsed")
+            self.artist_name.get_style_context().add_class("collapsed")
+            self.artist_indicator.hide()
+            self.artist_stats.hide()
+            self.artist_bio.hide()
             self.similar_artists_scrolledwindow.hide()
 
+        self.play_shuffle_buttons.show_all()
+
+        self.update_artist_artwork(
+            artist.artist_image_url, force=force, order_token=order_token,
+        )
+
+        for c in self.error_container.get_children():
+            self.error_container.remove(c)
+        if is_partial:
+            has_data = len(artist.albums or []) > 0
+            load_error = LoadError(
+                "Artist data",
+                "load artist details",
+                has_data=has_data,
+                offline_mode=self.offline_mode,
+            )
+            self.error_container.pack_start(load_error, True, True, 0)
+            self.error_container.show_all()
+            if not has_data:
+                self.album_list_scrolledwindow.hide()
+        else:
+            self.error_container.hide()
+            self.album_list_scrolledwindow.show()
+
+        self.albums = artist.albums or []
+
+        # (Dis|En)able the "Play All" and "Shuffle All" buttons. If in offline mode, it
+        # depends on whether or not there are any cached songs.
+        if self.offline_mode:
+            has_cached_song = False
+            playable_statuses = (
+                SongCacheStatus.CACHED,
+                SongCacheStatus.PERMANENTLY_CACHED,
+            )
+
+            for album in self.albums:
+                if album.id:
+                    try:
+                        songs = AdapterManager.get_album(album.id).result().songs or []
+                    except CacheMissError as e:
+                        if e.partial_data:
+                            songs = cast(API.Album, e.partial_data).songs or []
+                        else:
+                            songs = []
+                    statuses = AdapterManager.get_cached_statuses([s.id for s in songs])
+                    if any(s in playable_statuses for s in statuses):
+                        has_cached_song = True
+                        break
+
+            self.play_button.set_sensitive(has_cached_song)
+            self.shuffle_button.set_sensitive(has_cached_song)
+        else:
+            self.play_button.set_sensitive(not self.offline_mode)
+            self.shuffle_button.set_sensitive(not self.offline_mode)
+
+        self.albums_list.update(artist, app_config, force=force)
+
     @util.async_callback(
-        lambda *a, **k: CacheManager.get_artist_artwork(*a, **k),
+        AdapterManager.get_cover_art_filename,
         before_download=lambda self: self.artist_artwork.set_loading(True),
         on_failure=lambda self, e: self.artist_artwork.set_loading(False),
     )
     def update_artist_artwork(
         self,
         cover_art_filename: str,
-        state: ApplicationState,
+        app_config: AppConfiguration,
         force: bool = False,
         order_token: int = None,
+        is_partial: bool = False,
     ):
         if order_token != self.update_order_token:
             return
-
         self.artist_artwork.set_from_file(cover_art_filename)
         self.artist_artwork.set_loading(False)
+
+        if self.artist_details_expanded:
+            self.artist_artwork.set_image_size(300)
+        else:
+            self.artist_artwork.set_image_size(70)
 
     # Event Handlers
     # =========================================================================
     def on_view_refresh_click(self, *args):
         self.update_artist_view(
-            self.artist_id,
-            force=True,
-            order_token=self.update_order_token,
+            self.artist_id, force=True, order_token=self.update_order_token,
         )
 
-    def on_download_all_click(self, btn: Any):
-        CacheManager.batch_download_songs(
+    def on_download_all_click(self, _):
+        AdapterManager.batch_download_songs(
             self.get_artist_song_ids(),
-            before_download=lambda: self.update_artist_view(
-                self.artist_id,
-                order_token=self.update_order_token,
+            before_download=lambda _: self.update_artist_view(
+                self.artist_id, order_token=self.update_order_token,
             ),
-            on_song_download_complete=lambda i: self.update_artist_view(
-                self.artist_id,
-                order_token=self.update_order_token,
+            on_song_download_complete=lambda _: self.update_artist_view(
+                self.artist_id, order_token=self.update_order_token,
             ),
         )
 
-    def on_play_all_clicked(self, btn: Any):
+    def on_play_all_clicked(self, _):
         songs = self.get_artist_song_ids()
         self.emit(
-            'song-clicked',
-            0,
-            songs,
-            {'force_shuffle_state': False},
+            "song-clicked", 0, songs, {"force_shuffle_state": False},
         )
 
-    def on_shuffle_all_button(self, btn: Any):
+    def on_shuffle_all_button(self, _):
         songs = self.get_artist_song_ids()
         self.emit(
-            'song-clicked',
-            randint(0,
-                    len(songs) - 1),
+            "song-clicked",
+            randint(0, len(songs) - 1),
             songs,
-            {'force_shuffle_state': True},
+            {"force_shuffle_state": True},
+        )
+
+    def on_expand_collapse_click(self, _):
+        self.emit(
+            "refresh-window",
+            {"artist_details_expanded": not self.artist_details_expanded},
+            False,
         )
 
     # Helper Methods
@@ -432,35 +533,43 @@ class ArtistDetailPanel(Gtk.Box):
             self.albums_list.spinner.hide()
             self.artist_artwork.set_loading(False)
 
-    def make_label(
-            self,
-            text: str = None,
-            name: str = None,
-            **params,
-    ) -> Gtk.Label:
+    def make_label(self, text: str = None, name: str = None, **params) -> Gtk.Label:
         return Gtk.Label(
-            label=text,
-            name=name,
-            halign=Gtk.Align.START,
-            xalign=0,
-            **params,
+            label=text, name=name, halign=Gtk.Align.START, xalign=0, **params,
         )
 
-    def format_stats(self, artist: ArtistWithAlbumsID3) -> str:
-        album_count = artist.get('albumCount', 0)
-        song_count = sum(a.songCount for a in artist.album)
-        duration = sum(a.duration for a in artist.album)
+    def format_stats(self, artist: API.Artist) -> str:
+        album_count = artist.album_count or len(artist.albums or [])
+        song_count, duration = 0, timedelta(0)
+        for album in artist.albums or []:
+            song_count += album.song_count or 0
+            duration += album.duration or timedelta(0)
+
         return util.dot_join(
-            '{} {}'.format(album_count, util.pluralize('album', album_count)),
-            '{} {}'.format(song_count, util.pluralize('song', song_count)),
+            "{} {}".format(album_count, util.pluralize("album", album_count)),
+            "{} {}".format(song_count, util.pluralize("song", song_count)),
             util.format_sequence_duration(duration),
         )
 
-    def get_artist_song_ids(self) -> List[int]:
+    def get_artist_song_ids(self) -> List[str]:
+        try:
+            artist = AdapterManager.get_artist(self.artist_id).result()
+        except CacheMissError as c:
+            artist = cast(API.Artist, c.partial_data)
+
+        if not artist:
+            return []
+
         songs = []
-        for album in CacheManager.get_artist(self.artist_id).result().album:
-            album_songs = CacheManager.get_album(album.id).result()
-            for song in album_songs.get('song', []):
+        for album in artist.albums or []:
+            assert album.id
+            try:
+                album_with_songs = AdapterManager.get_album(album.id).result()
+            except CacheMissError as c:
+                album_with_songs = cast(API.Album, c.partial_data)
+            if not album_with_songs:
+                continue
+            for song in album_with_songs.songs or []:
                 songs.append(song.id)
 
         return songs
@@ -468,7 +577,7 @@ class ArtistDetailPanel(Gtk.Box):
 
 class AlbumsListWithSongs(Gtk.Overlay):
     __gsignals__ = {
-        'song-clicked': (
+        "song-clicked": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (int, object, object),
@@ -477,13 +586,11 @@ class AlbumsListWithSongs(Gtk.Overlay):
 
     def __init__(self):
         Gtk.Overlay.__init__(self)
-        self.scrolled_window = Gtk.ScrolledWindow(vexpand=True)
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.scrolled_window.add(self.box)
-        self.add(self.scrolled_window)
+        self.add(self.box)
 
         self.spinner = Gtk.Spinner(
-            name='albumslist-with-songs-spinner',
+            name="albumslist-with-songs-spinner",
             active=False,
             halign=Gtk.Align.CENTER,
             valign=Gtk.Align.CENTER,
@@ -492,7 +599,9 @@ class AlbumsListWithSongs(Gtk.Overlay):
 
         self.albums = []
 
-    def update(self, artist: ArtistWithAlbumsID3):
+    def update(
+        self, artist: API.Artist, app_config: AppConfiguration, force: bool = False
+    ):
         def remove_all():
             for c in self.box.get_children():
                 self.box.remove(c)
@@ -502,10 +611,13 @@ class AlbumsListWithSongs(Gtk.Overlay):
             self.spinner.hide()
             return
 
-        new_albums = artist.get('album', artist.get('child', []))
+        new_albums = sorted(artist.albums or [], key=lambda a: a.name)
 
         if self.albums == new_albums:
-            # No need to do anything.
+            # Just go through all of the colidren and update them.
+            for c in self.box.get_children():
+                c.update(app_config=app_config, force=force)
+
             self.spinner.hide()
             return
 
@@ -516,14 +628,17 @@ class AlbumsListWithSongs(Gtk.Overlay):
         for album in self.albums:
             album_with_songs = AlbumWithSongs(album, show_artist_name=False)
             album_with_songs.connect(
-                'song-clicked',
-                lambda _, *args: self.emit('song-clicked', *args),
+                "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
             )
-            album_with_songs.connect('song-selected', self.on_song_selected)
+            album_with_songs.connect("song-selected", self.on_song_selected)
             album_with_songs.show_all()
             self.box.add(album_with_songs)
 
-        self.spinner.stop()
+        # Update everything (no force to ensure that if we are online, then everything
+        # is clickable)
+        for c in self.box.get_children():
+            c.update(app_config=app_config)
+
         self.spinner.hide()
 
     def on_song_selected(self, album_component: AlbumWithSongs):

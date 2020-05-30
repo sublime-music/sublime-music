@@ -1,7 +1,38 @@
 /* ********** Main ********** */
 #connected-to-label {
-  margin-top: 10px;
-  margin-bottom: 10px;
+  margin: 5px 15px;
+  font-size: 1.2em;
+}
+
+#connected-status-row {
+  margin-bottom: 5px;
+}
+
+#online-status-icon {
+  margin-right: 10px;
+}
+
+#menu-header {
+  margin: 10px 15px 10px 5px;
+  font-weight: bold;
+}
+
+#menu-settings-separator {
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+#current-downloads-list {
+  min-height: 30px;
+  min-width: 250px;
+}
+
+.menu-label {
+    margin-right: 15px;
+}
+
+#main-menu-box {
+  min-width: 230px;
 }
 
 #icon-button-box image {
@@ -12,6 +43,11 @@
 #icon-button-box label {
   margin-left: 5px;
   margin-right: 3px;
+}
+
+#menu-item-download-settings,
+#menu-item-clear-cache {
+    min-width: 230px;
 }
 
 /* ********** Playlist ********** */
@@ -52,20 +88,26 @@
   min-width: 100px;
 }
 
-#playlist-album-artwork {
-  min-height: 200px;
-  min-width: 200px;
-  margin: 10px;
+#menu-item-add-to-playlist {
+    min-width: 170px;
 }
 
-#playlist-album-artwork.collapsed {
-  min-height: 40px;
-  min-width: 40px;
+#menu-item-spinner {
+    margin: 10px;
+}
+
+#playlist-album-artwork {
+  margin: 10px 15px 0 10px;
 }
 
 #playlist-name, #artist-detail-panel #artist-name {
   font-size: 40px;
   margin-bottom: 10px;
+}
+
+#playlist-name.collapsed,
+#artist-detail-panel #artist-name.collapsed {
+  font-size: 30px;
 }
 
 #playlist-comment, #playlist-stats, #artist-bio, #artist-stats, #similar-artists {
@@ -77,14 +119,11 @@
   margin: -10px 0 0 10px;
 }
 
-#playlist-play-shuffle-buttons {
-  margin-bottom: 10px;
-}
-
 /* ********** Playback Controls ********** */
 #player-controls-album-artwork {
   min-height: 70px;
   min-width: 70px;
+  margin-right: 10px;
 }
 
 #player-controls-bar #play-button {
@@ -142,6 +181,10 @@
   min-width: 50px;
 }
 
+#play-queue-image-disabled {
+  opacity: 0.5;
+}
+
 /* ********** General ********** */
 .menu-button {
   padding: 5px;
@@ -169,6 +212,17 @@
   margin-right: 5px;
   min-width: 30px;
   min-height: 30px;
+}
+
+/* ********** Error Indicator ********** */
+#load-error-box {
+  margin: 15px;
+}
+
+#load-error-image,
+#load-error-label {
+  margin-bottom: 5px;
+  margin-right: 20px;
 }
 
 /* ********** Artists & Albums ********** */
@@ -203,9 +257,7 @@
 }
 
 #artist-album-artwork {
-  margin: 10px;
-  min-width: 300px;
-  min-height: 300px;
+  margin: 10px 15px 0 10px;
 }
 
 #artist-album-list-artwork {
@@ -219,4 +271,20 @@
 
 #album-list-song-list-spinner {
   margin: 15px;
+}
+
+@define-color box_shadow_color rgba(0, 0, 0, 0.2);
+
+#artist-info-panel {
+  box-shadow: 0 5px 5px @box_shadow_color;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+}
+
+#artist-detail-box {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  box-shadow: inset 0 5px 5px @box_shadow_color,
+              inset 0 -5px 5px @box_shadow_color;
+  background-color: @box_shadow_color;
 }

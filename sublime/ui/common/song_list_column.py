@@ -1,5 +1,3 @@
-import gi
-gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Pango
 
 
@@ -9,9 +7,10 @@ class SongListColumn(Gtk.TreeViewColumn):
         header: str,
         text_idx: int,
         bold: bool = False,
-        align: int = 0,
+        align: float = 0,
         width: int = None,
     ):
+        """Represents a column in a song list."""
         renderer = Gtk.CellRendererText(
             xalign=align,
             weight=Pango.Weight.BOLD if bold else Pango.Weight.NORMAL,
@@ -19,6 +18,6 @@ class SongListColumn(Gtk.TreeViewColumn):
         )
         renderer.set_fixed_size(width or -1, 35)
 
-        super().__init__(header, renderer, text=text_idx)
+        super().__init__(header, renderer, text=text_idx, sensitive=0)
         self.set_resizable(True)
         self.set_expand(not width)

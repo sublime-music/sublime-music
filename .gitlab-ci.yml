@@ -11,6 +11,10 @@ variables:
   LC_ALL: "C.UTF-8"
   LANG: "C.UTF-8"
 
+cache:
+  paths:
+    - .venv/
+
 image: registry.gitlab.com/sumner/sublime-music/python-build:latest
 
 lint:
@@ -19,8 +23,9 @@ lint:
     - ./cicd/install-project-deps.sh
   script:
     - pipenv run python setup.py check -mrs
+    - pipenv run black --check .
     - pipenv run flake8
-    - pipenv run mypy sublime
+    - pipenv run mypy sublime tests/**/*.py
     - pipenv run cicd/custom_style_check.py
 
 test:
@@ -28,6 +33,9 @@ test:
   before_script:
     - ./cicd/install-project-deps.sh
     - ./cicd/start-dbus.sh
+    - apt install xvfb
+    - Xvfb :119 -screen 0 1024x768x16 &
+    - export DISPLAY=:119
   script:
     - pipenv run ./cicd/pytest.sh
   artifacts:
@@ -44,22 +52,6 @@ build:
     paths:
       - dist/*
     expire_in: 7 days
-
-build_logo:
-  image: ubuntu:19.10
-  stage: build
-  before_script:
-    - apt update && apt install -y inkscape make wget unzip
-    - wget 'https://github.com/be5invis/Iosevka/releases/download/v2.3.3/01-iosevka-2.3.3.zip'
-    - unzip -d iosevka 01-iosevka-2.3.3.zip
-    - mkdir -p ~/.fonts && cp -r iosevka/* ~/.fonts && fc-cache -f
-  script:
-    - cd docs/logo
-    - make
-  artifacts:
-    paths:
-      - docs/logo
-      - sublime-music.desktop
 
 build_flatpak:
   image: registry.gitlab.com/sumner/sublime-music/flatpak-build:latest
@@ -87,8 +79,9 @@ pages:
       - public
 
 deploy_pypi:
-  image: python:3.6-alpine
+  image: python:3.8-alpine
   stage: deploy
+  cache: {}
   only:
     variables:
       # Only do a deploy if it's a version tag.
@@ -106,6 +99,7 @@ deploy_pypi:
 
 verify_deploy:
   stage: verify
+  cache: {}
   only:
     variables:
       # Only verify the deploy if it's a version tag.

@@ -1,38 +1,41 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
-MAINTAINER sumner "https://gitlab.com/sumner"
+LABEL maintainer sumner "https://gitlab.com/sumner"
 
+ARG DEBIAN_FRONTEND=noninteractive
 RUN apt update && \
     export TZ=America/Denver DEBIAN_FRONTEND=noninteractive && \
     apt install -y \
-        python3-pip \
-        libcairo2-dev \
-        pkg-config \
-        libgtk-3-dev \
-        libmpv-dev \
-        libglib2.0-dev \
-        gir1.2-notify-0.7 \
-        make \
         build-essential \
-        libssl-dev \
-        zlib1g-dev \
-        libbz2-dev \
-        libreadline-dev \
-        libsqlite3-dev \
-        wget \
         curl \
-        llvm \
+        dbus \
+        gir1.2-nm-1.0 \
+        gir1.2-notify-0.7 \
+        git \
+        libbz2-dev \
+        libcairo2-dev \
+        libffi-dev \
+        libgirepository1.0-dev \
+        libglib2.0-dev \
+        libgtk-3-dev \
+        liblzma-dev \
+        libmpv-dev \
         libncurses5-dev \
         libncursesw5-dev \
-        xz-utils \
-        tk-dev \
-        libffi-dev \
-        liblzma-dev \
+        libreadline-dev \
+        libsqlite3-dev \
+        libssl-dev \
+        libyaml-dev \
+        llvm \
+        make \
+        pkg-config \
         python-openssl \
-        git \
-        libgirepository1.0-dev \
-        gir1.2-networkmanager-1.0 \
-        dbus
+        python3-pip \
+        tk-dev \
+        wget \
+        xvfb \
+        xz-utils \
+        zlib1g-dev
 
 RUN cd /usr/local/src && \
     curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash

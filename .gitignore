@@ -1,4 +1,5 @@
 flatpak/flatpak_build_dir/
+flatpak/sublime-music.flatpak
 
 # Created by https://www.gitignore.io/api/python
 # Edit at https://www.gitignore.io/?templates=python
@@ -8,7 +9,9 @@ flatpak/flatpak_build_dir/
 __pycache__/
 *.py[cod]
 *$py.class
-.vscode/settings.json
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.default.json
 
 # C extensions
 *.so

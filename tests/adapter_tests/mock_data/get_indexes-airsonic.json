@@ -1,0 +1,55 @@
+{
+  "subsonic-response": {
+    "status": "ok",
+    "version": "1.15.0",
+    "indexes": {
+      "lastModified": 1588577415000,
+      "ignoredArticles": "The El La Los Las Le Les",
+      "index": [
+        {
+          "name": "A",
+          "artist": [
+            {
+              "id": "73",
+              "name": "The Afters"
+            },
+            {
+              "id": "100",
+              "name": "Adele"
+            },
+            {
+              "id": "120",
+              "name": "Austin French"
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "artist": [
+            {
+              "id": "93",
+              "name": "The Band Perry"
+            },
+            {
+              "id": "41",
+              "name": "Basshunter"
+            }
+          ]
+        },
+        {
+          "name": "X-Z",
+          "artist": [
+            {
+              "id": "155",
+              "name": "Zac Brown Band"
+            },
+            {
+              "id": "25",
+              "name": "Zach Williams"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

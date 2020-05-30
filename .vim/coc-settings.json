@@ -1,7 +1,9 @@
 {
+  "python.jediEnabled": false,
+  "python.analysis.openFilesOnly": false,
   "python.linting.pylintEnabled": false,
   "python.linting.flake8Enabled": true,
   "python.linting.enabled": true,
   "python.linting.mypyEnabled": true,
-  "python.formatting.provider": "yapf"
+  "python.formatting.provider": "black"
 }

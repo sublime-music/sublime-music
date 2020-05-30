@@ -16,6 +16,15 @@ Please note that as of right now, I (Sumner) am basically the only contributor
 to this project, so my response time to your issue may be anywhere from instant
 to infinite.
 
+When reporting a bug, please be as specific as possible, and include steps to
+reproduce. Additionally, you can run Sublime Music with the ``-m`` flag to
+enable logging at different levels. For the most verbose logging, run Sublime
+Music with ``debug`` level logging::
+
+    sublime-music -m debug
+
+This may not be necessary, and using ``info`` may also suffice.
+
 Code
 ====
 
@@ -66,24 +75,58 @@ environment, you can use::
 Building the flatpak
 --------------------
 
-*(currently broken)*
-
 - A flatpak-builder environment must be setup on the build machine to do a
   flatpak build. This includes ``org.gnome.SDK//3.34`` and
   ``org.gnome.Platform//3.34``.
 - The ``flatpak`` folder contains the required files to build a flatpak package.
 - The script ``flatpak_build.sh`` will run the required commands to grab the
   remaining dependencies and build the flatpak.
+- You can install the Flatpak using: ``flatpak install sublime-music.flatpak``
+  and run it using ``flatpak run com.sumnerevans.SublimeMusic``.
 
 Code Style
 ----------
 
-* `PEP-8`_ is to be followed **strictly**.
-* `mypy`_ is used for type checking.
-* ``print`` statements are not to be used except for when you actually want to
-  print to the terminal (which should be rare). In all other cases, the more
-  powerful and useful ``logging`` library should be used.
+This project follows `PEP-8`_ **strictly**. The *only* exception is maximum line
+length, which is 88 for this project (in accordance with ``black``'s defaults).
+Lines that contain a single string literal are allowed to extend past the
+maximum line length limit.
 
+This project uses flake8, mypy, and black to do static analysis of the code and
+to enforce a consistent (and as deterministic as possible) code style.
+
+Although you can technically do all of the formatting yourself, it is
+recommended that you use the following tools (they are automatically installed
+if you are using pipenv). The CI process uses these to check all commits, so you
+will probably want these so you don't have to wait for results of the build
+before knowing if your code is the correct style.
+
+* `flake8`_ is used for linting. The following additional plugins are also used:
+
+  * ``flake8-annotations``: enforce type annotations on function definitions.
+  * ``flake8-bugbear``: enforce a bunch of fairly opinionated styles.
+  * ``flake8-comprehensions``: enforce usage of comprehensions wherever
+    possible.
+  * ``flake8-importorder`` (with the ``edited`` import style): enforce ordering
+    of import statements.
+  * ``flake8-pep3101``: no ``%`` string formatting.
+
+* `mypy`_ is used for type checking. All type errors must be resolved.
+
+* `black`_ is used for auto-formatting. The CI process runs ``black --check`` to
+  make sure that you've run ``black`` on all files (or are just good at manually
+  formatting).
+
+* ``TODO`` statements must include an associated issue number (in other words,
+  if you want to check in a change with outstanding TODOs, there must be an
+  issue associated with it to fix it).
+
+* ``print`` statements are not allowed. Use the more powerful and useful
+  ``logging`` library instead. In the rare case that you actually want to print
+  to the terminal (the ``--version`` flag for example), then just disable this
+  check with a ``# noqa`` or a ``# noqa: T001`` comment.
+
+.. _black: https://github.com/psf/black
 .. _`PEP-8`: https://www.python.org/dev/peps/pep-0008/
 .. _mypy: http://mypy-lang.org/
 
@@ -92,8 +135,31 @@ checks for uses of ``print``. You can run the same checks that the lint job runs
 yourself with the following commands::
 
     $ flake8
-    $ mypy sublime
+    $ mypy sublime tests/**/*.py
+    $ black --check .
     $ ./cicd/custom_style_check.py
+
+Testing
+-------
+
+This project uses ``pytest`` for testing. Tests can be added in the docstrings
+of the methods that are being tested or in the ``tests`` directory. 100% test
+coverage is **not** a goal of this project, and will never be. There is a lot of
+code that just doesn't need tested, or is better if just tested manually (for
+example most of the UI code).
+
+Simulating Bad Network Conditions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+One of the primary goals of this project is to be resilient to crappy network
+conditions. If you have good internet, you can simulate bad internet with the
+``REQUEST_DELAY`` environment variable. This environment variable should be two
+values, separated by a ``,``: the lower and upper limit for the delay to add to
+each network request. The delay will be a random number between the lower and
+upper bounds. For example, the following will run Sublime Music and every
+request will have an additional 3-5 seconds of latency::
+
+    REQUEST_DELAY=3,5 sublime-music
 
 CI/CD Pipeline
 --------------
@@ -112,7 +178,6 @@ application to PyPi. A brief description of each of the stages is as follows:
 
 ``build``
     * Builds the Python dist tar file
-    * Compiles the logo to multiple different sizes
     * Builds the flatpak.
 
 ``deploy``

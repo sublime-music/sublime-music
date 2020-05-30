@@ -1,24 +1,141 @@
+v0.10.0
+=======
+
+.. warning::
+
+   This version is not compatible with any previous versions. If you have run a
+   previous version of Sublime Music, please delete your cache (likely in
+   ``~/.local/share/sublime-music``) and your existing configuration (likely in
+   ``~/.config/sublime-music``) and re-run Sublime Music to restart the
+   configuration process.
+
+Features
+--------
+
+**Albums Tab Improvements**
+
+* The Albums tab is now paginated with configurable page sizes.
+* You can sort the Albums tab ascending or descending.
+* Opening an closing an album on the Albums tab now has a nice animation.
+
+**Player Controls**
+
+* The amount of the song that is cached is now shown while streaming a song.
+* The notification for resuming a play queue is now a non-modal notification
+  that pops up right above the player controls.
+
+**New Icons**
+
+* The Devices button now uses the Chromecast logo.
+* Custom icons for "Add to play queue", and "Play next" buttons. Thanks to
+  @samsartor for contributing the SVGs!
+* A new icon for indicating the connection state to the Subsonic server.
+  Contributed by @samsartor.
+* A new icon for that data wasn't able to be loaded due to being offline.
+  Contributed by @samsartor.
+
+**Application Menus**
+
+* Settings are now in the popup under the gear icon rather than in a separate
+  popup window.
+* You can now clear the cache via an option in the Downloads popup. There are
+  options for removing the entire cache and removing just the song file cache.
+
+.. * The music provider configuration has gotten a major revamp.
+.. * The Downloads popup shows the songs that are currently being downloaded.
+.. * 
+
+**Offline Mode**
+
+* You can enable *Offline Mode* from the server menu.
+* Features that require network access are disabled in offline mode.
+* You can still browse anything that is already cached offline.
+
+**Other Features**
+
+.. * A man page has been added. Contributed by @baldurmen.
+
+Under The Hood
+--------------
+
+This release has a ton of under-the-hood changes to make things more robust
+and performant.
+
+* The cache is now stored in a SQLite database.
+* The cache no longer gets corrupted when Sublime Music fails to write to disk.
+* A generic `Adapter API`_ has been created which means that Sublime Music is no
+  longer reliant on Subsonic. This means that in the future, more backends can
+  be added.
+
+.. _Adapter API: https://sumner.gitlab.io/sublime-music/adapter-api.html
+
+v0.9.2
+======
+
+* **Flatpak support is back!** After resolving a build error that's been
+  plaguing us since **v0.8.9**, we once again have a Flatpak build!
+
+  The Flatpak now also exports a ``.desktop`` file and an AppStream manifest
+  file.
+
+* The ``keyring`` dependency is now optional.
+* The ``.desktop`` file doesn't hard-code the exec path anymore.
+
+v0.9.1
+======
+
+* **macOS Support Alpha:** support for macOS is now in alpha. There is very
+  little documentation, and quite a few hacks, but core functionality works.
+* Sublime Music is more resilient to certain libraries or functionalities not
+  existing on the system. (Namely libnotify, NetworkManager, and DBus)
+* Sublime Music now prompts you to confirm you actually want to delete the
+  playlist. (#81)
+* Playlist and Artist info now scroll with the rest of the content which makes
+  Sublime Music usable on smaller screens. (#152)
+* Worked with deluan_ to support the Navidrome_ server.
+
+* **Bug Fixes**
+
+  * Sublime Music no longer explodes when you say "don't save password" in your
+    keyring notification popup.
+  * The ``NM`` library is used instead of the deprecated ``NetworkManager`` and
+    ``NMClient``. (Contributed by @anarcat.)
+  * Sublime Music will crash less often due to missing dependencies.
+  * Fixed some bugs where the state of the application wouldn't update when you
+    deleted/downloaded songs from certain parts of the application.
+
+.. _deluan: https://www.deluan.com/
+.. _Navidrome: https://www.navidrome.org/
+
 v0.9.0
 ======
 
+This is the first ``v0.9.*`` release. I've decided to bump the minor version,
+since this is the first release where I feel that all core functionality works.
+All of the releases in the ``v0.9.*`` series will build towards the ``v1.0.0``
+release.
+
+* New logo that isn't total garbage. By mountdesign_ on Fiverr_. (#110)
 * Cover art for a given album is now only stored once at high resolution and
   scaled whenever used.
-* The year inputs on the Albums tab no longer allow for non-numeric inputs, and
-  are generally way less janky. (#123)
-* The Albums tab doesn't flicker every single time an ``update`` is called from
-  the top level. (#114)
 * The shuffle and repeat buttons are now toggle buttons, and no longer rely on
   the icon theme to provide context as to whether they are activated or not.
   (#125)
 * Added support for Replay Gain option which is available from the Application
   Settings dialog. (#137)
+* All of the buttons that are only icons now have tooltips describing what they
+  do.
 
 * **Bug Fixes**
 
+  * The year inputs on the Albums tab no longer allow for non-numeric inputs,
+    and are generally way less janky. (#123)
   * When dealing with track covers, the ``song.coverArt`` property is used
     instead of the ``song.id``. (Contributed by @sentriz.)
   * The Albums tab no longer loads infinitely when there are more than 500
     albums in the results. (Contributed by @sentriz.)
+  * The Albums tab doesn't flicker every single time an ``update`` is called
+    from the top level. (#114)
   * Fixed issue with setting the title of the "Edit/Add Server" dialog.
 
 * **Infrastructure**
@@ -30,6 +147,9 @@ v0.9.0
     * Enforcing no use of ``%`` style string formatting.
 
     These changes resulted in a *lot* of code cleanup.
+
+.. _mountdesign: https://www.fiverr.com/mountdesign
+.. _Fiverr: https://www.fiverr.com
 
 v0.8.13
 =======
