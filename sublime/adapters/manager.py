@@ -828,8 +828,12 @@ class AdapterManager:
         # get the hash of the song and compare here. That way of the cache gets blown
         # away, but not the song files, it will not have to re-download.
 
-        if not allow_song_downloads and not AdapterManager._ground_truth_can_do(
-            "stream"
+        if (
+            not allow_song_downloads
+            and not AdapterManager._ground_truth_can_do("stream")
+        ) or (
+            AdapterManager._instance.ground_truth_adapter.is_networked
+            and AdapterManager._offline_mode
         ):
             # TODO
             raise Exception("Can't stream the song.")
