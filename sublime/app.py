@@ -5,7 +5,6 @@ import sys
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
-from time import sleep
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 try:
@@ -1175,7 +1174,6 @@ class SublimeMusicApp(Gtk.Application):
                 can_play = True
             elif self.app_config.state.repeat_type != RepeatType.REPEAT_SONG:
                 # See if any other songs in the queue are playable.
-                # TODO: deal with search backwards
                 play_queue_len = len(self.app_config.state.play_queue)
                 cursor = (
                     current_song_index + playable_song_search_direction
