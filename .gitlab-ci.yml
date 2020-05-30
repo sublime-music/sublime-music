@@ -13,7 +13,7 @@ variables:
 
 cache:
   paths:
-    - .cache/pip
+    - .venv/
 
 image: registry.gitlab.com/sumner/sublime-music/python-build:latest
 
@@ -81,6 +81,7 @@ pages:
 deploy_pypi:
   image: python:3.8-alpine
   stage: deploy
+  cache: {}
   only:
     variables:
       # Only do a deploy if it's a version tag.
@@ -98,6 +99,7 @@ deploy_pypi:
 
 verify_deploy:
   stage: verify
+  cache: {}
   only:
     variables:
       # Only verify the deploy if it's a version tag.
