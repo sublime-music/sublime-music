@@ -40,11 +40,18 @@ look at the |docs|_.
 Requirements
 ------------
 
-- Python 3.7 (I recommend you install this via Pyenv_)
+**WIP:** Please create an MR with any other dependencies that you had to
+install to develop the app. In general, the requirements are:
+
+- Python 3.8 (I recommend you install this via Pyenv_)
 - GTK3
 - GLib
-- Probably other things... Please create an MR with any other dependencies that
-  you had to install to develop the app.
+
+Specific Install Instructions for Various Distros/OSes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* **Arch Linux:** `pacman -S libnm-glib libnotify python-gobject`
+* **macOS (Homebrew):** `brew install pygobject3 gtk+3 adwaita-icon-theme`
 
 Installing
 ----------
