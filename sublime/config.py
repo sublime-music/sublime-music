@@ -161,12 +161,14 @@ class AppConfiguration:
             return
 
         self._current_server_hash = self.server.strhash()
-        if self.state_file_location.exists():
+        if (
+            state_file_location := self.state_file_location
+        ) and state_file_location.exists():
             try:
-                with open(self.state_file_location, "rb") as f:
+                with open(state_file_location, "rb") as f:
                     self._state = pickle.load(f)
             except Exception:
-                logging.warning(f"Couldn't load state from {self.state_file_location}")
+                logging.warning(f"Couldn't load state from {state_file_location}")
                 # Just ignore any errors, it is only UI state.
                 self._state = UIState()
 
@@ -176,8 +178,10 @@ class AppConfiguration:
         AdapterManager.reset(self)
 
     @property
-    def state_file_location(self) -> Path:
-        assert self.server is not None
+    def state_file_location(self) -> Optional[Path]:
+        if self.server is None:
+            return None
+
         server_hash = self.server.strhash()
 
         state_file_location = Path(os.environ.get("XDG_DATA_HOME") or "~/.local/share")
@@ -192,6 +196,7 @@ class AppConfiguration:
             f.write(yaml.dump(asdict(self)))
 
         # Save the state for the current server.
-        self.state_file_location.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.state_file_location, "wb+") as f:
-            pickle.dump(self.state, f)
+        if state_file_location := self.state_file_location:
+            state_file_location.parent.mkdir(parents=True, exist_ok=True)
+            with open(state_file_location, "wb+") as f:
+                pickle.dump(self.state, f)

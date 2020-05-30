@@ -165,6 +165,9 @@ class DBusManager:
 
     def property_dict(self) -> Dict[str, Any]:
         config, player = self.get_config_and_player()
+        if config is None or player is None:
+            return {}
+
         state = config.state
         has_current_song = state.current_song is not None
         has_next_song = False

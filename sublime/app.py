@@ -53,7 +53,7 @@ class SublimeMusicApp(Gtk.Application):
 
         self.connect("shutdown", self.on_app_shutdown)
 
-    player: Player
+    player: Optional[Player] = None
     exiting: bool = False
 
     def do_startup(self):
@@ -128,19 +128,6 @@ class SublimeMusicApp(Gtk.Application):
             screen, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER
         )
 
-        self.window.stack.connect(
-            "notify::visible-child", self.on_stack_change,
-        )
-        self.window.connect("song-clicked", self.on_song_clicked)
-        self.window.connect("songs-removed", self.on_songs_removed)
-        self.window.connect("refresh-window", self.on_refresh_window)
-        self.window.connect("notification-closed", self.on_notification_closed)
-        self.window.connect("go-to", self.on_window_go_to)
-        self.window.connect("key-press-event", self.on_window_key_press)
-        self.window.player_controls.connect("song-scrub", self.on_song_scrub)
-        self.window.player_controls.connect("device-update", self.on_device_update)
-        self.window.player_controls.connect("volume-change", self.on_volume_change)
-
         self.window.show_all()
         self.window.present()
 
@@ -155,6 +142,18 @@ class SublimeMusicApp(Gtk.Application):
             if self.app_config.server is None:
                 self.window.close()
                 return
+
+        # Connect after we know there's a server configured.
+        self.window.stack.connect("notify::visible-child", self.on_stack_change)
+        self.window.connect("song-clicked", self.on_song_clicked)
+        self.window.connect("songs-removed", self.on_songs_removed)
+        self.window.connect("refresh-window", self.on_refresh_window)
+        self.window.connect("notification-closed", self.on_notification_closed)
+        self.window.connect("go-to", self.on_window_go_to)
+        self.window.connect("key-press-event", self.on_window_key_press)
+        self.window.player_controls.connect("song-scrub", self.on_song_scrub)
+        self.window.player_controls.connect("device-update", self.on_device_update)
+        self.window.player_controls.connect("volume-change", self.on_volume_change)
 
         # Configure the players
         self.last_play_queue_update = timedelta(0)

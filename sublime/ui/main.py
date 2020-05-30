@@ -337,10 +337,10 @@ class MainWindow(Gtk.ApplicationWindow):
         current_downloads_header.pack_end(cancel_all_button, False, False, 0)
         vbox.add(current_downloads_header)
 
-        current_downloads_box = Gtk.Box(
+        self.current_downloads_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL, name="current-downloads-list"
         )
-        vbox.add(current_downloads_box)
+        vbox.add(self.current_downloads_box)
 
         clear_cache = self._create_model_button("Clear Cache", menu_name="clear-cache")
         vbox.add(clear_cache)
