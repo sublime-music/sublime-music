@@ -32,7 +32,7 @@ except Exception:
     )
     glib_notify_exists = False
 
-from .adapters import AdapterManager, AlbumSearchQuery, Result
+from .adapters import AdapterManager, AlbumSearchQuery, Result, SongCacheStatus
 from .adapters.api_objects import Playlist, PlayQueue, Song
 from .config import AppConfiguration
 from .dbus import dbus_propagate, DBusManager
@@ -86,12 +86,7 @@ class SublimeMusicApp(Gtk.Application):
         add_action("browse-to", self.browse_to, parameter_type="s")
         add_action("go-to-playlist", self.on_go_to_playlist, parameter_type="s")
 
-        add_action(
-            "go-online",
-            lambda *a: self.on_refresh_window(
-                None, {"__settings__": {"offline_mode": False}}
-            ),
-        )
+        add_action("go-online", self.on_go_online)
         add_action(
             "refresh-window", lambda *a: self.on_refresh_window(None, {}, True),
         )
@@ -587,7 +582,12 @@ class SublimeMusicApp(Gtk.Application):
             # Go back to the beginning of the song.
             song_index_to_play = self.app_config.state.current_song_index
 
-        self.play_song(song_index_to_play, reset=True)
+        self.play_song(
+            song_index_to_play,
+            reset=True,
+            # search backwards for a song to play if offline
+            playable_song_search_direction=-1,
+        )
 
     @dbus_propagate()
     def on_repeat_press(self, *args):
@@ -669,6 +669,9 @@ class SublimeMusicApp(Gtk.Application):
         self.app_config.state.current_tab = "playlists"
         self.app_config.state.selected_playlist_id = playlist_id.get_string()
         self.update_window()
+
+    def on_go_online(self, *args):
+        self.on_refresh_window(None, {"__settings__": {"offline_mode": False}})
 
     def on_server_list_changed(self, action: Any, servers: GLib.Variant):
         self.app_config.servers = servers
@@ -971,7 +974,13 @@ class SublimeMusicApp(Gtk.Application):
         reset: bool = False,
         old_play_queue: Tuple[str, ...] = None,
         play_queue: Tuple[str, ...] = None,
+        playable_song_search_direction: int = 1,
     ):
+        def do_reset():
+            self.player.reset()
+            self.app_config.state.song_progress = timedelta(0)
+            self.should_scrobble_song = True
+
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.
         @dbus_propagate(self)
@@ -984,9 +993,7 @@ class SublimeMusicApp(Gtk.Application):
             # Prevent it from doing the thing where it continually loads
             # songs when it has to download.
             if reset:
-                self.player.reset()
-                self.app_config.state.song_progress = timedelta(0)
-                self.should_scrobble_song = True
+                do_reset()
 
             # Start playing the song.
             if order_token != self.song_playing_order_token:
@@ -1151,14 +1158,98 @@ class SublimeMusicApp(Gtk.Application):
                 ),
             )
 
+        # If in offline mode, go to the first song in the play queue after the given
+        # song that is actually playable.
+        if self.app_config.offline_mode:
+            statuses = AdapterManager.get_cached_statuses(
+                self.app_config.state.play_queue
+            )
+            playable_statuses = (
+                SongCacheStatus.CACHED,
+                SongCacheStatus.PERMANENTLY_CACHED,
+            )
+            can_play = False
+            current_song_index = self.app_config.state.current_song_index
+
+            if statuses[current_song_index] in playable_statuses:
+                can_play = True
+            elif self.app_config.state.repeat_type != RepeatType.REPEAT_SONG:
+                # See if any other songs in the queue are playable.
+                # TODO: deal with search backwards
+                play_queue_len = len(self.app_config.state.play_queue)
+                cursor = (
+                    current_song_index + playable_song_search_direction
+                ) % play_queue_len
+                for _ in range(play_queue_len):  # Don't infinite loop.
+                    if self.app_config.state.repeat_type == RepeatType.NO_REPEAT:
+                        if (
+                            playable_song_search_direction == 1
+                            and cursor < current_song_index
+                        ) or (
+                            playable_song_search_direction == -1
+                            and cursor > current_song_index
+                        ):
+                            # We wrapped around to the end of the play queue without
+                            # finding a song that can be played, and we aren't allowed
+                            # to loop back.
+                            break
+
+                    # If we find a playable song, stop and play it.
+                    if statuses[cursor] in playable_statuses:
+                        self.play_song(cursor, reset)
+                        return
+
+                    cursor = (cursor + playable_song_search_direction) % play_queue_len
+
+            if not can_play:
+                # There are no songs that can be played. Show a notification that you
+                # have to go online to play anything and then don't go further.
+                was_playing = False
+                if self.app_config.state.playing:
+                    was_playing = True
+                    self.on_play_pause()
+
+                def go_online_clicked():
+                    self.app_config.state.current_notification = None
+                    self.on_go_online()
+                    if was_playing:
+                        self.on_play_pause()
+
+                if all(s == SongCacheStatus.NOT_CACHED for s in statuses):
+                    markup = (
+                        "<b>None of the songs in your play queue are cached for "
+                        "offline playback.</b>\nGo online to start playing your queue."
+                    )
+                else:
+                    markup = (
+                        "<b>None of the remaining songs in your play queue are cached "
+                        "for offline playback.</b>\nGo online to contiue playing your "
+                        "queue."
+                    )
+
+                self.app_config.state.current_notification = UIState.UINotification(
+                    icon="cloud-offline-symbolic",
+                    markup=markup,
+                    actions=(("Go Online", go_online_clicked),),
+                )
+                if reset:
+                    do_reset()
+                self.update_window()
+                return
+
         song_details_future = AdapterManager.get_song_details(
             self.app_config.state.play_queue[self.app_config.state.current_song_index]
         )
-        song_details_future.add_done_callback(
-            lambda f: GLib.idle_add(
-                partial(do_play_song, self.song_playing_order_token), f.result()
-            ),
-        )
+        if song_details_future.data_is_available:
+            song_details_future.add_done_callback(
+                lambda f: do_play_song(self.song_playing_order_token, f.result())
+            )
+        else:
+            song_details_future.add_done_callback(
+                lambda f: GLib.idle_add(
+                    partial(do_play_song, self.song_playing_order_token), f.result()
+                ),
+            )
 
     def save_play_queue(self, song_playing_order_token: int = None):
         if (

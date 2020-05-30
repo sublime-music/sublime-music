@@ -62,8 +62,11 @@ class MainWindow(Gtk.ApplicationWindow):
         notification_box = Gtk.Box(can_focus=False, valign="start", spacing=10)
         notification_box.get_style_context().add_class("app-notification")
 
+        self.notification_icon = Gtk.Image()
+        notification_box.pack_start(self.notification_icon, True, False, 5)
+
         self.notification_text = Gtk.Label(use_markup=True)
-        notification_box.pack_start(self.notification_text, True, False, 0)
+        notification_box.pack_start(self.notification_text, True, False, 5)
 
         self.notification_actions = Gtk.Box()
         notification_box.pack_start(self.notification_actions, True, False, 0)
@@ -99,6 +102,14 @@ class MainWindow(Gtk.ApplicationWindow):
         notification = app_config.state.current_notification
         if notification and (h := hash(notification)) != self.current_notification_hash:
             self.current_notification_hash = h
+
+            if notification.icon:
+                self.notification_icon.set_from_icon_name(
+                    notification.icon, Gtk.IconSize.DND
+                )
+            else:
+                self.notification_icon.set_from_icon_name(None, Gtk.IconSize.DND)
+
             self.notification_text.set_markup(notification.markup)
 
             for c in self.notification_actions.get_children():

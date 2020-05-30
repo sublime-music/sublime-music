@@ -1,10 +1,10 @@
 from datetime import timedelta
 from random import randint
-from typing import List, Sequence
+from typing import cast, List, Sequence
 
 from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, api_objects as API
+from sublime.adapters import AdapterManager, api_objects as API, CacheMissError
 from sublime.config import AppConfiguration
 from sublime.ui import util
 from sublime.ui.common import AlbumWithSongs, IconButton, LoadError, SpinnerImage
@@ -518,11 +518,24 @@ class ArtistDetailPanel(Gtk.Box):
         )
 
     def get_artist_song_ids(self) -> List[str]:
+        try:
+            artist = AdapterManager.get_artist(self.artist_id).result()
+        except CacheMissError as c:
+            artist = cast(API.Artist, c.partial_data)
+
+        if not artist:
+            return []
+
         songs = []
-        for album in AdapterManager.get_artist(self.artist_id).result().albums or []:
+        for album in artist.albums or []:
             assert album.id
-            album_songs = AdapterManager.get_album(album.id).result()
-            for song in album_songs.songs or []:
+            try:
+                album_with_songs = AdapterManager.get_album(album.id).result()
+            except CacheMissError as c:
+                album_with_songs = cast(API.Album, c.partial_data)
+            if not album_with_songs:
+                continue
+            for song in album_with_songs.songs or []:
                 songs.append(song.id)
 
         return songs

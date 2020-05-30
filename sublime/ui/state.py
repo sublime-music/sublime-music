@@ -41,6 +41,7 @@ class UIState:
         actions: Tuple[Tuple[str, Callable[[], None]], ...] = field(
             default_factory=tuple
         )
+        icon: Optional[str] = None
 
     version: int = 1
 
