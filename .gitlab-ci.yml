@@ -11,6 +11,10 @@ variables:
   LC_ALL: "C.UTF-8"
   LANG: "C.UTF-8"
 
+cache:
+  paths:
+    - .cache/pip
+
 image: registry.gitlab.com/sumner/sublime-music/python-build:latest
 
 lint:
