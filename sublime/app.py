@@ -865,7 +865,7 @@ class SublimeMusicApp(Gtk.Application):
 
     def on_song_download_progress(self, song_id: str, progress: DownloadProgress):
         assert self.window
-        self.window.update_song_download_progress(song_id, progress)
+        GLib.idle_add(self.window.update_song_download_progress, song_id, progress)
 
     def on_app_shutdown(self, app: "SublimeMusicApp"):
         self.exiting = True

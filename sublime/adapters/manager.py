@@ -454,9 +454,9 @@ class AdapterManager:
                             total_consumed += len(data)
                             f.write(data)
 
-                            if i % 5 == 0:
+                            if i % 100 == 0:
                                 # Only delay (if configured) and update the progress UI
-                                # every 5 KiB.
+                                # every 10 KiB.
                                 if DOWNLOAD_BLOCK_DELAY is not None:
                                     sleep(DOWNLOAD_BLOCK_DELAY)
 
@@ -482,6 +482,8 @@ class AdapterManager:
                             id,
                             DownloadProgress(DownloadProgress.Type.ERROR, exception=e),
                         )
+                    # Re-raise the exception so that we can actually handle it.
+                    raise
                 finally:
                     # Always release the download set lock, even if there's an error.
                     with AdapterManager.download_set_lock:
@@ -954,7 +956,6 @@ class AdapterManager:
                     AdapterManager._instance.song_download_progress(
                         song_id, DownloadProgress(DownloadProgress.Type.DONE),
                     )
-                    song = AdapterManager.get_song_details(song_id).result()
                 except CacheMissError:
                     # The song is not already cached.
                     if before_download:
@@ -963,7 +964,7 @@ class AdapterManager:
                     song = AdapterManager.get_song_details(song_id).result()
 
                     # Download the song.
-                    # TODO (#64) handle download errors?
+                    # TODO figure out how to cancel
                     song_tmp_filename = AdapterManager._create_download_fn(
                         AdapterManager._instance.ground_truth_adapter.get_song_uri(
                             song_id, AdapterManager._get_scheme()
@@ -978,9 +979,6 @@ class AdapterManager:
                         (None, song_tmp_filename, None),
                     )
                     on_song_download_complete(song_id)
-
-                # Download the corresponding cover art.
-                AdapterManager.get_cover_art_filename(song.cover_art).result()
             finally:
                 # Release the semaphore lock. This will allow the next song in the queue
                 # to be downloaded. I'm doing this in the finally block so that it
@@ -997,7 +995,7 @@ class AdapterManager:
             ):
                 return
 
-            # Alert the UI that the downloads are queue.
+            # Alert the UI that the downloads are queued.
             for song_id in song_ids:
                 # Everything succeeded.
                 AdapterManager._instance.song_download_progress(
@@ -1033,6 +1031,10 @@ class AdapterManager:
                 )
 
         return Result(do_batch_download_songs, is_download=True, on_cancel=on_cancel)
+
+    @staticmethod
+    def cancel_download_songs(song_ids: Sequence[str]):
+        print("cancel songs!!!!!", song_ids)
 
     @staticmethod
     def batch_permanently_cache_songs(

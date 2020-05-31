@@ -32,6 +32,14 @@
   margin: 10px;
 }
 
+#current-downloads-list-pending-count {
+  margin: 10px;
+}
+
+#current-downloads-cover-art-image {
+  margin: 3px 5px;
+}
+
 .menu-label {
     margin-right: 15px;
 }
