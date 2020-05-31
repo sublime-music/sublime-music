@@ -32,8 +32,9 @@
   margin: 10px;
 }
 
-#current-downloads-list-pending-count {
-  margin: 10px;
+#current-downloads-list-pending-count,
+#current-downloads-list-failed-count {
+  margin: 0 5px;
 }
 
 #current-downloads-cover-art-image {

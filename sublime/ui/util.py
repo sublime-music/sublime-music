@@ -202,6 +202,7 @@ def show_song_popover(
         )
 
     def on_remove_downloads_click(_: Any):
+        AdapterManager.cancel_download_songs(song_ids)
         AdapterManager.batch_delete_cached_songs(
             song_ids, on_song_delete=on_download_state_change,
         )

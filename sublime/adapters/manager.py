@@ -180,7 +180,7 @@ class DownloadProgress:
 
     @property
     def progress_fraction(self) -> Optional[float]:
-        if not self.current_bytes or not self.total_bytes:
+        if self.current_bytes is None or self.total_bytes is None:
             return None
         return self.current_bytes / self.total_bytes
 
@@ -405,6 +405,15 @@ class AdapterManager:
                 before_download()
 
             expected_size_exists = expected_size is not None
+            if expected_size_exists:
+                AdapterManager._instance.song_download_progress(
+                    id,
+                    DownloadProgress(
+                        DownloadProgress.Type.PROGRESS,
+                        total_bytes=expected_size,
+                        current_bytes=0,
+                    ),
+                )
 
             # TODO (#122): figure out how to retry if the other request failed.
             if resource_downloading:
@@ -456,7 +465,7 @@ class AdapterManager:
 
                             if i % 100 == 0:
                                 # Only delay (if configured) and update the progress UI
-                                # every 10 KiB.
+                                # every 100 KiB.
                                 if DOWNLOAD_BLOCK_DELAY is not None:
                                     sleep(DOWNLOAD_BLOCK_DELAY)
 

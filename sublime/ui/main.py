@@ -35,8 +35,10 @@ class MainWindow(Gtk.ApplicationWindow):
 
     _updating_settings: bool = False
     _pending_downloads: Set[str] = set()
+    _failed_downloads: Set[str] = set()
     _current_download_boxes: Dict[str, Gtk.Box] = {}
-    _pending_downloads_placeholder: Optional[Gtk.Label] = None
+    _failed_downloads_box: Optional[Gtk.Label] = None
+    _pending_downloads_label: Optional[Gtk.Label] = None
     _current_downloads_placeholder: Optional[Gtk.Label] = None
 
     def __init__(self, *args, **kwargs):
@@ -195,7 +197,11 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def update_song_download_progress(self, song_id: str, progress: DownloadProgress):
         if progress.type == DownloadProgress.Type.QUEUED:
-            self._pending_downloads.add(song_id)
+            if (
+                song_id not in self._failed_downloads
+                and song_id not in self._current_download_boxes.keys()
+            ):
+                self._pending_downloads.add(song_id)
         elif progress.type in (
             DownloadProgress.Type.DONE,
             DownloadProgress.Type.CANCELLED,
@@ -209,7 +215,9 @@ class MainWindow(Gtk.ApplicationWindow):
             if song_id in self._pending_downloads:
                 self._pending_downloads.remove(song_id)
         elif progress.type == DownloadProgress.Type.ERROR:
-            self._current_download_boxes[song_id].set_error(progress.exception)
+            self._failed_downloads.add(song_id)
+            self.current_downloads_box.remove(self._current_download_boxes[song_id])
+            del self._current_download_boxes[song_id]
         elif progress.type == DownloadProgress.Type.PROGRESS:
             if song_id not in self._current_download_boxes:
                 # Create and add the box to show the progress.
@@ -217,40 +225,78 @@ class MainWindow(Gtk.ApplicationWindow):
                 self._current_download_boxes[song_id].connect(
                     "cancel-clicked", self._on_download_box_cancel_click
                 )
-                self._current_download_boxes[song_id].connect(
-                    "retry-clicked", self._on_download_box_retry_click
-                )
                 self.current_downloads_box.add(self._current_download_boxes[song_id])
+
+            if song_id in self._pending_downloads:
                 self._pending_downloads.remove(song_id)
+            if song_id in self._failed_downloads:
+                self._failed_downloads.remove(song_id)
 
             self._current_download_boxes[song_id].update_progress(
                 progress.progress_fraction
             )
 
+        # Show or hide the "failed count" indicator.
+        failed_download_count = len(self._failed_downloads)
+        if failed_download_count > 0:
+            if not self._failed_downloads_box:
+                self._failed_downloads_box = Gtk.Box(
+                    orientation=Gtk.Orientation.HORIZONTAL
+                )
+
+                self._failed_downloads_label = Gtk.Label(
+                    label="",
+                    halign=Gtk.Align.START,
+                    name="current-downloads-list-failed-count",
+                )
+                self._failed_downloads_box.add(self._failed_downloads_label)
+
+                retry_all_button = IconButton(
+                    "view-refresh-symbolic", tooltip_text="Retry all failed downloads."
+                )
+                retry_all_button.connect("clicked", self._on_retry_all_clicked)
+                self._failed_downloads_box.pack_end(retry_all_button, False, False, 0)
+
+                self.current_downloads_box.pack_start(
+                    self._failed_downloads_box, False, False, 5
+                )
+            songs = util.pluralize("song", failed_download_count)
+            self._failed_downloads_label.set_text(
+                f"{failed_download_count} {songs} failed to download"
+            )
+        else:
+            if self._failed_downloads_box:
+                self.current_downloads_box.remove(self._failed_downloads_box)
+                self._failed_downloads_box = None
+
         # Show or hide the "pending count" indicator.
         pending_download_count = len(self._pending_downloads)
         if pending_download_count > 0:
-            if not self._pending_downloads_placeholder:
-                self._pending_downloads_placeholder = Gtk.Label(
+            if not self._pending_downloads_label:
+                self._pending_downloads_label = Gtk.Label(
                     label="",
                     halign=Gtk.Align.START,
                     name="current-downloads-list-pending-count",
                 )
                 self.current_downloads_box.pack_end(
-                    self._pending_downloads_placeholder, True, True, 0
+                    self._pending_downloads_label, False, False, 5
                 )
             songs = util.pluralize("song", pending_download_count)
-            self._pending_downloads_placeholder.set_text(
+            self._pending_downloads_label.set_text(
                 f"+{pending_download_count} pending {songs}"
             )
         else:
-            if self._pending_downloads_placeholder:
-                self.current_downloads_box.remove(self._pending_downloads_placeholder)
-                self._pending_downloads_placeholder = None
+            if self._pending_downloads_label:
+                self.current_downloads_box.remove(self._pending_downloads_label)
+                self._pending_downloads_label = None
 
         # Show or hide the placeholder depending on whether or not there's anything to
         # show.
-        current_downloads = len(self._current_download_boxes)
+        current_downloads = (
+            len(self._current_download_boxes)
+            + pending_download_count
+            + failed_download_count
+        )
         if current_downloads == 0:
             if not self._current_downloads_placeholder:
                 self._current_downloads_placeholder = Gtk.Label(
@@ -266,9 +312,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self.current_downloads_box.show_all()
 
-        self.cancel_all_button.set_sensitive(
-            pending_download_count + current_downloads > 0
-        )
+        self.cancel_all_button.set_sensitive(current_downloads > 0)
 
     def _on_cancel_all_clicked(self, _):
         AdapterManager.cancel_download_songs(
@@ -278,8 +322,10 @@ class MainWindow(Gtk.ApplicationWindow):
     def _on_download_box_cancel_click(self, _, song_id: str):
         AdapterManager.cancel_download_songs([song_id])
 
-    def _on_download_box_retry_click(self, _, song_id: str):
-        AdapterManager.batch_download_songs([song_id], lambda _: None, lambda _: None)
+    def _on_retry_all_clicked(self, _):
+        AdapterManager.batch_download_songs(
+            self._failed_downloads, lambda _: None, lambda _: None,
+        )
 
     def _create_stack(self, **kwargs: Gtk.Widget) -> Gtk.Stack:
         stack = Gtk.Stack()
@@ -445,6 +491,8 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         self.current_downloads_box.add(self._current_downloads_placeholder)
         vbox.add(self.current_downloads_box)
+
+        vbox.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
 
         clear_cache = self._create_model_button("Clear Cache", menu_name="clear-cache")
         vbox.add(clear_cache)
@@ -969,8 +1017,8 @@ class DownloadStatusBox(Gtk.Box):
         )
         self.add(image)
 
-        song_stats = util.dot_join(self.song.artist.name if self.song.artist else None)
-        label_text = util.dot_join(f"<b>{util.esc(self.song.title)}</b>", song_stats)
+        artist = util.esc(self.song.artist.name if self.song.artist else None)
+        label_text = util.dot_join(f"<b>{util.esc(self.song.title)}</b>", artist)
         self.song_label = Gtk.Label(
             label=label_text,
             ellipsize=Pango.EllipsizeMode.END,
@@ -981,8 +1029,8 @@ class DownloadStatusBox(Gtk.Box):
         )
         self.pack_start(self.song_label, True, True, 5)
 
-        self.progress_retry_container = Gtk.Box()
-        self.add(self.progress_retry_container)
+        self.download_progress = Gtk.ProgressBar(show_text=True)
+        self.add(self.download_progress)
 
         self.cancel_button = IconButton(
             "process-stop-symbolic", tooltip_text="Cancel download"
@@ -992,9 +1040,6 @@ class DownloadStatusBox(Gtk.Box):
         )
         self.add(self.cancel_button)
 
-        self.has_error = False
-        self.is_downloading = False
-
         def image_callback(f: Result):
             image.set_loading(False)
             image.set_from_file(f.result())
@@ -1002,30 +1047,5 @@ class DownloadStatusBox(Gtk.Box):
         artwork_future = AdapterManager.get_cover_art_filename(self.song.cover_art)
         artwork_future.add_done_callback(lambda f: GLib.idle_add(image_callback, f))
 
-    def _replace_progress_retry_container(self, element: Any):
-        for c in self.progress_retry_container.get_children():
-            self.progress_retry_container.remove(c)
-        self.progress_retry_container.add(element)
-        self.progress_retry_container.show_all()
-
     def update_progress(self, progress_fraction: float):
-        if not self.is_downloading:
-            self.download_progress = Gtk.ProgressBar(show_text=True)
-            self._replace_progress_retry_container(self.download_progress)
-
         self.download_progress.set_fraction(progress_fraction)
-        self.is_downloading = True
-        self.has_error = False
-
-    def set_error(self, exception: Exception):
-        if not self.has_error:
-            retry_button = IconButton(
-                "view-refresh-symbolic", tooltip_text="Retry download"
-            )
-            retry_button.connect(
-                "clicked", lambda *a: self.emit("retry-clicked", self.song.id)
-            )
-            self._replace_progress_retry_container(retry_button)
-
-        self.is_downloading = False
-        self.has_error = True
