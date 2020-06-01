@@ -266,12 +266,9 @@ class AdapterManager:
             job.cancel()
 
         AdapterManager.executor.shutdown()
-        print("2")
         AdapterManager.download_executor.shutdown()
-        print("3")
         if AdapterManager._instance:
             AdapterManager._instance.shutdown()
-        print("4")
 
         logging.info("AdapterManager shutdown complete")
 
