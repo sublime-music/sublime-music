@@ -171,6 +171,7 @@ def test_get_playlist_details(adapter: SubsonicAdapter):
             year=2016,
             _genre="Christian & Gospel",
             cover_art="318",
+            size=8381640,
             duration=timedelta(seconds=238),
             path="/".join(
                 (
