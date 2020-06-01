@@ -1026,7 +1026,7 @@ class AdapterManager:
                             song_id,
                             (None, f.result(), None),
                         )
-                    except Exception:
+                    finally:
                         on_song_download_complete(song_id)
 
                 song_tmp_filename_result.add_done_callback(on_download_done)

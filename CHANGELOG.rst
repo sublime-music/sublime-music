@@ -38,14 +38,26 @@ Features
 
 **Application Menus**
 
-* Settings are now in the popup under the gear icon rather than in a separate
-  popup window.
-* You can now clear the cache via an option in the Downloads popup. There are
-  options for removing the entire cache and removing just the song file cache.
+* **Settings**
 
-.. * The music provider configuration has gotten a major revamp.
-.. * The Downloads popup shows the songs that are currently being downloaded.
-.. * 
+  * Settings are now in the popup under the gear icon rather than in a separate
+    popup window.
+
+* **Downloads**
+
+  * A new Downloads popup shows the currently downloading songs and allows you
+    to cancel song downloads.
+  * You can now clear the cache via an option in the Downloads popup. There are
+    options for removing the entire cache and removing just the song file cache.
+
+* **Server**
+
+  * A new Server popup shows the connection state to the server in both the icon
+    and the popup.
+  * You can enable *Offline Mode* (see below for details).
+
+.. * The "Configure Servers" dialog has been eliminated in favor of a much more
+   intuitive set of controls right on the Server popup.
 
 **Offline Mode**
 
