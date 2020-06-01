@@ -165,13 +165,20 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self._updating_settings = True
 
-        # Main Settings
+        # Offline Mode Settings
         offline_mode = app_config.offline_mode
         self.offline_mode_switch.set_active(offline_mode)
+
+        # Main Settings
         self.notification_switch.set_active(app_config.song_play_notification)
+
+        # MPV Settings
         self.replay_gain_options.set_active_id(app_config.replay_gain.as_string())
+
+        # Chromecast Settings
         self.serve_over_lan_switch.set_active(app_config.serve_over_lan)
         self.port_number_entry.set_value(app_config.port_number)
+        self.port_number_entry.set_sensitive(app_config.serve_over_lan)
 
         # Download Settings
         allow_song_downloads = app_config.allow_song_downloads
@@ -318,6 +325,7 @@ class MainWindow(Gtk.ApplicationWindow):
         AdapterManager.cancel_download_songs(
             {*self._pending_downloads, *self._current_download_boxes.keys()}
         )
+        self.emit("refresh-window", {}, False)
 
     def _on_download_box_cancel_click(self, _, song_id: str):
         AdapterManager.cancel_download_songs([song_id])

@@ -16,6 +16,7 @@ from typing import (
     Any,
     Callable,
     cast,
+    Dict,
     Generic,
     Iterable,
     List,
@@ -80,6 +81,7 @@ class Result(Generic[T]):
     _future: Optional[Future] = None
     _default_value: Optional[T] = None
     _on_cancel: Optional[Callable[[], None]] = None
+    _cancelled = False
 
     def __init__(
         self,
@@ -152,7 +154,11 @@ class Result(Generic[T]):
             self._on_cancel()
         if self._future is not None:
             return self._future.cancel()
+        self._cancelled = True
         return True
+
+    def cancelled(self) -> bool:
+        return self._cancelled
 
     @property
     def data_is_available(self) -> bool:
@@ -193,6 +199,9 @@ class AdapterManager:
     download_executor: ThreadPoolExecutor = ThreadPoolExecutor()
     is_shutting_down: bool = False
     _offline_mode: bool = False
+
+    _song_download_jobs: Dict[str, Result[str]] = {}
+    _cancelled_song_ids: Set[str] = set()
 
     @dataclass
     class _AdapterManagerInternal:
@@ -253,10 +262,16 @@ class AdapterManager:
     def shutdown():
         logging.info("AdapterManager shutdown start")
         AdapterManager.is_shutting_down = True
+        for _, job in AdapterManager._song_download_jobs.items():
+            job.cancel()
+
         AdapterManager.executor.shutdown()
+        print("2")
         AdapterManager.download_executor.shutdown()
+        print("3")
         if AdapterManager._instance:
             AdapterManager._instance.shutdown()
+        print("4")
 
         logging.info("AdapterManager shutdown complete")
 
@@ -377,17 +392,19 @@ class AdapterManager:
         return Result(future_fn)
 
     @staticmethod
-    def _create_download_fn(
+    def _create_download_result(
         uri: str,
         id: str,
         before_download: Callable[[], None] = None,
         expected_size: int = None,
-    ) -> Callable[[], str]:
+        **result_args,
+    ) -> Result[str]:
         """
         Create a function to download the given URI to a temporary file, and return the
         filename. The returned function will spin-loop if the resource is already being
         downloaded to prevent multiple requests for the same download.
         """
+        download_cancelled = False
 
         def download_fn() -> str:
             assert AdapterManager._instance
@@ -463,6 +480,13 @@ class AdapterManager:
                             total_consumed += len(data)
                             f.write(data)
 
+                            if download_cancelled:
+                                AdapterManager._instance.song_download_progress(
+                                    id,
+                                    DownloadProgress(DownloadProgress.Type.CANCELLED),
+                                )
+                                raise Exception("Download Cancelled")
+
                             if i % 100 == 0:
                                 # Only delay (if configured) and update the progress UI
                                 # every 100 KiB.
@@ -485,7 +509,7 @@ class AdapterManager:
                             id, DownloadProgress(DownloadProgress.Type.DONE),
                         )
                 except Exception as e:
-                    if expected_size_exists:
+                    if expected_size_exists and not download_cancelled:
                         # Something failed. Post an error.
                         AdapterManager._instance.song_download_progress(
                             id,
@@ -501,7 +525,13 @@ class AdapterManager:
             logging.info(f"{uri} downloaded. Returning.")
             return str(download_tmp_filename)
 
-        return download_fn
+        def on_download_cancel():
+            nonlocal download_cancelled
+            download_cancelled = True
+
+        return Result(
+            download_fn, is_download=True, on_cancel=on_download_cancel, **result_args
+        )
 
     @staticmethod
     def _create_caching_done_callback(
@@ -862,15 +892,12 @@ class AdapterManager:
         ):
             return Result(existing_cover_art_filename)
 
-        future: Result[str] = Result(
-            AdapterManager._create_download_fn(
-                AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
-                    cover_art_id, AdapterManager._get_scheme(), size=300
-                ),
-                cover_art_id,
-                before_download,
+        future: Result[str] = AdapterManager._create_download_result(
+            AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
+                cover_art_id, AdapterManager._get_scheme(), size=300
             ),
-            is_download=True,
+            cover_art_id,
+            before_download,
             default_value=existing_cover_art_filename,
         )
 
@@ -941,59 +968,72 @@ class AdapterManager:
             return Result(None)
 
         cancelled = False
+        AdapterManager._cancelled_song_ids -= set(song_ids)
 
         def do_download_song(song_id: str):
+            assert AdapterManager._instance
+            assert AdapterManager._instance.caching_adapter
+
             if (
                 AdapterManager.is_shutting_down
                 or AdapterManager._offline_mode
                 or cancelled
+                or song_id in AdapterManager._cancelled_song_ids
             ):
+                AdapterManager._instance.download_limiter_semaphore.release()
+                AdapterManager._instance.song_download_progress(
+                    song_id, DownloadProgress(DownloadProgress.Type.CANCELLED),
+                )
                 return
-
-            assert AdapterManager._instance
-            assert AdapterManager._instance.caching_adapter
 
             logging.info(f"Downloading {song_id}")
 
+            # Download the actual song file.
             try:
-                # Download the actual song file.
-                try:
-                    # If the song file is already cached, return immediately.
-                    AdapterManager._instance.caching_adapter.get_song_uri(
-                        song_id, "file"
-                    )
-                    AdapterManager._instance.song_download_progress(
-                        song_id, DownloadProgress(DownloadProgress.Type.DONE),
-                    )
-                except CacheMissError:
-                    # The song is not already cached.
-                    if before_download:
-                        before_download(song_id)
-
-                    song = AdapterManager.get_song_details(song_id).result()
-
-                    # Download the song.
-                    # TODO figure out how to cancel
-                    song_tmp_filename = AdapterManager._create_download_fn(
-                        AdapterManager._instance.ground_truth_adapter.get_song_uri(
-                            song_id, AdapterManager._get_scheme()
-                        ),
-                        song_id,
-                        lambda: before_download(song_id),
-                        expected_size=song.size,
-                    )()
-                    AdapterManager._instance.caching_adapter.ingest_new_data(
-                        CachingAdapter.CachedDataKey.SONG_FILE,
-                        song_id,
-                        (None, song_tmp_filename, None),
-                    )
-                    on_song_download_complete(song_id)
-            finally:
-                # Release the semaphore lock. This will allow the next song in the queue
-                # to be downloaded. I'm doing this in the finally block so that it
-                # always runs, regardless of whether an exception is thrown or the
-                # function returns.
+                # If the song file is already cached, just indicate done immediately.
+                AdapterManager._instance.caching_adapter.get_song_uri(song_id, "file")
                 AdapterManager._instance.download_limiter_semaphore.release()
+                AdapterManager._instance.song_download_progress(
+                    song_id, DownloadProgress(DownloadProgress.Type.DONE),
+                )
+            except CacheMissError:
+                # The song is not already cached.
+                if before_download:
+                    before_download(song_id)
+
+                song = AdapterManager.get_song_details(song_id).result()
+
+                # Download the song.
+                song_tmp_filename_result: Result[
+                    str
+                ] = AdapterManager._create_download_result(
+                    AdapterManager._instance.ground_truth_adapter.get_song_uri(
+                        song_id, AdapterManager._get_scheme()
+                    ),
+                    song_id,
+                    lambda: before_download(song_id),
+                    expected_size=song.size,
+                )
+
+                def on_download_done(f: Result):
+                    assert AdapterManager._instance
+                    assert AdapterManager._instance.caching_adapter
+                    AdapterManager._instance.download_limiter_semaphore.release()
+
+                    if AdapterManager._song_download_jobs.get(song_id):
+                        del AdapterManager._song_download_jobs[song_id]
+
+                    try:
+                        AdapterManager._instance.caching_adapter.ingest_new_data(
+                            CachingAdapter.CachedDataKey.SONG_FILE,
+                            song_id,
+                            (None, f.result(), None),
+                        )
+                    except Exception:
+                        on_song_download_complete(song_id)
+
+                song_tmp_filename_result.add_done_callback(on_download_done)
+                AdapterManager._song_download_jobs[song_id] = song_tmp_filename_result
 
         def do_batch_download_songs():
             sleep(delay)
@@ -1012,12 +1052,6 @@ class AdapterManager:
                 )
 
             for song_id in song_ids:
-                if (
-                    AdapterManager.is_shutting_down
-                    or AdapterManager._offline_mode
-                    or cancelled
-                ):
-                    return
                 # Only allow a certain number of songs to be downloaded
                 # simultaneously.
                 AdapterManager._instance.download_limiter_semaphore.acquire()
@@ -1032,9 +1066,11 @@ class AdapterManager:
             nonlocal cancelled
             cancelled = True
 
+            # Cancel the individual song downloads
+            AdapterManager.cancel_download_songs(song_ids)
+
             # Alert the UI that the downloads are cancelled.
             for song_id in song_ids:
-                # Everything succeeded.
                 AdapterManager._instance.song_download_progress(
                     song_id, DownloadProgress(DownloadProgress.Type.CANCELLED),
                 )
@@ -1043,7 +1079,17 @@ class AdapterManager:
 
     @staticmethod
     def cancel_download_songs(song_ids: Sequence[str]):
-        print("cancel songs!!!!!", song_ids)
+        assert AdapterManager._instance
+        AdapterManager._cancelled_song_ids = AdapterManager._cancelled_song_ids.union(
+            set(song_ids)
+        )
+        for song_id in song_ids:
+            AdapterManager._instance.song_download_progress(
+                song_id, DownloadProgress(DownloadProgress.Type.CANCELLED),
+            )
+            if AdapterManager._song_download_jobs.get(song_id):
+                AdapterManager._song_download_jobs[song_id].cancel()
+                del AdapterManager._song_download_jobs[song_id]
 
     @staticmethod
     def batch_permanently_cache_songs(
@@ -1369,7 +1415,10 @@ class AdapterManager:
         )
         return [
             SongCacheStatus.DOWNLOADING
-            if song_id in AdapterManager.current_download_ids
+            if (
+                song_id in AdapterManager.current_download_ids
+                and song_id not in AdapterManager._cancelled_song_ids
+            )
             else cached_statuses[song_id]
             for song_id in song_ids
         ]

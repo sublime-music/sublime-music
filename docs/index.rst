@@ -5,7 +5,7 @@
 Welcome to Sublime Music's documentation!
 =========================================
 
-Sublime Music is a GTK3
+Sublime Music is a native, GTK3
 `Subsonic`_/`Airsonic`_/`Revel`_/`Gonic`_/`Navidrome`_/\*sonic client for the
 Linux Desktop.
 
@@ -26,16 +26,17 @@ Linux Desktop.
 Features
 --------
 
-- Switch between multiple Subsonic-API-compliant servers.
-- Play music through Chromecast devices on the same LAN.
-- DBus MPRIS interface integration for controlling Sublime Music via DBus MPRIS
-  clients such as ``playerctl``, ``i3status-rust``, KDE Connect, and many
-  commonly used desktop environments.
-- Browse songs by the sever-reported filesystem structure, or view them
+* Switch between multiple Subsonic-API-compliant servers.
+* Play music through Chromecast devices on the same LAN.
+* Offline Mode where Sublime Music will not make any network requests.
+* DBus MPRIS interface integration for controlling Sublime Music via clients
+  such as ``playerctl``, ``i3status-rust``, KDE Connect, and many commonly used
+  desktop environments.
+* Browse songs by the sever-reported filesystem structure, or view them
   organized by ID3 tags in the Albums, Artists, and Playlists views.
-- Intuitive play queue.
-- Create/delete/edit playlists.
-- Cache songs for offline listening.
+* Intuitive play queue.
+* Create/delete/edit playlists.
+* Download songs for offline listening.
 
 Installation
 ------------

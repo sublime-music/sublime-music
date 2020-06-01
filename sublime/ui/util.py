@@ -247,7 +247,12 @@ def show_song_popover(
         ):
             download_song_button.set_sensitive(True)
         if any(
-            status in (SongCacheStatus.CACHED, SongCacheStatus.PERMANENTLY_CACHED)
+            status
+            in (
+                SongCacheStatus.CACHED,
+                SongCacheStatus.PERMANENTLY_CACHED,
+                SongCacheStatus.DOWNLOADING,
+            )
             for status in song_cache_statuses
         ):
             remove_download_button.set_sensitive(True)

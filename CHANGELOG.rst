@@ -17,6 +17,7 @@ Features
 * The Albums tab is now paginated with configurable page sizes.
 * You can sort the Albums tab ascending or descending.
 * Opening an closing an album on the Albums tab now has a nice animation.
+* "Go to Album" is much more reliable.
 
 **Player Controls**
 
@@ -26,7 +27,8 @@ Features
 
 **New Icons**
 
-* The Devices button now uses the Chromecast logo.
+* The Devices button now uses the Chromecast logo. It uses a different icon
+  depending on whether or not you are playing on a Chromecast.
 * Custom icons for "Add to play queue", and "Play next" buttons. Thanks to
   @samsartor for contributing the SVGs!
 * A new icon for indicating the connection state to the Subsonic server.
@@ -52,6 +54,9 @@ Features
 * You can still browse anything that is already cached offline.
 
 **Other Features**
+
+* You can now collapse the Artist details and the Playlist details so that you
+  have more room to view the actual content.
 
 .. * A man page has been added. Contributed by @baldurmen.
 
