@@ -4,7 +4,7 @@ import os
 import re
 from collections import defaultdict
 from datetime import timedelta
-from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
+from typing import Any, Callable, DefaultDict, Dict, List, Match, Optional, Tuple
 
 from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
@@ -163,6 +163,29 @@ class DBusManager:
             return value
         return GLib.Variant(variant_type, value)
 
+    _escape_re = re.compile(r"[^\w]+")
+
+    @staticmethod
+    @functools.lru_cache(maxsize=1024)
+    def _escape_id(id: str) -> str:
+        """
+        Escapes an ID for use in a DBus object identifier.
+
+        >>> DBusManager._escape_id("tr-1843")
+        'tr_0x45_1843'
+        >>> DBusManager._escape_id("bc9c7726-8739-4add-8df0-88c6233f37df")
+        'bc9c7726_0x45_8739_0x45_4add_0x45_8df0_0x45_88c6233f37df'
+        >>> DBusManager._escape_id("spaces spaces everywhere")
+        'spaces_0x32_spaces_0x32_everywhere'
+        >>> DBusManager._escape_id("already/has/slashes")
+        'already_0x47_has_0x47_slashes'
+        """
+
+        def replace(m: Match[str]) -> str:
+            return f"_0x{ord(m[0])}_"
+
+        return DBusManager._escape_re.sub(replace, id)
+
     def property_dict(self) -> Dict[str, Any]:
         config, player = self.get_config_and_player()
         if config is None or player is None:
@@ -229,7 +252,7 @@ class DBusManager:
                 "CanControl": True,
             },
             "org.mpris.MediaPlayer2.TrackList": {
-                "Tracks": self.get_dbus_playlist(state.play_queue),
+                "Tracks": DBusManager.get_dbus_playlist(state.play_queue),
                 "CanEditTracks": False,
             },
             "org.mpris.MediaPlayer2.Playlists": {
@@ -261,7 +284,12 @@ class DBusManager:
             return (
                 True,
                 GLib.Variant(
-                    "(oss)", ("/playlist/" + playlist.id, playlist.name, cover_art)
+                    "(oss)",
+                    (
+                        "/playlist/" + DBusManager._escape_id(playlist.id),
+                        playlist.name,
+                        cover_art,
+                    ),
                 ),
             )
         except Exception:
@@ -279,7 +307,7 @@ class DBusManager:
         except Exception:
             return {}
 
-        trackid = self.get_dbus_playlist(play_queue)[idx]
+        trackid = DBusManager.get_dbus_playlist(play_queue)[idx]
         duration = (
             "x",
             int(
@@ -307,13 +335,22 @@ class DBusManager:
             "xesam:title": song.title,
         }
 
-    @functools.lru_cache(maxsize=10)
-    def get_dbus_playlist(self, play_queue: Tuple[str, ...]) -> List[str]:
+    @staticmethod
+    @functools.lru_cache(maxsize=20)
+    def get_dbus_playlist(play_queue: Tuple[str, ...]) -> List[str]:
+        """
+        Gets a playlist formatted for DBus. If multiples of the same element exist in
+        the queue, it will use ``/0`` after the song ID to differentiate between the
+        instances.
+
+        >>> DBusManager.get_dbus_playlist(("2", "1", "3", "1"))
+        ['/song/2/0', '/song/1/0', '/song/3/0', '/song/1/1']
+        """
         seen_counts: DefaultDict[str, int] = defaultdict(int)
         tracks = []
         for song_id in play_queue:
-            id_ = seen_counts[song_id]
-            tracks.append(f"/song/{song_id}/{id_}")
+            num_seen = seen_counts[song_id]
+            tracks.append(f"/song/{DBusManager._escape_id(song_id)}/{num_seen}")
             seen_counts[song_id] += 1
 
         return tracks
