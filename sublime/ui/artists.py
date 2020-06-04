@@ -226,7 +226,9 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_indicator = self.make_label(name="artist-indicator")
         artist_details_box.add(self.artist_indicator)
 
-        self.artist_name = self.make_label(name="artist-name")
+        self.artist_name = self.make_label(
+            name="artist-name", ellipsize=Pango.EllipsizeMode.END
+        )
         artist_details_box.add(self.artist_name)
 
         self.artist_bio = self.make_label(
@@ -535,7 +537,7 @@ class ArtistDetailPanel(Gtk.Box):
 
     def make_label(self, text: str = None, name: str = None, **params) -> Gtk.Label:
         return Gtk.Label(
-            label=text, name=name, halign=Gtk.Align.START, xalign=0, **params,
+            label=text, name=name, halign=Gtk.Align.START, xalign=0, **params
         )
 
     def format_stats(self, artist: API.Artist) -> str:
