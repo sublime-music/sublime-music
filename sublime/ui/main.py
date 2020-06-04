@@ -221,6 +221,8 @@ class MainWindow(Gtk.ApplicationWindow):
             # The download is no longer pending.
             if song_id in self._pending_downloads:
                 self._pending_downloads.remove(song_id)
+            if song_id in self._failed_downloads:
+                self._failed_downloads.remove(song_id)
         elif progress.type == DownloadProgress.Type.ERROR:
             self._failed_downloads.add(song_id)
             self.current_downloads_box.remove(self._current_download_boxes[song_id])
