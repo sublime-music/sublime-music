@@ -46,7 +46,7 @@ Features
 * **Downloads**
 
   * A new Downloads popup shows the currently downloading songs and allows you
-    to cancel song downloads.
+    to cancel song downloads and retry failed downloads.
   * You can now clear the cache via an option in the Downloads popup. There are
     options for removing the entire cache and removing just the song file cache.
 
