@@ -202,6 +202,7 @@ def show_song_popover(
         )
 
     def on_remove_downloads_click(_: Any):
+        AdapterManager.cancel_download_songs(song_ids)
         AdapterManager.batch_delete_cached_songs(
             song_ids, on_song_delete=on_download_state_change,
         )
@@ -246,7 +247,12 @@ def show_song_popover(
         ):
             download_song_button.set_sensitive(True)
         if any(
-            status in (SongCacheStatus.CACHED, SongCacheStatus.PERMANENTLY_CACHED)
+            status
+            in (
+                SongCacheStatus.CACHED,
+                SongCacheStatus.PERMANENTLY_CACHED,
+                SongCacheStatus.DOWNLOADING,
+            )
             for status in song_cache_statuses
         ):
             remove_download_button.set_sensitive(True)

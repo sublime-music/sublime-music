@@ -1,19 +1,25 @@
-import codecs
-import os
+from pathlib import Path
 
 from setuptools import find_packages, setup
 
-here = os.path.abspath(os.path.dirname(__file__))
+here = Path(__file__).parent.resolve()
 
-with codecs.open(os.path.join(here, "README.rst"), encoding="utf-8") as f:
+with open(here.joinpath("README.rst"), encoding="utf-8") as f:
     long_description = f.read()
 
 # Find the version
-with codecs.open(os.path.join(here, "sublime/__init__.py"), encoding="utf-8") as f:
+with open(here.joinpath("sublime", "__init__.py")) as f:
     for line in f:
         if line.startswith("__version__"):
             version = eval(line.split()[-1])
             break
+
+icons_dir = here.joinpath("sublime", "ui", "icons")
+icon_filenames = []
+for icon in icons_dir.iterdir():
+    if not str(icon).endswith(".svg"):
+        continue
+    icon_filenames.append(str(icon))
 
 setup(
     name="sublime-music",
@@ -49,6 +55,7 @@ setup(
             "dbus/mpris_specs/org.mpris.MediaPlayer2.Player.xml",
             "dbus/mpris_specs/org.mpris.MediaPlayer2.Playlists.xml",
             "dbus/mpris_specs/org.mpris.MediaPlayer2.TrackList.xml",
+            *icon_filenames,
         ]
     },
     install_requires=[

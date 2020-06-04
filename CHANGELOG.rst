@@ -17,6 +17,7 @@ Features
 * The Albums tab is now paginated with configurable page sizes.
 * You can sort the Albums tab ascending or descending.
 * Opening an closing an album on the Albums tab now has a nice animation.
+* "Go to Album" is much more reliable.
 
 **Player Controls**
 
@@ -26,7 +27,8 @@ Features
 
 **New Icons**
 
-* The Devices button now uses the Chromecast logo.
+* The Devices button now uses the Chromecast logo. It uses a different icon
+  depending on whether or not you are playing on a Chromecast.
 * Custom icons for "Add to play queue", and "Play next" buttons. Thanks to
   @samsartor for contributing the SVGs!
 * A new icon for indicating the connection state to the Subsonic server.
@@ -36,14 +38,26 @@ Features
 
 **Application Menus**
 
-* Settings are now in the popup under the gear icon rather than in a separate
-  popup window.
-* You can now clear the cache via an option in the Downloads popup. There are
-  options for removing the entire cache and removing just the song file cache.
+* **Settings**
 
-.. * The music provider configuration has gotten a major revamp.
-.. * The Downloads popup shows the songs that are currently being downloaded.
-.. * 
+  * Settings are now in the popup under the gear icon rather than in a separate
+    popup window.
+
+* **Downloads**
+
+  * A new Downloads popup shows the currently downloading songs and allows you
+    to cancel song downloads and retry failed downloads.
+  * You can now clear the cache via an option in the Downloads popup. There are
+    options for removing the entire cache and removing just the song file cache.
+
+* **Server**
+
+  * A new Server popup shows the connection state to the server in both the icon
+    and the popup.
+  * You can enable *Offline Mode* (see below for details).
+
+.. * The "Configure Servers" dialog has been eliminated in favor of a much more
+   intuitive set of controls right on the Server popup.
 
 **Offline Mode**
 
@@ -52,6 +66,9 @@ Features
 * You can still browse anything that is already cached offline.
 
 **Other Features**
+
+* You can now collapse the Artist details and the Playlist details so that you
+  have more room to view the actual content.
 
 .. * A man page has been added. Contributed by @baldurmen.
 

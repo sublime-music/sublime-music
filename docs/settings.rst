@@ -2,14 +2,32 @@ Settings
 ########
 
 There are many settings available in Sublime Music. Some are application-wide
-settings while others are are configurable at a per-server basis.
+settings while others are are configurable on a per-music-provider basis.
 
 Application Settings
 --------------------
 
-The following settings can be changed for the entire application.
+The following settings can be changed for the entire application. They can be
+accessed via the gear icon in the header.
 
-Port Number : (int)
+Enable Song Notifications : (``bool``)
+    If toggled on, a notification will be shown whenever a new song starts to
+    play. The notification will contain the title, artist name, album name, and
+    cover art of the song.
+
+Replay Gain : (Disabled | Track | Album)
+    Configures the replay gain setting for the MPV player. You can disable this
+    setting, or configure it to work on a track or album basis.
+
+Serve Local Files to Chromecasts on the LAN : (``bool``)
+    If checked, a local server will be started on your computer which will serve
+    your locally cached music files to the Chromecast. If not checked, the
+    Chromecast will always stream from the server.
+
+    If you are having trouble playing on your Chromecast, try disabling this
+    feature.
+
+LAN Server Port Number : (int)
     The port number to use for streaming to Chromecast devices on the same
     LAN.
 
@@ -17,39 +35,24 @@ Port Number : (int)
     already cached locally, the Chromecast will connect to your computer and
     stream from it instead of from the internet.
 
-    This will not take effect until the application is restarted.
+Allow Song Downloads : (bool)
+    If toggled on, this will allow songs to be downloaded and cached locally.
 
-Replay Gain : (Disabled | Track | Album)
-    Configures the replay gain setting for the MPV player. You can disable this
-    setting, or configure it to work on a track or album basis.
-
-Always stream songs : (bool)
-    If checked, this will disable using the local song cache.
-
-When streaming, also download song : (bool)
-    If checked, when a song is streamed, it will also be downloaded. Once the
+When Streaming, Also Download Song : (bool)
+    If toggled on, when a song is streamed, it will also be downloaded. Once the
     download is complete, Sublime Music will stop streaming and switch to the
-    downloaded version.
+    downloaded version (if playing locally with MPV).
 
-Show notification when song begins to play : (bool)
-    If checked, a notification containing the new song's title, artist, album,
-    and album art will be shown through your notification daemon.
-
-Serve locally cached files over the LAN to Chromecast devices : (bool)
-    If checked, a local server will be started on your computer which will serve
-    your locally cached music files to the Chromecast. If not checked, the
-    Chromecast will always stream from the server.
-
-How many songs in the play queue do you want to prefetch? : (int)
+Number of Songs to Prefetch : (int)
     If the next :math:`n` songs in the play queue are not already downloaded,
-    they will be downloaded. (This has no effect if *Always stream songs* is
-    checked.)
+    they will be downloaded.
 
-How many song downloads do you want to allow concurrently? : (int)
-    Specifies how many songs can be downloaded at the same time.
+Maximum Concurrent Downloads : (int)
+    Specifies the maximum number of songs that should be downloaded at the same
+    time.
 
-Server Settings
----------------
+Subsonic Server Settings
+------------------------
 
 Each server has the following configuration options:
 

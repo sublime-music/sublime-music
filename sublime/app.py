@@ -791,12 +791,13 @@ class SublimeMusicApp(Gtk.Application):
         )
 
         # If already playing, then make the player itself seek.
-        if self.player.song_loaded:
+        if self.player and self.player.song_loaded:
             self.player.seek(new_time)
 
         self.save_play_queue()
 
     def on_device_update(self, win: Any, device_uuid: str):
+        assert self.player
         if device_uuid == self.app_config.state.current_device:
             return
         self.app_config.state.current_device = device_uuid
@@ -865,7 +866,7 @@ class SublimeMusicApp(Gtk.Application):
 
     def on_song_download_progress(self, song_id: str, progress: DownloadProgress):
         assert self.window
-        self.window.update_song_download_progress(song_id, progress)
+        GLib.idle_add(self.window.update_song_download_progress, song_id, progress)
 
     def on_app_shutdown(self, app: "SublimeMusicApp"):
         self.exiting = True
@@ -997,6 +998,7 @@ class SublimeMusicApp(Gtk.Application):
         # in the callback.
         @dbus_propagate(self)
         def do_play_song(order_token: int, song: Song):
+            assert self.player
             if order_token != self.song_playing_order_token:
                 return
 
