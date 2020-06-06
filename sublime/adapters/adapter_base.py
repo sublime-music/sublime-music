@@ -14,7 +14,7 @@ from typing import (
     Tuple,
 )
 
-from dataclasses_json import dataclass_json
+from dataclasses_json import DataClassJsonMixin
 from gi.repository import Gtk
 
 from .api_objects import (
@@ -153,32 +153,17 @@ class CacheMissError(Exception):
         super().__init__(*args)
 
 
-@dataclass_json
-@dataclass
-class ConfigurationStore:
+class ConfigurationStore(dict):
     """
     This defines an abstract store for all configuration parameters for a given Adapter.
     """
 
-    def __init__(self):
-        self._store: Dict[str, Any] = {}
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def __repr__(self) -> str:
-        values = ", ".join(f"{k}={v!r}" for k, v in self._store.items())
+        values = ", ".join(f"{k}={v!r}" for k, v in sorted(self.items()))
         return f"ConfigurationStore({values})"
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """
-        Get the configuration value in the store with the given key. If the key doesn't
-        exist in the store, return the default.
-        """
-        return self._store.get(key, default)
-
-    def set(self, key: str, value: Any):
-        """
-        Set the value of the given key in the store.
-        """
-        self._store[key] = value
 
     def get_secret(self, key: str, default: Any = None) -> Any:
         """
@@ -188,7 +173,7 @@ class ConfigurationStore:
         with secret storage yourself.
         """
         # TODO make secret storage less stupid.
-        return self._store.get(key, default)
+        return self.get(key, default)
 
     def set_secret(self, key: str, value: Any = None) -> Any:
         """
@@ -197,10 +182,7 @@ class ConfigurationStore:
         is configured as the underlying secret storage mechanism so you don't have to
         deal with secret storage yourself.
         """
-        self._store[key] = value
-
-    def keys(self) -> Iterable[str]:
-        return self._store.keys()
+        self[key] = value
 
 
 @dataclass

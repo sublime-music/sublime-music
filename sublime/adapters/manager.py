@@ -300,10 +300,7 @@ class AdapterManager:
             caching_adapter_type := config.provider.caching_adapter_type
         ) and config.provider.ground_truth_adapter_type.can_be_cached:
             caching_adapter = caching_adapter_type(
-                {
-                    key: getattr(config.provider, key)
-                    for key in caching_adapter_type.get_config_parameters()
-                },
+                config.provider.caching_adapter_config,
                 source_data_dir.joinpath("c"),
                 is_cache=True,
             )

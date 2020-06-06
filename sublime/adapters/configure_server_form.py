@@ -154,7 +154,7 @@ class ConfigureServerForm(Gtk.Box):
             if cpd.required:
                 self.required_config_parameter_keys.add(key)
             if cpd.default is not None:
-                config_store.set(key, config_store.get(key, cpd.default))
+                config_store[key] = config_store.get(key, cpd.default)
 
             label = Gtk.Label(cpd.description + ":", halign=Gtk.Align.END)
 
@@ -265,7 +265,7 @@ class ConfigureServerForm(Gtk.Box):
 
             def set_icon_and_label(icon_name: str, label_text: str):
                 self.config_verification_box.add(
-                    Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.BUTTON)
+                    Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.DND)
                 )
                 label = Gtk.Label(
                     label=label_text,
@@ -276,18 +276,19 @@ class ConfigureServerForm(Gtk.Box):
                 self.config_verification_box.add(label)
 
             if is_valid:
-                set_icon_and_label("config-ok-symbolic", "Configuration is valid")
+                set_icon_and_label(
+                    "config-ok-symbolic", "<b>Configuration is valid</b>"
+                )
             elif escaped := util.esc(error_text):
                 set_icon_and_label("config-error-symbolic", escaped)
 
         self.config_verification_box.show_all()
 
     def _on_config_change(self, key: str, value: Any, secret: bool = False):
-        set_fn = cast(
-            Callable[[str, Any], None],
-            (self.config_store.set_secret if secret else self.config_store.set),
-        )
-        set_fn(key, value)
+        if secret:
+            self.config_store.set_secret(key, value)
+        else:
+            self.config_store[key] = value
         self._verification_status_ratchet += 1
         self._verify_config(self._verification_status_ratchet)
 

@@ -156,15 +156,17 @@ class SublimeMusicApp(Gtk.Application):
         # configured, and if none are configured, then show the dialog to create a new
         # one.
         if self.app_config.provider is None:
-            if len(self.app_config.providers) > 0:
-                self.app_config._current_provider_id = 0
-            else:
+            if len(self.app_config.providers) == 0:
                 self.show_configure_servers_dialog()
 
                 # If they didn't add one with the dialog, close the window.
-                if self.app_config.provider is None:
+                if len(self.app_config.providers) == 0:
                     self.window.close()
                     return
+
+            self.app_config.current_provider_id = list(
+                self.app_config.providers.keys()
+            )[0]
 
         AdapterManager.reset(self.app_config, self.on_song_download_progress)
 
@@ -1298,6 +1300,7 @@ class SublimeMusicApp(Gtk.Application):
             )
 
     def save_play_queue(self, song_playing_order_token: int = None):
+        print('SAVE PLAY QUEUE')
         if (
             len(self.app_config.state.play_queue) == 0
             or self.app_config.provider is None

@@ -1,34 +1,30 @@
 import logging
 import os
 import pickle
-from abc import ABCMeta
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional, Type
+from typing import Any, cast, Dict, Optional, Type
 
 import dataclasses_json
-from dataclasses_json import dataclass_json, DataClassJsonMixin
+from dataclasses_json import config, DataClassJsonMixin
 
 from sublime.adapters import ConfigurationStore
 from sublime.ui.state import UIState
 
 
 # JSON decoder and encoder translations
-decoder_functions = {
-    Path: (lambda p: Path(p) if p else None),
-}
-encoder_functions = {
-    Path: (lambda p: str(p.resolve()) if p else None),
-}
+def encode_path(path: Path) -> str:
+    return str(path.resolve())
 
-for type_, translation_function in decoder_functions.items():
-    dataclasses_json.cfg.global_config.decoders[type_] = translation_function
-    dataclasses_json.cfg.global_config.decoders[Optional[type_]] = translation_function
 
-for type_, translation_function in encoder_functions.items():
-    dataclasses_json.cfg.global_config.encoders[type_] = translation_function
-    dataclasses_json.cfg.global_config.encoders[Optional[type_]] = translation_function
+dataclasses_json.cfg.global_config.decoders[Path] = Path
+dataclasses_json.cfg.global_config.decoders[Optional[Path]] = (
+    lambda p: Path(p) if p else None
+)
+
+dataclasses_json.cfg.global_config.encoders[Path] = encode_path
+dataclasses_json.cfg.global_config.encoders[Optional[Path]] = encode_path
 
 
 class ReplayGainType(Enum):
@@ -66,6 +62,57 @@ class ProviderConfiguration:
             self.caching_adapter_type.migrate_configuration(self.caching_adapter_config)
 
 
+def encode_providers(
+    providers_dict: Dict[str, Dict[str, Any]]
+) -> Dict[str, Dict[str, Any]]:
+    return {
+        id_: {
+            **config,
+            "ground_truth_adapter_type": config["ground_truth_adapter_type"].__name__,
+            "caching_adapter_type": (
+                cast(type, config.get("caching_adapter_type")).__name__
+                if config.get("caching_adapter_type")
+                else None
+            ),
+        }
+        for id_, config in providers_dict.items()
+    }
+
+
+def decode_providers(
+    providers_dict: Dict[str, Dict[str, Any]]
+) -> Dict[str, ProviderConfiguration]:
+    from sublime.adapters import AdapterManager
+
+    def find_adapter_type(type_name: str) -> Type:
+        for available_adapter in AdapterManager.available_adapters:
+            if available_adapter.__name__ == type_name:
+                return available_adapter
+        raise Exception(f"Couldn't find adapter of type {type_name}")
+
+    return {
+        id_: ProviderConfiguration(
+            config["id"],
+            config["name"],
+            ground_truth_adapter_type=find_adapter_type(
+                config["ground_truth_adapter_type"]
+            ),
+            ground_truth_adapter_config=ConfigurationStore(
+                **config["ground_truth_adapter_config"]
+            ),
+            caching_adapter_type=(
+                find_adapter_type(cat)
+                if (cat := config.get("caching_adapter_type"))
+                else None
+            ),
+            caching_adapter_config=(
+                ConfigurationStore(**config.get("caching_adapter_config", {}))
+            ),
+        )
+        for id_, config in providers_dict.items()
+    }
+
+
 @dataclass
 class AppConfiguration(DataClassJsonMixin):
     version: int = 5
@@ -73,8 +120,12 @@ class AppConfiguration(DataClassJsonMixin):
     filename: Optional[Path] = None
 
     # Providers
-    providers: Dict[str, ProviderConfiguration] = field(default_factory=dict)
+    providers: Dict[str, ProviderConfiguration] = field(
+        default_factory=dict,
+        metadata=config(encoder=encode_providers, decoder=decode_providers),
+    )
     current_provider_id: Optional[str] = None
+    _loaded_provider_id: Optional[str] = field(default=None, init=False)
 
     # Global Settings
     song_play_notification: bool = True
@@ -112,7 +163,7 @@ class AppConfiguration(DataClassJsonMixin):
             self.cache_location = path
 
         self._state = None
-        self._current_provider_id = None
+        self._loaded_provider_id = None
         self.migrate()
 
     def migrate(self):
@@ -124,7 +175,7 @@ class AppConfiguration(DataClassJsonMixin):
 
     @property
     def provider(self) -> Optional[ProviderConfiguration]:
-        return self.providers.get(self._current_provider_id or "")
+        return self.providers.get(self.current_provider_id or "")
 
     @property
     def state(self) -> UIState:
@@ -132,7 +183,7 @@ class AppConfiguration(DataClassJsonMixin):
             return UIState()
 
         # If the provider has changed, then retrieve the new provider's state.
-        if self._current_provider_id != provider.id:
+        if self._loaded_provider_id != provider.id:
             self.load_state()
 
         return self._state
@@ -142,7 +193,7 @@ class AppConfiguration(DataClassJsonMixin):
         if not (provider := self.provider):
             return
 
-        self._current_provider_id = provider.id
+        self._loaded_provider_id = provider.id
         if (state_filename := self._state_file_location) and state_filename.exists():
             try:
                 with open(state_filename, "rb") as f:

@@ -1,65 +1,86 @@
-import os
-from dataclasses import asdict
 from pathlib import Path
 
-import yaml
+import pytest
 
+from sublime.adapters import ConfigurationStore
+from sublime.adapters.filesystem import FilesystemAdapter
+from sublime.adapters.subsonic import SubsonicAdapter
 from sublime.config import AppConfiguration, ProviderConfiguration, ReplayGainType
+
+
+@pytest.fixture
+def config_filename(tmp_path: Path):
+    yield tmp_path.joinpath("config.json")
 
 
 def test_config_default_cache_location():
     config = AppConfiguration()
-    assert config.cache_location == os.path.expanduser("~/.local/share/sublime-music")
+    assert config.cache_location == Path("~/.local/share/sublime-music").expanduser()
 
 
 def test_server_property():
     config = AppConfiguration()
-    server = ServerConfiguration(name="foo", server_address="bar", username="baz")
-    config.servers.append(server)
-    assert config.server is None
-    config.current_server_index = 0
-    assert asdict(config.server) == asdict(server)
+    provider = ProviderConfiguration(
+        id="1",
+        name="foo",
+        ground_truth_adapter_type=SubsonicAdapter,
+        ground_truth_adapter_config=ConfigurationStore(),
+    )
+    config.providers["1"] = provider
+    assert config.provider is None
+    config.current_provider_id = "1"
+    assert config.provider == provider
 
     expected_state_file_location = Path("~/.local/share").expanduser()
     expected_state_file_location = expected_state_file_location.joinpath(
-        "sublime-music", "6df23dc03f9b54cc38a0fc1483df6e21", "state.pickle",
+        "sublime-music", "1", "state.pickle",
     )
     assert config._state_file_location == expected_state_file_location
 
 
-def test_yaml_load_unload():
-    config = AppConfiguration()
-    server = ServerConfiguration(name="foo", server_address="bar", username="baz")
-    config.servers.append(server)
-    config.current_server_index = 0
-
-    yamlified = yaml.dump(asdict(config))
-    unyamlified = yaml.load(yamlified, Loader=yaml.CLoader)
-    deserialized = AppConfiguration(**unyamlified)
-
-    return
-
-    # TODO (#197) reinstate these tests with the new config system.
-    # Make sure that the config and each of the servers gets loaded in properly
-    # into the dataclass objects.
-    assert asdict(config) == asdict(deserialized)
-    assert type(deserialized.replay_gain) == ReplayGainType
-    for i, server in enumerate(deserialized.servers):
-        assert asdict(config.servers[i]) == asdict(server)
-
-
-def test_config_migrate():
-    config = AppConfiguration(always_stream=True)
-    server = ServerConfiguration(
-        name="Test", server_address="https://test.host", username="test"
+def test_json_load_unload(config_filename: Path):
+    subsonic_config_store = ConfigurationStore(username="test")
+    subsonic_config_store.set_secret("password", "testpass")
+    original_config = AppConfiguration(
+        providers={
+            "1": ProviderConfiguration(
+                id="1",
+                name="foo",
+                ground_truth_adapter_type=SubsonicAdapter,
+                ground_truth_adapter_config=subsonic_config_store,
+                caching_adapter_type=FilesystemAdapter,
+                caching_adapter_config=ConfigurationStore(),
+            )
+        },
+        current_provider_id="1",
+        filename=config_filename,
     )
-    config.servers.append(server)
+
+    original_config.save()
+
+    loaded_config = AppConfiguration.load_from_file(config_filename)
+
+    assert original_config.version == loaded_config.version
+    assert original_config.providers == loaded_config.providers
+    assert original_config.provider == loaded_config.provider
+
+
+def test_config_migrate(config_filename: Path):
+    config = AppConfiguration(
+        providers={
+            "1": ProviderConfiguration(
+                id="1",
+                name="foo",
+                ground_truth_adapter_type=SubsonicAdapter,
+                ground_truth_adapter_config=ConfigurationStore(),
+            )
+        },
+        current_provider_id="1",
+        filename=config_filename,
+    )
     config.migrate()
 
-    assert config.version == 4
-    assert config.allow_song_downloads is False
-    for server in config.servers:
-        server.version == 0
+    assert config.version == 5
 
 
 def test_replay_gain_enum():

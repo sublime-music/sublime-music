@@ -8,6 +8,7 @@ from typing import Any, Generator, List, Tuple
 import pytest
 from dateutil.tz import tzutc
 
+from sublime.adapters import ConfigurationStore
 from sublime.adapters.subsonic import (
     api_objects as SubsonicAPI,
     SubsonicAdapter,
@@ -18,14 +19,12 @@ MOCK_DATA_FILES = Path(__file__).parent.joinpath("mock_data")
 
 @pytest.fixture
 def adapter(tmp_path: Path):
-    adapter = SubsonicAdapter(
-        {
-            "server_address": "http://subsonic.example.com",
-            "username": "test",
-            "password": "testpass",
-        },
-        tmp_path,
+    config = ConfigurationStore(
+        server_address="https://subsonic.example.com", username="test",
     )
+    config.set_secret("password", "testpass")
+
+    adapter = SubsonicAdapter(config, tmp_path)
     adapter._is_mock = True
     yield adapter
     adapter.shutdown()
@@ -84,7 +83,7 @@ def test_request_making_methods(adapter: SubsonicAdapter):
     }
     assert sorted(expected.items()) == sorted(adapter._get_params().items())
 
-    assert adapter._make_url("foo") == "http://subsonic.example.com/rest/foo.view"
+    assert adapter._make_url("foo") == "https://subsonic.example.com/rest/foo.view"
 
 
 def test_ping_status(adapter: SubsonicAdapter):

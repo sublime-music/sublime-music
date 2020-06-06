@@ -172,7 +172,7 @@ class SubsonicAdapter(Adapter):
             "ignored_articles.pickle"
         )
 
-        self.hostname = config.get("server_address")
+        self.hostname = config["server_address"]
         if (
             (ssid := config.get("local_network_ssid"))
             and (lan_address := config.get("local_network_address"))
@@ -200,9 +200,9 @@ class SubsonicAdapter(Adapter):
         if not parsed_hostname.scheme:
             self.hostname = "https://" + self.hostname
 
-        self.username = config.get("username")
+        self.username = config["username"]
         self.password = config.get_secret("password")
-        self.verify_cert = config.get("verify_cert")
+        self.verify_cert = config["verify_cert"]
 
         self.is_shutting_down = False
 
@@ -651,7 +651,9 @@ class SubsonicAdapter(Adapter):
         self._get(
             self._make_url("savePlayQueue"),
             id=song_ids,
-            current=song_ids[current_song_index] if current_song_index else None,
+            current=song_ids[current_song_index]
+            if current_song_index is not None
+            else None,
             position=math.floor(position.total_seconds() * 1000) if position else None,
         )
 
