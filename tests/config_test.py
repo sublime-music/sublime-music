@@ -24,7 +24,7 @@ def test_server_property():
     expected_state_file_location = expected_state_file_location.joinpath(
         "sublime-music", "6df23dc03f9b54cc38a0fc1483df6e21", "state.pickle",
     )
-    assert config.state_file_location == expected_state_file_location
+    assert config._state_file_location == expected_state_file_location
 
 
 def test_yaml_load_unload():

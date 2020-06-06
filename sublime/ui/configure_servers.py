@@ -3,7 +3,7 @@ from typing import Any
 
 from gi.repository import GObject, Gtk
 
-from sublime.config import AppConfiguration, ServerConfiguration
+from sublime.config import AppConfiguration
 from sublime.ui.common import EditFormDialog, IconButton
 
 

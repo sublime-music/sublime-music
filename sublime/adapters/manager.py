@@ -24,7 +24,6 @@ from typing import (
     Sequence,
     Set,
     Tuple,
-    Type,
     TypeVar,
     Union,
 )
@@ -50,6 +49,7 @@ from .api_objects import (
 )
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter
+from sublime.config import ProviderConfiguration
 
 REQUEST_DELAY: Optional[Tuple[float, float]] = None
 if delay_str := os.environ.get("REQUEST_DELAY"):
@@ -228,12 +228,6 @@ class AdapterManager:
 
     _instance: Optional[_AdapterManagerInternal] = None
 
-    @staticmethod
-    def register_adapter(adapter_class: Type):
-        if not issubclass(adapter_class, Adapter):
-            raise TypeError("Attempting to register a class that is not an adapter.")
-        AdapterManager.available_adapters.add(adapter_class)
-
     def __init__(self):
         """
         This should not ever be called. You should only ever use the static methods on
@@ -289,26 +283,25 @@ class AdapterManager:
 
         # TODO (#197): actually do stuff with the config to determine which adapters to
         # create, etc.
-        assert config.server is not None
-        source_data_dir = Path(config.cache_location, config.server.strhash())
+        assert config.provider is not None
+        assert isinstance(config.provider, ProviderConfiguration)
+        assert config.cache_location
+
+        source_data_dir = config.cache_location.joinpath(config.provider.id)
         source_data_dir.joinpath("g").mkdir(parents=True, exist_ok=True)
         source_data_dir.joinpath("c").mkdir(parents=True, exist_ok=True)
 
-        ground_truth_adapter_type = SubsonicAdapter
-        ground_truth_adapter = ground_truth_adapter_type(
-            {
-                key: getattr(config.server, key)
-                for key in ground_truth_adapter_type.get_config_parameters()
-            },
-            source_data_dir.joinpath("g"),
+        ground_truth_adapter = config.provider.ground_truth_adapter_type(
+            config.provider.ground_truth_adapter_config, source_data_dir.joinpath("g")
         )
 
-        caching_adapter_type = FilesystemAdapter
         caching_adapter = None
-        if caching_adapter_type and ground_truth_adapter_type.can_be_cached:
+        if (
+            caching_adapter_type := config.provider.caching_adapter_type
+        ) and config.provider.ground_truth_adapter_type.can_be_cached:
             caching_adapter = caching_adapter_type(
                 {
-                    key: getattr(config.server, key)
+                    key: getattr(config.provider, key)
                     for key in caching_adapter_type.get_config_parameters()
                 },
                 source_data_dir.joinpath("c"),

@@ -6,6 +6,7 @@ from enum import Enum
 from pathlib import Path
 from typing import (
     Any,
+    Callable,
     Dict,
     Iterable,
     Optional,
@@ -15,6 +16,9 @@ from typing import (
     Type,
     Union,
 )
+
+from dataclasses_json import dataclass_json
+from gi.repository import Gtk
 
 from .api_objects import (
     Album,
@@ -152,6 +156,49 @@ class CacheMissError(Exception):
         super().__init__(*args)
 
 
+@dataclass_json
+@dataclass
+class ConfigurationStore:
+    """
+    This defines an abstract store for all configuration parameters for a given Adapter.
+    """
+
+    def __init__(self, id: str):
+        self._store: Dict[str, Any] = {}
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        Get the configuration value in the store with the given key. If the key doesn't
+        exist in the store, return the default.
+        """
+        return self._store.get(key, default)
+
+    def set(self, key: str, value: Any):
+        """
+        Set the value of the given key in the store.
+        """
+        self._store[key] = value
+
+    def get_secret(self, key: str, default: Any = None) -> Any:
+        """
+        Get the secret value in the store with the given key. If the key doesn't exist
+        in the store, return the default. This will retrieve the secret from whatever is
+        configured as the underlying secret storage mechanism so you don't have to deal
+        with secret storage yourself.
+        """
+        # TODO make secret storage less stupid.
+        return self._store.get(key, default)
+
+    def set_secret(self, key: str, default: Any = None) -> Any:
+        """
+        Set the secret value of the given key in the store. This should be used for
+        things such as passwords or API tokens. This will store the secret in whatever
+        is configured as the underlying secret storage mechanism so you don't have to
+        deal with secret storage yourself.
+        """
+        return self._store.get(key, default)
+
+
 @dataclass
 class ConfigParamDescriptor:
     """
@@ -167,6 +214,14 @@ class ConfigParamDescriptor:
     * The literal string ``"password"``: corresponds to a password entry field in the
       UI.
     * The literal string ``"option"``: corresponds to dropdown in the UI.
+    * The literal string ``"directory"``: corresponds to a directory picker in the UI.
+    * The literal sting ``"fold"``: corresponds to a expander where following components
+      are under an expander component. The title of the expander is the description of
+      this class. All of the components until the next ``"fold"``, and ``"endfold"``
+      component, or the end of the configuration paramter dictionary are included under
+      the expander component.
+    * The literal string ``endfold``: end a ``"fold"``. The description must be the same
+      as the corresponding start form.
 
     The :class:`hidden_behind` is an optional string representing the name of the
     expander that the component should be displayed underneath. For example, one common
@@ -195,6 +250,56 @@ class ConfigParamDescriptor:
     options: Optional[Iterable[str]] = None
 
 
+class ConfigureServerForm(Gtk.Box):
+    def __init__(
+        self,
+        config_store: ConfigurationStore,
+        config_parameters: Dict[str, ConfigParamDescriptor],
+        verify_configuration: Callable[[], Dict[str, Optional[str]]],
+    ):
+        """
+        Inititialize a :class:`ConfigureServerForm` with the given configuration
+        parameters.
+
+        :param config_store: The :class:`ConfigurationStore` to use to store
+            configuration values for this adapter.
+        :param config_parameters: An dictionary where the keys are the name of the
+            configuration paramter and the values are the :class:`ConfigParamDescriptor`
+            object corresponding to that configuration parameter. The order of the keys
+            in the dictionary correspond to the order that the configuration parameters
+            will be shown in the UI.
+        :param verify_configuration: A function that verifies whether or not the
+            current state of the ``config_store`` is valid. The output should be a
+            dictionary containing verification errors. The keys of the returned
+            dictionary should be the same as the keys passed in via the
+            ``config_parameters`` parameter.  The values should be strings describing
+            why the corresponding value in the ``config_store`` is invalid.
+        """
+        Gtk.Box.__init__(self)
+        content_grid = Gtk.Grid(
+            column_spacing=10, row_spacing=5, margin_left=10, margin_right=10,
+        )
+
+        for key, cpd in config_parameters.items():
+            print(key, cpd)
+
+        self.add(content_grid)
+
+
+@dataclass
+class UIInfo:
+    name: str
+    description: str
+    icon_basename: str
+    icon_dir: Optional[Path] = None
+
+    def icon_name(self) -> str:
+        return f"{self.icon_basename}-symbolic"
+
+    def status_icon_name(self, status: str) -> str:
+        return f"{self.icon_basename}-{status.lower()}-symbolic"
+
+
 class Adapter(abc.ABC):
     """
     Defines the interface for a Sublime Music Adapter.
@@ -205,45 +310,38 @@ class Adapter(abc.ABC):
     """
 
     # Configuration and Initialization Properties
-    # These properties determine how the adapter can be configured and how to
+    # These functions determine how the adapter can be configured and how to
     # initialize the adapter given those configuration values.
     # ==================================================================================
     @staticmethod
     @abc.abstractmethod
-    def get_config_parameters() -> Dict[str, ConfigParamDescriptor]:
+    def get_ui_info() -> UIInfo:
         """
-        Specifies the settings which can be configured for the adapter.
-
-        :returns: An dictionary where the keys are the name of the configuration
-            paramter and the values are the :class:`ConfigParamDescriptor` object
-            corresponding to that configuration parameter. The order of the keys in the
-            dictionary correspond to the order that the configuration parameters will be
-            shown in the UI.
+        :returns: A :class:`UIInfo` object.
         """
 
     @staticmethod
     @abc.abstractmethod
-    def verify_configuration(config: Dict[str, Any]) -> Dict[str, Optional[str]]:
+    def get_configuration_form(config_store: ConfigurationStore) -> Gtk.Box:
         """
-        Specifies a function for verifying whether or not the config is valid.
+        This function should return a :class:`Gtk.Box` that gets any inputs required
+        from the user and uses the given ``config_store`` to store the configuration
+        values.
 
-        :param config: The adapter configuration. The keys of are the configuration
-            parameter names as defined by the return value of the
-            :class:`get_config_parameters` function. The values are the actual value of
-            the configuration parameter. It is guaranteed that all configuration
-            parameters that are marked as required will have a value in ``config``.
+        If you don't want to implement all of the GTK logic yourself, and just want a
+        simple form, then you can use the :class:`ConfigureServerForm` class to generate
+        a form in a declarative manner.
+        """
 
-        :returns: A dictionary containing varification errors. The keys of the returned
-            dictionary should be the same as the passed in via the ``config`` parameter.
-            The values should be strings describing why the corresponding value in the
-            ``config`` dictionary is invalid.
-
-            Not all keys need be returned (for example, if there's no error for a given
-            configuration parameter), and returning `None` indicates no error.
+    @staticmethod
+    @abc.abstractmethod
+    def migrate_configuration(config_store: ConfigurationStore):
+        """
+        This function allows the adapter to migrate its configuration.
         """
 
     @abc.abstractmethod
-    def __init__(self, config: dict, data_directory: Path):
+    def __init__(self, config_store: ConfigurationStore, data_directory: Path):
         """
         This function should be overridden by inheritors of :class:`Adapter` and should
         be used to do whatever setup is required for the adapter.
@@ -288,6 +386,14 @@ class Adapter(abc.ABC):
 
         The default is ``True``, since most adapters will want to take advantage of the
         built-in filesystem cache.
+        """
+        return True
+
+    @property
+    @staticmethod
+    def can_be_ground_truth() -> bool:
+        """
+        Whether or not this adapter can be used as a ground truth adapter.
         """
         return True
 

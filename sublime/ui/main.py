@@ -137,8 +137,8 @@ class MainWindow(Gtk.ApplicationWindow):
             self.notification_revealer.set_reveal_child(False)
 
         # Update the Connected to label on the popup menu.
-        if app_config.server:
-            self.connected_to_label.set_markup(f"<b>{app_config.server.name}</b>")
+        if app_config.provider:
+            self.connected_to_label.set_markup(f"<b>{app_config.provider.name}</b>")
         else:
             self.connected_to_label.set_markup("<i>No Music Source Selected</i>")
 

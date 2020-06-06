@@ -519,7 +519,7 @@ class AlbumsGrid(Gtk.Overlay):
     page: int = 0
     num_pages: Optional[int] = None
     next_page_fn = None
-    server_hash: Optional[str] = None
+    server_id: Optional[str] = None
 
     def update_params(self, query: AlbumSearchQuery, offline_mode: bool) -> int:
         # If there's a diff, increase the ratchet.
@@ -620,10 +620,10 @@ class AlbumsGrid(Gtk.Overlay):
             self.page_size = app_config.state.album_page_size
             self.page = app_config.state.album_page
 
-            new_hash = server.strhash() if (server := app_config.server) else None
-            if self.server_hash != new_hash:
+            assert app_config.provider
+            if self.server_id != app_config.provider.id:
                 self.order_ratchet += 1
-            self.server_hash = new_hash
+            self.server_id = app_config.provider.id
 
         self.update_grid(
             order_token,

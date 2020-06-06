@@ -64,6 +64,11 @@
     min-width: 230px;
 }
 
+/* ********** Configure Provider Dialog ********** */
+#ground-truth-adapter-options-list {
+    margin: 0 40px;
+}
+
 /* ********** Playlist ********** */
 #playlist-list-listbox row {
   margin: 0;

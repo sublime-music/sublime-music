@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, cast, Dict, Optional, Sequence, Set, Tuple, Union
 
+from gi.repository import Gtk
 from peewee import fn, prefetch
 
 from sublime.adapters import api_objects as API
@@ -16,9 +17,11 @@ from .. import (
     CacheMissError,
     CachingAdapter,
     ConfigParamDescriptor,
+    ConfigurationStore,
+    ConfigureServerForm,
     SongCacheStatus,
+    UIInfo,
 )
-
 
 KEYS = CachingAdapter.CachedDataKey
 
@@ -31,16 +34,31 @@ class FilesystemAdapter(CachingAdapter):
     # Configuration and Initialization Properties
     # ==================================================================================
     @staticmethod
-    def get_config_parameters() -> Dict[str, ConfigParamDescriptor]:
-        return {
-            # TODO (#188): directory path, whether or not to scan tags
-        }
+    def get_ui_info() -> UIInfo:
+        return UIInfo(
+            name="Local Filesystem",
+            description="Add a directory on your local filesystem",
+            icon_basename="folder-music",
+        )
 
     @staticmethod
-    def verify_configuration(config: Dict[str, Any]) -> Dict[str, Optional[str]]:
-        return {
-            # TODO (#188): verify that the path exists
-        }
+    def get_configuration_form(config_store: ConfigurationStore) -> Gtk.Box:
+        def verify_config_store() -> Dict[str, Optional[str]]:
+            return {}
+
+        return ConfigureServerForm(
+            config_store,
+            {
+                "directory": ConfigParamDescriptor(
+                    type="directory", description="Music Directory"
+                )
+            },
+            verify_config_store,
+        )
+
+    @staticmethod
+    def migrate_configuration(config_store: ConfigurationStore):
+        pass
 
     def __init__(
         self, config: dict, data_directory: Path, is_cache: bool = False,
@@ -78,6 +96,7 @@ class FilesystemAdapter(CachingAdapter):
     # Usage and Availability Properties
     # ==================================================================================
     can_be_cached = False  # Can't be cached (there's no need).
+    can_be_ground_truth = False  # TODO (#188)
     is_networked = False  # Doesn't access the network.
 
     # TODO (#200) make these dependent on cache state. Need to do this kinda efficiently

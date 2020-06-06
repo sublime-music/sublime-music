@@ -23,9 +23,18 @@ from typing import (
 from urllib.parse import urlencode, urlparse
 
 import requests
+from gi.repository import Gtk
 
 from .api_objects import Directory, Response
-from .. import Adapter, AlbumSearchQuery, api_objects as API, ConfigParamDescriptor
+from .. import (
+    Adapter,
+    AlbumSearchQuery,
+    api_objects as API,
+    ConfigParamDescriptor,
+    ConfigurationStore,
+    ConfigureServerForm,
+    UIInfo,
+)
 
 try:
     import gi
@@ -63,15 +72,29 @@ class SubsonicAdapter(Adapter):
     # Configuration and Initialization Properties
     # ==================================================================================
     @staticmethod
-    def get_config_parameters() -> Dict[str, ConfigParamDescriptor]:
-        # TODO (#197) some way to test the connection to the server and a way to open
-        # the server URL in a browser
+    def get_ui_info() -> UIInfo:
+        return UIInfo(
+            name="Subsonic",
+            description="Connect to a Subsonic-compatible server",
+            icon_basename="subsonic",
+            icon_dir=Path(__file__).parent.joinpath("icons"),
+        )
+
+    @staticmethod
+    def get_configuration_form(config_store: ConfigurationStore) -> Gtk.Box:
         configs = {
             "server_address": ConfigParamDescriptor(str, "Server address"),
-            "disable_cert_verify": ConfigParamDescriptor("password", "Password", False),
             "username": ConfigParamDescriptor(str, "Username"),
             "password": ConfigParamDescriptor("password", "Password"),
+            "-": ConfigParamDescriptor("fold", "Advanced"),
+            "disable_cert_verify": ConfigParamDescriptor(
+                bool, "Verify certificate", True
+            ),
+            "sync_enabled": ConfigParamDescriptor(
+                bool, "Synchronize play queue state", True
+            ),
         }
+
         if networkmanager_imported:
             configs.update(
                 {
@@ -83,17 +106,21 @@ class SubsonicAdapter(Adapter):
                     ),
                 }
             )
-        return configs
+
+        def verify_configuration() -> Dict[str, Optional[str]]:
+            errors: Dict[str, Optional[str]] = {}
+
+            # TODO (#197): verify the URL and ping it.
+            # Maybe have a special key like __ping_future__ or something along those
+            # lines to add a function that allows the UI to check whether or not
+            # connecting to the server will work?
+            return errors
+
+        return ConfigureServerForm(config_store, configs, verify_configuration)
 
     @staticmethod
-    def verify_configuration(config: Dict[str, Any]) -> Dict[str, Optional[str]]:
-        errors: Dict[str, Optional[str]] = {}
-
-        # TODO (#197): verify the URL and ping it.
-        # Maybe have a special key like __ping_future__ or something along those lines
-        # to add a function that allows the UI to check whether or not connecting to the
-        # server will work?
-        return errors
+    def migrate_configuration(config_store: ConfigurationStore):
+        pass
 
     def __init__(self, config: dict, data_directory: Path):
         self.data_directory = data_directory
