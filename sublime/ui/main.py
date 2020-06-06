@@ -139,8 +139,11 @@ class MainWindow(Gtk.ApplicationWindow):
         # Update the Connected to label on the popup menu.
         if app_config.provider:
             self.connected_to_label.set_markup(f"<b>{app_config.provider.name}</b>")
+            ui_info = app_config.provider.ground_truth_adapter_type.get_ui_info()
+            icon_basename = ui_info.icon_basename
         else:
             self.connected_to_label.set_markup("<i>No Music Source Selected</i>")
+            icon_basename = "list-add"
 
         if AdapterManager.ground_truth_adapter_is_networked:
             status_label = ""
@@ -152,7 +155,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 status_label = "Error Connecting to Server"
 
             self.server_connection_menu_button.set_icon(
-                f"server-subsonic-{status_label.split()[0].lower()}-symbolic"
+                f"{icon_basename}-{status_label.split()[0].lower()}-symbolic"
             )
             self.connection_status_icon.set_from_icon_name(
                 f"server-{status_label.split()[0].lower()}-symbolic",
@@ -161,6 +164,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self.connection_status_label.set_text(status_label)
             self.connected_status_box.show_all()
         else:
+            self.server_connection_menu_button.set_icon(f"{icon_basename}-symbolic")
             self.connected_status_box.hide()
 
         self._updating_settings = True
@@ -402,7 +406,7 @@ class MainWindow(Gtk.ApplicationWindow):
         # Server icon and change server dropdown
         self.server_connection_popover = self._create_server_connection_popover()
         self.server_connection_menu_button = IconMenuButton(
-            "server-subsonic-offline-symbolic",
+            "list-add-symbolic",
             tooltip_text="Server connection settings",
             popover=self.server_connection_popover,
         )

@@ -16,22 +16,42 @@ class IconButton(Gtk.Button):
         Gtk.Button.__init__(self, **kwargs)
 
         self.icon_size = icon_size
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, name="icon-button-box")
+        self.box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, name="icon-button-box"
+        )
 
-        self.image = Gtk.Image.new_from_icon_name(icon_name, self.icon_size)
-        box.add(self.image)
+        self.image = None
+        self.has_icon = False
+        if icon_name:
+            self.image = Gtk.Image.new_from_icon_name(icon_name, self.icon_size)
+            self.has_icon = True
+            self.box.pack_start(self.image, False, False, 0)
 
         if label is not None:
-            box.add(Gtk.Label(label=label))
+            self.box.add(Gtk.Label(label=label))
 
         if not relief:
             self.props.relief = Gtk.ReliefStyle.NONE
 
-        self.add(box)
+        self.add(self.box)
         self.set_tooltip_text(tooltip_text)
 
     def set_icon(self, icon_name: Optional[str]):
-        self.image.set_from_icon_name(icon_name, self.icon_size)
+        if icon_name:
+            if self.image is None:
+                self.image = Gtk.Image.new_from_icon_name(icon_name, self.icon_size)
+            else:
+                self.image.set_from_icon_name(icon_name, self.icon_size)
+
+            if not self.has_icon:
+                self.box.pack_start(self.image, False, False, 0)
+                self.show_all()
+
+            self.has_icon = True
+        else:
+            if self.has_icon:
+                self.box.remove(self.image)
+            self.has_icon = False
 
 
 class IconToggleButton(Gtk.ToggleButton):

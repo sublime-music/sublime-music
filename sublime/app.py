@@ -123,8 +123,12 @@ class SublimeMusicApp(Gtk.Application):
             if icon_dir := adapter.get_ui_info().icon_dir:
                 default_icon_theme.append_search_path(str(icon_dir))
 
-        icon_dir = Path(__file__).parent.joinpath("ui", "icons")
-        default_icon_theme.append_search_path(str(icon_dir))
+        icon_dirs = [
+            Path(__file__).parent.joinpath("ui", "icons"),
+            Path(__file__).parent.joinpath("adapters", "icons"),
+        ]
+        for icon_dir in icon_dirs:
+            default_icon_theme.append_search_path(str(icon_dir))
 
         # Windows are associated with the application when the last one is
         # closed the application shuts down.
@@ -921,9 +925,11 @@ class SublimeMusicApp(Gtk.Application):
         """Show the Connect to Server dialog."""
         dialog = ConfigureProviderDialog(self.window, provider_config)
         result = dialog.run()
-        print(result)
-        print(dialog)
-        print(dialog.provider_config)
+        if result == Gtk.ResponseType.APPLY:
+            assert dialog.provider_config is not None
+            provider_id = dialog.provider_config.id
+            self.app_config.providers[provider_id] = dialog.provider_config
+            self.app_config.save()
         dialog.destroy()
 
     def update_window(self, force: bool = False):

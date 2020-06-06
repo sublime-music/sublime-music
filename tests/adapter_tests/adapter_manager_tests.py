@@ -5,19 +5,19 @@ import pytest
 
 from sublime.adapters import AdapterManager, Result, SearchResult
 from sublime.adapters.subsonic import api_objects as SubsonicAPI
-from sublime.config import AppConfiguration, ServerConfiguration
+from sublime.config import AppConfiguration, ProviderConfiguration
 
 
 @pytest.fixture
 def adapter_manager(tmp_path: Path):
     config = AppConfiguration(
-        servers=[
-            ServerConfiguration(
+        providers={
+            "1": ProviderConfiguration(
                 name="foo", server_address="bar", username="baz", password="ohea",
             )
-        ],
-        current_server_index=0,
-        cache_location=tmp_path.as_posix(),
+        },
+        current_provider_id="1",
+        cache_location=tmp_path,
     )
     AdapterManager.reset(config, lambda *a: None)
     yield

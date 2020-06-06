@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-from sublime.config import AppConfiguration, ReplayGainType, ServerConfiguration
+from sublime.config import AppConfiguration, ProviderConfiguration, ReplayGainType
 
 
 def test_config_default_cache_location():

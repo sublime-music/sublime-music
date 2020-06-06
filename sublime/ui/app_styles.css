@@ -69,6 +69,22 @@
     margin: 0 40px;
 }
 
+#music-source-config-name-entry-grid {
+    margin: 10px 0;
+}
+
+#config-verification-separator {
+    margin: 5px -10px;
+}
+
+.configure-form-help-icon {
+    margin-left: 10px;
+}
+
+entry.invalid {
+    border-color: red;
+}
+
 /* ********** Playlist ********** */
 #playlist-list-listbox row {
   margin: 0;

@@ -5,6 +5,7 @@ import multiprocessing
 import os
 import pickle
 import random
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
@@ -64,6 +65,12 @@ if always_error := os.environ.get("NETWORK_ALWAYS_ERROR"):
     NETWORK_ALWAYS_ERROR = True
 
 
+class ServerError(Exception):
+    def __init__(self, status_code: int, message: str):
+        self.status_code = status_code
+        super().__init__(message)
+
+
 class SubsonicAdapter(Adapter):
     """
     Defines an adapter which retrieves its data from a Subsonic server
@@ -83,15 +90,23 @@ class SubsonicAdapter(Adapter):
     @staticmethod
     def get_configuration_form(config_store: ConfigurationStore) -> Gtk.Box:
         configs = {
-            "server_address": ConfigParamDescriptor(str, "Server address"),
+            "server_address": ConfigParamDescriptor(str, "Server Address"),
             "username": ConfigParamDescriptor(str, "Username"),
             "password": ConfigParamDescriptor("password", "Password"),
-            "-": ConfigParamDescriptor("fold", "Advanced"),
-            "disable_cert_verify": ConfigParamDescriptor(
-                bool, "Verify certificate", True
+            "verify_cert": ConfigParamDescriptor(
+                bool,
+                "Verify Certificate",
+                default=True,
+                advanced=True,
+                helptext="Whether or not to verify the SSL certificate of the server.",
             ),
             "sync_enabled": ConfigParamDescriptor(
-                bool, "Synchronize play queue state", True
+                bool,
+                "Sync Slay Queue",
+                default=True,
+                advanced=True,
+                helptext="If toggled, Sublime Music will periodically save the play "
+                "queue state so that you can resume on other devices.",
             ),
         }
 
@@ -99,10 +114,22 @@ class SubsonicAdapter(Adapter):
             configs.update(
                 {
                     "local_network_ssid": ConfigParamDescriptor(
-                        str, "Local Network SSID"
+                        str,
+                        "Local Network SSID",
+                        advanced=True,
+                        required=False,
+                        helptext="If Sublime Music is connected to the given SSID, the "
+                        "Local Network Address will be used instead of the Server "
+                        "address when making network requests.",
                     ),
                     "local_network_address": ConfigParamDescriptor(
-                        str, "Local Network Address"
+                        str,
+                        "Local Network Address",
+                        advanced=True,
+                        required=False,
+                        helptext="If Sublime Music is connected to the given Local "
+                        "Network SSID, this URL will be used instead of the Server "
+                        "address when making network requests.",
                     ),
                 }
             )
@@ -110,10 +137,27 @@ class SubsonicAdapter(Adapter):
         def verify_configuration() -> Dict[str, Optional[str]]:
             errors: Dict[str, Optional[str]] = {}
 
-            # TODO (#197): verify the URL and ping it.
-            # Maybe have a special key like __ping_future__ or something along those
-            # lines to add a function that allows the UI to check whether or not
-            # connecting to the server will work?
+            with tempfile.TemporaryDirectory() as tmp_dir_name:
+                try:
+                    tmp_adapter = SubsonicAdapter(config_store, Path(tmp_dir_name))
+                    tmp_adapter._get_json(
+                        tmp_adapter._make_url("ping"),
+                        timeout=2,
+                        is_exponential_backoff_ping=True,
+                    )
+                except requests.ConnectionError:
+                    errors["__ping__"] = (
+                        "<b>Unable to connect to the server.</b>\n"
+                        "Double check the server address."
+                    )
+                except ServerError as e:
+                    errors["__ping__"] = (
+                        "<b>Error connecting in to the server.</b>\n"
+                        f"Error {e.status_code}: {str(e)}"
+                    )
+                except Exception as e:
+                    errors["__ping__"] = str(e)
+
             return errors
 
         return ConfigureServerForm(config_store, configs, verify_configuration)
@@ -122,14 +166,18 @@ class SubsonicAdapter(Adapter):
     def migrate_configuration(config_store: ConfigurationStore):
         pass
 
-    def __init__(self, config: dict, data_directory: Path):
+    def __init__(self, config: ConfigurationStore, data_directory: Path):
         self.data_directory = data_directory
         self.ignored_articles_cache_file = self.data_directory.joinpath(
             "ignored_articles.pickle"
         )
 
-        self.hostname = config["server_address"]
-        if ssid := config.get("local_network_ssid") and networkmanager_imported:
+        self.hostname = config.get("server_address")
+        if (
+            (ssid := config.get("local_network_ssid"))
+            and (lan_address := config.get("local_network_address"))
+            and networkmanager_imported
+        ):
             networkmanager_client = NM.Client.new()
 
             # Only look at the active WiFi connections.
@@ -145,12 +193,16 @@ class SubsonicAdapter(Adapter):
                 # If connected to the Local Network SSID, then change the hostname to
                 # the Local Network Address.
                 if ssid == ac.get_id():
-                    self.hostname = config["local_network_address"]
+                    self.hostname = lan_address
                     break
 
-        self.username = config["username"]
-        self.password = config["password"]
-        self.disable_cert_verify = config.get("disable_cert_verify")
+        parsed_hostname = urlparse(self.hostname)
+        if not parsed_hostname.scheme:
+            self.hostname = "https://" + self.hostname
+
+        self.username = config.get("username")
+        self.password = config.get_secret("password")
+        self.verify_cert = config.get("verify_cert")
 
         self.is_shutting_down = False
 
@@ -298,7 +350,7 @@ class SubsonicAdapter(Adapter):
                             raise TimeoutError("DUMMY TIMEOUT ERROR")
 
             if NETWORK_ALWAYS_ERROR:
-                raise Exception("NETWORK_ALWAYS_ERROR enabled")
+                raise ServerError(69, "NETWORK_ALWAYS_ERROR enabled")
 
             # Deal with datetime parameters (convert to milliseconds since 1970)
             for k, v in params.items():
@@ -310,22 +362,21 @@ class SubsonicAdapter(Adapter):
                 result = self._get_mock_data()
             else:
                 result = requests.get(
-                    url,
-                    params=params,
-                    verify=not self.disable_cert_verify,
-                    timeout=timeout,
+                    url, params=params, verify=self.verify_cert, timeout=timeout,
                 )
 
             # TODO (#122): make better
             if result.status_code != 200:
-                raise Exception(f"[FAIL] get: {url} status={result.status_code}")
+                raise ServerError(
+                    result.status_code, f"{url} returned status={result.status_code}."
+                )
 
             # Any time that a server request succeeds, then we win.
             self._server_available.value = True
             self._last_ping_timestamp.value = datetime.now().timestamp()
 
         except Exception:
-            logging.exception(f"get: {url} failed")
+            logging.exception(f"[FAIL] get: {url} failed")
             self._server_available.value = False
             self._last_ping_timestamp.value = datetime.now().timestamp()
             if not is_exponential_backoff_ping:
@@ -359,14 +410,13 @@ class SubsonicAdapter(Adapter):
 
         # TODO (#122): make better
         if not subsonic_response:
-            raise Exception(f"[FAIL] get: invalid JSON from {url}")
+            raise ServerError(500, f"{url} returned invalid JSON.")
 
         if subsonic_response["status"] == "failed":
-            code, message = (
+            raise ServerError(
                 subsonic_response["error"].get("code"),
                 subsonic_response["error"].get("message"),
             )
-            raise Exception(f"Subsonic API Error #{code}: {message}")
 
         logging.debug(f"Response from {url}: {subsonic_response}")
         return Response.from_dict(subsonic_response)

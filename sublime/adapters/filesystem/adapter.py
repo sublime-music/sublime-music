@@ -50,7 +50,7 @@ class FilesystemAdapter(CachingAdapter):
             config_store,
             {
                 "directory": ConfigParamDescriptor(
-                    type="directory", description="Music Directory"
+                    type=Path, description="Music Directory", pathtype="directory"
                 )
             },
             verify_config_store,

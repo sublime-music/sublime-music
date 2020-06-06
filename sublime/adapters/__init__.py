@@ -3,12 +3,11 @@ from .adapter_base import (
     AlbumSearchQuery,
     CacheMissError,
     CachingAdapter,
-    ConfigParamDescriptor,
     ConfigurationStore,
-    ConfigureServerForm,
     SongCacheStatus,
     UIInfo,
 )
+from .configure_server_form import ConfigParamDescriptor, ConfigureServerForm
 from .manager import AdapterManager, DownloadProgress, Result, SearchResult
 
 __all__ = (

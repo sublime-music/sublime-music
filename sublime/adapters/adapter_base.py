@@ -3,20 +3,15 @@ import hashlib
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
-from functools import partial
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
-    cast,
     Dict,
     Iterable,
     Optional,
     Sequence,
     Set,
     Tuple,
-    Type,
-    Union,
 )
 
 from dataclasses_json import dataclass_json
@@ -168,6 +163,10 @@ class ConfigurationStore:
     def __init__(self):
         self._store: Dict[str, Any] = {}
 
+    def __repr__(self) -> str:
+        values = ", ".join(f"{k}={v!r}" for k, v in self._store.items())
+        return f"ConfigurationStore({values})"
+
     def get(self, key: str, default: Any = None) -> Any:
         """
         Get the configuration value in the store with the given key. If the key doesn't
@@ -200,133 +199,8 @@ class ConfigurationStore:
         """
         self._store[key] = value
 
-
-@dataclass
-class ConfigParamDescriptor:
-    """
-    Describes a parameter that can be used to configure an adapter. The
-    :class:`description`, :class:`required` and :class:`default:` should be self-evident
-    as to what they do.
-
-    The :class:`type` must be one of the following:
-
-    * The literal type ``str``: corresponds to a freeform text entry field in the UI.
-    * The literal type ``bool``: corresponds to a checkbox in the UI.
-    * The literal type ``int``: corresponds to a numeric input in the UI.
-    * The literal string ``"password"``: corresponds to a password entry field in the
-      UI.
-    * The literal string ``"option"``: corresponds to dropdown in the UI.
-    * The literal string ``"directory"``: corresponds to a directory picker in the UI.
-    * The literal sting ``"fold"``: corresponds to a expander where following components
-      are under an expander component. The title of the expander is the description of
-      this class. All of the components until the next ``"fold"``, and ``"endfold"``
-      component, or the end of the configuration paramter dictionary are included under
-      the expander component.
-    * The literal string ``endfold``: end a ``"fold"``. The description must be the same
-      as the corresponding start form.
-
-    The :class:`hidden_behind` is an optional string representing the name of the
-    expander that the component should be displayed underneath. For example, one common
-    value for this is "Advanced" which will make the component only visible when the
-    user expands the "Advanced" settings.
-
-    The :class:`numeric_bounds` parameter only has an effect if the :class:`type` is
-    `int`. It specifies the min and max values that the UI control can have.
-
-    The :class:`numeric_step` parameter only has an effect if the :class:`type` is
-    `int`. It specifies the step that will be taken using the "+" and "-" buttons on the
-    UI control (if supported).
-
-    The :class:`options` parameter only has an effect if the :class:`type` is
-    ``"option"``. It specifies the list of options that will be available in the
-    dropdown in the UI.
-    """
-
-    type: Union[Type, str]
-    description: str
-    required: bool = True
-    hidden_behind: Optional[str] = None
-    default: Any = None
-    numeric_bounds: Optional[Tuple[int, int]] = None
-    numeric_step: Optional[int] = None
-    options: Optional[Iterable[str]] = None
-
-
-class ConfigureServerForm(Gtk.Box):
-    def __init__(
-        self,
-        config_store: ConfigurationStore,
-        config_parameters: Dict[str, ConfigParamDescriptor],
-        verify_configuration: Callable[[], Dict[str, Optional[str]]],
-    ):
-        """
-        Inititialize a :class:`ConfigureServerForm` with the given configuration
-        parameters.
-
-        :param config_store: The :class:`ConfigurationStore` to use to store
-            configuration values for this adapter.
-        :param config_parameters: An dictionary where the keys are the name of the
-            configuration paramter and the values are the :class:`ConfigParamDescriptor`
-            object corresponding to that configuration parameter. The order of the keys
-            in the dictionary correspond to the order that the configuration parameters
-            will be shown in the UI.
-        :param verify_configuration: A function that verifies whether or not the
-            current state of the ``config_store`` is valid. The output should be a
-            dictionary containing verification errors. The keys of the returned
-            dictionary should be the same as the keys passed in via the
-            ``config_parameters`` parameter.  The values should be strings describing
-            why the corresponding value in the ``config_store`` is invalid.
-        """
-        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
-        content_grid = Gtk.Grid(
-            column_spacing=10, row_spacing=5, margin_left=10, margin_right=10,
-        )
-
-        def create_string_input(
-            is_password: bool, i: int, key: str, cpd: ConfigParamDescriptor
-        ):
-            label = Gtk.Label(label=cpd.description + ":", halign=Gtk.Align.END)
-            content_grid.attach(label, 0, i, 1, 1)
-
-            entry = Gtk.Entry(text=config_store.get(key, ""), hexpand=True)
-            if is_password:
-                entry.set_visibility(False)
-
-            entry.connect(
-                "changed",
-                lambda e: cast(
-                    Callable[[str, str], None],
-                    (config_store.set_secret if is_password else config_store.set),
-                )(key, e.get_text()),
-            )
-            content_grid.attach(entry, 1, i, 1, 1)
-
-        def create_bool_input(i: int, key: str, cpd: ConfigParamDescriptor):
-            label = Gtk.Label(label=cpd.description + ":")
-            label.set_halign(Gtk.Align.END)
-            content_grid.attach(label, 0, i, 1, 1)
-
-            switch = Gtk.Switch(
-                active=config_store.get(key, False), halign=Gtk.Align.START
-            )
-            switch.connect(
-                "notify::active", lambda s: config_store.set(key, s.get_active()),
-            )
-            content_grid.attach(switch, 1, i, 1, 1)
-
-        for i, (key, cpd) in enumerate(config_parameters.items()):
-            cast(
-                Callable[[int, str, ConfigParamDescriptor], None],
-                {
-                    str: partial(create_string_input, False),
-                    "password": partial(create_string_input, True),
-                    bool: create_bool_input,
-                    "fold": lambda *a: print("fold"),  # TODO: this will require making
-                    # it a state machine
-                }[cpd.type],
-            )(i, key, cpd)
-
-        self.pack_start(content_grid, False, False, 10)
+    def keys(self) -> Iterable[str]:
+        return self._store.keys()
 
 
 @dataclass
@@ -370,6 +244,10 @@ class Adapter(abc.ABC):
         This function should return a :class:`Gtk.Box` that gets any inputs required
         from the user and uses the given ``config_store`` to store the configuration
         values.
+
+        The ``Gtk.Box`` must expose a signal with the name ``"config-valid-changed"``
+        which returns a single boolean value indicating whether or not the configuration
+        is valid.
 
         If you don't want to implement all of the GTK logic yourself, and just want a
         simple form, then you can use the :class:`ConfigureServerForm` class to generate

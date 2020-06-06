@@ -1,10 +1,11 @@
 import logging
 import os
 import pickle
+from abc import ABCMeta
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Optional, Type
+from typing import Any, Dict, Optional, Type
 
 import dataclasses_json
 from dataclasses_json import dataclass_json, DataClassJsonMixin
@@ -48,7 +49,6 @@ class ReplayGainType(Enum):
         }[replay_gain_type.lower()]
 
 
-@dataclass_json
 @dataclass
 class ProviderConfiguration:
     id: str
@@ -109,7 +109,7 @@ class AppConfiguration(DataClassJsonMixin):
         if not self.cache_location:
             path = Path(os.environ.get("XDG_DATA_HOME") or "~/.local/share")
             path = path.expanduser().joinpath("sublime-music").resolve()
-            self.cache_location = str(path)
+            self.cache_location = path
 
         self._state = None
         self._current_provider_id = None
