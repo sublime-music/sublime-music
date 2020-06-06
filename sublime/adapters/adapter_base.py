@@ -3,10 +3,12 @@ import hashlib
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
+from functools import partial
 from pathlib import Path
 from typing import (
     Any,
     Callable,
+    cast,
     Dict,
     Iterable,
     Optional,
@@ -163,7 +165,7 @@ class ConfigurationStore:
     This defines an abstract store for all configuration parameters for a given Adapter.
     """
 
-    def __init__(self, id: str):
+    def __init__(self):
         self._store: Dict[str, Any] = {}
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -189,14 +191,14 @@ class ConfigurationStore:
         # TODO make secret storage less stupid.
         return self._store.get(key, default)
 
-    def set_secret(self, key: str, default: Any = None) -> Any:
+    def set_secret(self, key: str, value: Any = None) -> Any:
         """
         Set the secret value of the given key in the store. This should be used for
         things such as passwords or API tokens. This will store the secret in whatever
         is configured as the underlying secret storage mechanism so you don't have to
         deal with secret storage yourself.
         """
-        return self._store.get(key, default)
+        self._store[key] = value
 
 
 @dataclass
@@ -275,15 +277,56 @@ class ConfigureServerForm(Gtk.Box):
             ``config_parameters`` parameter.  The values should be strings describing
             why the corresponding value in the ``config_store`` is invalid.
         """
-        Gtk.Box.__init__(self)
+        Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
         content_grid = Gtk.Grid(
             column_spacing=10, row_spacing=5, margin_left=10, margin_right=10,
         )
 
-        for key, cpd in config_parameters.items():
-            print(key, cpd)
+        def create_string_input(
+            is_password: bool, i: int, key: str, cpd: ConfigParamDescriptor
+        ):
+            label = Gtk.Label(label=cpd.description + ":", halign=Gtk.Align.END)
+            content_grid.attach(label, 0, i, 1, 1)
 
-        self.add(content_grid)
+            entry = Gtk.Entry(text=config_store.get(key, ""), hexpand=True)
+            if is_password:
+                entry.set_visibility(False)
+
+            entry.connect(
+                "changed",
+                lambda e: cast(
+                    Callable[[str, str], None],
+                    (config_store.set_secret if is_password else config_store.set),
+                )(key, e.get_text()),
+            )
+            content_grid.attach(entry, 1, i, 1, 1)
+
+        def create_bool_input(i: int, key: str, cpd: ConfigParamDescriptor):
+            label = Gtk.Label(label=cpd.description + ":")
+            label.set_halign(Gtk.Align.END)
+            content_grid.attach(label, 0, i, 1, 1)
+
+            switch = Gtk.Switch(
+                active=config_store.get(key, False), halign=Gtk.Align.START
+            )
+            switch.connect(
+                "notify::active", lambda s: config_store.set(key, s.get_active()),
+            )
+            content_grid.attach(switch, 1, i, 1, 1)
+
+        for i, (key, cpd) in enumerate(config_parameters.items()):
+            cast(
+                Callable[[int, str, ConfigParamDescriptor], None],
+                {
+                    str: partial(create_string_input, False),
+                    "password": partial(create_string_input, True),
+                    bool: create_bool_input,
+                    "fold": lambda *a: print("fold"),  # TODO: this will require making
+                    # it a state machine
+                }[cpd.type],
+            )(i, key, cpd)
+
+        self.pack_start(content_grid, False, False, 10)
 
 
 @dataclass

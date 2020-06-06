@@ -8,6 +8,8 @@ NumericFieldDescription = Tuple[str, str, Tuple[int, int, int], int]
 OptionFieldDescription = Tuple[str, str, Tuple[str, ...]]
 
 
+# TODO get rid of this and just make a nice custom one for Playlists since I am not
+# using this anywhere else anymore.
 class EditFormDialog(Gtk.Dialog):
     entity_name: str
     title: str

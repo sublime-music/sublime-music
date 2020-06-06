@@ -49,8 +49,8 @@ class should be enough to implement the entire adapter.
 After you've created the class, you will want to implement the following
 functions and properties first:
 
-* ``ui_info``: Returns a :class:`sublime.adapters.UIInfo` with the info for the
-  adapter.
+* ``get_ui_info``: Returns a :class:`sublime.adapters.UIInfo` with the info for
+  the adapter.
 * ``__init__``: Used to initialize your adapter. See the
   :class:`sublime.adapters.Adapter.__init__` documentation for the function
   signature of the ``__init__`` function.

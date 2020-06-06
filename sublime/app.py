@@ -923,6 +923,7 @@ class SublimeMusicApp(Gtk.Application):
         result = dialog.run()
         print(result)
         print(dialog)
+        print(dialog.provider_config)
         dialog.destroy()
 
     def update_window(self, force: bool = False):
