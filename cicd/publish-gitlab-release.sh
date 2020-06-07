@@ -30,7 +30,9 @@ if [[ $(head -n 1 CHANGELOG.rst) == "${CI_COMMIT_TAG}" ]]; then
 
     # i is now the index of the line below the second header.
 
-    description="**Release Notes:**
+    description="
+Release Notes
+#############
 
 $(head -n $(( $i - 2 )) CHANGELOG.rst | tail -n $(( $i - 5 )))"
 fi
