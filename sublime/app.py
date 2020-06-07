@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import shutil
 import sys
 from datetime import timedelta
 from functools import partial
@@ -39,10 +40,10 @@ from .adapters import (
     SongCacheStatus,
 )
 from .adapters.api_objects import Playlist, PlayQueue, Song
-from .config import AppConfiguration
+from .config import AppConfiguration, ProviderConfiguration
 from .dbus import dbus_propagate, DBusManager
 from .players import ChromecastPlayer, MPVPlayer, Player, PlayerEvent
-from .ui.configure_servers import ConfigureServersDialog
+from .ui.configure_provider import ConfigureProviderDialog
 from .ui.main import MainWindow
 from .ui.state import RepeatType, UIState
 
@@ -74,7 +75,14 @@ class SublimeMusicApp(Gtk.Application):
             self.add_action(action)
 
         # Add action for menu items.
-        add_action("configure-servers", self.on_configure_servers)
+        add_action("add-new-music-provider", self.on_add_new_music_provider)
+        add_action("edit-current-music-provider", self.on_edit_current_music_provider)
+        add_action(
+            "switch-music-provider", self.on_switch_music_provider, parameter_type="s"
+        )
+        add_action(
+            "remove-music-provider", self.on_remove_music_provider, parameter_type="s"
+        )
 
         # Add actions for player controls
         add_action("play-pause", self.on_play_pause)
@@ -115,8 +123,17 @@ class SublimeMusicApp(Gtk.Application):
             return
 
         # Configure Icons
-        icon_dir = Path(__file__).parent.joinpath("ui", "icons")
-        Gtk.IconTheme.get_default().append_search_path(str(icon_dir))
+        default_icon_theme = Gtk.IconTheme.get_default()
+        for adapter in AdapterManager.available_adapters:
+            if icon_dir := adapter.get_ui_info().icon_dir:
+                default_icon_theme.append_search_path(str(icon_dir))
+
+        icon_dirs = [
+            Path(__file__).parent.joinpath("ui", "icons"),
+            Path(__file__).parent.joinpath("adapters", "icons"),
+        ]
+        for icon_dir in icon_dirs:
+            default_icon_theme.append_search_path(str(icon_dir))
 
         # Windows are associated with the application when the last one is
         # closed the application shuts down.
@@ -139,16 +156,20 @@ class SublimeMusicApp(Gtk.Application):
 
         # Load the state for the server, if it exists.
         self.app_config.load_state()
+
+        # If there is no current provider, use the first one if there are any
+        # configured, and if none are configured, then show the dialog to create a new
+        # one.
+        if self.app_config.provider is None:
+            if len(self.app_config.providers) == 0:
+                self.show_configure_servers_dialog()
+
+                # If they didn't add one with the dialog, close the window.
+                if len(self.app_config.providers) == 0:
+                    self.window.close()
+                    return
+
         AdapterManager.reset(self.app_config, self.on_song_download_progress)
-
-        # If there is no current server, show the dialog to select a server.
-        if self.app_config.server is None:
-            self.show_configure_servers_dialog()
-
-            # If they didn't add one with the dialog, close the window.
-            if self.app_config.server is None:
-                self.window.close()
-                return
 
         # Connect after we know there's a server configured.
         self.window.stack.connect("notify::visible-child", self.on_stack_change)
@@ -274,7 +295,7 @@ class SublimeMusicApp(Gtk.Application):
         GLib.timeout_add(10000, periodic_update)
 
         # Prompt to load the play queue from the server.
-        if self.app_config.server.sync_enabled:
+        if AdapterManager.can_get_play_queue():
             self.update_play_state_from_server(prompt_confirm=True)
 
         # Send out to the bus that we exist.
@@ -527,8 +548,44 @@ class SublimeMusicApp(Gtk.Application):
         self.app_config.state.current_notification = None
         self.update_window()
 
-    def on_configure_servers(self, *args):
+    def on_add_new_music_provider(self, *args):
         self.show_configure_servers_dialog()
+
+    def on_edit_current_music_provider(self, *args):
+        self.show_configure_servers_dialog(self.app_config.provider)
+
+    def on_switch_music_provider(self, _, provider_id: GLib.Variant):
+        if self.app_config.state.playing:
+            self.on_play_pause()
+        self.app_config.save()
+        self.app_config.current_provider_id = provider_id.get_string()
+        self.reset_state()
+        self.app_config.save()
+
+    def on_remove_music_provider(self, _, provider_id: GLib.Variant):
+        provider = self.app_config.providers[provider_id.get_string()]
+        confirm_dialog = Gtk.MessageDialog(
+            transient_for=self.window,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_DELETE,
+                Gtk.ResponseType.YES,
+            ),
+            text=f"Are you sure you want to delete the {provider.name} music provider?",
+        )
+        confirm_dialog.format_secondary_markup(
+            "Deleting this music provider will delete all cached songs and metadata "
+            "associated with this provider."
+        )
+        if confirm_dialog.run() == Gtk.ResponseType.YES:
+            assert self.app_config.cache_location
+            provider_dir = self.app_config.cache_location.joinpath(provider.id)
+            shutil.rmtree(str(provider_dir))
+            del self.app_config.providers[provider.id]
+
+        confirm_dialog.destroy()
 
     def on_window_go_to(self, win: Any, action: str, value: str):
         {
@@ -679,25 +736,12 @@ class SublimeMusicApp(Gtk.Application):
     def on_go_online(self, *args):
         self.on_refresh_window(None, {"__settings__": {"offline_mode": False}})
 
-    def on_server_list_changed(self, action: Any, servers: GLib.Variant):
-        self.app_config.servers = servers
-        self.app_config.save()
-
-    def on_connected_server_changed(
-        self, action: Any, current_server_index: int,
-    ):
-        if self.app_config.server:
-            self.app_config.save()
-        self.app_config.current_server_index = current_server_index
-        self.app_config.save()
-
-        self.reset_state()
-
     def reset_state(self):
         if self.app_config.state.playing:
             self.on_play_pause()
         self.loading_state = True
         self.player.reset()
+        AdapterManager.reset(self.app_config, self.on_song_download_progress)
         self.loading_state = False
 
         # Update the window according to the new server configuration.
@@ -876,7 +920,7 @@ class SublimeMusicApp(Gtk.Application):
         if tap_imported and self.tap:
             self.tap.stop()
 
-        if self.app_config.server is None:
+        if self.app_config.provider is None:
             return
 
         if self.player:
@@ -891,12 +935,28 @@ class SublimeMusicApp(Gtk.Application):
         AdapterManager.shutdown()
 
     # ########## HELPER METHODS ########## #
-    def show_configure_servers_dialog(self):
+    def show_configure_servers_dialog(
+        self, provider_config: Optional[ProviderConfiguration] = None,
+    ):
         """Show the Connect to Server dialog."""
-        dialog = ConfigureServersDialog(self.window, self.app_config)
-        dialog.connect("server-list-changed", self.on_server_list_changed)
-        dialog.connect("connected-server-changed", self.on_connected_server_changed)
-        dialog.run()
+        dialog = ConfigureProviderDialog(self.window, provider_config)
+        result = dialog.run()
+        if result == Gtk.ResponseType.APPLY:
+            assert dialog.provider_config is not None
+            provider_id = dialog.provider_config.id
+            self.app_config.providers[provider_id] = dialog.provider_config
+
+            if provider_id == self.app_config.current_provider_id:
+                # Just update the window.
+                self.update_window()
+            else:
+                # Switch to the new provider.
+                if self.app_config.state.playing:
+                    self.on_play_pause()
+                self.app_config.current_provider_id = provider_id
+                self.app_config.save()
+                self.update_window(force=True)
+
         dialog.destroy()
 
     def update_window(self, force: bool = False):
@@ -1267,7 +1327,7 @@ class SublimeMusicApp(Gtk.Application):
     def save_play_queue(self, song_playing_order_token: int = None):
         if (
             len(self.app_config.state.play_queue) == 0
-            or self.app_config.server is None
+            or self.app_config.provider is None
             or (
                 song_playing_order_token
                 and song_playing_order_token != self.song_playing_order_token
@@ -1278,7 +1338,7 @@ class SublimeMusicApp(Gtk.Application):
         position = self.app_config.state.song_progress
         self.last_play_queue_update = position or timedelta(0)
 
-        if self.app_config.server.sync_enabled and self.app_config.state.current_song:
+        if AdapterManager.can_save_play_queue() and self.app_config.state.current_song:
             AdapterManager.save_play_queue(
                 song_ids=self.app_config.state.play_queue,
                 current_song_index=self.app_config.state.current_song_index,

@@ -25,7 +25,7 @@
 
 #current-downloads-list {
   min-height: 30px;
-  min-width: 250px;
+  min-width: 350px;
 }
 
 #current-downloads-list-placeholder {
@@ -62,6 +62,32 @@
 #menu-item-download-settings,
 #menu-item-clear-cache {
     min-width: 230px;
+}
+
+/* ********** Configure Provider Dialog ********** */
+#ground-truth-adapter-options-list {
+    margin: 0 40px;
+}
+
+#music-source-config-name-entry-grid {
+    margin: 10px 0;
+}
+
+#config-verification-separator {
+    margin: 5px -10px;
+}
+
+#verify-config-spinner {
+    min-height: 32px;
+    min-width: 32px;
+}
+
+.configure-form-help-icon {
+    margin-left: 10px;
+}
+
+entry.invalid {
+    border-color: red;
 }
 
 /* ********** Playlist ********** */

@@ -14,12 +14,16 @@ with open(here.joinpath("sublime", "__init__.py")) as f:
             version = eval(line.split()[-1])
             break
 
-icons_dir = here.joinpath("sublime", "ui", "icons")
-icon_filenames = []
-for icon in icons_dir.iterdir():
-    if not str(icon).endswith(".svg"):
-        continue
-    icon_filenames.append(str(icon))
+package_data_dirs = [
+    here.joinpath("sublime", "ui", "icons"),
+    here.joinpath("sublime", "dbus", "mpris_specs"),
+]
+package_data_files = []
+for data_dir in package_data_dirs:
+    for file in data_dir.iterdir():
+        if not str(file).endswith(".svg"):
+            continue
+        package_data_files.append(str(file))
 
 setup(
     name="sublime-music",
@@ -51,11 +55,7 @@ setup(
             "ui/app_styles.css",
             "ui/images/play-queue-play.png",
             "adapters/images/default-album-art.png",
-            "dbus/mpris_specs/org.mpris.MediaPlayer2.xml",
-            "dbus/mpris_specs/org.mpris.MediaPlayer2.Player.xml",
-            "dbus/mpris_specs/org.mpris.MediaPlayer2.Playlists.xml",
-            "dbus/mpris_specs/org.mpris.MediaPlayer2.TrackList.xml",
-            *icon_filenames,
+            *package_data_files,
         ]
     },
     install_requires=[

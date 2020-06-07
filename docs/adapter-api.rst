@@ -49,6 +49,8 @@ class should be enough to implement the entire adapter.
 After you've created the class, you will want to implement the following
 functions and properties first:
 
+* ``get_ui_info``: Returns a :class:`sublime.adapters.UIInfo` with the info for
+  the adapter.
 * ``__init__``: Used to initialize your adapter. See the
   :class:`sublime.adapters.Adapter.__init__` documentation for the function
   signature of the ``__init__`` function.
@@ -68,12 +70,18 @@ functions and properties first:
      function. Instead, use a periodic ping that updates a state variable that
      this function returns.
 
-.. TODO: these are totally wrong
+* ``get_configuration_form``: This function should return a :class:`Gtk.Box`
+  that gets any inputs required from the user and uses the given
+  ``config_store`` to store the configuration values.
 
-* ``get_config_parameters``: Specifies the settings which can be configured on
-  for the adapter. See :ref:`adapter-api:Handling Configuration` for details.
-* ``verify_configuration``: Verifies whether or not a given set of configuration
-  values are valid. See :ref:`adapter-api:Handling Configuration` for details.
+  The ``Gtk.Box`` must expose a signal with the name ``"config-valid-changed"``
+  which returns a single boolean value indicating whether or not the
+  configuration is valid.
+
+  If you don't want to implement all of the GTK logic yourself, and just want a
+  simple form, then you can use the
+  :class:`sublime.adapters.ConfigureServerForm` class to generate a form in a
+  declarative manner.
 
 .. note::
 

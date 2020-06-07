@@ -50,6 +50,7 @@ autodoc_default_options = {
 autosectionlabel_prefix_document = True
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
+    "gtk": ("https://lazka.github.io/pgi-docs/Gtk-3.0/", None),
 }
 
 # Add any paths that contain templates here, relative to this directory.

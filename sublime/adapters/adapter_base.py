@@ -1,20 +1,29 @@
 import abc
 import hashlib
+import uuid
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
 from typing import (
     Any,
+    cast,
     Dict,
     Iterable,
     Optional,
     Sequence,
     Set,
     Tuple,
-    Type,
-    Union,
 )
+
+from gi.repository import Gtk
+
+try:
+    import keyring
+
+    keyring_imported = True
+except Exception:
+    keyring_imported = False
 
 from .api_objects import (
     Album,
@@ -152,47 +161,78 @@ class CacheMissError(Exception):
         super().__init__(*args)
 
 
+KEYRING_APP_NAME = "com.sumnerevans.SublimeMusic"
+
+
+class ConfigurationStore(dict):
+    """
+    This defines an abstract store for all configuration parameters for a given Adapter.
+    """
+
+    MOCK = False
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def __repr__(self) -> str:
+        values = ", ".join(f"{k}={v!r}" for k, v in sorted(self.items()))
+        return f"ConfigurationStore({values})"
+
+    def get_secret(self, key: str) -> Any:
+        """
+        Get the secret value in the store with the given key. If the key doesn't exist
+        in the store, return the default. This will retrieve the secret from whatever is
+        configured as the underlying secret storage mechanism so you don't have to deal
+        with secret storage yourself.
+        """
+        value = self.get(key)
+        if not isinstance(value, (tuple, list)) or len(value) != 2:
+            return None
+
+        storage_type, storage_key = value
+        return {
+            "keyring": lambda: keyring.get_password(KEYRING_APP_NAME, storage_key),
+            "plaintext": lambda: storage_key,
+        }[storage_type]()
+
+    def set_secret(self, key: str, value: Any = None) -> Any:
+        """
+        Set the secret value of the given key in the store. This should be used for
+        things such as passwords or API tokens. This will store the secret in whatever
+        is configured as the underlying secret storage mechanism so you don't have to
+        deal with secret storage yourself.
+        """
+        if keyring_imported and not ConfigurationStore.MOCK:
+            try:
+                password_id = None
+                if password_type_and_id := self.get(key):
+                    if cast(Tuple[str, str], password_type_and_id[0]) == "keyring":
+                        password_id = password_type_and_id[1]
+
+                if password_id is None:
+                    password_id = str(uuid.uuid4())
+
+                keyring.set_password(KEYRING_APP_NAME, password_id, value)
+                self[key] = ("keyring", password_id)
+                return
+            except Exception:
+                pass
+
+        self[key] = ("plaintext", value)
+
+
 @dataclass
-class ConfigParamDescriptor:
-    """
-    Describes a parameter that can be used to configure an adapter. The
-    :class:`description`, :class:`required` and :class:`default:` should be self-evident
-    as to what they do.
-
-    The :class:`type` must be one of the following:
-
-    * The literal type ``str``: corresponds to a freeform text entry field in the UI.
-    * The literal type ``bool``: corresponds to a checkbox in the UI.
-    * The literal type ``int``: corresponds to a numeric input in the UI.
-    * The literal string ``"password"``: corresponds to a password entry field in the
-      UI.
-    * The literal string ``"option"``: corresponds to dropdown in the UI.
-
-    The :class:`hidden_behind` is an optional string representing the name of the
-    expander that the component should be displayed underneath. For example, one common
-    value for this is "Advanced" which will make the component only visible when the
-    user expands the "Advanced" settings.
-
-    The :class:`numeric_bounds` parameter only has an effect if the :class:`type` is
-    `int`. It specifies the min and max values that the UI control can have.
-
-    The :class:`numeric_step` parameter only has an effect if the :class:`type` is
-    `int`. It specifies the step that will be taken using the "+" and "-" buttons on the
-    UI control (if supported).
-
-    The :class:`options` parameter only has an effect if the :class:`type` is
-    ``"option"``. It specifies the list of options that will be available in the
-    dropdown in the UI.
-    """
-
-    type: Union[Type, str]
+class UIInfo:
+    name: str
     description: str
-    required: bool = True
-    hidden_behind: Optional[str] = None
-    default: Any = None
-    numeric_bounds: Optional[Tuple[int, int]] = None
-    numeric_step: Optional[int] = None
-    options: Optional[Iterable[str]] = None
+    icon_basename: str
+    icon_dir: Optional[Path] = None
+
+    def icon_name(self) -> str:
+        return f"{self.icon_basename}-symbolic"
+
+    def status_icon_name(self, status: str) -> str:
+        return f"{self.icon_basename}-{status.lower()}-symbolic"
 
 
 class Adapter(abc.ABC):
@@ -205,45 +245,42 @@ class Adapter(abc.ABC):
     """
 
     # Configuration and Initialization Properties
-    # These properties determine how the adapter can be configured and how to
+    # These functions determine how the adapter can be configured and how to
     # initialize the adapter given those configuration values.
     # ==================================================================================
     @staticmethod
     @abc.abstractmethod
-    def get_config_parameters() -> Dict[str, ConfigParamDescriptor]:
+    def get_ui_info() -> UIInfo:
         """
-        Specifies the settings which can be configured for the adapter.
-
-        :returns: An dictionary where the keys are the name of the configuration
-            paramter and the values are the :class:`ConfigParamDescriptor` object
-            corresponding to that configuration parameter. The order of the keys in the
-            dictionary correspond to the order that the configuration parameters will be
-            shown in the UI.
+        :returns: A :class:`UIInfo` object.
         """
 
     @staticmethod
     @abc.abstractmethod
-    def verify_configuration(config: Dict[str, Any]) -> Dict[str, Optional[str]]:
+    def get_configuration_form(config_store: ConfigurationStore) -> Gtk.Box:
         """
-        Specifies a function for verifying whether or not the config is valid.
+        This function should return a :class:`Gtk.Box` that gets any inputs required
+        from the user and uses the given ``config_store`` to store the configuration
+        values.
 
-        :param config: The adapter configuration. The keys of are the configuration
-            parameter names as defined by the return value of the
-            :class:`get_config_parameters` function. The values are the actual value of
-            the configuration parameter. It is guaranteed that all configuration
-            parameters that are marked as required will have a value in ``config``.
+        The ``Gtk.Box`` must expose a signal with the name ``"config-valid-changed"``
+        which returns a single boolean value indicating whether or not the configuration
+        is valid.
 
-        :returns: A dictionary containing varification errors. The keys of the returned
-            dictionary should be the same as the passed in via the ``config`` parameter.
-            The values should be strings describing why the corresponding value in the
-            ``config`` dictionary is invalid.
+        If you don't want to implement all of the GTK logic yourself, and just want a
+        simple form, then you can use the :class:`ConfigureServerForm` class to generate
+        a form in a declarative manner.
+        """
 
-            Not all keys need be returned (for example, if there's no error for a given
-            configuration parameter), and returning `None` indicates no error.
+    @staticmethod
+    @abc.abstractmethod
+    def migrate_configuration(config_store: ConfigurationStore):
+        """
+        This function allows the adapter to migrate its configuration.
         """
 
     @abc.abstractmethod
-    def __init__(self, config: dict, data_directory: Path):
+    def __init__(self, config_store: ConfigurationStore, data_directory: Path):
         """
         This function should be overridden by inheritors of :class:`Adapter` and should
         be used to do whatever setup is required for the adapter.
@@ -288,6 +325,14 @@ class Adapter(abc.ABC):
 
         The default is ``True``, since most adapters will want to take advantage of the
         built-in filesystem cache.
+        """
+        return True
+
+    @property
+    @staticmethod
+    def can_be_ground_truth() -> bool:
+        """
+        Whether or not this adapter can be used as a ground truth adapter.
         """
         return True
 

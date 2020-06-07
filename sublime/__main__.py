@@ -57,8 +57,9 @@ def main():
                 or os.environ.get("APPDATA")
                 or os.path.join("~/.config")
             )
+            .joinpath("sublime-music", "config.json")
             .expanduser()
-            .joinpath("sublime-music", "config.yaml")
+            .resolve()
         )
 
     app = SublimeMusicApp(Path(config_file))

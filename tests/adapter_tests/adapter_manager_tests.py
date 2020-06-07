@@ -3,21 +3,35 @@ from time import sleep
 
 import pytest
 
-from sublime.adapters import AdapterManager, Result, SearchResult
-from sublime.adapters.subsonic import api_objects as SubsonicAPI
-from sublime.config import AppConfiguration, ServerConfiguration
+from sublime.adapters import AdapterManager, ConfigurationStore, Result, SearchResult
+from sublime.adapters.filesystem import FilesystemAdapter
+from sublime.adapters.subsonic import api_objects as SubsonicAPI, SubsonicAdapter
+from sublime.config import AppConfiguration, ProviderConfiguration
 
 
 @pytest.fixture
 def adapter_manager(tmp_path: Path):
+    ConfigurationStore.MOCK = True
+    subsonic_config_store = ConfigurationStore(
+        server_address="https://subsonic.example.com",
+        username="test",
+        verify_cert=True,
+    )
+    subsonic_config_store.set_secret("password", "testpass")
+
     config = AppConfiguration(
-        servers=[
-            ServerConfiguration(
-                name="foo", server_address="bar", username="baz", password="ohea",
+        providers={
+            "1": ProviderConfiguration(
+                id="1",
+                name="foo",
+                ground_truth_adapter_type=SubsonicAdapter,
+                ground_truth_adapter_config=subsonic_config_store,
+                caching_adapter_type=FilesystemAdapter,
+                caching_adapter_config=ConfigurationStore(),
             )
-        ],
-        current_server_index=0,
-        cache_location=tmp_path.as_posix(),
+        },
+        current_provider_id="1",
+        cache_location=tmp_path,
     )
     AdapterManager.reset(config, lambda *a: None)
     yield

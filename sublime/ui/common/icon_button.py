@@ -19,7 +19,7 @@ class IconButton(Gtk.Button):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, name="icon-button-box")
 
         self.image = Gtk.Image.new_from_icon_name(icon_name, self.icon_size)
-        box.add(self.image)
+        box.pack_start(self.image, False, False, 0)
 
         if label is not None:
             box.add(Gtk.Label(label=label))

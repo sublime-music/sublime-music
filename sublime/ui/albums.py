@@ -304,9 +304,7 @@ class AlbumsPanel(Gtk.Box):
         self.populate_genre_combo(app_config, force=force)
 
         # At this point, the current query should be totally updated.
-        self.grid_order_token = self.grid.update_params(
-            self.current_query, self.offline_mode
-        )
+        self.grid_order_token = self.grid.update_params(app_config)
         self.grid.update(self.grid_order_token, app_config, force=force)
 
     def _get_opposite_sort_dir(self, sort_dir: str) -> str:
@@ -519,16 +517,25 @@ class AlbumsGrid(Gtk.Overlay):
     page: int = 0
     num_pages: Optional[int] = None
     next_page_fn = None
-    server_hash: Optional[str] = None
+    provider_id: Optional[str] = None
 
-    def update_params(self, query: AlbumSearchQuery, offline_mode: bool) -> int:
+    def update_params(self, app_config: AppConfiguration) -> int:
         # If there's a diff, increase the ratchet.
-        if self.current_query.strhash() != query.strhash():
+        if (
+            self.current_query.strhash()
+            != (search_query := app_config.state.current_album_search_query).strhash()
+        ):
             self.order_ratchet += 1
-            self.current_query = query
-        if offline_mode != self.offline_mode:
+            self.current_query = search_query
+
+        if self.offline_mode != (offline_mode := app_config.offline_mode):
             self.order_ratchet += 1
-        self.offline_mode = offline_mode
+            self.offline_mode = offline_mode
+
+        if self.provider_id != (provider_id := app_config.current_provider_id):
+            self.order_ratchet += 1
+            self.provider_id = provider_id
+
         return self.order_ratchet
 
     def __init__(self, *args, **kwargs):
@@ -620,11 +627,6 @@ class AlbumsGrid(Gtk.Overlay):
             self.page_size = app_config.state.album_page_size
             self.page = app_config.state.album_page
 
-            new_hash = server.strhash() if (server := app_config.server) else None
-            if self.server_hash != new_hash:
-                self.order_ratchet += 1
-            self.server_hash = new_hash
-
         self.update_grid(
             order_token,
             use_ground_truth_adapter=force,
@@ -651,7 +653,7 @@ class AlbumsGrid(Gtk.Overlay):
         force_grid_reload_from_master = (
             force_grid_reload_from_master
             or use_ground_truth_adapter
-            or self.latest_applied_order_ratchet < self.order_ratchet
+            or self.latest_applied_order_ratchet < order_token
         )
 
         def do_update_grid(selected_index: Optional[int]):
@@ -669,7 +671,7 @@ class AlbumsGrid(Gtk.Overlay):
             # Don't override more recent results
             if order_token < self.latest_applied_order_ratchet:
                 return
-            self.latest_applied_order_ratchet = self.order_ratchet
+            self.latest_applied_order_ratchet = order_token
 
             is_partial = False
             try:
@@ -681,6 +683,7 @@ class AlbumsGrid(Gtk.Overlay):
                 if self.error_dialog:
                     self.spinner.hide()
                     return
+                # TODO (#122): make this non-modal
                 self.error_dialog = Gtk.MessageDialog(
                     transient_for=self.get_toplevel(),
                     message_type=Gtk.MessageType.ERROR,
@@ -732,10 +735,7 @@ class AlbumsGrid(Gtk.Overlay):
             )
             do_update_grid(selected_index)
 
-        if (
-            use_ground_truth_adapter
-            or self.latest_applied_order_ratchet < self.order_ratchet
-        ):
+        if force_grid_reload_from_master:
             albums_result = AdapterManager.get_albums(
                 self.current_query, use_ground_truth_adapter=use_ground_truth_adapter
             )

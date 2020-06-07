@@ -441,9 +441,9 @@ class MusicDirectoryList(Gtk.Box):
             )
         )
 
-        icon = Gio.ThemedIcon(name="go-next-symbolic")
-        image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
+        image = Gtk.Image.new_from_icon_name("go-next-symbolic", Gtk.IconSize.BUTTON)
         rowbox.pack_end(image, False, False, 5)
+
         row.add(rowbox)
         row.show_all()
         return row
