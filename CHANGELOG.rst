@@ -64,11 +64,13 @@ Features
 * The Devices button now uses the Chromecast logo. It uses a different icon
   depending on whether or not you are playing on a Chromecast.
 * Custom icons for "Add to play queue", and "Play next" buttons. Thanks to
-  @samsartor for contributing the SVGs!
+  `@samsartor`_ for contributing the SVGs!
 * A new icon for indicating the connection state to the Subsonic server.
-  Contributed by @samsartor.
+  Contributed by `@samsartor`_.
 * A new icon for that data wasn't able to be loaded due to being offline.
-  Contributed by @samsartor.
+  Contributed by `@samsartor`_.
+
+.. _@samsartor: https://gitlab.com/samsartor
 
 **Application Menus**
 
@@ -104,7 +106,8 @@ This release has a ton of under-the-hood changes to make things more robust
 and performant.
 
 * The cache is now stored in a SQLite database.
-* The cache no longer gets corrupted when Sublime Music fails to write to disk.
+* The cache and configuration no longer get corrupted when Sublime Music fails
+  to write to disk due to errors.
 * A generic `Adapter API`_ has been created which means that Sublime Music is no
   longer reliant on Subsonic. This means that in the future, more backends can
   be added.
