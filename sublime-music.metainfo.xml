@@ -18,6 +18,10 @@
             <li>Switch between multiple Subsonic-API-compliant servers.</li>
             <li>Play music through Chromecast devices on the same LAN.</li>
             <li>
+                Offline Mode where Sublime Music will not make any network
+                requests.
+            </li>
+            <li>
                 DBus MPRIS interface integration for controlling Sublime Music
                 via DBus MPRIS clients such as playerctl, i3status-rust, KDE
                 Connect, and many commonly used desktop environments.
@@ -41,11 +45,11 @@
             <image>https://sumner.gitlab.io/sublime-music/_images/albums.png</image>
         </screenshot>
         <screenshot type="default">
-            <caption>Artists uab</caption>
+            <caption>Artists tab</caption>
             <image>https://sumner.gitlab.io/sublime-music/_images/artists.png</image>
         </screenshot>
         <screenshot type="default">
-            <caption>Browse uab</caption>
+            <caption>Browse tab</caption>
             <image>https://sumner.gitlab.io/sublime-music/_images/browse.png</image>
         </screenshot>
         <screenshot type="default">
@@ -61,8 +65,16 @@
             <image>https://sumner.gitlab.io/sublime-music/_images/chromecasts.png</image>
         </screenshot>
         <screenshot type="default">
-            <caption>Search for artists, albums, songs, and playlists</caption>
+            <caption>Fuzzy search for artists, albums, songs, and playlists</caption>
             <image>https://sumner.gitlab.io/sublime-music/_images/search.png</image>
+        </screenshot>
+        <screenshot type="default">
+            <caption>View current downloads</caption>
+            <image>https://sumner.gitlab.io/sublime-music/_images/downloads.png</image>
+        </screenshot>
+        <screenshot type="default">
+            <caption>Offline mode</caption>
+            <image>https://sumner.gitlab.io/sublime-music/_images/offline-mode.png</image>
         </screenshot>
     </screenshots>
 

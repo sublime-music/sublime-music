@@ -43,7 +43,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.set_default_size(1150, 768)
+        self.set_default_size(1342, 756)
 
         # Create the stack
         self.albums_panel = albums.AlbumsPanel()
@@ -768,7 +768,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.search_popup = Gtk.PopoverMenu(modal=False)
 
         results_scrollbox = Gtk.ScrolledWindow(
-            min_content_width=500, min_content_height=750,
+            min_content_width=500, min_content_height=700,
         )
 
         def make_search_result_header(text: str) -> Gtk.Label:

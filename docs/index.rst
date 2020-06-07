@@ -16,11 +16,10 @@ Linux Desktop.
 .. _Navidrome: https://www.navidrome.org/
 
 .. figure:: ./_static/screenshots/play-queue.png
-   :width: 80%
    :align: center
    :target: ./_static/screenshots/play-queue.png
 
-   The Playlist view of Sublime Music with the Play Queue opened. :doc:`More
+   The Albums tab of Sublime Music with the Play Queue opened. :doc:`More
    Screenshots <./screenshots>`
 
 Features
