@@ -102,7 +102,7 @@ class SubsonicAdapter(Adapter):
             ),
             "sync_enabled": ConfigParamDescriptor(
                 bool,
-                "Sync Slay Queue",
+                "Sync Play Queue",
                 default=True,
                 advanced=True,
                 helptext="If toggled, Sublime Music will periodically save the play "

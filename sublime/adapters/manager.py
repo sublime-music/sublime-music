@@ -30,6 +30,8 @@ from typing import (
 
 import requests
 
+from sublime.config import ProviderConfiguration
+
 from .adapter_base import (
     Adapter,
     AlbumSearchQuery,
@@ -49,7 +51,6 @@ from .api_objects import (
 )
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter
-from sublime.config import ProviderConfiguration
 
 REQUEST_DELAY: Optional[Tuple[float, float]] = None
 if delay_str := os.environ.get("REQUEST_DELAY"):

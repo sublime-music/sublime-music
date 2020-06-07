@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import shutil
 import sys
 from datetime import timedelta
 from functools import partial
@@ -76,8 +77,12 @@ class SublimeMusicApp(Gtk.Application):
         # Add action for menu items.
         add_action("add-new-music-provider", self.on_add_new_music_provider)
         add_action("edit-current-music-provider", self.on_edit_current_music_provider)
-        add_action("switch-music-provider", self.on_switch_music_provider)
-        add_action("remove-music-provider", self.on_remove_music_provider)
+        add_action(
+            "switch-music-provider", self.on_switch_music_provider, parameter_type="s"
+        )
+        add_action(
+            "remove-music-provider", self.on_remove_music_provider, parameter_type="s"
+        )
 
         # Add actions for player controls
         add_action("play-pause", self.on_play_pause)
@@ -549,28 +554,42 @@ class SublimeMusicApp(Gtk.Application):
         self.app_config.providers = servers
         self.app_config.save()
 
-    def on_connected_server_changed(self, action: Any, current_server_id: str):
-        assert 0
-        if self.app_config.provider:
-            self.app_config.save()
-        self.app_config.current_server_id = current_server_id
-        self.app_config.save()
-
-        self.reset_state()
-
     def on_add_new_music_provider(self, *args):
         self.show_configure_servers_dialog()
 
     def on_edit_current_music_provider(self, *args):
         self.show_configure_servers_dialog(self.app_config.provider)
 
-    def on_switch_music_provider(self, _, provider_id: str):
-        print("SWITCH")
-        pass
+    def on_switch_music_provider(self, _, provider_id: GLib.Variant):
+        self.app_config.save()
+        self.app_config.current_provider_id = provider_id.get_string()
+        self.reset_state()
+        self.app_config.save()
 
-    def on_remove_music_provider(self, _, provider_id: str):
-        print("REMOVE")
-        pass
+    def on_remove_music_provider(self, _, provider_id: GLib.Variant):
+        provider = self.app_config.providers[provider_id.get_string()]
+        confirm_dialog = Gtk.MessageDialog(
+            transient_for=self.window,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_DELETE,
+                Gtk.ResponseType.YES,
+            ),
+            text=f"Are you sure you want to delete the {provider.name} music provider?",
+        )
+        confirm_dialog.format_secondary_markup(
+            "Deleting this music provider will delete all cached songs and metadata "
+            "associated with this provider."
+        )
+        if confirm_dialog.run() == Gtk.ResponseType.YES:
+            assert self.app_config.cache_location
+            provider_dir = self.app_config.cache_location.joinpath(provider.id)
+            shutil.rmtree(str(provider_dir))
+            del self.app_config.providers[provider.id]
+
+        confirm_dialog.destroy()
 
     def on_window_go_to(self, win: Any, action: str, value: str):
         {
@@ -729,7 +748,7 @@ class SublimeMusicApp(Gtk.Application):
         self.loading_state = False
 
         # Update the window according to the new server configuration.
-        self.update_window()
+        self.update_window(force=True)
 
     def on_stack_change(self, stack: Gtk.Stack, _):
         self.app_config.state.current_tab = stack.get_visible_child_name()

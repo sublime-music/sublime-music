@@ -152,7 +152,6 @@ class AppConfiguration(DataClassJsonMixin):
             pass
 
         config.filename = filename
-        config.save()
         return config
 
     def __post_init__(self):
@@ -199,7 +198,7 @@ class AppConfiguration(DataClassJsonMixin):
                 with open(state_filename, "rb") as f:
                     self._state = pickle.load(f)
             except Exception:
-                logging.warning(f"Couldn't load state from {state_filename}")
+                logging.exception(f"Couldn't load state from {state_filename}")
                 # Just ignore any errors, it is only UI state.
                 self._state = UIState()
 
@@ -216,11 +215,13 @@ class AppConfiguration(DataClassJsonMixin):
     def save(self):
         # Save the config as YAML.
         self.filename.parent.mkdir(parents=True, exist_ok=True)
+        json = self.to_json(indent=2, sort_keys=True)
         with open(self.filename, "w+") as f:
-            f.write(self.to_json(indent=2, sort_keys=True))
+            f.write(json)
 
         # Save the state for the current provider.
         if state_filename := self._state_file_location:
             state_filename.parent.mkdir(parents=True, exist_ok=True)
             with open(state_filename, "wb+") as f:
+                print("SAVE STATE", state_filename)
                 pickle.dump(self.state, f)

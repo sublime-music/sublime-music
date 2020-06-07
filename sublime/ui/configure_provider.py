@@ -225,9 +225,10 @@ class ConfigureProviderDialog(Gtk.Dialog):
             entry.get_style_context().remove_class("invalid")
             entry.set_tooltip_markup(None)
 
-            assert self.provider_config
-            self.provider_config.name = entry.get_text()
-            self.set_title(self.editing, self.provider_config)
+            if self.editing:
+                assert self.provider_config
+                self.provider_config.name = entry.get_text()
+                self.set_title(self.editing, self.provider_config)
         else:
             self._name_is_valid = False
             entry.get_style_context().add_class("invalid")

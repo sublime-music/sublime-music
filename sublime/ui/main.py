@@ -9,7 +9,7 @@ from sublime.adapters import (
     DownloadProgress,
     Result,
 )
-from sublime.config import AppConfiguration, ReplayGainType
+from sublime.config import AppConfiguration, ProviderConfiguration, ReplayGainType
 from sublime.ui import albums, artists, browse, player_controls, playlists, util
 from sublime.ui.common import IconButton, IconMenuButton, SpinnerImage
 
@@ -108,6 +108,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.connect("button-release-event", self._on_button_release)
 
     current_notification_hash = None
+    current_other_providers: Tuple[Tuple[str, ProviderConfiguration], ...] = ()
 
     def update(self, app_config: AppConfiguration, force: bool = False):
         notification = app_config.state.current_notification
@@ -154,12 +155,13 @@ class MainWindow(Gtk.ApplicationWindow):
             else:
                 status_label = "Error Connecting to Server"
 
+            icon_status = status_label.split()[0].lower()
+
             self.server_connection_menu_button.set_icon(
-                f"{icon_basename}-{status_label.split()[0].lower()}-symbolic"
+                f"{icon_basename}-{icon_status}-symbolic"
             )
             self.connection_status_icon.set_from_icon_name(
-                f"server-{status_label.split()[0].lower()}-symbolic",
-                Gtk.IconSize.BUTTON,
+                f"server-{icon_status}-symbolic", Gtk.IconSize.BUTTON,
             )
             self.connection_status_label.set_text(status_label)
             self.connected_status_box.show_all()
@@ -172,6 +174,32 @@ class MainWindow(Gtk.ApplicationWindow):
         # Offline Mode Settings
         offline_mode = app_config.offline_mode
         self.offline_mode_switch.set_active(offline_mode)
+
+        # Switch Provider options
+        other_providers = tuple(
+            filter(
+                lambda kv: kv[0] != app_config.current_provider_id,
+                app_config.providers.items(),
+            )
+        )
+        if self.current_other_providers != other_providers:
+            self.current_other_providers = other_providers
+            for c in self.provider_options_box.get_children():
+                self.provider_options_box.remove(c)
+
+            for key, provider in sorted(other_providers, key=lambda kv: kv[1].name):
+                self.provider_options_box.pack_start(
+                    self._create_switch_provider_button(provider), False, True, 0,
+                )
+
+            self.provider_options_box.show_all()
+        # menu_items = [
+        #     ("Delete Cached Song Files", self._clear_song_file_cache),
+        #     ("Delete Cached Song Files and Metadata", self._clear_entire_cache),
+        # ]
+        # for text, clicked_fn in menu_items:
+        #     clear_song_cache = self._create_model_button(text, clicked_fn=clicked_fn)
+        #     switch_provider_options.pack_start(clear_song_cache, False, True, 0)
 
         # Main Settings
         self.notification_switch.set_active(app_config.song_play_notification)
@@ -452,7 +480,12 @@ class MainWindow(Gtk.ApplicationWindow):
         return box, switch
 
     def _create_model_button(
-        self, text: str, clicked_fn: Callable = None, action_name: str = None, **kwargs
+        self,
+        text: str,
+        clicked_fn: Callable = None,
+        action_name: str = None,
+        action_value: GLib.Variant = None,
+        **kwargs,
     ) -> Gtk.ModelButton:
         model_button = Gtk.ModelButton(text=text, **kwargs)
         model_button.get_style_context().add_class("menu-button")
@@ -460,7 +493,36 @@ class MainWindow(Gtk.ApplicationWindow):
             model_button.connect("clicked", clicked_fn)
         if action_name:
             model_button.set_action_name(f"app.{action_name}")
+        if action_value is not None:
+            model_button.set_action_target_value(action_value)
         return model_button
+
+    def _create_switch_provider_button(
+        self, provider: ProviderConfiguration
+    ) -> Gtk.Box:
+        box = Gtk.Box()
+        provider_name_button = self._create_model_button(
+            provider.name,
+            action_name="switch-music-provider",
+            action_value=GLib.Variant("s", provider.id),
+        )
+        provider_name_button.connect(
+            "clicked", lambda *a: self.server_connection_popover.popdown()
+        )
+        box.pack_start(provider_name_button, True, True, 0)
+
+        provider_delete_button = IconButton(
+            icon_name="user-trash-symbolic",
+            tooltip_text=f"Remove the {provider.name} music provider",
+        )
+        provider_delete_button.connect(
+            "clicked", lambda *a: self.server_connection_popover.popdown()
+        )
+        provider_delete_button.set_action_name("app.remove-music-provider")
+        provider_delete_button.set_action_target_value(GLib.Variant("s", provider.id))
+        box.pack_end(provider_delete_button, False, False, 0)
+
+        return box
 
     def _create_spin_button_menu_item(
         self, label: str, low: int, high: int, step: int, settings_name: str
@@ -590,8 +652,22 @@ class MainWindow(Gtk.ApplicationWindow):
             "Add New Music Provider...", action_name="add-new-music-provider"
         )
         vbox.add(add_new_music_provider_button)
-
         menu.add(vbox)
+
+        # Create the "Switch Provider" sub-menu.
+        switch_provider_options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        # Back button
+        switch_provider_options.add(
+            Gtk.ModelButton(inverted=True, centered=True, menu_name="main")
+        )
+
+        # Provider Options box
+        self.provider_options_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        switch_provider_options.add(self.provider_options_box)
+
+        menu.add(switch_provider_options)
+        menu.child_set_property(switch_provider_options, "submenu", "switch-provider")
         return menu
 
     def _create_main_menu(self) -> Gtk.PopoverMenu:
@@ -770,14 +846,13 @@ class MainWindow(Gtk.ApplicationWindow):
         confirm_dialog = Gtk.MessageDialog(
             transient_for=self.get_toplevel(),
             message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.NONE,
+            buttons=(
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_DELETE,
+                Gtk.ResponseType.YES,
+            ),
             text=title,
-        )
-        confirm_dialog.add_buttons(
-            Gtk.STOCK_DELETE,
-            Gtk.ResponseType.YES,
-            Gtk.STOCK_CANCEL,
-            Gtk.ResponseType.CANCEL,
         )
         confirm_dialog.format_secondary_markup(detail_text)
         result = confirm_dialog.run()
