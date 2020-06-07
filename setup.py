@@ -20,10 +20,10 @@ package_data_dirs = [
 ]
 package_data_files = []
 for data_dir in package_data_dirs:
-    for icon in data_dir.iterdir():
-        if not str(icon).endswith(".svg"):
+    for file in data_dir.iterdir():
+        if not str(file).endswith(".svg"):
             continue
-        package_data_files.append(str(icon))
+        package_data_files.append(str(file))
 
 setup(
     name="sublime-music",

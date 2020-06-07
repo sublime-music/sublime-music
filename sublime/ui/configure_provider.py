@@ -26,19 +26,6 @@ class ConfigureProviderDialog(Gtk.Dialog):
     _current_index = -1
     stage = DialogStage.SELECT_ADAPTER
 
-    __gsignals__ = {
-        "server-list-changed": (
-            GObject.SignalFlags.RUN_FIRST,
-            GObject.TYPE_NONE,
-            (object,),
-        ),
-        "connected-server-changed": (
-            GObject.SignalFlags.RUN_FIRST,
-            GObject.TYPE_NONE,
-            (object,),
-        ),
-    }
-
     def set_title(self, editing: bool, provider_config: ProviderConfiguration = None):
         if editing:
             assert provider_config is not None

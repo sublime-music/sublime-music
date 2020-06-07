@@ -282,8 +282,6 @@ class AdapterManager:
 
         AdapterManager._offline_mode = config.offline_mode
 
-        # TODO (#197): actually do stuff with the config to determine which adapters to
-        # create, etc.
         assert config.provider is not None
         assert isinstance(config.provider, ProviderConfiguration)
         assert config.cache_location

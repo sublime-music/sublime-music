@@ -70,11 +70,13 @@ functions and properties first:
      function. Instead, use a periodic ping that updates a state variable that
      this function returns.
 
-.. TODO: these are totally wrong
-
 * ``get_configuration_form``: This function should return a :class:`Gtk.Box`
   that gets any inputs required from the user and uses the given
   ``config_store`` to store the configuration values.
+
+  The ``Gtk.Box`` must expose a signal with the name ``"config-valid-changed"``
+  which returns a single boolean value indicating whether or not the
+  configuration is valid.
 
   If you don't want to implement all of the GTK logic yourself, and just want a
   simple form, then you can use the

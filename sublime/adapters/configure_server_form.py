@@ -5,6 +5,7 @@ This file contains all of the classes related for a shared server configuration 
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
+from time import sleep
 from typing import Any, Callable, cast, Dict, Iterable, Optional, Tuple, Type, Union
 
 from gi.repository import GLib, GObject, Gtk, Pango
@@ -253,9 +254,13 @@ class ConfigureServerForm(Gtk.Box):
             if not self.verifying_in_progress:
                 for c in self.config_verification_box.get_children():
                     self.config_verification_box.remove(c)
-                self.config_verification_box.add(Gtk.Spinner(active=True))
                 self.config_verification_box.add(
-                    Gtk.Label(label="Verifying configuration...")
+                    Gtk.Spinner(active=True, name="verify-config-spinner")
+                )
+                self.config_verification_box.add(
+                    Gtk.Label(
+                        label="<b>Verifying configuration...</b>", use_markup=True
+                    )
                 )
             self.verifying_in_progress = True
         else:
@@ -316,7 +321,11 @@ class ConfigureServerForm(Gtk.Box):
 
             self.had_all_required_keys = True
             if has_empty:
-                self._set_verification_status(False)
+                self._set_verification_status(
+                    False,
+                    error_text="<b>There are missing fields</b>\n"
+                    "Please fill out all required fields.",
+                )
                 return
 
             def on_verify_result(verification_errors: Dict[str, Optional[str]]):
@@ -342,9 +351,14 @@ class ConfigureServerForm(Gtk.Box):
                     False, error_text=verification_errors.get("__ping__")
                 )
 
-            errors_result: Result[Dict[str, Optional[str]]] = Result(
-                self.verify_configuration
-            )
+            def verify_with_delay() -> Dict[str, Optional[str]]:
+                sleep(0.75)
+                if self._verification_status_ratchet != ratchet:
+                    return {}
+
+                return self.verify_configuration()
+
+            errors_result: Result[Dict[str, Optional[str]]] = Result(verify_with_delay)
             errors_result.add_done_callback(
                 lambda f: GLib.idle_add(on_verify_result, f.result())
             )

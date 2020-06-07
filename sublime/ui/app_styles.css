@@ -77,6 +77,11 @@
     margin: 5px -10px;
 }
 
+#verify-config-spinner {
+    min-height: 32px;
+    min-width: 32px;
+}
+
 .configure-form-help-icon {
     margin-left: 10px;
 }
