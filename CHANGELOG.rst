@@ -1,6 +1,15 @@
 v0.10.0
 =======
 
+.. TODO in next release:
+.. * A man page has been added. Contributed by @baldurmen.
+
+.. note::
+
+   This version does not have a Flatpak due to issues getting Python 3.8 working
+   within the Flatpak environment. See `Issue #218
+   <https://gitlab.com/sumner/sublime-music/-/issues/218_>`_
+
 .. warning::
 
    This version is not compatible with any previous versions. If you have run a
@@ -12,12 +21,37 @@ v0.10.0
 Features
 --------
 
+**Improvements to configuring Music Sources**
+
+* The mechanism for adding new *Music Sources* (the *Server* nomenclature has)
+  been dropped in favor of the more generic *Music Source*) has been totally
+  revamped. It now is a multi-stage dialog that will (in the future) allow you
+  to connect to more than just Subsonic-compatible servers.
+* The configuration form for Subsonic is no longer just a massive list of
+  options. Instead, there is an "Advanced Settings" section that is collapsed by
+  default.
+* The configuration dialog automatically checks if you can connect to the server
+  and shows you any errors which means there is no need to click "Test
+  Connection to Server" any more!
+* Adding and removing music sources is now done directly in the server popup
+  (see below for details).
+
+**Offline Mode**
+
+* You can enable *Offline Mode* from the server menu.
+* Features that require network access are disabled in offline mode.
+* You can still browse anything that is already cached offline.
+
 **Albums Tab Improvements**
 
 * The Albums tab is now paginated with configurable page sizes.
 * You can sort the Albums tab ascending or descending.
-* Opening an closing an album on the Albums tab now has a nice animation.
-* "Go to Album" is much more reliable.
+* Opening an closing an album on the Albums tab now has a nice animation and the
+  album details panel is visually inset.
+* The "Go to Album" functionality from the context menu is much more reliable.
+* The album results can now be served from the cache much more often meaning
+  less latency when trying to load albums (this is a byproduct of the Offline
+  Mode work).
 
 **Player Controls**
 
@@ -45,32 +79,23 @@ Features
 
 * **Downloads**
 
-  * A new Downloads popup shows the currently downloading songs and allows you
-    to cancel song downloads and retry failed downloads.
-  * You can now clear the cache via an option in the Downloads popup. There are
-    options for removing the entire cache and removing just the song file cache.
+  * A new Downloads popup shows the currently downloading songs.
+  * You can now cancel song downloads and retry failed downloads.
+  * You can now clear the cache (either the entire cache or just the song files)
+    via options in the Downloads popup.
 
 * **Server**
 
   * A new Server popup shows the connection state to the server in both the icon
     and the popup.
-  * You can enable *Offline Mode* (see below for details).
-
-.. * The "Configure Servers" dialog has been eliminated in favor of a much more
-   intuitive set of controls right on the Server popup.
-
-**Offline Mode**
-
-* You can enable *Offline Mode* from the server menu.
-* Features that require network access are disabled in offline mode.
-* You can still browse anything that is already cached offline.
+  * You can enable *Offline Mode* from this menu.
+  * You can edit the current music source's configuration, switch to a different
+    music source, or add a whole new music source via this menu.
 
 **Other Features**
 
 * You can now collapse the Artist details and the Playlist details so that you
   have more room to view the actual content.
-
-.. * A man page has been added. Contributed by @baldurmen.
 
 Under The Hood
 --------------

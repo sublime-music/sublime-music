@@ -213,12 +213,12 @@ class ConfigurationStore(dict):
                     password_id = str(uuid.uuid4())
 
                 keyring.set_password(KEYRING_APP_NAME, password_id, value)
-                self[key] = ("keyring", password_id)
+                self[key] = ["keyring", password_id]
                 return
             except Exception:
                 pass
 
-        self[key] = ("plaintext", value)
+        self[key] = ["plaintext", value]
 
 
 @dataclass

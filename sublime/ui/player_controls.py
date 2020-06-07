@@ -351,7 +351,7 @@ class PlayerControls(Gtk.ActionBar):
             self.song_scrubber.set_value(percent_complete)
 
         self.song_scrubber.set_show_fill_level(song_stream_cache_progress is not None)
-        if song_stream_cache_progress:
+        if song_stream_cache_progress is not None:
             percent_cached = song_stream_cache_progress / duration * 100
             self.song_scrubber.set_fill_level(percent_cached)
 
