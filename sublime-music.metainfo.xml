@@ -78,5 +78,6 @@
 
     <releases>
         <release version="0.10.2" date="2020-06-07"></release>
+        <release version="0.10.3" date="2020-06-07"></release>
     </releases>
 </component>

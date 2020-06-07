@@ -51,4 +51,17 @@ for path in Path("sublime").glob("**/*.py"):
     valid &= check_file(path)
     print()  # noqa: T001
 
+"""
+Checks that the version in the CHANGELOG is the same as the version in ``__init__.py``.
+"""
+with open(Path("sublime/__init__.py")) as f:
+    for line in f:
+        if line.startswith("__version__"):
+            version = eval(line.split()[-1])
+            break
+
+with open(Path("CHANGELOG.rst")) as f:
+    assert f.readline().strip() == f"v{version}", "Version mismatch"
+
+
 sys.exit(0 if valid else 1)

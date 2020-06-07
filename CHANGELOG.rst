@@ -1,8 +1,16 @@
-v0.10.2
+v0.10.3
 =======
 
 .. TODO in next release:
 .. * A man page has been added. Contributed by @baldurmen.
+
+This is a hotfix release. I forgot to add the Subsonic logo resources to
+``setup.py``. All of the interesting updates happened in `v0.10.2`_.
+
+.. _v0.10.2: https://gitlab.com/sumner/sublime-music/-/releases/v0.10.2
+
+v0.10.2
+=======
 
 .. note::
 
