@@ -223,5 +223,4 @@ class AppConfiguration(DataClassJsonMixin):
         if state_filename := self._state_file_location:
             state_filename.parent.mkdir(parents=True, exist_ok=True)
             with open(state_filename, "wb+") as f:
-                print("SAVE STATE", state_filename)
                 pickle.dump(self.state, f)

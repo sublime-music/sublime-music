@@ -12,7 +12,9 @@ from sublime.config import AppConfiguration, ProviderConfiguration
 @pytest.fixture
 def adapter_manager(tmp_path: Path):
     subsonic_config_store = ConfigurationStore(
-        server_address="https://subsonic.example.com", username="test",
+        server_address="https://subsonic.example.com",
+        username="test",
+        verify_cert=True,
     )
     subsonic_config_store.set_secret("password", "testpass")
 

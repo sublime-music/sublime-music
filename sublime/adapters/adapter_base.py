@@ -14,7 +14,6 @@ from typing import (
     Tuple,
 )
 
-from dataclasses_json import DataClassJsonMixin
 from gi.repository import Gtk
 
 from .api_objects import (

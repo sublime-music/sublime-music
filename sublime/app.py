@@ -548,12 +548,6 @@ class SublimeMusicApp(Gtk.Application):
         self.app_config.state.current_notification = None
         self.update_window()
 
-    # TODO
-    def on_server_list_changed(self, action: Any, servers: GLib.Variant):
-        assert 0
-        self.app_config.providers = servers
-        self.app_config.save()
-
     def on_add_new_music_provider(self, *args):
         self.show_configure_servers_dialog()
 
@@ -561,6 +555,8 @@ class SublimeMusicApp(Gtk.Application):
         self.show_configure_servers_dialog(self.app_config.provider)
 
     def on_switch_music_provider(self, _, provider_id: GLib.Variant):
+        if self.app_config.state.playing:
+            self.on_play_pause()
         self.app_config.save()
         self.app_config.current_provider_id = provider_id.get_string()
         self.reset_state()
@@ -748,7 +744,7 @@ class SublimeMusicApp(Gtk.Application):
         self.loading_state = False
 
         # Update the window according to the new server configuration.
-        self.update_window(force=True)
+        self.update_window()
 
     def on_stack_change(self, stack: Gtk.Stack, _):
         self.app_config.state.current_tab = stack.get_visible_child_name()

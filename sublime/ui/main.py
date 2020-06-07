@@ -108,7 +108,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.connect("button-release-event", self._on_button_release)
 
     current_notification_hash = None
-    current_other_providers: Tuple[Tuple[str, ProviderConfiguration], ...] = ()
+    current_other_providers: Tuple[ProviderConfiguration, ...] = ()
 
     def update(self, app_config: AppConfiguration, force: bool = False):
         notification = app_config.state.current_notification
@@ -177,29 +177,21 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Switch Provider options
         other_providers = tuple(
-            filter(
-                lambda kv: kv[0] != app_config.current_provider_id,
-                app_config.providers.items(),
-            )
+            v
+            for k, v in app_config.providers.items()
+            if k != app_config.current_provider_id
         )
         if self.current_other_providers != other_providers:
             self.current_other_providers = other_providers
             for c in self.provider_options_box.get_children():
                 self.provider_options_box.remove(c)
 
-            for key, provider in sorted(other_providers, key=lambda kv: kv[1].name):
+            for provider in sorted(other_providers, key=lambda p: p.name.lower()):
                 self.provider_options_box.pack_start(
                     self._create_switch_provider_button(provider), False, True, 0,
                 )
 
             self.provider_options_box.show_all()
-        # menu_items = [
-        #     ("Delete Cached Song Files", self._clear_song_file_cache),
-        #     ("Delete Cached Song Files and Metadata", self._clear_entire_cache),
-        # ]
-        # for text, clicked_fn in menu_items:
-        #     clear_song_cache = self._create_model_button(text, clicked_fn=clicked_fn)
-        #     switch_provider_options.pack_start(clear_song_cache, False, True, 0)
 
         # Main Settings
         self.notification_switch.set_active(app_config.song_play_notification)
