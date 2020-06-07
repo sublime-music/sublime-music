@@ -37,7 +37,6 @@ class ConfigureProviderDialog(Gtk.Dialog):
 
     def __init__(self, parent: Any, provider_config: Optional[ProviderConfiguration]):
         Gtk.Dialog.__init__(self, transient_for=parent, flags=Gtk.DialogFlags.MODAL)
-        # TODO esc should prompt or go back depending on the page
         self.provider_config = provider_config
         self.editing = provider_config is not None
         self.set_default_size(400, 350)
