@@ -54,13 +54,11 @@ setup(
     packages=find_packages(exclude=["tests"]),
     package_data={"sublime": ["ui/app_styles.css", *package_data_files]},
     install_requires=[
-        "bottle",
         "dataclasses-json",
         "deepdiff",
         "fuzzywuzzy",
         'osxmmkeys ; sys_platform=="darwin"',
         "peewee",
-        "pychromecast",
         "PyGObject",
         "python-dateutil",
         "python-Levenshtein",
@@ -68,7 +66,7 @@ setup(
         "pyyaml",
         "requests",
     ],
-    extras_require={"keyring": ["keyring"]},
+    extras_require={"keyring": ["keyring"], "chromecast": ["pychromecast", "bottle"]},
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and
     # allow pip to create the appropriate form of executable for the target
