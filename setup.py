@@ -51,14 +51,7 @@ setup(
     ],
     keywords="airsonic subsonic libresonic gonic music",
     packages=find_packages(exclude=["tests"]),
-    package_data={
-        "sublime": [
-            "ui/app_styles.css",
-            "ui/images/play-queue-play.png",
-            "adapters/images/default-album-art.png",
-            *package_data_files,
-        ]
-    },
+    package_data={"sublime": ["ui/app_styles.css", *package_data_files]},
     install_requires=[
         "bottle",
         "dataclasses-json",
