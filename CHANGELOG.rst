@@ -1,4 +1,4 @@
-v0.10.0
+v0.10.1
 =======
 
 .. TODO in next release:
