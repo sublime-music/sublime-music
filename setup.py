@@ -15,11 +15,12 @@ with open(here.joinpath("sublime", "__init__.py")) as f:
             break
 
 package_data_dirs = [
-    here.joinpath("sublime", "ui", "icons"),
-    here.joinpath("sublime", "ui", "images"),
     here.joinpath("sublime", "adapters", "icons"),
     here.joinpath("sublime", "adapters", "images"),
+    here.joinpath("sublime", "adapters", "subsonic", "icons"),
     here.joinpath("sublime", "dbus", "mpris_specs"),
+    here.joinpath("sublime", "ui", "icons"),
+    here.joinpath("sublime", "ui", "images"),
 ]
 package_data_files = []
 for data_dir in package_data_dirs:
