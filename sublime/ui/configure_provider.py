@@ -2,12 +2,11 @@ import uuid
 from enum import Enum
 from typing import Any, Optional, Type
 
-from gi.repository import Gio, GLib, GObject, Gtk, Pango
+from gi.repository import Gio, GObject, Gtk, Pango
 
 from sublime.adapters import AdapterManager, UIInfo
 from sublime.adapters.filesystem import FilesystemAdapter
 from sublime.config import ConfigurationStore, ProviderConfiguration
-from sublime.ui.common import IconButton
 
 
 class AdapterTypeModel(GObject.GObject):
@@ -40,32 +39,35 @@ class ConfigureProviderDialog(Gtk.Dialog):
         ),
     }
 
+    def set_title(self, editing: bool, provider_config: ProviderConfiguration = None):
+        if editing:
+            assert provider_config is not None
+            title = f"Edit {provider_config.name}"
+        else:
+            title = "Add New Music Source"
+
+        self.header.props.title = title
+
     def __init__(self, parent: Any, provider_config: Optional[ProviderConfiguration]):
-        title = (
-            "Add New Music Source"
-            if not provider_config
-            else "Edit {provider_config.name}"
-        )
-        Gtk.Dialog.__init__(
-            self, title=title, transient_for=parent, flags=Gtk.DialogFlags.MODAL
-        )
+        Gtk.Dialog.__init__(self, transient_for=parent, flags=Gtk.DialogFlags.MODAL)
         # TODO esc should prompt or go back depending on the page
         self.provider_config = provider_config
+        self.editing = provider_config is not None
         self.set_default_size(400, 350)
 
         # HEADER
-        header = Gtk.HeaderBar()
-        header.props.title = title
+        self.header = Gtk.HeaderBar()
+        self.set_title(self.editing, provider_config)
 
         self.cancel_back_button = Gtk.Button(label="Cancel")
         self.cancel_back_button.connect("clicked", self._on_cancel_back_clicked)
-        header.pack_start(self.cancel_back_button)
+        self.header.pack_start(self.cancel_back_button)
 
-        self.next_add_button = Gtk.Button(label="Next")
+        self.next_add_button = Gtk.Button(label="Edit" if self.editing else "Next")
         self.next_add_button.connect("clicked", self._on_next_add_clicked)
-        header.pack_end(self.next_add_button)
+        self.header.pack_end(self.next_add_button)
 
-        self.set_titlebar(header)
+        self.set_titlebar(self.header)
 
         content_area = self.get_content_area()
 
@@ -109,8 +111,6 @@ class ConfigureProviderDialog(Gtk.Dialog):
         available_ground_truth_adapters = filter(
             lambda a: a.can_be_ground_truth, AdapterManager.available_adapters
         )
-        # TODO: DEBUG REMOVE NEXT LINE
-        available_ground_truth_adapters = AdapterManager.available_adapters
         for adapter_type in sorted(
             available_ground_truth_adapters, key=lambda a: a.get_ui_info().name
         ):
@@ -125,6 +125,19 @@ class ConfigureProviderDialog(Gtk.Dialog):
         content_area.pack_start(self.stack, True, True, 0)
 
         self.show_all()
+
+        if self.editing:
+            assert self.provider_config
+            for i, adapter_type in enumerate(self.adapter_type_store):
+                if (
+                    adapter_type.adapter_type
+                    == self.provider_config.ground_truth_adapter_type
+                ):
+                    row = self.adapter_options_list.get_row_at_index(i)
+                    self.adapter_options_list.select_row(row)
+                    break
+            self._name_is_valid = True
+            self._on_next_add_clicked()
 
     def _on_cancel_back_clicked(self, _):
         if self.stage == DialogStage.SELECT_ADAPTER:
@@ -175,12 +188,12 @@ class ConfigureProviderDialog(Gtk.Dialog):
                 self.configure_box.pack_start(form, True, True, 0)
                 self.configure_box.show_all()
 
-            self._current_index = index
             self.stack.set_visible_child_name("configure")
             self.stage = DialogStage.CONFIGURE_ADAPTER
-            self.cancel_back_button.set_label("Back")
-            self.next_add_button.set_label("Add")
-            self.next_add_button.set_sensitive(False)
+            self.cancel_back_button.set_label("Change Type" if self.editing else "Back")
+            self.next_add_button.set_label("Edit" if self.editing else "Add")
+            self.next_add_button.set_sensitive(index == self._current_index)
+            self._current_index = index
         else:
             if self.provider_config is None:
                 self.provider_config = ProviderConfiguration(
@@ -190,7 +203,6 @@ class ConfigureProviderDialog(Gtk.Dialog):
                     self.config_store,
                 )
                 if self.adapter_type.can_be_cached:
-                    # TODO if we ever have more caching adapters, need to change this.
                     self.provider_config.caching_adapter_type = FilesystemAdapter
                     self.provider_config.caching_adapter_config = ConfigurationStore()
             else:
@@ -212,6 +224,10 @@ class ConfigureProviderDialog(Gtk.Dialog):
             self._name_is_valid = True
             entry.get_style_context().remove_class("invalid")
             entry.set_tooltip_markup(None)
+
+            assert self.provider_config
+            self.provider_config.name = entry.get_text()
+            self.set_title(self.editing, self.provider_config)
         else:
             self._name_is_valid = False
             entry.get_style_context().add_class("invalid")

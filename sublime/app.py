@@ -74,10 +74,10 @@ class SublimeMusicApp(Gtk.Application):
             self.add_action(action)
 
         # Add action for menu items.
-        add_action("add-new-provider", self.on_add_new_provider)
-        add_action("edit-current-provider", self.on_edit_current_provider)
-        add_action("switch-provider", self.on_switch_provider)
-        add_action("remove-provider", self.on_remove_provider)
+        add_action("add-new-music-provider", self.on_add_new_music_provider)
+        add_action("edit-current-music-provider", self.on_edit_current_music_provider)
+        add_action("switch-music-provider", self.on_switch_music_provider)
+        add_action("remove-music-provider", self.on_remove_music_provider)
 
         # Add actions for player controls
         add_action("play-pause", self.on_play_pause)
@@ -163,10 +163,6 @@ class SublimeMusicApp(Gtk.Application):
                 if len(self.app_config.providers) == 0:
                     self.window.close()
                     return
-
-            self.app_config.current_provider_id = list(
-                self.app_config.providers.keys()
-            )[0]
 
         AdapterManager.reset(self.app_config, self.on_song_download_progress)
 
@@ -562,16 +558,18 @@ class SublimeMusicApp(Gtk.Application):
 
         self.reset_state()
 
-    def on_add_new_provider(self, _, provider: ProviderConfiguration):
+    def on_add_new_music_provider(self, *args):
+        self.show_configure_servers_dialog()
+
+    def on_edit_current_music_provider(self, *args):
+        self.show_configure_servers_dialog(self.app_config.provider)
+
+    def on_switch_music_provider(self, _, provider_id: str):
+        print("SWITCH")
         pass
 
-    def on_edit_current_provider(self, _):
-        pass
-
-    def on_switch_provider(self, _, provider_id: str):
-        pass
-
-    def on_remove_provider(self, _, provider_id: str):
+    def on_remove_music_provider(self, _, provider_id: str):
+        print("REMOVE")
         pass
 
     def on_window_go_to(self, win: Any, action: str, value: str):
@@ -931,7 +929,12 @@ class SublimeMusicApp(Gtk.Application):
             assert dialog.provider_config is not None
             provider_id = dialog.provider_config.id
             self.app_config.providers[provider_id] = dialog.provider_config
+
+            # Switch to the new provider.
+            self.app_config.current_provider_id = provider_id
             self.app_config.save()
+            self.update_window(force=True)
+
         dialog.destroy()
 
     def update_window(self, force: bool = False):
@@ -1300,7 +1303,6 @@ class SublimeMusicApp(Gtk.Application):
             )
 
     def save_play_queue(self, song_playing_order_token: int = None):
-        print('SAVE PLAY QUEUE')
         if (
             len(self.app_config.state.play_queue) == 0
             or self.app_config.provider is None

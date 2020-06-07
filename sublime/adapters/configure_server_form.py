@@ -7,7 +7,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Callable, cast, Dict, Iterable, Optional, Tuple, Type, Union
 
-from gi.repository import Gdk, GLib, GObject, Gtk, Pango
+from gi.repository import GLib, GObject, Gtk, Pango
 
 from . import ConfigurationStore
 

@@ -452,12 +452,14 @@ class MainWindow(Gtk.ApplicationWindow):
         return box, switch
 
     def _create_model_button(
-        self, text: str, clicked_fn: Callable = None, **kwargs
+        self, text: str, clicked_fn: Callable = None, action_name: str = None, **kwargs
     ) -> Gtk.ModelButton:
         model_button = Gtk.ModelButton(text=text, **kwargs)
         model_button.get_style_context().add_class("menu-button")
         if clicked_fn:
             model_button.connect("clicked", clicked_fn)
+        if action_name:
+            model_button.set_action_name(f"app.{action_name}")
         return model_button
 
     def _create_spin_button_menu_item(
@@ -526,7 +528,7 @@ class MainWindow(Gtk.ApplicationWindow):
             ("Delete Cached Song Files and Metadata", self._clear_entire_cache),
         ]
         for text, clicked_fn in menu_items:
-            clear_song_cache = self._create_model_button(text, clicked_fn)
+            clear_song_cache = self._create_model_button(text, clicked_fn=clicked_fn)
             clear_cache_options.pack_start(clear_song_cache, False, True, 0)
 
         menu.add(clear_cache_options)
@@ -573,23 +575,19 @@ class MainWindow(Gtk.ApplicationWindow):
         vbox.add(offline_box)
 
         edit_button = self._create_model_button(
-            "Edit Configuration...", self._on_edit_configuration_click
+            "Edit Configuration...", action_name="edit-current-music-provider"
         )
         vbox.add(edit_button)
 
         vbox.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
 
         music_provider_button = self._create_model_button(
-            "Switch Music Provider",
-            self._on_switch_provider_click,
-            menu_name="switch-provider",
+            "Switch Music Provider", menu_name="switch-provider",
         )
-        # TODO (#197)
-        music_provider_button.set_action_name("app.configure-servers")
         vbox.add(music_provider_button)
 
         add_new_music_provider_button = self._create_model_button(
-            "Add New Music Provider...", self._on_add_new_provider_click
+            "Add New Music Provider...", action_name="add-new-music-provider"
         )
         vbox.add(add_new_music_provider_button)
 
@@ -816,18 +814,6 @@ class MainWindow(Gtk.ApplicationWindow):
         self._emit_settings_change(
             {"replay_gain": ReplayGainType.from_string(combo.get_active_id())}
         )
-
-    def _on_edit_configuration_click(self, _):
-        # TODO (#197): EDIT
-        pass
-
-    def _on_switch_provider_click(self, _):
-        # TODO (#197): switch
-        pass
-
-    def _on_add_new_provider_click(self, _):
-        # TODO (#197) add new
-        pass
 
     def _on_search_entry_focus(self, *args):
         self._show_search()
