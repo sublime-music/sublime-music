@@ -51,6 +51,7 @@ class ConfigureProviderDialog(Gtk.Dialog):
         self.header.pack_start(self.cancel_back_button)
 
         self.next_add_button = Gtk.Button(label="Edit" if self.editing else "Next")
+        self.next_add_button.get_style_context().add_class("suggested-action")
         self.next_add_button.connect("clicked", self._on_next_add_clicked)
         self.header.pack_end(self.next_add_button)
 
@@ -138,8 +139,6 @@ class ConfigureProviderDialog(Gtk.Dialog):
 
     def _on_next_add_clicked(self, *args):
         if self.stage == DialogStage.SELECT_ADAPTER:
-            # TODO make the next button the primary action
-
             index = self.adapter_options_list.get_selected_row().get_index()
             if index != self._current_index:
                 for c in self.configure_box.get_children():
@@ -174,12 +173,15 @@ class ConfigureProviderDialog(Gtk.Dialog):
                 form.connect("config-valid-changed", self._on_config_form_valid_changed)
                 self.configure_box.pack_start(form, True, True, 0)
                 self.configure_box.show_all()
+                self._adapter_config_is_valid = False
 
             self.stack.set_visible_child_name("configure")
             self.stage = DialogStage.CONFIGURE_ADAPTER
             self.cancel_back_button.set_label("Change Type" if self.editing else "Back")
             self.next_add_button.set_label("Edit" if self.editing else "Add")
-            self.next_add_button.set_sensitive(index == self._current_index)
+            self.next_add_button.set_sensitive(
+                index == self._current_index and self._adapter_config_is_valid
+            )
             self._current_index = index
         else:
             if self.provider_config is None:

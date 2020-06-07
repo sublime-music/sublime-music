@@ -741,6 +741,7 @@ class SublimeMusicApp(Gtk.Application):
             self.on_play_pause()
         self.loading_state = True
         self.player.reset()
+        AdapterManager.reset(self.app_config, self.on_song_download_progress)
         self.loading_state = False
 
         # Update the window according to the new server configuration.
@@ -945,10 +946,16 @@ class SublimeMusicApp(Gtk.Application):
             provider_id = dialog.provider_config.id
             self.app_config.providers[provider_id] = dialog.provider_config
 
-            # Switch to the new provider.
-            self.app_config.current_provider_id = provider_id
-            self.app_config.save()
-            self.update_window(force=True)
+            if provider_id == self.app_config.current_provider_id:
+                # Just update the window.
+                self.update_window()
+            else:
+                # Switch to the new provider.
+                if self.app_config.state.playing:
+                    self.on_play_pause()
+                self.app_config.current_provider_id = provider_id
+                self.app_config.save()
+                self.update_window(force=True)
 
         dialog.destroy()
 
