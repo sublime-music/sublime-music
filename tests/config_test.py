@@ -39,6 +39,7 @@ def test_server_property():
 
 
 def test_json_load_unload(config_filename: Path):
+    ConfigurationStore.MOCK = True
     subsonic_config_store = ConfigurationStore(username="test")
     subsonic_config_store.set_secret("password", "testpass")
     original_config = AppConfiguration(

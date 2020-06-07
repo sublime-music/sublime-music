@@ -1,11 +1,13 @@
 import abc
 import hashlib
+import uuid
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
 from typing import (
     Any,
+    cast,
     Dict,
     Iterable,
     Optional,
@@ -15,6 +17,13 @@ from typing import (
 )
 
 from gi.repository import Gtk
+
+try:
+    import keyring
+
+    keyring_imported = True
+except Exception:
+    keyring_imported = False
 
 from .api_objects import (
     Album,
@@ -152,10 +161,15 @@ class CacheMissError(Exception):
         super().__init__(*args)
 
 
+KEYRING_APP_NAME = "com.sumnerevans.SublimeMusic"
+
+
 class ConfigurationStore(dict):
     """
     This defines an abstract store for all configuration parameters for a given Adapter.
     """
+
+    MOCK = False
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -164,15 +178,22 @@ class ConfigurationStore(dict):
         values = ", ".join(f"{k}={v!r}" for k, v in sorted(self.items()))
         return f"ConfigurationStore({values})"
 
-    def get_secret(self, key: str, default: Any = None) -> Any:
+    def get_secret(self, key: str) -> Any:
         """
         Get the secret value in the store with the given key. If the key doesn't exist
         in the store, return the default. This will retrieve the secret from whatever is
         configured as the underlying secret storage mechanism so you don't have to deal
         with secret storage yourself.
         """
-        # TODO make secret storage less stupid.
-        return self.get(key, default)
+        value = self.get(key)
+        if not isinstance(value, (tuple, list)) or len(value) != 2:
+            return None
+
+        storage_type, storage_key = value
+        return {
+            "keyring": lambda: keyring.get_password(KEYRING_APP_NAME, storage_key),
+            "plaintext": lambda: storage_key,
+        }[storage_type]()
 
     def set_secret(self, key: str, value: Any = None) -> Any:
         """
@@ -181,7 +202,23 @@ class ConfigurationStore(dict):
         is configured as the underlying secret storage mechanism so you don't have to
         deal with secret storage yourself.
         """
-        self[key] = value
+        if keyring_imported and not ConfigurationStore.MOCK:
+            try:
+                password_id = None
+                if password_type_and_id := self.get(key):
+                    if cast(Tuple[str, str], password_type_and_id[0]) == "keyring":
+                        password_id = password_type_and_id[1]
+
+                if password_id is None:
+                    password_id = str(uuid.uuid4())
+
+                keyring.set_password(KEYRING_APP_NAME, password_id, value)
+                self[key] = ("keyring", password_id)
+                return
+            except Exception:
+                pass
+
+        self[key] = ("plaintext", value)
 
 
 @dataclass

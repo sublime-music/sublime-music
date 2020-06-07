@@ -19,6 +19,7 @@ MOCK_DATA_FILES = Path(__file__).parent.joinpath("mock_data")
 
 @pytest.fixture
 def adapter(tmp_path: Path):
+    ConfigurationStore.MOCK = True
     config = ConfigurationStore(
         server_address="https://subsonic.example.com",
         username="test",

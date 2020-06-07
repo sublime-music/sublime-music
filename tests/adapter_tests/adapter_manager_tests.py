@@ -11,6 +11,7 @@ from sublime.config import AppConfiguration, ProviderConfiguration
 
 @pytest.fixture
 def adapter_manager(tmp_path: Path):
+    ConfigurationStore.MOCK = True
     subsonic_config_store = ConfigurationStore(
         server_address="https://subsonic.example.com",
         username="test",
