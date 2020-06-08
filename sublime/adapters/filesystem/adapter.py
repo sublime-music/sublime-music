@@ -442,23 +442,22 @@ class FilesystemAdapter(CachingAdapter):
         with self.db_write_lock, models.database.atomic():
             self._do_ingest_new_data(data_key, param, data)
 
-    def invalidate_data(
-        self, function: CachingAdapter.CachedDataKey, param: Optional[str]
-    ):
+    def invalidate_data(self, key: CachingAdapter.CachedDataKey, param: Optional[str]):
+        print("invalidate", key, param)
         assert self.is_cache, "FilesystemAdapter is not in cache mode!"
 
         # Wrap the actual ingestion function in a database lock, and an atomic
         # transaction.
         with self.db_write_lock, models.database.atomic():
-            self._do_invalidate_data(function, param)
+            self._do_invalidate_data(key, param)
 
-    def delete_data(self, function: CachingAdapter.CachedDataKey, param: Optional[str]):
+    def delete_data(self, key: CachingAdapter.CachedDataKey, param: Optional[str]):
         assert self.is_cache, "FilesystemAdapter is not in cache mode!"
 
         # Wrap the actual ingestion function in a database lock, and an atomic
         # transaction.
         with self.db_write_lock, models.database.atomic():
-            self._do_delete_data(function, param)
+            self._do_delete_data(key, param)
 
     def _do_ingest_new_data(
         self,
@@ -479,9 +478,10 @@ class FilesystemAdapter(CachingAdapter):
             f"_do_ingest_new_data param={param} data_key={data_key} data={data}"
         )
 
+        # TODO refactor to deal with partial data.
         def setattrs(obj: Any, data: Dict[str, Any]):
             for k, v in data.items():
-                if v:
+                if v is not None:
                     setattr(obj, k, v)
 
         def ingest_directory_data(api_directory: API.Directory) -> models.Directory:
@@ -652,9 +652,9 @@ class FilesystemAdapter(CachingAdapter):
             return song
 
         def ingest_playlist(
-            api_playlist: Union[API.Playlist, API.Playlist]
+            api_playlist: Union[API.Playlist, API.Playlist], partial: bool = False
         ) -> models.Playlist:
-            playlist_data = {
+            playlist_data: Dict[str, Any] = {
                 "id": api_playlist.id,
                 "name": api_playlist.name,
                 "song_count": api_playlist.song_count,
@@ -664,16 +664,23 @@ class FilesystemAdapter(CachingAdapter):
                 "comment": getattr(api_playlist, "comment", None),
                 "owner": getattr(api_playlist, "owner", None),
                 "public": getattr(api_playlist, "public", None),
-                "_songs": [
-                    self._do_ingest_new_data(KEYS.SONG, s.id, s)
-                    for s in api_playlist.songs
-                ],
                 "_cover_art": self._do_ingest_new_data(
                     KEYS.COVER_ART_FILE, api_playlist.cover_art, None
                 )
                 if api_playlist.cover_art
                 else None,
             }
+
+            if not partial:
+                # If it's partial, then don't ingest the songs.
+                playlist_data.update(
+                    {
+                        "_songs": [
+                            self._do_ingest_new_data(KEYS.SONG, s.id, s)
+                            for s in api_playlist.songs
+                        ],
+                    }
+                )
 
             playlist, playlist_created = models.Playlist.get_or_create(
                 id=playlist_data["id"], defaults=playlist_data
@@ -755,7 +762,7 @@ class FilesystemAdapter(CachingAdapter):
         elif data_key == KEYS.PLAYLISTS:
             self._playlists = None
             for p in data:
-                ingest_playlist(p)
+                ingest_playlist(p, partial=True)
             models.Playlist.delete().where(
                 models.Playlist.id.not_in([p.id for p in data])
             ).execute()
@@ -772,7 +779,7 @@ class FilesystemAdapter(CachingAdapter):
                 ingest_song_data(s)
 
             for p in data._playlists.values():
-                ingest_playlist(p)
+                ingest_playlist(p, partial=True)
 
         elif data_key == KEYS.SONG:
             return_val = ingest_song_data(data)
