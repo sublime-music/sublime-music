@@ -86,18 +86,17 @@ and run it by executing::
 
     pip install sublime-music
 
-Or if you want to store your passwords in the system keyring instead of in
-plain-text::
+There are a few optional dependencies that you can install. Here's an example of
+how to do that::
 
-    pip install sublime-music[keyring]
+    pip install sublime-music[keyring,chromecast,server]
 
-If you want support for playing on Chromecast devices::
-
-    pip install sublime-music[chromecast]
-
-You can combine the two above dependencies using something like::
-
-    pip install sublime-music[keyring,chromecast]
+* ``keyring``: if you want to store your passwords in the system keyring instead
+  of in plain-text
+* ``chromecast``: if you want support for playing on Chromecast devices on the
+  LAN.
+* ``server``: if you want to be able to serve cached files from your computer
+  over the LAN to Chromecast devices
 
 .. note::
 

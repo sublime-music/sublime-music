@@ -178,7 +178,7 @@ class ConfigurationStore(dict):
         values = ", ".join(f"{k}={v!r}" for k, v in sorted(self.items()))
         return f"ConfigurationStore({values})"
 
-    def get_secret(self, key: str) -> Any:
+    def get_secret(self, key: str) -> Optional[str]:
         """
         Get the secret value in the store with the given key. If the key doesn't exist
         in the store, return the default. This will retrieve the secret from whatever is
@@ -195,7 +195,7 @@ class ConfigurationStore(dict):
             "plaintext": lambda: storage_key,
         }[storage_type]()
 
-    def set_secret(self, key: str, value: Any = None) -> Any:
+    def set_secret(self, key: str, value: str = None):
         """
         Set the secret value of the given key in the store. This should be used for
         things such as passwords or API tokens. This will store the secret in whatever

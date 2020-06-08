@@ -18,10 +18,8 @@ pycparser==2.20
 python-dateutil==2.8.1
 python-levenshtein==0.12.0
 python-mpv==0.4.6
-pyyaml==5.3.1
 requests==2.23.0
 stringcase==1.2.0
 typing-extensions==3.7.4.2
 typing-inspect==0.6.0
 urllib3==1.25.9
-zeroconf==0.27.0
