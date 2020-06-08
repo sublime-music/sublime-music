@@ -46,6 +46,13 @@ Install the |AUR Package|_. Example using ``yay``::
 
     yay -S sublime-music
 
+If you want support for storing passwords in the system keychain, also install
+``python-keyring``.
+
+If you want support for playing on Chromecast devices, install
+``python-pychromecast``. If you want to serve cached files from your computer
+over the LAN to Chromecast devices also install ``python-bottle``.
+
 .. |AUR Package| replace:: ``sublime-music`` package
 .. _AUR Package: https://aur.archlinux.org/packages/sublime-music/
 
@@ -83,6 +90,14 @@ Or if you want to store your passwords in the system keyring instead of in
 plain-text::
 
     pip install sublime-music[keyring]
+
+If you want support for playing on Chromecast devices::
+
+    pip install sublime-music[chromecast]
+
+You can combine the two above dependencies using something like::
+
+    pip install sublime-music[keyring,chromecast]
 
 .. note::
 
