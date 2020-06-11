@@ -49,6 +49,16 @@ Install the |AUR Package|_. Example using ``yay``::
 .. |AUR Package| replace:: ``sublime-music`` package
 .. _AUR Package: https://aur.archlinux.org/packages/sublime-music/
 
+**Via the Debian package**
+
+Sublime Music is not currently in the Debian 'Stable' distribution, but has been
+packaged for Debian 'Unstable' and 'Testing'.
+
+If you have these sources in your ``/etc/apt/sources.list``, you can install
+the package with:
+
+    sudo apt install sublime-music
+
 **Via Flatpak**:
 
 In the future, you will be able to install via Flathub. For now, if you want to
