@@ -9,7 +9,7 @@ from sublime.adapters import (
     DownloadProgress,
     Result,
 )
-from sublime.config import AppConfiguration, ProviderConfiguration, ReplayGainType
+from sublime.config import AppConfiguration, ProviderConfiguration
 from sublime.ui import albums, artists, browse, player_controls, playlists, util
 from sublime.ui.common import IconButton, IconMenuButton, SpinnerImage
 

@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import pytest
@@ -5,12 +6,17 @@ import pytest
 from sublime.adapters import ConfigurationStore
 from sublime.adapters.filesystem import FilesystemAdapter
 from sublime.adapters.subsonic import SubsonicAdapter
-from sublime.config import AppConfiguration, ProviderConfiguration, ReplayGainType
+from sublime.config import AppConfiguration, ProviderConfiguration
 
 
 @pytest.fixture
 def config_filename(tmp_path: Path):
     yield tmp_path.joinpath("config.json")
+
+
+@pytest.fixture
+def cwd():
+    yield Path(__file__).parent
 
 
 def test_config_default_cache_location():
@@ -66,24 +72,19 @@ def test_json_load_unload(config_filename: Path):
     assert original_config.provider == loaded_config.provider
 
 
-def test_config_migrate(config_filename: Path):
-    config = AppConfiguration(
-        providers={
-            "1": ProviderConfiguration(
-                id="1",
-                name="foo",
-                ground_truth_adapter_type=SubsonicAdapter,
-                ground_truth_adapter_config=ConfigurationStore(),
-            )
+def test_config_migrate_v5_to_v6(config_filename: Path, cwd: Path):
+    shutil.copyfile(str(cwd.joinpath("mock_data/config-v5.json")), str(config_filename))
+    app_config = AppConfiguration.load_from_file(config_filename)
+    app_config.migrate()
+
+    assert app_config.version == 6
+    assert app_config.player_config == {
+        "Local Playback": {"Replay Gain": "track"},
+        "Chromecast": {
+            "Serve Local Files to Chromecasts on the LAN": True,
+            "LAN Server Port Number": 6969,
         },
-        current_provider_id="1",
-        filename=config_filename,
-    )
-    config.migrate()
-
-    assert config.version == 5
-
-
-def test_replay_gain_enum():
-    for rg in (ReplayGainType.NO, ReplayGainType.TRACK, ReplayGainType.ALBUM):
-        assert rg == ReplayGainType.from_string(rg.as_string())
+    }
+    app_config.save()
+    app_config2 = AppConfiguration.load_from_file(config_filename)
+    assert app_config == app_config2

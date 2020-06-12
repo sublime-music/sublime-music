@@ -42,7 +42,7 @@ from .adapters import (
 from .adapters.api_objects import Playlist, PlayQueue, Song
 from .config import AppConfiguration, ProviderConfiguration
 from .dbus import dbus_propagate, DBusManager
-from .players import ChromecastPlayer, MPVPlayer, Player, PlayerEvent
+from .players import PlayerDeviceEvent, PlayerEvent, PlayerManager
 from .ui.configure_provider import ConfigureProviderDialog
 from .ui.main import MainWindow
 from .ui.state import RepeatType, UIState
@@ -60,7 +60,7 @@ class SublimeMusicApp(Gtk.Application):
 
         self.connect("shutdown", self.on_app_shutdown)
 
-    player: Optional[Player] = None
+    player_manager: Optional[PlayerManager] = None
     exiting: bool = False
 
     def do_startup(self):
@@ -188,7 +188,7 @@ class SublimeMusicApp(Gtk.Application):
         self.loading_state = False
         self.should_scrobble_song = False
 
-        def time_observer(value: Optional[float]):
+        def on_timepos_change(value: Optional[float]):
             if (
                 self.loading_state
                 or not self.window
@@ -234,19 +234,19 @@ class SublimeMusicApp(Gtk.Application):
             GLib.idle_add(self.on_next_track)
 
         def on_player_event(event: PlayerEvent):
-            if event.type == PlayerEvent.Type.PLAY_STATE_CHANGE:
+            if event.type == PlayerEvent.EventType.PLAY_STATE_CHANGE:
                 assert event.playing is not None
                 self.app_config.state.playing = event.playing
                 if self.dbus_manager:
                     self.dbus_manager.property_diff()
                 self.update_window()
-            elif event.type == PlayerEvent.Type.VOLUME_CHANGE:
+            elif event.type == PlayerEvent.EventType.VOLUME_CHANGE:
                 assert event.volume is not None
                 self.app_config.state.volume = event.volume
                 if self.dbus_manager:
                     self.dbus_manager.property_diff()
                 self.update_window()
-            elif event.type == PlayerEvent.Type.STREAM_CACHE_PROGRESS_CHANGE:
+            elif event.type == PlayerEvent.EventType.STREAM_CACHE_PROGRESS_CHANGE:
                 if (
                     self.loading_state
                     or not self.window
@@ -264,13 +264,16 @@ class SublimeMusicApp(Gtk.Application):
                     self.app_config.state.song_stream_cache_progress,
                 )
 
-        self.mpv_player = MPVPlayer(
-            time_observer, on_track_end, on_player_event, self.app_config,
+        def player_device_change_callback(event: PlayerDeviceEvent):
+            pass
+
+        self.player_manager = PlayerManager(
+            on_timepos_change,
+            on_track_end,
+            on_player_event,
+            player_device_change_callback,
+            self.app_config.player_config,
         )
-        self.chromecast_player = ChromecastPlayer(
-            time_observer, on_track_end, on_player_event, self.app_config,
-        )
-        self.player = self.mpv_player
 
         if self.app_config.state.current_device != "this device":
             # TODO (#120) attempt to connect to the previously connected device

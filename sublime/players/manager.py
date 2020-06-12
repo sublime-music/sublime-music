@@ -66,7 +66,12 @@ class PlayerManager:
         self.on_player_event = on_player_event
 
         self.players = [
-            player_type(config.get(player_type.name))
+            player_type(
+                on_timepos_change,
+                on_track_end,
+                on_player_event,
+                config.get(player_type.name),
+            )
             for player_type in PlayerManager.available_player_types
         ]
 

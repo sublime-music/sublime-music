@@ -1,6 +1,7 @@
 import abc
 import multiprocessing
 from dataclasses import dataclass
+from datetime import timedelta
 from enum import Enum
 from functools import partial
 from time import sleep
@@ -11,14 +12,46 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Set,
     Tuple,
     Type,
     Union,
 )
 
+from sublime.adapters.api_objects import Song
+
 
 @dataclass
 class PlayerEvent:
+    """
+    Represents an event triggered by the player. This is a way to signal state changes
+    to Sublime Music if the player can be controlled outside of Sublime Music (for
+    example, Chromecast player).
+
+    Each player event has a :class:`PlayerEvent.EventType`. Additionally, each event
+    type has additional information in the form of additional properties on the
+    :class:`PlayerEvent` object.
+
+    * :class:`PlayerEvent.EventType.PLAY_STATE_CHANGE` -- indicates that the play state
+      of the player has changed. The :class:`PlayerEvent.playing` property is required
+      for this event type.
+    * :class:`PlayerEvent.EventType.VOLUME_CHANGE` -- indicates that the player's volume
+      has changed. The :classs`PlayerEvent.volume` property is required for this event
+      type and should be in the range [0, 100].
+    * :class:`PlayerEvent.EventType.STREAM_CACHE_PROGRESS_CHANGE` -- indicates that the
+      stream cache progress has changed. When streaming a song, this will be used to
+      show how much of the song has been loaded into the player. The
+      :class:`PlayerEvent.stream_cache_duration` property is required for this event
+      type and should be a float represent the number of seconds of the song that have
+      been cached.
+    * :class:`PlayerEvent.EventType.CONNECTING` -- indicates that a device is being
+      connected to. The :class:`PlayerEvent.device_id` property is required for this
+      event type and indicates the device ID that is being connected to.
+    * :class:`PlayerEvent.EventType.CONNECTED` -- indicates that a device has been
+      connected to. The :class:`PlayerEvent.device_id` property is required for this
+      event type and indicates the device ID that has been connected to.
+    """
+
     class EventType(Enum):
         PLAY_STATE_CHANGE = 0
         VOLUME_CHANGE = 1
@@ -30,6 +63,7 @@ class PlayerEvent:
     playing: Optional[bool] = None
     volume: Optional[float] = None
     stream_cache_duration: Optional[float] = None
+    device_id: Optional[str] = None
 
 
 class Player(abc.ABC):
@@ -43,6 +77,13 @@ class Player(abc.ABC):
     def name(self) -> str:
         """
         :returns: returns the friendly name of the player for display in the UI.
+        """
+
+    @property
+    @abc.abstractmethod
+    def supported_schemes(self) -> Set[str]:
+        """
+        :returns: a set of all the schemes that the player can play.
         """
 
     @property
@@ -61,9 +102,22 @@ class Player(abc.ABC):
         """
 
     @abc.abstractmethod
-    def __init__(self, config: Dict[str, Union[str, int, bool]]):
+    def __init__(
+        self,
+        on_timepos_change: Callable[[Optional[float]], None],
+        on_track_end: Callable[[], None],
+        on_player_event: Callable[[PlayerEvent], None],
+        config: Dict[str, Union[str, int, bool]],
+    ):
         """
+        Initialize the player.
+
         :param config: A dictionary of configuration key -> configuration value
+        """
+
+    def reset(self):
+        """
+        Reset the player.
         """
 
     @abc.abstractmethod
@@ -86,84 +140,62 @@ class Player(abc.ABC):
         """
 
     @property
-    @abc.abstractmethod
     def song_loaded(self) -> bool:
         """
         :returns: whether or not the player currently has a song loaded.
         """
+        return False
 
-    @property
     @abc.abstractmethod
-    def volume(self) -> float:
+    def get_volume(self) -> float:
         """
         :returns: the current volume on a scale of [0, 100]
         """
 
-    @volume.setter
     @abc.abstractmethod
-    def volume(self, value: float):
+    def set_volume(self, volume: float):
+        """
+        Set the volume of the player to the given value.
+
+        :param volume: the value to set the volume to. Will be in the range [0, 100]
         """
 
+    @abc.abstractmethod
+    def get_is_muted(self) -> bool:
+        """
+        :returns: whether or not the player is muted.
         """
 
-    @property
-    def is_muted(self) -> bool:
-        return self._get_is_muted()
+    @abc.abstractmethod
+    def set_muted(self, muted: bool):
+        """
+        :param muted: set the player's "muted" property to the given value.
+        """
 
-    @is_muted.setter
-    def is_muted(self, value: bool):
-        self._set_is_muted(value)
+    @abc.abstractmethod
+    def play_media(self, uri: str, progress: timedelta, song: Song):
+        """
+        :param uri: the URI to play. The URI is guaranteed to be one of the schemes in
+            the :class:`supported_schemes` set for this adapter.
+        :param progress: the time at which to start playing the song.
+        :param song: the actual song. This could be used to set metadata and such on the
+            player.
+        """
 
-    def reset(self):
-        raise NotImplementedError("reset must be implemented by implementor of Player")
-
-    def play_media(self, file_or_url: str, progress: timedelta, song: Song):
-        raise NotImplementedError(
-            "play_media must be implemented by implementor of Player"
-        )
-
-    def _is_playing(self):
-        raise NotImplementedError(
-            "_is_playing must be implemented by implementor of Player"
-        )
-
+    @abc.abstractmethod
     def pause(self):
-        raise NotImplementedError("pause must be implemented by implementor of Player")
+        """
+        Pause the player.
+        """
 
+    @abc.abstractmethod
     def toggle_play(self):
-        raise NotImplementedError(
-            "toggle_play must be implemented by implementor of Player"
-        )
+        """
+        Toggle the play state of the player.
+        """
+        # TODO can we get rid of this?
 
-    def seek(self, value: timedelta):
-        raise NotImplementedError("seek must be implemented by implementor of Player")
-
-    def _get_timepos(self):
-        raise NotImplementedError(
-            "get_timepos must be implemented by implementor of Player"
-        )
-
-    def _get_volume(self):
-        raise NotImplementedError(
-            "_get_volume must be implemented by implementor of Player"
-        )
-
-    def _set_volume(self, value: float):
-        raise NotImplementedError(
-            "_set_volume must be implemented by implementor of Player"
-        )
-
-    def _get_is_muted(self):
-        raise NotImplementedError(
-            "_get_is_muted must be implemented by implementor of Player"
-        )
-
-    def _set_is_muted(self, value: bool):
-        raise NotImplementedError(
-            "_set_is_muted must be implemented by implementor of Player"
-        )
-
-    def shutdown(self):
-        raise NotImplementedError(
-            "shutdown must be implemented by implementor of Player"
-        )
+    def seek(self, position: timedelta):
+        """
+        :param position: seek to the given position in the song.
+        """

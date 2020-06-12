@@ -10,7 +10,8 @@ from pychromecast import Chromecast
 from sublime.adapters import AdapterManager, Result, SongCacheStatus
 from sublime.adapters.api_objects import Song
 from sublime.config import AppConfiguration
-from sublime.players import ChromecastPlayer
+# TODO
+# from sublime.players import ChromecastPlayer
 from sublime.ui import util
 from sublime.ui.common import IconButton, IconToggleButton, SpinnerImage
 from sublime.ui.state import RepeatType
@@ -44,7 +45,7 @@ class PlayerControls(Gtk.ActionBar):
     current_device = None
     current_playing_index: Optional[int] = None
     current_play_queue: Tuple[str, ...] = ()
-    chromecasts: List[ChromecastPlayer] = []
+    # chromecasts: List[ChromecastPlayer] = []
     cover_art_update_order_token = 0
     play_queue_update_order_token = 0
     devices_requested = False
