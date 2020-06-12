@@ -14,10 +14,16 @@ class RepeatType(Enum):
 
     @property
     def icon(self) -> str:
-        icon_name = ["repeat-symbolic", "repeat-symbolic", "repeat-song-symbolic"][
-            self.value
-        ]
-        return f"media-playlist-{icon_name}"
+        """
+        Get the icon for the repeat type.
+
+        >>> RepeatType.NO_REPEAT.icon, RepeatType.REPEAT_QUEUE.icon
+        ('media-playlist-repeat-symbolic', 'media-playlist-repeat-symbolic')
+        >>> RepeatType.REPEAT_SONG.icon
+        'media-playlist-repeat-song-symbolic'
+        """
+        song_str = "-song" if self == RepeatType.REPEAT_SONG else ""
+        return f"media-playlist-repeat{song_str}-symbolic"
 
     def as_mpris_loop_status(self) -> str:
         return ["None", "Playlist", "Track"][self.value]

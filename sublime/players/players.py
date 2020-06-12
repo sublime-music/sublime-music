@@ -15,11 +15,22 @@ from typing import Any, Callable, List, Optional
 from urllib.parse import urlparse
 from uuid import UUID
 
-# TODO
-import bottle
+
 import mpv
-# TODO
-import pychromecast
+
+try:
+    import bottle
+
+    bottle_imported = True
+except Exception:
+    bottle_imported = False
+
+try:
+    import pychromecast
+
+    chromecast_imported = True
+except Exception:
+    chromecast_imported = False
 
 from sublime.adapters import AdapterManager
 from sublime.adapters.api_objects import Song

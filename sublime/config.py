@@ -27,6 +27,7 @@ dataclasses_json.cfg.global_config.encoders[Path] = encode_path
 dataclasses_json.cfg.global_config.encoders[Optional[Path]] = encode_path
 
 
+# TODO get rid of this
 class ReplayGainType(Enum):
     NO = 0
     TRACK = 1
