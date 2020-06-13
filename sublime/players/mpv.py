@@ -94,7 +94,8 @@ class MPVPlayer(Player):
         return self._volume
 
     def set_volume(self, volume: float):
-        self.mpv.volume = volume
+        if not self._muted:
+            self.mpv.volume = volume
         self._volume = volume
 
     def get_is_muted(self) -> bool:
@@ -108,9 +109,10 @@ class MPVPlayer(Player):
         with self._progress_value_lock:
             self._progress_value_count = 0
 
-        options = {"force-seekable": "yes"}
-        if progress is not None:
-            options["start"] = str(progress.total_seconds())
+        options = {
+            "force-seekable": "yes",
+            "start": str(progress.total_seconds()),
+        }
         self.mpv.command(
             "loadfile", uri, "replace", ",".join(f"{k}={v}" for k, v in options.items())
         )
@@ -124,4 +126,6 @@ class MPVPlayer(Player):
         self.mpv.cycle("pause")
 
     def seek(self, position: timedelta):
+        print(position)
+        print(self.mpv.time_pos)
         self.mpv.seek(str(position.total_seconds()), "absolute")

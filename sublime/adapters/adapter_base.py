@@ -10,6 +10,7 @@ from typing import (
     cast,
     Dict,
     Iterable,
+    List,
     Optional,
     Sequence,
     Set,
@@ -186,7 +187,7 @@ class ConfigurationStore(dict):
         with secret storage yourself.
         """
         value = self.get(key)
-        if not isinstance(value, (tuple, list)) or len(value) != 2:
+        if not isinstance(value, list) or len(value) != 2:
             return None
 
         storage_type, storage_key = value
@@ -206,7 +207,7 @@ class ConfigurationStore(dict):
             try:
                 password_id = None
                 if password_type_and_id := self.get(key):
-                    if cast(Tuple[str, str], password_type_and_id[0]) == "keyring":
+                    if cast(List[str], password_type_and_id)[0] == "keyring":
                         password_id = password_type_and_id[1]
 
                 if password_id is None:

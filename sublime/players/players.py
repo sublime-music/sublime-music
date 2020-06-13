@@ -37,21 +37,6 @@ from sublime.adapters.api_objects import Song
 from sublime.config import AppConfiguration
 
 
-@dataclass
-class PlayerEvent:
-    class Type(Enum):
-        PLAY_STATE_CHANGE = 0
-        VOLUME_CHANGE = 1
-        STREAM_CACHE_PROGRESS_CHANGE = 2
-        CONNECTING = 3
-        CONNECTED = 4
-
-    type: Type
-    playing: Optional[bool] = False
-    volume: Optional[float] = 0.0
-    stream_cache_duration: Optional[float] = 0.0
-
-
 class Player(abc.ABC):
     # TODO (#205): pull players out into different modules and actually document this
     # API because it's kinda a bit strange tbh.
@@ -62,7 +47,7 @@ class Player(abc.ABC):
         self,
         on_timepos_change: Callable[[Optional[float]], None],
         on_track_end: Callable[[], None],
-        on_player_event: Callable[[PlayerEvent], None],
+        on_player_event: Callable[[Any], None],
         config: AppConfiguration,
     ):
         self.on_timepos_change = on_timepos_change
@@ -152,95 +137,6 @@ class Player(abc.ABC):
         raise NotImplementedError(
             "shutdown must be implemented by implementor of Player"
         )
-
-
-class MPVPlayer(Player):
-    def __init__(
-        self,
-        on_timepos_change: Callable[[Optional[float]], None],
-        on_track_end: Callable[[], None],
-        on_player_event: Callable[[PlayerEvent], None],
-        config: AppConfiguration,
-    ):
-        super().__init__(on_timepos_change, on_track_end, on_player_event, config)
-
-        self.mpv = mpv.MPV()
-        self.mpv.audio_client_name = "sublime-music"
-        self.mpv.replaygain = config.replay_gain.as_string()
-        self.progress_value_lock = threading.Lock()
-        self.progress_value_count = 0
-        self._muted = False
-        self._volume = 100.0
-        self._can_hotswap_source = True
-
-        @self.mpv.property_observer("time-pos")
-        def time_observer(_, value: Optional[float]):
-            self.on_timepos_change(value)
-            if value is None and self.progress_value_count > 1:
-                self.on_track_end()
-                with self.progress_value_lock:
-                    self.progress_value_count = 0
-
-            if value:
-                with self.progress_value_lock:
-                    self.progress_value_count += 1
-
-        @self.mpv.property_observer("demuxer-cache-time")
-        def cache_size_observer(_, value: Optional[float]):
-            on_player_event(
-                PlayerEvent(
-                    PlayerEvent.Type.STREAM_CACHE_PROGRESS_CHANGE,
-                    stream_cache_duration=value,
-                )
-            )
-
-    def _is_playing(self) -> bool:
-        return not self.mpv.pause
-
-    def reset(self):
-        self._song_loaded = False
-        with self.progress_value_lock:
-            self.progress_value_count = 0
-
-    def play_media(self, file_or_url: str, progress: timedelta, song: Song):
-        self.had_progress_value = False
-        with self.progress_value_lock:
-            self.progress_value_count = 0
-
-        self.mpv.pause = False
-        self.mpv.command(
-            "loadfile",
-            file_or_url,
-            "replace",
-            f"force-seekable=yes,start={progress.total_seconds()}" if progress else "",
-        )
-        self._song_loaded = True
-
-    def pause(self):
-        self.mpv.pause = True
-
-    def toggle_play(self):
-        self.mpv.cycle("pause")
-
-    def seek(self, value: timedelta):
-        self.mpv.seek(str(value.total_seconds()), "absolute")
-
-    def _get_volume(self) -> float:
-        return self._volume
-
-    def _set_volume(self, value: float):
-        self._volume = value
-        self.mpv.volume = self._volume
-
-    def _get_is_muted(self) -> bool:
-        return self._muted
-
-    def _set_is_muted(self, value: bool):
-        self._muted = value
-        self.mpv.volume = 0 if value else self._volume
-
-    def shutdown(self):
-        pass
 
 
 class ChromecastPlayer(Player):
@@ -352,7 +248,7 @@ class ChromecastPlayer(Player):
         self,
         on_timepos_change: Callable[[Optional[float]], None],
         on_track_end: Callable[[], None],
-        on_player_event: Callable[[PlayerEvent], None],
+        on_player_event: Callable[[Any], None],
         config: AppConfiguration,
     ):
         super().__init__(on_timepos_change, on_track_end, on_player_event, config)

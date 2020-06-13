@@ -1,3 +1,4 @@
+import logging
 import multiprocessing
 from dataclasses import dataclass
 from enum import Enum
@@ -20,7 +21,6 @@ from typing import (
 from .base import PlayerEvent
 from .chromecast import ChromecastPlayer  # noqa: F401
 from .mpv import MPVPlayer  # noqa: F401
-from ..config import AppConfiguration
 
 
 @dataclass
@@ -36,7 +36,7 @@ class PlayerDeviceEvent:
 
 
 class PlayerManager:
-    # Available Players
+    # Available Players. Order matters for UI display.
     available_player_types: List[Type] = [MPVPlayer, ChromecastPlayer]
 
     @staticmethod
