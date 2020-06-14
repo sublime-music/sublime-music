@@ -201,7 +201,7 @@ class SubsonicAdapter(Adapter):
             self.hostname = "https://" + self.hostname
 
         self.username = config["username"]
-        self.password = config.get_secret("password")
+        self.password = cast(str, config.get_secret("password"))
         self.verify_cert = config["verify_cert"]
 
         self.is_shutting_down = False

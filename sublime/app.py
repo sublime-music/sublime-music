@@ -240,12 +240,14 @@ class SublimeMusicApp(Gtk.Application):
                 if self.dbus_manager:
                     self.dbus_manager.property_diff()
                 self.update_window()
+
             elif event.type == PlayerEvent.EventType.VOLUME_CHANGE:
                 assert event.volume is not None
                 self.app_config.state.volume = event.volume
                 if self.dbus_manager:
                     self.dbus_manager.property_diff()
                 self.update_window()
+
             elif event.type == PlayerEvent.EventType.STREAM_CACHE_PROGRESS_CHANGE:
                 if (
                     self.loading_state
@@ -263,6 +265,14 @@ class SublimeMusicApp(Gtk.Application):
                     self.app_config.state.current_song.duration,
                     self.app_config.state.song_stream_cache_progress,
                 )
+
+            elif event.type == PlayerEvent.EventType.DISCONNECT:
+                assert self.player_manager
+                self.app_config.state.current_device = "this device"
+                self.player_manager.set_current_device_id(
+                    self.app_config.state.current_device
+                )
+                self.update_window()
 
         def player_device_change_callback(event: PlayerDeviceEvent):
             assert self.player_manager
@@ -294,10 +304,8 @@ class SublimeMusicApp(Gtk.Application):
         def check_if_connected():
             if not self.app_config.state.connecting_to_device:
                 return
-            print(
-                f"Couldn't find device {self.app_config.state.current_device} in time."
-            )
             self.app_config.state.current_device = "this device"
+            self.app_config.state.connecting_to_device = False
             self.player_manager.set_current_device_id(
                 self.app_config.state.current_device
             )
@@ -872,16 +880,17 @@ class SublimeMusicApp(Gtk.Application):
 
         self.save_play_queue()
 
-    def on_device_update(self, win: Any, device_uuid: str):
-        # TODO
+    def on_device_update(self, win: Any, device_id: str):
         assert self.player_manager
-        if device_uuid == self.app_config.state.current_device:
+        if device_id == self.app_config.state.current_device:
             return
-        self.app_config.state.current_device = device_uuid
+        self.app_config.state.current_device = device_id
 
         was_playing = self.app_config.state.playing
+        if was_playing:
+            self.on_play_pause()
+
         self.player_manager.set_current_device_id(self.app_config.state.current_device)
-        self.app_config.state.playing = False
 
         if self.dbus_manager:
             self.dbus_manager.property_diff()
@@ -950,6 +959,8 @@ class SublimeMusicApp(Gtk.Application):
             return
 
         if self.player_manager:
+            if self.app_config.state.playing:
+                self.save_play_queue()
             self.player_manager.pause()
             self.player_manager.shutdown()
 
@@ -993,7 +1004,7 @@ class SublimeMusicApp(Gtk.Application):
         # TODO (#129): need to make the play queue list loading for the duration here if
         # prompt_confirm is False.
         if not prompt_confirm and self.app_config.state.playing:
-            assert self.player
+            assert self.player_manager
             self.player_manager.pause()
             self.app_config.state.playing = False
             self.update_window()
@@ -1186,7 +1197,6 @@ class SublimeMusicApp(Gtk.Application):
                     # delay with Chromecast.
                     assert self.player_manager
                     if self.player_manager.can_start_playing_with_no_latency:
-                        print(self.player_manager)
                         self.player_manager.play_media(
                             AdapterManager.get_song_filename_or_stream(song),
                             self.app_config.state.song_progress,

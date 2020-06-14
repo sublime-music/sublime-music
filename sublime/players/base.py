@@ -1,22 +1,8 @@
 import abc
-import multiprocessing
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
-from functools import partial
-from time import sleep
-from typing import (
-    Callable,
-    Dict,
-    Generator,
-    Iterator,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Callable, Dict, Optional, Set, Tuple, Type, Union
 
 from sublime.adapters.api_objects import Song
 
@@ -58,6 +44,7 @@ class PlayerEvent:
         STREAM_CACHE_PROGRESS_CHANGE = 2
         CONNECTING = 3
         CONNECTED = 4
+        DISCONNECT = 5
 
     type: EventType
     playing: Optional[bool] = None

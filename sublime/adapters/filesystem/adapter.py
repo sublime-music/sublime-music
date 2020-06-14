@@ -300,10 +300,11 @@ class FilesystemAdapter(CachingAdapter):
                 filename := self._compute_song_filename(song_file)
             ):
                 if filename.exists():
+                    file_uri = f"file://{filename}"
                     if song_file.valid:
-                        return str(filename)
+                        return file_uri
                     else:
-                        raise CacheMissError(partial_data=str(filename))
+                        raise CacheMissError(partial_data=file_uri)
         except models.CacheInfo.DoesNotExist:
             pass
 
@@ -443,7 +444,6 @@ class FilesystemAdapter(CachingAdapter):
             self._do_ingest_new_data(data_key, param, data)
 
     def invalidate_data(self, key: CachingAdapter.CachedDataKey, param: Optional[str]):
-        print("invalidate", key, param)
         assert self.is_cache, "FilesystemAdapter is not in cache mode!"
 
         # Wrap the actual ingestion function in a database lock, and an atomic

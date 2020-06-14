@@ -1,22 +1,7 @@
 import logging
 import multiprocessing
-from dataclasses import dataclass
 from datetime import timedelta
-from enum import Enum
-from functools import partial
-from time import sleep
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generator,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
 from sublime.adapters.api_objects import Song
 
@@ -59,7 +44,7 @@ class PlayerManager:
         self.config = config
         self.players: Dict[Type, Any] = {}
         self.device_id_type_map: Dict[str, Type] = {}
-        self._current_device_id = None
+        self._current_device_id: Optional[str] = None
 
         def callback_wrapper(pde: PlayerDeviceEvent):
             self.device_id_type_map[pde.id] = pde.player_type
@@ -84,10 +69,12 @@ class PlayerManager:
     has_done_one_retrieval = multiprocessing.Value("b", False)
 
     def shutdown(self):
-        pass
+        for p in self.players.values():
+            p.shutdown()
 
     def _get_current_player_type(self) -> Any:
-        if device_id := self._current_device_id:
+        device_id = self._current_device_id
+        if device_id:
             return self.device_id_type_map.get(device_id)
 
     def _get_current_player(self) -> Any:
@@ -109,11 +96,12 @@ class PlayerManager:
         logging.info(f"Setting current device id to '{device_id}'")
         if cp := self._get_current_player():
             cp.pause()
+            cp.song_loaded = False
 
         self._current_device_id = device_id
-        self._get_current_player().set_current_device_id(device_id)
 
         if cp := self._get_current_player():
+            cp.set_current_device_id(device_id)
             cp.song_loaded = False
 
     def reset(self):

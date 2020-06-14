@@ -1,17 +1,6 @@
 import threading
 from datetime import timedelta
-from typing import (
-    Callable,
-    cast,
-    Union,
-    Dict,
-    Generator,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
-    Type,
-)
+from typing import Callable, cast, Dict, Optional, Tuple, Type, Union
 
 import mpv
 
@@ -135,6 +124,4 @@ class MPVPlayer(Player):
         self.mpv.cycle("pause")
 
     def seek(self, position: timedelta):
-        print(position)
-        print(self.mpv.time_pos)
         self.mpv.seek(str(position.total_seconds()), "absolute")

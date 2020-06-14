@@ -1,9 +1,9 @@
 import copy
 import math
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
 
@@ -61,6 +61,9 @@ class PlayerControls(Gtk.ActionBar):
         self.set_center_widget(playback_controls)
         self.pack_end(play_queue_volume)
 
+    connecting_to_device_token = 0
+    connecting_icon_index = 0
+
     def update(self, app_config: AppConfiguration, force: bool = False):
         self.current_device = app_config.state.current_device
         self.update_device_list(app_config)
@@ -114,11 +117,30 @@ class PlayerControls(Gtk.ActionBar):
         self.play_button.set_sensitive(has_current_song)
         self.next_button.set_sensitive(has_current_song and has_next_song)
 
-        self.device_button.set_icon(
-            "chromecast{}-symbolic".format(
-                "" if app_config.state.current_device == "this device" else "-connected"
-            )
-        )
+        self.connecting_to_device = app_config.state.connecting_to_device
+
+        def cycle_connecting(connecting_to_device_token: int):
+            if (
+                self.connecting_to_device_token != connecting_to_device_token
+                or not self.connecting_to_device
+            ):
+                return
+            icon = f"chromecast-connecting-{self.connecting_icon_index}-symbolic"
+            self.device_button.set_icon(icon)
+            self.connecting_icon_index = (self.connecting_icon_index + 1) % 3
+            GLib.timeout_add(350, cycle_connecting, connecting_to_device_token)
+
+        icon = ""
+        print(app_config.state.current_device)
+        if app_config.state.connecting_to_device:
+            icon = "-connecting-0"
+            self.connecting_icon_index = 0
+            self.connecting_to_device_token += 1
+            GLib.timeout_add(350, cycle_connecting, self.connecting_to_device_token)
+        elif app_config.state.current_device != "this device":
+            icon = "-connected"
+
+        self.device_button.set_icon(f"chromecast{icon}-symbolic")
 
         # Volume button and slider
         if app_config.state.is_muted:
@@ -378,12 +400,17 @@ class PlayerControls(Gtk.ActionBar):
             {"no_reshuffle": True},
         )
 
-    _current_available_players = {}
+    _current_player_id = None
+    _current_available_players: Dict[type, Set[Tuple[str, str]]] = {}
 
     def update_device_list(self, app_config: AppConfiguration):
-        if self._current_available_players == app_config.state.available_players:
+        if (
+            self._current_available_players == app_config.state.available_players
+            and self._current_player_id == app_config.state.current_device
+        ):
             return
 
+        self._current_player_id = app_config.state.current_device
         self._current_available_players = copy.deepcopy(
             app_config.state.available_players
         )
@@ -405,7 +432,7 @@ class PlayerControls(Gtk.ActionBar):
                 )
             )
 
-            for player_id, player_name in players:
+            for player_id, player_name in sorted(players, key=lambda p: p[1]):
                 icon = (
                     "audio-volume-high-symbolic"
                     if player_id == self.current_device
@@ -432,9 +459,9 @@ class PlayerControls(Gtk.ActionBar):
             self.device_popover.show_all()
 
     def on_device_refresh_click(self, _: Any):
-        print("FORCE UPDATE DEVICE LIST")
         # TODO: make this an action that does stuff with the player manager to delete
         # all of the things and then restart retrieving the players.
+        pass
 
     def on_play_queue_button_press(self, tree: Any, event: Gdk.EventButton) -> bool:
         if event.button == 3:  # Right click

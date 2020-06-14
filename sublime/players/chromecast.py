@@ -5,20 +5,11 @@ import multiprocessing
 import os
 import socket
 from datetime import timedelta
-from typing import (
-    Any,
-    Callable,
-    Union,
-    Dict,
-    Generator,
-    Iterator,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-)
+from typing import Callable, Dict, Optional, Set, Tuple, Type, Union
 from urllib.parse import urlparse
+from uuid import UUID
+
+from gi.repository import GLib
 
 from sublime.adapters import AdapterManager
 from sublime.adapters.api_objects import Song
@@ -63,6 +54,8 @@ class ChromecastPlayer(Player):
             schemes.add("file")
         return schemes
 
+    _timepos = 0.0
+
     def __init__(
         self,
         on_timepos_change: Callable[[Optional[float]], None],
@@ -73,15 +66,19 @@ class ChromecastPlayer(Player):
     ):
         self.server_process = None
         self.config = config
+        self.on_timepos_change = on_timepos_change
+        self.on_track_end = on_track_end
+        self.on_player_event = on_player_event
+
         if bottle_imported and self.config.get(SERVE_FILES_KEY):
             self.server_process = multiprocessing.Process(
                 target=self._run_server_process,
                 args=("0.0.0.0", self.config.get(LAN_PORT_KEY)),
             )
+            self.server_process.start()
 
-        self._stop_retrieve_chromecasts = None
         if chromecast_imported:
-            self._chromecasts: Dict[str, pychromecast.Chromecast] = {}
+            self._chromecasts: Dict[UUID, pychromecast.Chromecast] = {}
             self._current_chromecast: Optional[pychromecast.Chromecast] = None
 
             def discovered_callback(chromecast: pychromecast.Chromecast):
@@ -95,20 +92,76 @@ class ChromecastPlayer(Player):
                     )
                 )
 
-            self._stop_retrieve_chromecasts = pychromecast.get_chromecasts(
-                blocking=False, callback=discovered_callback
-            )
+            pychromecast.get_chromecasts(blocking=False, callback=discovered_callback)
 
     def set_current_device_id(self, device_id: str):
-        self._current_chromecast = self._chromecasts[device_id]
+        self._current_chromecast = self._chromecasts[UUID(device_id)]
+        self._current_chromecast.media_controller.register_status_listener(self)
+        self._current_chromecast.register_status_listener(self)
+        self._current_chromecast.wait()
+
+    def new_cast_status(self, status: pychromecast.socket_client.CastStatus):
+        self.on_player_event(
+            PlayerEvent(
+                PlayerEvent.EventType.VOLUME_CHANGE,
+                volume=(status.volume_level * 100 if not status.volume_muted else 0),
+            )
+        )
+
+        # This normally happens when "Stop Casting" is pressed in the Google
+        # Home app.
+        if status.session_id is None:
+            self.on_player_event(
+                PlayerEvent(PlayerEvent.EventType.PLAY_STATE_CHANGE, playing=False)
+            )
+            self.on_player_event(PlayerEvent(PlayerEvent.EventType.DISCONNECT))
+            self.song_loaded = False
+
+    time_increment_order_token = 0
+
+    def new_media_status(
+        self, status: pychromecast.controllers.media.MediaStatus,
+    ):
+        # Detect the end of a track and go to the next one.
+        print(status)
+        if (
+            status.idle_reason == "FINISHED"
+            and status.player_state == "IDLE"
+            and self._timepos > 0
+        ):
+            self.on_track_end()
+            return
+
+        self.song_loaded = True
+
+        self._timepos = status.current_time
+
+        self.on_player_event(
+            PlayerEvent(
+                PlayerEvent.EventType.PLAY_STATE_CHANGE,
+                playing=(status.player_state in ("PLAYING", "BUFFERING")),
+            )
+        )
+
+        def increment_time(order_token: int):
+            if self.time_increment_order_token != order_token or not self.playing:
+                return
+
+            self._timepos += 0.5
+            self.on_timepos_change(self._timepos)
+            GLib.timeout_add(500, increment_time, order_token)
+
+        self.time_increment_order_token += 1
+        GLib.timeout_add(500, increment_time, self.time_increment_order_token)
 
     def shutdown(self):
-        if self._current_chromecast:
-            self._current_chromecast.disconnect()
         if self.server_process:
             self.server_process.terminate()
-        if self._stop_retrieve_chromecasts:
-            self._stop_retrieve_chromecasts()
+
+        try:
+            self._current_chromecast.disconnect()
+        except Exception:
+            pass
 
     _serving_song_id = multiprocessing.Array("c", 1024)  # huge buffer, just in case
     _serving_token = multiprocessing.Array("c", 12)
@@ -128,12 +181,15 @@ class ChromecastPlayer(Player):
 
         @app.route("/s/<token>")
         def stream_song(token: str) -> bytes:
-            if token != self._serving_token.value:
+            if token != self._serving_token.value.decode():
                 raise bottle.HTTPError(status=401, body="Invalid token.")
 
-            song = AdapterManager.get_song_details(self._serving_song_id.value).result()
+            song = AdapterManager.get_song_details(
+                self._serving_song_id.value.decode()
+            ).result()
             filename = AdapterManager.get_song_filename_or_stream(song)
-            with open(filename, "rb") as fin:
+            assert filename.startswith("file://")
+            with open(filename[7:], "rb") as fin:
                 song_buffer = io.BytesIO(fin.read())
 
             content_type = mimetypes.guess_type(filename)[0]
@@ -150,7 +206,7 @@ class ChromecastPlayer(Player):
             or not self._current_chromecast.media_controller
         ):
             return False
-        return self._current_chromecast.media_controller.player_is_playing
+        return self._current_chromecast.media_controller.status.player_is_playing
 
     def get_volume(self) -> float:
         if self._current_chromecast:
@@ -165,19 +221,24 @@ class ChromecastPlayer(Player):
             self._current_chromecast.set_volume(volume / 100)
 
     def get_is_muted(self) -> bool:
+        if not self._current_chromecast:
+            return False
         return self._current_chromecast.volume_muted
 
     def set_muted(self, muted: bool):
+        if not self._current_chromecast:
+            return
         self._current_chromecast.set_volume_muted(muted)
 
     def play_media(self, uri: str, progress: timedelta, song: Song):
+        assert self._current_chromecast
         scheme = urlparse(uri).scheme
         if scheme == "file":
             token = base64.b64encode(os.urandom(8)).decode("ascii")
             for r in (("+", "."), ("/", "-"), ("=", "_")):
                 token = token.replace(*r)
-            self._serving_token.value = token
-            self._serving_song_id.value = song.id
+            self._serving_token.value = token.encode()
+            self._serving_song_id.value = song.id.encode()
 
             # If this fails, then we are basically screwed, so don't care if it blows
             # up.
@@ -204,6 +265,15 @@ class ChromecastPlayer(Player):
             },
         )
 
+        # Make sure to clear out the cache duration state.
+        self.on_player_event(
+            PlayerEvent(
+                PlayerEvent.EventType.STREAM_CACHE_PROGRESS_CHANGE,
+                stream_cache_duration=0,
+            )
+        )
+        self._timepos = progress.total_seconds()
+
     def pause(self):
         if self._current_chromecast and self._current_chromecast.media_controller:
             self._current_chromecast.media_controller.pause()
@@ -216,6 +286,9 @@ class ChromecastPlayer(Player):
             # self._wait_for_playing(self._start_time_incrementor)
 
     def seek(self, position: timedelta):
+        if not self._current_chromecast:
+            return
+
         do_pause = not self.playing
         self._current_chromecast.media_controller.seek(position.total_seconds())
         if do_pause:

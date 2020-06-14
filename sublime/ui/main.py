@@ -879,9 +879,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.main_menu_popover.show_all()
 
     def _on_replay_gain_change(self, combo: Gtk.ComboBox):
-        self._emit_settings_change(
-            {"replay_gain": ReplayGainType.from_string(combo.get_active_id())}
-        )
+        self._emit_settings_change({"replay_gain": combo.get_active_id()})
 
     def _on_search_entry_focus(self, *args):
         self._show_search()
