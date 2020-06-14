@@ -315,7 +315,7 @@ class SublimeMusicApp(Gtk.Application):
             on_timepos_change,
             on_track_end,
             on_player_event,
-            player_device_change_callback,
+            lambda *a: GLib.idle_add(player_device_change_callback, *a),
             self.app_config.player_config,
         )
         self.player_manager.init_players()
