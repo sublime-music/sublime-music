@@ -265,7 +265,39 @@ class SublimeMusicApp(Gtk.Application):
                 )
 
         def player_device_change_callback(event: PlayerDeviceEvent):
-            pass
+            assert self.player_manager
+            state_device = self.app_config.state.current_device
+
+            if event.delta == PlayerDeviceEvent.Delta.ADD:
+                # If the device added is the one that's supposed to be active, activate
+                # it and set the volume.
+                if event.id == state_device:
+                    self.player_manager.set_current_device_id(
+                        self.app_config.state.current_device
+                    )
+                    self.player_manager.set_volume(self.app_config.state.volume)
+                    self.app_config.state.connecting_to_device = False
+                # TODO actually add it
+                print("ADDED", event)
+
+            elif event.delta == PlayerDeviceEvent.Delta.REMOVE:
+                print("REMOVED", event)
+
+            self.update_window()
+
+        self.app_config.state.connecting_to_device = True
+
+        def check_if_connected():
+            if not self.app_config.state.connecting_to_device:
+                return
+            print(
+                f"Couldn't find device {self.app_config.state.current_device} in time."
+            )
+            self.app_config.state.current_device = "this device"
+            self.player_manager.set_current_device_id(
+                self.app_config.state.current_device
+            )
+            self.update_window()
 
         self.player_manager = PlayerManager(
             on_timepos_change,
@@ -274,15 +306,8 @@ class SublimeMusicApp(Gtk.Application):
             player_device_change_callback,
             self.app_config.player_config,
         )
-
-        if self.app_config.state.current_device != "this device":
-            # TODO (#120) attempt to connect to the previously connected device
-            pass
-
-        self.app_config.state.current_device = "this device"
-
-        # Need to do this after we set the current device.
-        self.player.volume = self.app_config.state.volume
+        self.player_manager.init_players()
+        GLib.timeout_add(10000, check_if_connected)
 
         # Update after Adapter Initial Sync
         inital_sync_result = AdapterManager.initial_sync()
@@ -311,7 +336,7 @@ class SublimeMusicApp(Gtk.Application):
             connection,
             self.on_dbus_method_call,
             self.on_dbus_set_property,
-            lambda: (self.app_config, self.player),
+            lambda: (self.app_config, self.player_manager),
         )
         return True
 
@@ -604,8 +629,8 @@ class SublimeMusicApp(Gtk.Application):
 
         self.app_config.state.playing = not self.app_config.state.playing
 
-        if self.player.song_loaded:
-            self.player.toggle_play()
+        if self.player_manager.song_loaded:
+            self.player_manager.toggle_play()
             self.save_play_queue()
         else:
             # This is from a restart, start playing the file.
@@ -743,7 +768,7 @@ class SublimeMusicApp(Gtk.Application):
         if self.app_config.state.playing:
             self.on_play_pause()
         self.loading_state = True
-        self.player.reset()
+        self.player_manager.reset()
         AdapterManager.reset(self.app_config, self.on_song_download_progress)
         self.loading_state = False
 
@@ -838,20 +863,21 @@ class SublimeMusicApp(Gtk.Application):
         )
 
         # If already playing, then make the player itself seek.
-        if self.player and self.player.song_loaded:
-            self.player.seek(new_time)
+        if self.player_manager and self.player_manager.song_loaded:
+            self.player_manager.seek(new_time)
 
         self.save_play_queue()
 
     def on_device_update(self, win: Any, device_uuid: str):
-        assert self.player
+        # TODO
+        assert self.player_manager
         if device_uuid == self.app_config.state.current_device:
             return
         self.app_config.state.current_device = device_uuid
 
         was_playing = self.app_config.state.playing
-        self.player.pause()
-        self.player._song_loaded = False
+        self.player_manager.pause()
+        self.player_manager._song_loaded = False
         self.app_config.state.playing = False
 
         if self.dbus_manager:
@@ -873,14 +899,14 @@ class SublimeMusicApp(Gtk.Application):
     @dbus_propagate()
     def on_mute_toggle(self, *args):
         self.app_config.state.is_muted = not self.app_config.state.is_muted
-        self.player.is_muted = self.app_config.state.is_muted
+        self.player_manager.set_muted(self.app_config.state.is_muted)
         self.update_window()
 
     @dbus_propagate()
     def on_volume_change(self, _, value: float):
-        assert self.player
+        assert self.player_manager
         self.app_config.state.volume = value
-        self.player.volume = self.app_config.state.volume
+        self.player_manager.set_volume(self.app_config.state.volume)
         self.update_window()
 
     def on_window_key_press(self, window: Gtk.Window, event: Gdk.EventKey) -> bool:
@@ -926,13 +952,11 @@ class SublimeMusicApp(Gtk.Application):
         if self.app_config.provider is None:
             return
 
-        if self.player:
-            self.player.pause()
-        self.chromecast_player.shutdown()
-        self.mpv_player.shutdown()
+        if self.player_manager:
+            self.player_manager.pause()
+            self.player_manager.shutdown()
 
         self.app_config.save()
-        self.save_play_queue()
         if self.dbus_manager:
             self.dbus_manager.shutdown()
         AdapterManager.shutdown()
@@ -973,7 +997,7 @@ class SublimeMusicApp(Gtk.Application):
         # prompt_confirm is False.
         if not prompt_confirm and self.app_config.state.playing:
             assert self.player
-            self.player.pause()
+            self.player_manager.pause()
             self.app_config.state.playing = False
             self.update_window()
 
@@ -1025,7 +1049,7 @@ class SublimeMusicApp(Gtk.Application):
                     self.app_config.state.current_song_index = (
                         play_queue.current_index or 0
                     )
-                    self.player.reset()
+                    self.player_manager.reset()
                     self.app_config.state.current_notification = None
                     self.update_window()
 
@@ -1053,7 +1077,7 @@ class SublimeMusicApp(Gtk.Application):
         playable_song_search_direction: int = 1,
     ):
         def do_reset():
-            self.player.reset()
+            self.player_manager.reset()
             self.app_config.state.song_progress = timedelta(0)
             self.should_scrobble_song = True
 
@@ -1061,7 +1085,7 @@ class SublimeMusicApp(Gtk.Application):
         # in the callback.
         @dbus_propagate(self)
         def do_play_song(order_token: int, song: Song):
-            assert self.player
+            assert self.player_manager
             if order_token != self.song_playing_order_token:
                 return
 
@@ -1076,7 +1100,7 @@ class SublimeMusicApp(Gtk.Application):
             if order_token != self.song_playing_order_token:
                 return
 
-            self.player.play_media(
+            self.player_manager.play_media(
                 uri,
                 timedelta(0) if reset else self.app_config.state.song_progress,
                 song,
@@ -1163,9 +1187,10 @@ class SublimeMusicApp(Gtk.Application):
                     # Switch to the local media if the player can hotswap without lag.
                     # For example, MPV can is barely noticable whereas there's quite a
                     # delay with Chromecast.
-                    assert self.player
-                    if self.player.can_hotswap_source:
-                        self.player.play_media(
+                    assert self.player_manager
+                    if self.player_manager.can_start_playing_with_no_latency:
+                        print(self.player_manager)
+                        self.player_manager.play_media(
                             AdapterManager.get_song_filename_or_stream(song),
                             self.app_config.state.song_progress,
                             song,

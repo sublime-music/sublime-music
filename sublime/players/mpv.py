@@ -17,7 +17,7 @@ import mpv
 
 from sublime.adapters.api_objects import Song
 
-from .base import Player, PlayerEvent
+from .base import Player, PlayerDeviceEvent, PlayerEvent
 
 REPLAY_GAIN_KEY = "Replay Gain"
 
@@ -44,6 +44,7 @@ class MPVPlayer(Player):
         on_timepos_change: Callable[[Optional[float]], None],
         on_track_end: Callable[[], None],
         on_player_event: Callable[[PlayerEvent], None],
+        player_device_change_callback: Callable[[PlayerDeviceEvent], None],
         config: Dict[str, Union[str, int, bool]],
     ):
         self.mpv = mpv.MPV()
@@ -75,6 +76,13 @@ class MPVPlayer(Player):
                 )
             )
 
+        # Indicate to the UI that we exist.
+        player_device_change_callback(
+            PlayerDeviceEvent(
+                PlayerDeviceEvent.Delta.ADD, type(self), "this device", "This Device"
+            )
+        )
+
     def shutdown(self):
         pass
 
@@ -82,9 +90,6 @@ class MPVPlayer(Player):
         self.song_loaded = False
         with self._progress_value_lock:
             self._progress_value_count = 0
-
-    def get_available_player_devices(self) -> Iterator[Tuple[str, str]]:
-        yield ("this device", "This Device")
 
     @property
     def playing(self) -> bool:

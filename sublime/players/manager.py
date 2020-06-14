@@ -1,6 +1,7 @@
 import logging
 import multiprocessing
 from dataclasses import dataclass
+from datetime import timedelta
 from enum import Enum
 from functools import partial
 from time import sleep
@@ -17,27 +18,18 @@ from typing import (
     Union,
 )
 
+from sublime.adapters.api_objects import Song
 
-from .base import PlayerEvent
+from .base import PlayerDeviceEvent, PlayerEvent
 from .chromecast import ChromecastPlayer  # noqa: F401
 from .mpv import MPVPlayer  # noqa: F401
-
-
-@dataclass
-class PlayerDeviceEvent:
-    class Delta(Enum):
-        ADD = 0
-        REMOVE = 1
-
-    delta: Delta
-    player_type: Type
-    id: str
-    name: Optional[str] = None
 
 
 class PlayerManager:
     # Available Players. Order matters for UI display.
     available_player_types: List[Type] = [MPVPlayer, ChromecastPlayer]
+    # TODO
+    # player_device_retrieval_process: Optional[multiprocessing.Process] = None
 
     @staticmethod
     def get_configuration_options() -> Dict[
@@ -64,62 +56,105 @@ class PlayerManager:
         self.on_timepos_change = on_timepos_change
         self.on_track_end = on_track_end
         self.on_player_event = on_player_event
+        self.config = config
+        self.players: Dict[Type, Any] = {}
+        self.device_id_type_map: Dict[str, Type] = {}
+        self._current_device_id = None
 
-        self.players = [
-            player_type(
-                on_timepos_change,
-                on_track_end,
-                on_player_event,
-                config.get(player_type.name),
+        def callback_wrapper(pde: PlayerDeviceEvent):
+            self.device_id_type_map[pde.id] = pde.player_type
+            player_device_change_callback(pde)
+
+        self.player_device_change_callback = callback_wrapper
+
+    # We have to have both init and and init_players so that by the time that any of the
+    # players start calling the callback, the player manager exists on the app.
+    def init_players(self):
+        self.players = {
+            player_type: player_type(
+                self.on_timepos_change,
+                self.on_track_end,
+                self.on_player_event,
+                self.player_device_change_callback,
+                self.config.get(player_type.name),
             )
             for player_type in PlayerManager.available_player_types
-        ]
+        }
 
-        self.device_id_type_map: Dict[str, Type] = {}
-        self.player_device_change_callback = player_device_change_callback
-        self.player_device_retrieval_process = multiprocessing.Process(
-            target=self._retrieve_available_player_devices
-        )
+    has_done_one_retrieval = multiprocessing.Value("b", False)
 
     def shutdown(self):
-        print("SHUTDOWN PLAYER MANAGER")
-        self.player_device_retrieval_process.terminate()
+        pass
 
-    def _retrieve_available_player_devices(self):
-        seen_ids = set()
-        while True:
-            new_ids = set()
-            for t in PlayerManager.available_player_types:
-                if not t.enabled:
-                    continue
-                for device_id, device_name in t.get_available_player_devices():
-                    self.player_device_change_callback(
-                        PlayerDeviceEvent(
-                            PlayerDeviceEvent.Delta.ADD, t, device_id, device_name,
-                        )
-                    )
-                    new_ids.add((t, device_id))
-                    self.device_id_type_map[device_id] = t
+    def _get_current_player_type(self) -> Any:
+        if device_id := self._current_device_id:
+            return self.device_id_type_map.get(device_id)
 
-            for t, device_id in seen_ids.difference(new_ids):
-                self.player_device_change_callback(
-                    PlayerDeviceEvent(PlayerDeviceEvent.Delta.REMOVE, t, device_id)
-                )
-                del self.device_id_type_map[device_id]
+    def _get_current_player(self) -> Any:
+        if current_player_type := self._get_current_player_type():
+            return self.players.get(current_player_type)
 
-            seen_ids = new_ids
-            sleep(15)
-
-    def can_start_playing_with_no_latency(self, device_id: str) -> bool:
-        return self.device_id_type_map[device_id].can_start_playing_with_no_latency
-
-    _current_device_id = None
+    @property
+    def can_start_playing_with_no_latency(self) -> bool:
+        if self._current_device_id:
+            return self._get_current_player_type().can_start_playing_with_no_latency
+        else:
+            return False
 
     @property
     def current_device_id(self) -> Optional[str]:
         return self._current_device_id
 
-    @current_device_id.setter
-    def current_device_id(self, value: str):
-        print("SET CURRENT DEVICE")
-        self._current_device_id = value
+    def set_current_device_id(self, device_id: str):
+        logging.info(f"Setting current device id to '{device_id}'")
+        self._current_device_id = device_id
+
+    def reset(self):
+        if current_player := self._get_current_player():
+            current_player.reset()
+
+    @property
+    def song_loaded(self) -> bool:
+        if current_player := self._get_current_player():
+            return current_player.song_loaded
+        return False
+
+    @property
+    def playing(self) -> bool:
+        if current_player := self._get_current_player():
+            return current_player.playing
+        return False
+
+    def get_volume(self) -> float:
+        if current_player := self._get_current_player():
+            return current_player.get_volume()
+        return 100
+
+    def set_volume(self, volume: float):
+        if current_player := self._get_current_player():
+            current_player.set_volume(volume)
+
+    def get_is_muted(self) -> bool:
+        if current_player := self._get_current_player():
+            return current_player.get_is_muted()
+        return False
+
+    def set_muted(self, muted: bool):
+        if current_player := self._get_current_player():
+            current_player.set_muted(muted)
+
+    def play_media(self, uri: str, progress: timedelta, song: Song):
+        if current_player := self._get_current_player():
+            current_player.play_media(uri, progress, song)
+
+    def pause(self):
+        if current_player := self._get_current_player():
+            current_player.pause()
+
+    def toggle_play(self):
+        if current_player := self._get_current_player():
+            current_player.toggle_play()
+
+    def seek(self, position: timedelta):
+        if current_player := self._get_current_player():
+            current_player.seek(position)

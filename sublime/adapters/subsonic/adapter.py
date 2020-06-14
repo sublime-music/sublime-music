@@ -651,6 +651,7 @@ class SubsonicAdapter(Adapter):
         self._get(
             self._make_url("savePlayQueue"),
             id=song_ids,
+            timeout=2,
             current=song_ids[current_song_index]
             if current_song_index is not None
             else None,

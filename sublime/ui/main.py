@@ -196,13 +196,14 @@ class MainWindow(Gtk.ApplicationWindow):
         # Main Settings
         self.notification_switch.set_active(app_config.song_play_notification)
 
-        # MPV Settings
-        self.replay_gain_options.set_active_id(app_config.replay_gain.as_string())
+        # TODO
+        # # MPV Settings
+        # self.replay_gain_options.set_active_id(app_config.replay_gain.as_string())
 
-        # Chromecast Settings
-        self.serve_over_lan_switch.set_active(app_config.serve_over_lan)
-        self.port_number_entry.set_value(app_config.port_number)
-        self.port_number_entry.set_sensitive(app_config.serve_over_lan)
+        # # Chromecast Settings
+        # self.serve_over_lan_switch.set_active(app_config.serve_over_lan)
+        # self.port_number_entry.set_value(app_config.port_number)
+        # self.port_number_entry.set_sensitive(app_config.serve_over_lan)
 
         # Download Settings
         allow_song_downloads = app_config.allow_song_downloads

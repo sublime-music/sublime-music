@@ -7,6 +7,7 @@ def test_init():
         empty_fn,
         empty_fn,
         empty_fn,
+        empty_fn,
         {
             "Serve Local Files to Chromecasts on the LAN": True,
             "LAN Server Port Number": 6969,

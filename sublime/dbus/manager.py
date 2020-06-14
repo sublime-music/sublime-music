@@ -190,7 +190,7 @@ class DBusManager:
 
     def property_dict(self) -> Dict[str, Any]:
         config, player_manager = self.get_config_and_player_manager()
-        if config is None or player is None:
+        if config is None or player_manager is None:
             return {}
 
         state = config.state
@@ -227,7 +227,7 @@ class DBusManager:
                     (False, True): "Stopped",
                     (True, False): "Paused",
                     (True, True): "Playing",
-                }[player is not None and player.song_loaded, state.playing],
+                }[player_manager.song_loaded, state.playing],
                 "LoopStatus": state.repeat_type.as_mpris_loop_status(),
                 "Rate": 1.0,
                 "Shuffle": state.shuffle_on,

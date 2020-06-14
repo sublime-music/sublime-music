@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 from sublime.adapters import AdapterManager
 from sublime.adapters.api_objects import Song
 
-from .base import Player, PlayerEvent
+from .base import Player, PlayerDeviceEvent, PlayerEvent
 
 try:
     import pychromecast
@@ -68,6 +68,7 @@ class ChromecastPlayer(Player):
         on_timepos_change: Callable[[Optional[float]], None],
         on_track_end: Callable[[], None],
         on_player_event: Callable[[PlayerEvent], None],
+        player_device_change_callback: Callable[[PlayerDeviceEvent], None],
         config: Dict[str, Union[str, int, bool]],
     ):
         self.server_process = None
@@ -78,15 +79,33 @@ class ChromecastPlayer(Player):
                 args=("0.0.0.0", self.config.get(LAN_PORT_KEY)),
             )
 
+        self._stop_retrieve_chromecasts = None
         if chromecast_imported:
-            self._chromecasts: List[Any] = []
+            self._chromecasts: Dict[str, pychromecast.Chromecast] = {}
             self._current_chromecast = pychromecast.Chromecast
+
+            def discovered_callback(chromecast: pychromecast.Chromecast):
+                self._chromecasts[chromecast.device.uuid] = chromecast
+                player_device_change_callback(
+                    PlayerDeviceEvent(
+                        PlayerDeviceEvent.Delta.ADD,
+                        type(self),
+                        str(chromecast.device.uuid),
+                        chromecast.device.friendly_name,
+                    )
+                )
+
+            self._stop_retrieve_chromecasts = pychromecast.get_chromecasts(
+                blocking=False, callback=discovered_callback
+            )
 
     def shutdown(self):
         if self._current_chromecast:
             self._current_chromecast.disconnect()
         if self.server_process:
             self.server_process.terminate()
+        if self._stop_retrieve_chromecasts:
+            self._stop_retrieve_chromecasts()
 
     _serving_song_id = multiprocessing.Array("c", 1024)  # huge buffer, just in case
     _serving_token = multiprocessing.Array("c", 12)
@@ -120,14 +139,6 @@ class ChromecastPlayer(Player):
             return song_buffer.read()
 
         bottle.run(app, host=host, port=port)
-
-    def get_available_player_devices(self) -> Iterator[Tuple[str, str]]:
-        if not chromecast_imported:
-            return
-
-        self._chromecasts = pychromecast.get_chromecasts()
-        for chromecast in self._chromecasts:
-            yield (str(chromecast.device.uuid), chromecast.device.friendly_name)
 
     @property
     def playing(self) -> bool:

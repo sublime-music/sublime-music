@@ -63,6 +63,7 @@ class UIState:
     song_progress: timedelta = timedelta()
     song_stream_cache_progress: Optional[timedelta] = timedelta()
     current_device: str = "this device"
+    connecting_to_device: bool = False
 
     # UI state
     current_tab: str = "albums"

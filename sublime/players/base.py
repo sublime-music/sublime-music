@@ -66,6 +66,18 @@ class PlayerEvent:
     device_id: Optional[str] = None
 
 
+@dataclass
+class PlayerDeviceEvent:
+    class Delta(Enum):
+        ADD = 0
+        REMOVE = 1
+
+    delta: Delta
+    player_type: Type
+    id: str
+    name: Optional[str] = None
+
+
 class Player(abc.ABC):
     @property
     @abc.abstractmethod
@@ -107,6 +119,7 @@ class Player(abc.ABC):
         on_timepos_change: Callable[[Optional[float]], None],
         on_track_end: Callable[[], None],
         on_player_event: Callable[[PlayerEvent], None],
+        player_device_change_callback: Callable[[PlayerDeviceEvent], None],
         config: Dict[str, Union[str, int, bool]],
     ):
         """
@@ -124,12 +137,6 @@ class Player(abc.ABC):
     def shutdown(self):
         """
         Do any cleanup of the player.
-        """
-
-    @abc.abstractmethod
-    def get_available_player_devices(self) -> Iterator[Tuple[str, str]]:
-        """
-        :returns: an iterator of tuples containing the device ID and device name.
         """
 
     @property

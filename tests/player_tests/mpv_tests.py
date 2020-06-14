@@ -7,7 +7,7 @@ from sublime.players.mpv import MPVPlayer
 
 def test_init():
     empty_fn = lambda *a, **k: None
-    MPVPlayer(empty_fn, empty_fn, empty_fn, {"Replay Gain": "Disabled"})
+    MPVPlayer(empty_fn, empty_fn, empty_fn, empty_fn, {"Replay Gain": "Disabled"})
 
 
 def is_close(expected: float, value: float, delta: float = 0.5) -> bool:
@@ -16,7 +16,9 @@ def is_close(expected: float, value: float, delta: float = 0.5) -> bool:
 
 def test_play():
     empty_fn = lambda *a, **k: None
-    mpv_player = MPVPlayer(empty_fn, empty_fn, empty_fn, {"Replay Gain": "Disabled"})
+    mpv_player = MPVPlayer(
+        empty_fn, empty_fn, empty_fn, empty_fn, {"Replay Gain": "Disabled"}
+    )
 
     song_path = Path(__file__).parent.joinpath("mock_data/test-song.mp3")
     mpv_player.play_media(str(song_path), timedelta(seconds=10), None)
