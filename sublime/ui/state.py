@@ -106,6 +106,7 @@ class UIState:
         self.playing = False
 
         from sublime.players import PlayerManager
+
         self.available_players = {
             pt: set() for pt in PlayerManager.available_player_types
         }

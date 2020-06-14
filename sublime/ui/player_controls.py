@@ -131,7 +131,6 @@ class PlayerControls(Gtk.ActionBar):
             GLib.timeout_add(350, cycle_connecting, connecting_to_device_token)
 
         icon = ""
-        print(app_config.state.current_device)
         if app_config.state.connecting_to_device:
             icon = "-connecting-0"
             self.connecting_icon_index = 0

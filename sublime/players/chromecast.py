@@ -123,7 +123,6 @@ class ChromecastPlayer(Player):
         self, status: pychromecast.controllers.media.MediaStatus,
     ):
         # Detect the end of a track and go to the next one.
-        print(status)
         if (
             status.idle_reason == "FINISHED"
             and status.player_state == "IDLE"
