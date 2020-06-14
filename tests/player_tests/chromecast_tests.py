@@ -3,7 +3,7 @@ from sublime.players.chromecast import ChromecastPlayer
 
 def test_init():
     empty_fn = lambda *a, **k: None
-    ChromecastPlayer(
+    chromecast_player = ChromecastPlayer(
         empty_fn,
         empty_fn,
         empty_fn,
@@ -13,3 +13,4 @@ def test_init():
             "LAN Server Port Number": 6969,
         },
     )
+    chromecast_player.shutdown()

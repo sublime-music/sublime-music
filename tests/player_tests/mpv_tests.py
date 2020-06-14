@@ -66,3 +66,4 @@ def test_play():
 
     # Pause so that it doesn't keep playing while testing
     mpv_player.pause()
+    mpv_player.shutdown()
