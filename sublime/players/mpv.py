@@ -83,6 +83,10 @@ class MPVPlayer(Player):
             )
         )
 
+    def set_current_device_id(self, device_id: str):
+        # Don't do anything beacuse it should always be the "this device" ID.
+        pass
+
     def shutdown(self):
         pass
 

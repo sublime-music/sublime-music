@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
 
 from sublime.adapters import AlbumSearchQuery
 from sublime.adapters.api_objects import Genre, Song
@@ -64,6 +64,8 @@ class UIState:
     song_stream_cache_progress: Optional[timedelta] = timedelta()
     current_device: str = "this device"
     connecting_to_device: bool = False
+    connected_device_name: Optional[str] = None
+    available_players: Dict[Type, Set[Tuple[str, str]]] = field(default_factory=dict)
 
     # UI state
     current_tab: str = "albums"
@@ -94,6 +96,7 @@ class UIState:
         del state["song_stream_cache_progress"]
         del state["current_notification"]
         del state["playing"]
+        del state["available_players"]
         return state
 
     def __setstate__(self, state: Dict[str, Any]):
@@ -101,6 +104,11 @@ class UIState:
         self.song_stream_cache_progress = None
         self.current_notification = None
         self.playing = False
+
+        from sublime.players import PlayerManager
+        self.available_players = {
+            pt: set() for pt in PlayerManager.available_player_types
+        }
 
     def migrate(self):
         pass

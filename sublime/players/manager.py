@@ -107,7 +107,14 @@ class PlayerManager:
 
     def set_current_device_id(self, device_id: str):
         logging.info(f"Setting current device id to '{device_id}'")
+        if cp := self._get_current_player():
+            cp.pause()
+
         self._current_device_id = device_id
+        self._get_current_player().set_current_device_id(device_id)
+
+        if cp := self._get_current_player():
+            cp.song_loaded = False
 
     def reset(self):
         if current_player := self._get_current_player():

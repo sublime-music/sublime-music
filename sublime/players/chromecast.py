@@ -82,7 +82,7 @@ class ChromecastPlayer(Player):
         self._stop_retrieve_chromecasts = None
         if chromecast_imported:
             self._chromecasts: Dict[str, pychromecast.Chromecast] = {}
-            self._current_chromecast = pychromecast.Chromecast
+            self._current_chromecast: Optional[pychromecast.Chromecast] = None
 
             def discovered_callback(chromecast: pychromecast.Chromecast):
                 self._chromecasts[chromecast.device.uuid] = chromecast
@@ -98,6 +98,9 @@ class ChromecastPlayer(Player):
             self._stop_retrieve_chromecasts = pychromecast.get_chromecasts(
                 blocking=False, callback=discovered_callback
             )
+
+    def set_current_device_id(self, device_id: str):
+        self._current_chromecast = self._chromecasts[device_id]
 
     def shutdown(self):
         if self._current_chromecast:

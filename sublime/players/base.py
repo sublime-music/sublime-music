@@ -75,10 +75,12 @@ class PlayerDeviceEvent:
     delta: Delta
     player_type: Type
     id: str
-    name: Optional[str] = None
+    name: str
 
 
 class Player(abc.ABC):
+    song_loaded = False
+
     @property
     @abc.abstractmethod
     def enabled(self) -> bool:
@@ -128,6 +130,12 @@ class Player(abc.ABC):
         :param config: A dictionary of configuration key -> configuration value
         """
 
+    @abc.abstractmethod
+    def set_current_device_id(self, device_id: str):
+        """
+        Switch to the given device ID.
+        """
+
     def reset(self):
         """
         Reset the player.
@@ -145,13 +153,6 @@ class Player(abc.ABC):
         """
         :returns: whether or not the player is currently playing a song.
         """
-
-    @property
-    def song_loaded(self) -> bool:
-        """
-        :returns: whether or not the player currently has a song loaded.
-        """
-        return False
 
     @abc.abstractmethod
     def get_volume(self) -> float:

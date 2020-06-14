@@ -276,12 +276,16 @@ class SublimeMusicApp(Gtk.Application):
                         self.app_config.state.current_device
                     )
                     self.player_manager.set_volume(self.app_config.state.volume)
+                    self.app_config.state.connected_device_name = event.name
                     self.app_config.state.connecting_to_device = False
-                # TODO actually add it
-                print("ADDED", event)
+                self.app_config.state.available_players[event.player_type].add(
+                    (event.id, event.name)
+                )
 
             elif event.delta == PlayerDeviceEvent.Delta.REMOVE:
-                print("REMOVED", event)
+                self.app_config.state.available_players[event.player_type].remove(
+                    (event.id, event.name)
+                )
 
             self.update_window()
 
@@ -876,20 +880,13 @@ class SublimeMusicApp(Gtk.Application):
         self.app_config.state.current_device = device_uuid
 
         was_playing = self.app_config.state.playing
-        self.player_manager.pause()
-        self.player_manager._song_loaded = False
+        self.player_manager.set_current_device_id(self.app_config.state.current_device)
         self.app_config.state.playing = False
 
         if self.dbus_manager:
             self.dbus_manager.property_diff()
 
         self.update_window()
-
-        if device_uuid == "this device":
-            self.player = self.mpv_player
-        else:
-            self.chromecast_player.set_playing_chromecast(device_uuid)
-            self.player = self.chromecast_player
 
         if was_playing:
             self.on_play_pause()

@@ -207,6 +207,11 @@ entry.invalid {
   min-width: 150px;
 }
 
+#device-type-section-title {
+  margin: 5px;
+  font-style: italic;
+}
+
 #up-next-popover #label {
   margin: 10px;
 }

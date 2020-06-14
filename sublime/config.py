@@ -157,9 +157,7 @@ class AppConfiguration(DataClassJsonMixin):
 
         if self.version < 6:
             self.player_config = {
-                "Local Playback": {
-                    "Replay Gain": ["no", "track", "album"][self._rg]
-                },
+                "Local Playback": {"Replay Gain": ["no", "track", "album"][self._rg]},
                 "Chromecast": {
                     "Serve Local Files to Chromecasts on the LAN": self._sol,
                     "LAN Server Port Number": self._pn,
