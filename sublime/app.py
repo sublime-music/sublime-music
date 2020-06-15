@@ -318,7 +318,6 @@ class SublimeMusicApp(Gtk.Application):
             lambda *a: GLib.idle_add(player_device_change_callback, *a),
             self.app_config.player_config,
         )
-        self.player_manager.init_players()
         GLib.timeout_add(10000, check_if_connected)
 
         # Update after Adapter Initial Sync

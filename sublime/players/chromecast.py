@@ -71,6 +71,8 @@ class ChromecastPlayer(Player):
         self.on_player_event = on_player_event
 
         if bottle_imported and self.config.get(SERVE_FILES_KEY):
+            # TODO (#222): should have a mechanism to update this. Maybe it should be
+            # determined every time we try and play a song.
             self.server_process = multiprocessing.Process(
                 target=self._run_server_process,
                 args=("0.0.0.0", self.config.get(LAN_PORT_KEY)),
@@ -241,6 +243,8 @@ class ChromecastPlayer(Player):
 
             # If this fails, then we are basically screwed, so don't care if it blows
             # up.
+            # TODO (#129): this does not work properly when on VPNs when the DNS is
+            # piped over the VPN tunnel.
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
             host_ip = s.getsockname()[0]

@@ -13,8 +13,6 @@ from .mpv import MPVPlayer  # noqa: F401
 class PlayerManager:
     # Available Players. Order matters for UI display.
     available_player_types: List[Type] = [MPVPlayer, ChromecastPlayer]
-    # TODO
-    # player_device_retrieval_process: Optional[multiprocessing.Process] = None
 
     @staticmethod
     def get_configuration_options() -> Dict[
@@ -46,15 +44,6 @@ class PlayerManager:
         self.device_id_type_map: Dict[str, Type] = {}
         self._current_device_id: Optional[str] = None
 
-        def callback_wrapper(pde: PlayerDeviceEvent):
-            self.device_id_type_map[pde.id] = pde.player_type
-            player_device_change_callback(pde)
-
-        self.player_device_change_callback = callback_wrapper
-
-    # We have to have both init and and init_players so that by the time that any of the
-    # players start calling the callback, the player manager exists on the app.
-    def init_players(self):
         self.players = {
             player_type: player_type(
                 self.on_timepos_change,
@@ -65,6 +54,12 @@ class PlayerManager:
             )
             for player_type in PlayerManager.available_player_types
         }
+
+        def callback_wrapper(pde: PlayerDeviceEvent):
+            self.device_id_type_map[pde.id] = pde.player_type
+            player_device_change_callback(pde)
+
+        self.player_device_change_callback = callback_wrapper
 
     has_done_one_retrieval = multiprocessing.Value("b", False)
 
