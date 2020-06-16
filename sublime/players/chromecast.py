@@ -5,7 +5,7 @@ import multiprocessing
 import os
 import socket
 from datetime import timedelta
-from typing import Callable, Dict, Optional, Set, Tuple, Type, Union
+from typing import Any, Callable, Dict, Optional, Set, Tuple, Type, Union
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -102,7 +102,7 @@ class ChromecastPlayer(Player):
         self._current_chromecast.register_status_listener(self)
         self._current_chromecast.wait()
 
-    def new_cast_status(self, status: pychromecast.socket_client.CastStatus):
+    def new_cast_status(self, status: Any):
         self.on_player_event(
             PlayerEvent(
                 PlayerEvent.EventType.VOLUME_CHANGE,
@@ -121,9 +121,7 @@ class ChromecastPlayer(Player):
 
     time_increment_order_token = 0
 
-    def new_media_status(
-        self, status: pychromecast.controllers.media.MediaStatus,
-    ):
+    def new_media_status(self, status: Any):
         # Detect the end of a track and go to the next one.
         if (
             status.idle_reason == "FINISHED"
