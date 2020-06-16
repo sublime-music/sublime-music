@@ -419,6 +419,8 @@ class PlayerControls(Gtk.ActionBar):
         for i, (player_type, players) in enumerate(
             app_config.state.available_players.items()
         ):
+            if len(players) == 0:
+                continue
             if i > 0:
                 self.device_list.add(
                     Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
@@ -431,7 +433,7 @@ class PlayerControls(Gtk.ActionBar):
                 )
             )
 
-            for player_id, player_name in sorted(players, key=lambda p: p[1]):
+            for player_id, player_name in players:
                 icon = (
                     "audio-volume-high-symbolic"
                     if player_id == self.current_device

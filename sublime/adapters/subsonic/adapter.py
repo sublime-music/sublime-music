@@ -538,9 +538,14 @@ class SubsonicAdapter(Adapter):
     def get_artist(self, artist_id: str) -> API.Artist:
         artist = self._get_json(self._make_url("getArtist"), id=artist_id).artist
         assert artist, f"Error getting artist {artist_id}"
-        artist.augment_with_artist_info(
-            self._get_json(self._make_url("getArtistInfo2"), id=artist_id).artist_info
-        )
+        try:
+            artist.augment_with_artist_info(
+                self._get_json(
+                    self._make_url("getArtistInfo2"), id=artist_id
+                ).artist_info
+            )
+        except Exception:
+            pass
         return artist
 
     def get_ignored_articles(self) -> Set[str]:

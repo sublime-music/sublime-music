@@ -44,6 +44,12 @@ class PlayerManager:
         self.device_id_type_map: Dict[str, Type] = {}
         self._current_device_id: Optional[str] = None
 
+        def callback_wrapper(pde: PlayerDeviceEvent):
+            self.device_id_type_map[pde.id] = pde.player_type
+            player_device_change_callback(pde)
+
+        self.player_device_change_callback = callback_wrapper
+
         self.players = {
             player_type: player_type(
                 self.on_timepos_change,
@@ -54,12 +60,6 @@ class PlayerManager:
             )
             for player_type in PlayerManager.available_player_types
         }
-
-        def callback_wrapper(pde: PlayerDeviceEvent):
-            self.device_id_type_map[pde.id] = pde.player_type
-            player_device_change_callback(pde)
-
-        self.player_device_change_callback = callback_wrapper
 
     has_done_one_retrieval = multiprocessing.Value("b", False)
 

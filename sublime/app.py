@@ -1010,6 +1010,8 @@ class SublimeMusicApp(Gtk.Application):
 
         def do_update(f: Result[PlayQueue]):
             play_queue = f.result()
+            if not play_queue:
+                return
             play_queue.position = play_queue.position or timedelta(0)
 
             new_play_queue = tuple(s.id for s in play_queue.songs)
