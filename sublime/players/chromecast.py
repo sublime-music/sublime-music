@@ -163,7 +163,7 @@ class ChromecastPlayer(Player):
             pass
 
     _serving_song_id = multiprocessing.Array("c", 1024)  # huge buffer, just in case
-    _serving_token = multiprocessing.Array("c", 12)
+    _serving_token = multiprocessing.Array("c", 16)
 
     def _run_server_process(self, host: str, port: int):
         app = bottle.Bottle()
@@ -233,10 +233,8 @@ class ChromecastPlayer(Player):
         assert self._current_chromecast
         scheme = urlparse(uri).scheme
         if scheme == "file":
-            token = base64.b64encode(os.urandom(8)).decode("ascii")
-            for r in (("+", "."), ("/", "-"), ("=", "_")):
-                token = token.replace(*r)
-            self._serving_token.value = token.encode()
+            token = base64.b16encode(os.urandom(8))
+            self._serving_token.value = token
             self._serving_song_id.value = song.id.encode()
 
             # If this fails, then we are basically screwed, so don't care if it blows
@@ -248,7 +246,8 @@ class ChromecastPlayer(Player):
             host_ip = s.getsockname()[0]
             s.close()
 
-            uri = f"http://{host_ip}:{self.config.get(LAN_PORT_KEY)}/s/{token}"
+            uri = f"http://{host_ip}:{self.config.get(LAN_PORT_KEY)}/s/{token.decode()}"
+            print(uri)
 
         cover_art_url = AdapterManager.get_cover_art_uri(song.cover_art, size=1000)
         self._current_chromecast.media_controller.play_media(

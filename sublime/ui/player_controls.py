@@ -433,7 +433,7 @@ class PlayerControls(Gtk.ActionBar):
                 )
             )
 
-            for player_id, player_name in players:
+            for player_id, player_name in sorted(players, key=lambda p: p[1]):
                 icon = (
                     "audio-volume-high-symbolic"
                     if player_id == self.current_device
