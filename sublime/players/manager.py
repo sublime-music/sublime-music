@@ -38,11 +38,16 @@ class PlayerManager:
     ):
         self.on_timepos_change = on_timepos_change
         self.on_track_end = on_track_end
-        self.on_player_event = on_player_event
         self.config = config
         self.players: Dict[Type, Any] = {}
         self.device_id_type_map: Dict[str, Type] = {}
         self._current_device_id: Optional[str] = None
+
+        def player_event_wrapper(pe: PlayerEvent):
+            if pe.device_id == self._current_device_id:
+                on_player_event(pe)
+
+        self.on_player_event = player_event_wrapper
 
         def callback_wrapper(pde: PlayerDeviceEvent):
             self.device_id_type_map[pde.id] = pde.player_type

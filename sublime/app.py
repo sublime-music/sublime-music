@@ -272,6 +272,7 @@ class SublimeMusicApp(Gtk.Application):
                 self.player_manager.set_current_device_id(
                     self.app_config.state.current_device
                 )
+                self.player_manager.set_volume(self.app_config.state.volume)
                 self.update_window()
 
         def player_device_change_callback(event: PlayerDeviceEvent):
@@ -885,8 +886,7 @@ class SublimeMusicApp(Gtk.Application):
             return
         self.app_config.state.current_device = device_id
 
-        was_playing = self.app_config.state.playing
-        if was_playing:
+        if was_playing := self.app_config.state.playing:
             self.on_play_pause()
 
         self.player_manager.set_current_device_id(self.app_config.state.current_device)
@@ -1313,9 +1313,7 @@ class SublimeMusicApp(Gtk.Application):
             if not can_play:
                 # There are no songs that can be played. Show a notification that you
                 # have to go online to play anything and then don't go further.
-                was_playing = False
-                if self.app_config.state.playing:
-                    was_playing = True
+                if was_playing := self.app_config.state.playing:
                     self.on_play_pause()
 
                 def go_online_clicked():
