@@ -29,11 +29,15 @@ encoder_functions = {
 
 for type_, translation_function in decoder_functions.items():
     dataclasses_json.cfg.global_config.decoders[type_] = translation_function
-    dataclasses_json.cfg.global_config.decoders[Optional[type_]] = translation_function
+    dataclasses_json.cfg.global_config.decoders[
+        Optional[type_]  # type: ignore
+    ] = translation_function
 
 for type_, translation_function in encoder_functions.items():
     dataclasses_json.cfg.global_config.encoders[type_] = translation_function
-    dataclasses_json.cfg.global_config.encoders[Optional[type_]] = translation_function
+    dataclasses_json.cfg.global_config.encoders[
+        Optional[type_]  # type: ignore
+    ] = translation_function
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)

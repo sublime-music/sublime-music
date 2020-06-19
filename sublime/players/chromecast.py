@@ -1,5 +1,6 @@
 import base64
 import io
+import logging
 import mimetypes
 import multiprocessing
 import os
@@ -247,7 +248,7 @@ class ChromecastPlayer(Player):
             s.close()
 
             uri = f"http://{host_ip}:{self.config.get(LAN_PORT_KEY)}/s/{token.decode()}"
-            print(uri)
+            logging.info("Serving {song.name} at {uri}")
 
         cover_art_url = AdapterManager.get_cover_art_uri(song.cover_art, size=1000)
         self._current_chromecast.media_controller.play_media(
