@@ -279,12 +279,9 @@ class ChromecastPlayer(Player):
         if self._current_chromecast and self._current_chromecast.media_controller:
             self._current_chromecast.media_controller.pause()
 
-    def toggle_play(self):
-        if self.playing:
-            self._current_chromecast.media_controller.pause()
-        else:
+    def play(self):
+        if self._current_chromecast and self._current_chromecast.media_controller:
             self._current_chromecast.media_controller.play()
-            # self._wait_for_playing(self._start_time_incrementor)
 
     def seek(self, position: timedelta):
         if not self._current_chromecast:

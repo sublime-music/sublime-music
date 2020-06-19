@@ -52,11 +52,9 @@ def test_play():
     mpv_player.pause()
     assert not mpv_player.playing
 
-    # Test toggle_play
-    mpv_player.toggle_play()
+    # Test play
+    mpv_player.play()
     assert mpv_player.playing
-    mpv_player.toggle_play()
-    assert not mpv_player.playing
 
     # Test seek
     sleep(0.1)

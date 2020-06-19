@@ -148,7 +148,10 @@ class PlayerManager:
 
     def toggle_play(self):
         if current_player := self._get_current_player():
-            current_player.toggle_play()
+            if PlayerManager.playing:
+                current_player.pause()
+            else:
+                current_player.play()
 
     def seek(self, position: timedelta):
         if current_player := self._get_current_player():

@@ -997,7 +997,11 @@ class SublimeMusicApp(Gtk.Application):
         if not self.window:
             return
         logging.info(f"Updating window force={force}")
-        GLib.idle_add(lambda: self.window.update(self.app_config, force=force))
+        GLib.idle_add(
+            lambda: self.window.update(
+                self.app_config, self.player_manager, force=force
+            )
+        )
 
     def update_play_state_from_server(self, prompt_confirm: bool = False):
         # TODO (#129): need to make the play queue list loading for the duration here if

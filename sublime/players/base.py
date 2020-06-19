@@ -184,11 +184,10 @@ class Player(abc.ABC):
         """
 
     @abc.abstractmethod
-    def toggle_play(self):
+    def play(self):
         """
-        Toggle the play state of the player.
+        Play the current media.
         """
-        # TODO can we get rid of this?
 
     def seek(self, position: timedelta):
         """

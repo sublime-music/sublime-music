@@ -10,6 +10,7 @@ from sublime.adapters import (
     Result,
 )
 from sublime.config import AppConfiguration, ProviderConfiguration
+from sublime.players import PlayerManager
 from sublime.ui import albums, artists, browse, player_controls, playlists, util
 from sublime.ui.common import IconButton, IconMenuButton, SpinnerImage
 
@@ -110,7 +111,12 @@ class MainWindow(Gtk.ApplicationWindow):
     current_notification_hash = None
     current_other_providers: Tuple[ProviderConfiguration, ...] = ()
 
-    def update(self, app_config: AppConfiguration, force: bool = False):
+    def update(
+        self,
+        app_config: AppConfiguration,
+        player_manager: PlayerManager,
+        force: bool = False,
+    ):
         notification = app_config.state.current_notification
         if notification and (h := hash(notification)) != self.current_notification_hash:
             self.current_notification_hash = h
@@ -196,6 +202,7 @@ class MainWindow(Gtk.ApplicationWindow):
         # Main Settings
         self.notification_switch.set_active(app_config.song_play_notification)
 
+        print(player_manager.get_configuration_options())
         # TODO
         # # MPV Settings
         # self.replay_gain_options.set_active_id(app_config.replay_gain.as_string())

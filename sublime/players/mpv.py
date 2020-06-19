@@ -120,8 +120,8 @@ class MPVPlayer(Player):
     def pause(self):
         self.mpv.pause = True
 
-    def toggle_play(self):
-        self.mpv.cycle("pause")
+    def play(self):
+        self.mpv.pause = False
 
     def seek(self, position: timedelta):
         self.mpv.seek(str(position.total_seconds()), "absolute")

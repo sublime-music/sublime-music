@@ -449,8 +449,6 @@ class PlayerControls(Gtk.ActionBar):
                 self.device_list.add(button)
 
         self.device_list.show_all()
-        for c in self.device_list_loading_container.get_children():
-            self.device_list_loading_container.remove(c)
 
     def on_device_click(self, _: Any):
         if self.device_popover.is_visible():
@@ -688,10 +686,6 @@ class PlayerControls(Gtk.ActionBar):
 
         self.device_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         device_list_and_loading.add(self.device_list)
-
-        # TODO can we remove?
-        self.device_list_loading_container = Gtk.Box()
-        device_list_and_loading.add(self.device_list_loading_container)
 
         device_popover_box.pack_end(device_list_and_loading, True, True, 0)
 
