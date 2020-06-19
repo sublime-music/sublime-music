@@ -148,7 +148,7 @@ class PlayerManager:
 
     def toggle_play(self):
         if current_player := self._get_current_player():
-            if PlayerManager.playing:
+            if self.playing:
                 current_player.pause()
             else:
                 current_player.play()

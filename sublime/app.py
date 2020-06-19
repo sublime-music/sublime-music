@@ -325,15 +325,6 @@ class SublimeMusicApp(Gtk.Application):
         inital_sync_result = AdapterManager.initial_sync()
         inital_sync_result.add_done_callback(lambda _: self.update_window())
 
-        # Start a loop for periodically updating the window every 10 seconds.
-        def periodic_update():
-            if self.exiting:
-                return
-            self.update_window()
-            GLib.timeout_add(10000, periodic_update)
-
-        GLib.timeout_add(10000, periodic_update)
-
         # Prompt to load the play queue from the server.
         if AdapterManager.can_get_play_queue():
             self.update_play_state_from_server(prompt_confirm=True)
@@ -579,6 +570,11 @@ class SublimeMusicApp(Gtk.Application):
                 AdapterManager.on_offline_mode_change(offline_mode)
 
             del state_updates["__settings__"]
+
+        if player_setting := state_updates.get("__player_setting__"):
+            player_name, option_name, value = player_setting
+            self.app_config.player_config[player_name][option_name] = value
+            del state_updates["__player_setting__"]
 
         for k, v in state_updates.items():
             setattr(self.app_config.state, k, v)
