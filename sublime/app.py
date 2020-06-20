@@ -353,13 +353,12 @@ class SublimeMusicApp(Gtk.Application):
         params: GLib.Variant,
         invocation: Gio.DBusMethodInvocation,
     ):
-        second_microsecond_conversion = 1000000
-
         def seek_fn(offset: float):
             if not self.app_config.state.current_song:
                 return
-            offset_seconds = timedelta(seconds=offset / second_microsecond_conversion)
-            new_seconds = self.app_config.state.song_progress + offset_seconds
+            new_seconds = self.app_config.state.song_progress + timedelta(
+                microseconds=offset
+            )
 
             # This should not ever happen. The current_song should always have
             # a duration, but the Child object has `duration` optional because
@@ -368,7 +367,7 @@ class SublimeMusicApp(Gtk.Application):
             self.on_song_scrub(
                 None,
                 (
-                    new_seconds
+                    new_seconds.total_seconds()
                     / self.app_config.state.current_song.duration.total_seconds()
                 )
                 * 100,
@@ -377,7 +376,7 @@ class SublimeMusicApp(Gtk.Application):
         def set_pos_fn(track_id: str, position: float = 0):
             if self.app_config.state.playing:
                 self.on_play_pause()
-            pos_seconds = timedelta(seconds=position / second_microsecond_conversion)
+            pos_seconds = timedelta(microseconds=position)
             self.app_config.state.song_progress = pos_seconds
             track_id, occurrence = track_id.split("/")[-2:]
 
@@ -853,7 +852,7 @@ class SublimeMusicApp(Gtk.Application):
             self.save_play_queue()
 
     @dbus_propagate()
-    def on_song_scrub(self, win: Any, scrub_value: float):
+    def on_song_scrub(self, _, scrub_value: float):
         if not self.app_config.state.current_song or not self.window:
             return
 
@@ -876,7 +875,7 @@ class SublimeMusicApp(Gtk.Application):
 
         self.save_play_queue()
 
-    def on_device_update(self, win: Any, device_id: str):
+    def on_device_update(self, _, device_id: str):
         assert self.player_manager
         if device_id == self.app_config.state.current_device:
             return
