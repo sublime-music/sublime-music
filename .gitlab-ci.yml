@@ -15,7 +15,7 @@ cache:
   paths:
     - .venv/
 
-image: registry.gitlab.com/sumner/sublime-music/python-build:latest
+image: registry.gitlab.com/sublime-music/sublime-music/python-build:latest
 
 lint:
   stage: test
@@ -54,7 +54,7 @@ build:
     expire_in: 7 days
 
 build_flatpak:
-  image: registry.gitlab.com/sumner/sublime-music/flatpak-build:latest
+  image: registry.gitlab.com/sublime-music/sublime-music/flatpak-build:latest
   allow_failure: true
   stage: build
   script:
