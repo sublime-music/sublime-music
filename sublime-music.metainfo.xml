@@ -42,44 +42,44 @@
     <screenshots>
         <screenshot type="default">
             <caption>Album cover tab</caption>
-            <image>https://sumner.gitlab.io/sublime-music/_images/albums.png</image>
+            <image>https://sublime-music.gitlab.io/sublime-music/_images/albums.png</image>
         </screenshot>
         <screenshot type="default">
             <caption>Artists tab</caption>
-            <image>https://sumner.gitlab.io/sublime-music/_images/artists.png</image>
+            <image>https://sublime-music.gitlab.io/sublime-music/_images/artists.png</image>
         </screenshot>
         <screenshot type="default">
             <caption>Browse tab</caption>
-            <image>https://sumner.gitlab.io/sublime-music/_images/browse.png</image>
+            <image>https://sublime-music.gitlab.io/sublime-music/_images/browse.png</image>
         </screenshot>
         <screenshot type="default">
             <caption>Playlists tab</caption>
-            <image>https://sumner.gitlab.io/sublime-music/_images/playlists.png</image>
+            <image>https://sublime-music.gitlab.io/sublime-music/_images/playlists.png</image>
         </screenshot>
         <screenshot type="default">
             <caption>Play queue</caption>
-            <image>https://sumner.gitlab.io/sublime-music/_images/play-queue.png</image>
+            <image>https://sublime-music.gitlab.io/sublime-music/_images/play-queue.png</image>
         </screenshot>
         <screenshot type="default">
             <caption>Play on other devices</caption>
-            <image>https://sumner.gitlab.io/sublime-music/_images/chromecasts.png</image>
+            <image>https://sublime-music.gitlab.io/sublime-music/_images/chromecasts.png</image>
         </screenshot>
         <screenshot type="default">
             <caption>Fuzzy search for artists, albums, songs, and playlists</caption>
-            <image>https://sumner.gitlab.io/sublime-music/_images/search.png</image>
+            <image>https://sublime-music.gitlab.io/sublime-music/_images/search.png</image>
         </screenshot>
         <screenshot type="default">
             <caption>View current downloads</caption>
-            <image>https://sumner.gitlab.io/sublime-music/_images/downloads.png</image>
+            <image>https://sublime-music.gitlab.io/sublime-music/_images/downloads.png</image>
         </screenshot>
         <screenshot type="default">
             <caption>Offline mode</caption>
-            <image>https://sumner.gitlab.io/sublime-music/_images/offline-mode.png</image>
+            <image>https://sublime-music.gitlab.io/sublime-music/_images/offline-mode.png</image>
         </screenshot>
     </screenshots>
 
     <url type="homepage">https://sublimemusic.app</url>
-    <url type="bugtracker">https://gitlab.com/sumner/sublime-music/issues</url>
+    <url type="bugtracker">https://gitlab.com/sublime-music/sublime-music/issues</url>
 
     <provides>
         <id>sublime-music.desktop</id>

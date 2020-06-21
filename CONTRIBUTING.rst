@@ -10,7 +10,7 @@ Issue Reporting
 ===============
 
 You can report issues or propose features using the GitLab Issues feature for
-this repository: https://gitlab.com/sumner/sublime-music/issues.
+this repository: https://gitlab.com/sublime-music/sublime-music/issues.
 
 Please note that as of right now, I (Sumner) am basically the only contributor
 to this project, so my response time to your issue may be anywhere from instant
@@ -35,7 +35,7 @@ To get an overview of the Sublime Music code structure, I recommend taking a
 look at the |docs|_.
 
 .. |docs| replace:: ``sublime`` package documentation
-.. _docs: https://sumner.gitlab.io/sublime-music/api/sublime.html
+.. _docs: https://sublime-music.gitlab.io/sublime-music/api/sublime.html
 
 Requirements
 ------------
@@ -201,4 +201,4 @@ application to PyPi. A brief description of each of the stages is as follows:
     Creates a new `GitLab Release`_ using the content from the most recent
     section of the ``CHANGELOG``.
 
-.. _GitLab Release: https://gitlab.com/sumner/sublime-music/-/releases
+.. _GitLab Release: https://gitlab.com/sublime-music/sublime-music/-/releases

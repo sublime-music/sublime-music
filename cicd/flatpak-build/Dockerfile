@@ -1,6 +1,6 @@
 FROM fedora:30
 
-MAINTAINER robozman "https://gitlab.com/robozman"
+LABEL maintainer robozman "https://gitlab.com/robozman"
 
 VOLUME [ "/sys/fs/cgroup", "/tmp", "/run" ]
 

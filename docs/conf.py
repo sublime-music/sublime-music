@@ -21,7 +21,7 @@ import datetime
 project = "Sublime Music"
 copyright = f"{datetime.datetime.today().year}, Sumner Evans"
 author = "Sumner Evans"
-gitlab_url = "https://gitlab.com/sumner/sublime-music/"
+gitlab_url = "https://gitlab.com/sublime-music/sublime-music/"
 
 # Get the version from the package.
 import sublime
@@ -81,7 +81,7 @@ html_theme_options = {
 # Edit on GitLab integration
 html_context = {
     "display_gitlab": True,
-    "gitlab_user": "sumner",
+    "gitlab_user": "sublime-music",
     "gitlab_repo": "sublime-music",
     "gitlab_version": "master",
     "conf_py_path": "/docs/",

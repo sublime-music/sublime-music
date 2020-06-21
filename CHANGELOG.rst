@@ -7,7 +7,7 @@ v0.10.3
 This is a hotfix release. I forgot to add the Subsonic logo resources to
 ``setup.py``. All of the interesting updates happened in `v0.10.2`_.
 
-.. _v0.10.2: https://gitlab.com/sumner/sublime-music/-/releases/v0.10.2
+.. _v0.10.2: https://gitlab.com/sublime-music/sublime-music/-/releases/v0.10.2
 
 v0.10.2
 =======
@@ -16,7 +16,7 @@ v0.10.2
 
    This version does not have a Flatpak due to issues getting Python 3.8 working
    within the Flatpak environment. See `Issue #218
-   <https://gitlab.com/sumner/sublime-music/-/issues/218_>`_
+   <https://gitlab.com/sublime-music/sublime-music/-/issues/218_>`_
 
 .. warning::
 
@@ -120,7 +120,7 @@ and performant.
   longer reliant on Subsonic. This means that in the future, more backends can
   be added.
 
-.. _Adapter API: https://sumner.gitlab.io/sublime-music/adapter-api.html
+.. _Adapter API: https://sublime-music.gitlab.io/sublime-music/adapter-api.html
 
 v0.9.2
 ======
@@ -293,9 +293,9 @@ v0.8.10
 * **Infrastructure**
 
   * Auto-deploy of documentation to GitLab Pages:
-    https://sumner.gitlab.io/sublime-music.
+    https://sublime-music.gitlab.io/sublime-music.
   * Code coverage report now available for latest ``master`` at
-    https://sumner.gitlab.io/sublime-music/htmlcov.
+    https://sublime-music.gitlab.io/sublime-music/htmlcov.
   * Lint step also disallows ``print()`` statements in code.
 
 v0.8.9

@@ -1,4 +1,4 @@
-.. image:: https://gitlab.com/sumner/sublime-music/-/raw/master/logo/logo.png
+.. image:: https://gitlab.com/sublime-music/sublime-music/-/raw/master/logo/logo.png
    :alt: Sublime Music Logo
 
 Sublime Music is a GTK3
@@ -16,12 +16,12 @@ Linux Desktop.
 |userdoc|_
 
 .. |userdoc| replace:: **Click HERE for extended user documentation.**
-.. _userdoc: https://sumner.gitlab.io/sublime-music/
+.. _userdoc: https://sublime-music.gitlab.io/sublime-music/
 
 See the |contributing|_ document for how to contribute to this project.
 
 .. |contributing| replace:: ``CONTRIBUTING.rst``
-.. _contributing: https://gitlab.com/sumner/sublime-music/-/blob/master/CONTRIBUTING.rst
+.. _contributing: https://gitlab.com/sublime-music/sublime-music/-/blob/master/CONTRIBUTING.rst
 
 You can also join the conversation in our Matrix room:
 `#sublime-music:matrix.org <https://matrix.to/#/!veTDkgvBExJGKIBYlU:matrix.org?via=matrix.org>`_.

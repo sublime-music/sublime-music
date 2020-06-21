@@ -73,7 +73,7 @@ and run it by executing::
 
     flatpak run com.sumnerevans.SublimeMusic
 
-.. _Releases: https://gitlab.com/sumner/sublime-music/-/releases
+.. _Releases: https://gitlab.com/sublime-music/sublime-music/-/releases
 
 **Via PyPi**::
 

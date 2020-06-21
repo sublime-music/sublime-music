@@ -30,7 +30,7 @@ for data_dir in package_data_dirs:
 setup(
     name="sublime-music",
     version=version,
-    url="https://gitlab.com/sumner/sublime-music",
+    url="https://gitlab.com/sublime-music/sublime-music",
     description="A native GTK *sonic client.",
     long_description=long_description,
     author="Sumner Evans",

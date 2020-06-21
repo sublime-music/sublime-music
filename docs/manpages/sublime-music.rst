@@ -38,4 +38,4 @@ BUGS
 ----
 
 You can report bugs in your distribution issue tracker or upstream at
-https://gitlab.com/sumner/sublime-music/-/issues
+https://gitlab.com/sublime-music/sublime-music/-/issues
