@@ -489,6 +489,12 @@ class AdapterManager:
                                         ),
                                     )
 
+                    if total_size != total_consumed:
+                        raise AssertionError(
+                            "Actual download size ({total_consumed}) differs from "
+                            "expected size ({total_size})."
+                        )
+
                     # Everything succeeded.
                     if expected_size_exists:
                         AdapterManager._instance.song_download_progress(
