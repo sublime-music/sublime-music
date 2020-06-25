@@ -446,7 +446,7 @@ class AdapterManager:
                     # Wait 10 seconds to connect to the server and start downloading.
                     # Then, for each of the blocks, give 5 seconds to download (which
                     # should be more than enough for 1 KiB).
-                    request = requests.get(uri, stream=True, timeout=(10, 5))
+                    request = requests.get(uri, stream=True)
                     if "json" in request.headers.get("Content-Type", ""):
                         raise Exception("Didn't expect JSON!")
 
@@ -491,8 +491,8 @@ class AdapterManager:
 
                     if total_size != total_consumed:
                         raise AssertionError(
-                            "Actual download size ({total_consumed}) differs from "
-                            "expected size ({total_size})."
+                            f"Actual download size ({total_consumed}) differs from "
+                            f"expected size ({total_size})."
                         )
 
                     # Everything succeeded.
