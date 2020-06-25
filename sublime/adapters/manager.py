@@ -446,7 +446,7 @@ class AdapterManager:
                     # Wait 10 seconds to connect to the server and start downloading.
                     # Then, for each of the blocks, give 5 seconds to download (which
                     # should be more than enough for 1 KiB).
-                    request = requests.get(uri, stream=True)
+                    request = requests.get(uri, stream=True, timeout=None)
                     if "json" in request.headers.get("Content-Type", ""):
                         raise Exception("Didn't expect JSON!")
 
