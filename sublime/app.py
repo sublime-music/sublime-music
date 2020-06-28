@@ -577,7 +577,8 @@ class SublimeMusicApp(Gtk.Application):
             player_name, option_name, value = player_setting
             self.app_config.player_config[player_name][option_name] = value
             del state_updates["__player_setting__"]
-            # TODO update the actual player settings
+            if pm := self.player_manager:
+                pm.change_settings(self.app_config.player_config)
 
         for k, v in state_updates.items():
             setattr(self.app_config.state, k, v)
