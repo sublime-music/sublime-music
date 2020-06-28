@@ -57,6 +57,7 @@ class MPVPlayer(Player):
             on_player_event(
                 PlayerEvent(
                     PlayerEvent.EventType.STREAM_CACHE_PROGRESS_CHANGE,
+                    "this device",
                     stream_cache_duration=value,
                 )
             )

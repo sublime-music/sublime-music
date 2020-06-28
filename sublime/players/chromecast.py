@@ -77,7 +77,7 @@ class ChromecastPlayer(Player):
             self._chromecasts: Dict[UUID, pychromecast.Chromecast] = {}
             self._current_chromecast: Optional[pychromecast.Chromecast] = None
 
-            self.get_chromecasts_job = None
+            self.stop_get_chromecasts = None
             self.refresh_players()
 
     def chromecast_discovered_callback(self, chromecast: Any):
@@ -115,22 +115,22 @@ class ChromecastPlayer(Player):
         if not chromecast_imported:
             return
 
-        if self.get_chromecasts_job is not None:
-            pychromecast.discovery.stop_discovery(self.get_chromecasts_job)
+        if self.stop_get_chromecasts is not None:
+            self.stop_get_chromecasts()
 
         for id_, chromecast in self._chromecasts.items():
             self.player_device_change_callback(
                 PlayerDeviceEvent(
                     PlayerDeviceEvent.Delta.REMOVE,
                     type(self),
-                    id_,
+                    str(id_),
                     chromecast.device.friendly_name,
                 )
             )
 
         self._chromecasts = {}
 
-        self.get_chromecasts_job = pychromecast.get_chromecasts(
+        self.stop_get_chromecasts = pychromecast.get_chromecasts(
             blocking=False, callback=self.chromecast_discovered_callback
         )
 
@@ -141,9 +141,11 @@ class ChromecastPlayer(Player):
         self._current_chromecast.wait()
 
     def new_cast_status(self, status: Any):
+        assert self._current_chromecast
         self.on_player_event(
             PlayerEvent(
                 PlayerEvent.EventType.VOLUME_CHANGE,
+                str(self._current_chromecast.device.uuid),
                 volume=(status.volume_level * 100 if not status.volume_muted else 0),
             )
         )
@@ -152,9 +154,18 @@ class ChromecastPlayer(Player):
         # Home app.
         if status.session_id is None:
             self.on_player_event(
-                PlayerEvent(PlayerEvent.EventType.PLAY_STATE_CHANGE, playing=False)
+                PlayerEvent(
+                    PlayerEvent.EventType.PLAY_STATE_CHANGE,
+                    str(self._current_chromecast.device.uuid),
+                    playing=False,
+                )
             )
-            self.on_player_event(PlayerEvent(PlayerEvent.EventType.DISCONNECT))
+            self.on_player_event(
+                PlayerEvent(
+                    PlayerEvent.EventType.DISCONNECT,
+                    str(self._current_chromecast.device.uuid),
+                )
+            )
             self.song_loaded = False
 
     time_increment_order_token = 0
@@ -173,9 +184,11 @@ class ChromecastPlayer(Player):
 
         self._timepos = status.current_time
 
+        assert self._current_chromecast
         self.on_player_event(
             PlayerEvent(
                 PlayerEvent.EventType.PLAY_STATE_CHANGE,
+                str(self._current_chromecast.device.uuid),
                 playing=(status.player_state in ("PLAYING", "BUFFERING")),
             )
         )
@@ -307,6 +320,7 @@ class ChromecastPlayer(Player):
         self.on_player_event(
             PlayerEvent(
                 PlayerEvent.EventType.STREAM_CACHE_PROGRESS_CHANGE,
+                str(self._current_chromecast.device.uuid),
                 stream_cache_duration=0,
             )
         )

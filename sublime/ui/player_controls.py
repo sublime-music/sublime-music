@@ -457,11 +457,6 @@ class PlayerControls(Gtk.ActionBar):
             self.device_popover.popup()
             self.device_popover.show_all()
 
-    def on_device_refresh_click(self, _: Any):
-        # TODO: make this an action that does stuff with the player manager to delete
-        # all of the things and then restart retrieving the players.
-        pass
-
     def on_play_queue_button_press(self, tree: Any, event: Gdk.EventButton) -> bool:
         if event.button == 3:  # Right click
             clicked_path = tree.get_path_at_pos(event.x, event.y)
@@ -677,7 +672,7 @@ class PlayerControls(Gtk.ActionBar):
         device_popover_header.add(self.popover_label)
 
         refresh_devices = IconButton("view-refresh-symbolic", "Refresh device list")
-        refresh_devices.connect("clicked", self.on_device_refresh_click)
+        refresh_devices.set_action_name("app.refresh-devices")
         device_popover_header.pack_end(refresh_devices, False, False, 0)
 
         device_popover_box.add(device_popover_header)

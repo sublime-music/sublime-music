@@ -47,10 +47,10 @@ class PlayerEvent:
         DISCONNECT = 5
 
     type: EventType
+    device_id: str
     playing: Optional[bool] = None
     volume: Optional[float] = None
     stream_cache_duration: Optional[float] = None
-    device_id: Optional[str] = None
 
 
 @dataclass

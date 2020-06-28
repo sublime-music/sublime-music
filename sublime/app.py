@@ -100,6 +100,7 @@ class SublimeMusicApp(Gtk.Application):
         add_action("go-to-playlist", self.on_go_to_playlist, parameter_type="s")
 
         add_action("go-online", self.on_go_online)
+        add_action("refresh-devices", self.on_refresh_devices)
         add_action(
             "refresh-window", lambda *a: self.on_refresh_window(None, {}, True),
         )
@@ -294,6 +295,8 @@ class SublimeMusicApp(Gtk.Application):
                 )
 
             elif event.delta == PlayerDeviceEvent.Delta.REMOVE:
+                if state_device == event.id:
+                    self.player_manager.pause()
                 self.app_config.state.available_players[event.player_type].remove(
                     (event.id, event.name)
                 )
@@ -574,6 +577,7 @@ class SublimeMusicApp(Gtk.Application):
             player_name, option_name, value = player_setting
             self.app_config.player_config[player_name][option_name] = value
             del state_updates["__player_setting__"]
+            # TODO update the actual player settings
 
         for k, v in state_updates.items():
             setattr(self.app_config.state, k, v)
@@ -770,6 +774,9 @@ class SublimeMusicApp(Gtk.Application):
 
     def on_go_online(self, *args):
         self.on_refresh_window(None, {"__settings__": {"offline_mode": False}})
+
+    def on_refresh_devices(self, *args):
+        self.player_manager.refresh_players()
 
     def reset_state(self):
         if self.app_config.state.playing:
