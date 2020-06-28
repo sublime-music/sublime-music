@@ -38,11 +38,7 @@ class MPVPlayer(Player):
     ):
         self.mpv = mpv.MPV()
         self.mpv.audio_client_name = "sublime-music"
-        self.mpv.replaygain = {
-            "Disabled": "no",
-            "Track": "track",
-            "Album": "album",
-        }.get(cast(str, config.get(REPLAY_GAIN_KEY, "Disabled")), "no")
+        self.change_settings(config)
 
         @self.mpv.property_observer("time-pos")
         def time_observer(_, value: Optional[float]):
@@ -71,6 +67,18 @@ class MPVPlayer(Player):
                 PlayerDeviceEvent.Delta.ADD, type(self), "this device", "This Device"
             )
         )
+
+    def change_settings(self, config: Dict[str, Union[str, int, bool]]):
+        self.config = config
+        self.mpv.replaygain = {
+            "Disabled": "no",
+            "Track": "track",
+            "Album": "album",
+        }.get(cast(str, config.get(REPLAY_GAIN_KEY, "Disabled")), "no")
+
+    def refresh_players(self):
+        # Don't do anything
+        pass
 
     def set_current_device_id(self, device_id: str):
         # Don't do anything beacuse it should always be the "this device" ID.

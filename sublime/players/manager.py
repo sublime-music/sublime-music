@@ -66,7 +66,16 @@ class PlayerManager:
             for player_type in PlayerManager.available_player_types
         }
 
-    has_done_one_retrieval = multiprocessing.Value("b", False)
+    def change_settings(
+        self, config: Dict[str, Dict[str, Union[Type, Tuple[str, ...]]]],
+    ):
+        self.config = config
+        for player_type, player in self.players.items():
+            player.change_settings(config.get(player_type.name))
+
+    def refresh_players(self):
+        for player in self.players.values():
+            player.refresh_players()
 
     def shutdown(self):
         for p in self.players.values():

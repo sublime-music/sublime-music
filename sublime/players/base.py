@@ -99,7 +99,7 @@ class Player(abc.ABC):
     def get_configuration_options() -> Dict[str, Union[Type, Tuple[str, ...]]]:
         """
         :returns: a dictionary of configuration key -> type of the option or tuple of
-            options (for a dropdown menu)
+            options (for a dropdown menu).
         """
 
     @abc.abstractmethod
@@ -114,7 +114,27 @@ class Player(abc.ABC):
         """
         Initialize the player.
 
-        :param config: A dictionary of configuration key -> configuration value
+        :param config: A dictionary of configuration key -> configuration value.
+        """
+
+    @abc.abstractmethod
+    def change_settings(self, config: Dict[str, Union[str, int, bool]]):
+        """
+        This function is called when the player settings are changed (normally this
+        happens when the user changes the settings in the UI).
+
+        :param config: A dictionary of configuration key -> configuration value.
+        """
+
+    @abc.abstractmethod
+    def refresh_players(self):
+        """
+        This function is called when the user requests the player list to be refreshed
+        in the UI.
+
+        This function should call the ``player_device_change_callback`` with the delta
+        events to indicate changes to the UI. If there is no reason to refresh (for
+        example, the MPV player), then this function can do nothing.
         """
 
     @abc.abstractmethod

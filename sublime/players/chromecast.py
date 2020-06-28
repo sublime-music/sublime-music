@@ -6,7 +6,7 @@ import multiprocessing
 import os
 import socket
 from datetime import timedelta
-from typing import Any, Callable, Dict, Optional, Set, Tuple, Type, Union
+from typing import Any, Callable, cast, Dict, Optional, Set, Tuple, Type, Union
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -65,37 +65,74 @@ class ChromecastPlayer(Player):
         player_device_change_callback: Callable[[PlayerDeviceEvent], None],
         config: Dict[str, Union[str, int, bool]],
     ):
-        self.server_process = None
-        self.config = config
+        self.server_process: Optional[multiprocessing.Process] = None
         self.on_timepos_change = on_timepos_change
         self.on_track_end = on_track_end
         self.on_player_event = on_player_event
+        self.player_device_change_callback = player_device_change_callback
 
+        self.change_settings(config)
+
+        if chromecast_imported:
+            self._chromecasts: Dict[UUID, pychromecast.Chromecast] = {}
+            self._current_chromecast: Optional[pychromecast.Chromecast] = None
+
+            self.get_chromecasts_job = None
+            self.refresh_players()
+
+    def chromecast_discovered_callback(self, chromecast: Any):
+        chromecast = cast(pychromecast.Chromecast, chromecast)
+        self._chromecasts[chromecast.device.uuid] = chromecast
+        self.player_device_change_callback(
+            PlayerDeviceEvent(
+                PlayerDeviceEvent.Delta.ADD,
+                type(self),
+                str(chromecast.device.uuid),
+                chromecast.device.friendly_name,
+            )
+        )
+
+    def change_settings(self, config: Dict[str, Union[str, int, bool]]):
+        if not chromecast_imported:
+            return
+
+        self.config = config
         if bottle_imported and self.config.get(SERVE_FILES_KEY):
-            # TODO (#222): should have a mechanism to update this. Maybe it should be
-            # determined every time we try and play a song.
+            # Try and terminate the existing process if it exists.
+            if self.server_process is not None:
+                try:
+                    self.server_process.terminate()
+                except Exception:
+                    pass
+
             self.server_process = multiprocessing.Process(
                 target=self._run_server_process,
                 args=("0.0.0.0", self.config.get(LAN_PORT_KEY)),
             )
             self.server_process.start()
 
-        if chromecast_imported:
-            self._chromecasts: Dict[UUID, pychromecast.Chromecast] = {}
-            self._current_chromecast: Optional[pychromecast.Chromecast] = None
+    def refresh_players(self):
+        if not chromecast_imported:
+            return
 
-            def discovered_callback(chromecast: pychromecast.Chromecast):
-                self._chromecasts[chromecast.device.uuid] = chromecast
-                player_device_change_callback(
-                    PlayerDeviceEvent(
-                        PlayerDeviceEvent.Delta.ADD,
-                        type(self),
-                        str(chromecast.device.uuid),
-                        chromecast.device.friendly_name,
-                    )
+        if self.get_chromecasts_job is not None:
+            pychromecast.discovery.stop_discovery(self.get_chromecasts_job)
+
+        for id_, chromecast in self._chromecasts.items():
+            self.player_device_change_callback(
+                PlayerDeviceEvent(
+                    PlayerDeviceEvent.Delta.REMOVE,
+                    type(self),
+                    id_,
+                    chromecast.device.friendly_name,
                 )
+            )
 
-            pychromecast.get_chromecasts(blocking=False, callback=discovered_callback)
+        self._chromecasts = {}
+
+        self.get_chromecasts_job = pychromecast.get_chromecasts(
+            blocking=False, callback=self.chromecast_discovered_callback
+        )
 
     def set_current_device_id(self, device_id: str):
         self._current_chromecast = self._chromecasts[UUID(device_id)]

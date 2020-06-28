@@ -617,7 +617,7 @@ class SublimeMusicApp(Gtk.Application):
         if confirm_dialog.run() == Gtk.ResponseType.YES:
             assert self.app_config.cache_location
             provider_dir = self.app_config.cache_location.joinpath(provider.id)
-            shutil.rmtree(str(provider_dir))
+            shutil.rmtree(str(provider_dir), ignore_errors=True)
             del self.app_config.providers[provider.id]
 
         confirm_dialog.destroy()
