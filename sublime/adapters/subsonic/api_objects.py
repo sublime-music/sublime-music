@@ -253,7 +253,7 @@ class PlayQueue(SublimeAPI.PlayQueue):
             # because the Subsonic API is sometime stupid.
             self.position = pos / 1000
         if cur := self.current:
-            self.current_index = [int(s.id) for s in self.songs].index(cur)
+            self.current_index = [s.id for s in self.songs].index(str(cur))
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
