@@ -25,6 +25,8 @@ def test_config_default_cache_location():
 
 
 def test_server_property():
+    # TODO change the cache location so it doesn't clutter the
+    # ~/.local/share/sublime-music directory
     config = AppConfiguration()
     provider = ProviderConfiguration(
         id="1",

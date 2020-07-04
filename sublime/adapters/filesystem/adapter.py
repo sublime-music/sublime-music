@@ -4,7 +4,7 @@ import shutil
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast, Dict, Optional, Sequence, Set, Tuple, Union
+from typing import Any, cast, Dict, Iterable, Optional, Sequence, Set, Tuple, Union
 
 from gi.repository import Gtk
 from peewee import fn, prefetch
@@ -472,13 +472,14 @@ class FilesystemAdapter(CachingAdapter):
 
         # TODO (#201): refactor to to be a recursive function like invalidate_data?
 
-        cache_info_extra: Dict[str, Any] = {}
-
         logging.debug(
             f"_do_ingest_new_data param={param} data_key={data_key} data={data}"
         )
 
         # TODO refactor to deal with partial data.
+        def getattrs(obj: Any, keys: Iterable[str]) -> Dict[str, Any]:
+            return {k: getattr(obj, k) for k in keys}
+
         def setattrs(obj: Any, data: Dict[str, Any]):
             for k, v in data.items():
                 if v is not None:
@@ -532,41 +533,6 @@ class FilesystemAdapter(CachingAdapter):
 
             return genre
 
-        def ingest_album_data(
-            api_album: API.Album, exclude_artist: bool = False
-        ) -> models.Album:
-            album_id = api_album.id or f"invalid:{self._strhash(api_album.name)}"
-            album_data = {
-                "id": album_id,
-                "name": api_album.name,
-                "created": getattr(api_album, "created", None),
-                "duration": getattr(api_album, "duration", None),
-                "play_count": getattr(api_album, "play_count", None),
-                "song_count": getattr(api_album, "song_count", None),
-                "starred": getattr(api_album, "starred", None),
-                "year": getattr(api_album, "year", None),
-                "genre": ingest_genre_data(g) if (g := api_album.genre) else None,
-                "artist": ingest_artist_data(ar) if (ar := api_album.artist) else None,
-                "_songs": [
-                    ingest_song_data(s, fill_album=False) for s in api_album.songs or []
-                ],
-                "_cover_art": self._do_ingest_new_data(
-                    KEYS.COVER_ART_FILE, api_album.cover_art, data=None,
-                )
-                if api_album.cover_art
-                else None,
-            }
-
-            album, created = models.Album.get_or_create(
-                id=api_album.id, defaults=album_data
-            )
-
-            if not created:
-                setattrs(album, album_data)
-                album.save()
-
-            return album
-
         def ingest_artist_data(api_artist: API.Artist) -> models.Artist:
             # Ingest similar artists.
             if api_artist.similar_artists:
@@ -593,7 +559,7 @@ class FilesystemAdapter(CachingAdapter):
                 "music_brainz_id": getattr(api_artist, "music_brainz_id", None),
                 "last_fm_url": getattr(api_artist, "last_fm_url", None),
                 "albums": [
-                    ingest_album_data(a, exclude_artist=True)
+                    self._do_ingest_new_data(KEYS.ALBUM, a.id, a, partial=True)
                     for a in api_artist.albums or []
                 ],
                 "_artist_image_url": self._do_ingest_new_data(
@@ -626,7 +592,11 @@ class FilesystemAdapter(CachingAdapter):
                 # Ingest the FKs.
                 "genre": ingest_genre_data(g) if (g := api_song.genre) else None,
                 "artist": ingest_artist_data(ar) if (ar := api_song.artist) else None,
-                "album": ingest_album_data(al) if (al := api_song.album) else None,
+                "album": (
+                    self._do_ingest_new_data(KEYS.ALBUM, al.id, al, partial=True)
+                    if (al := api_song.album)
+                    else None
+                ),
                 "_cover_art": self._do_ingest_new_data(
                     KEYS.COVER_ART_FILE, api_song.cover_art, data=None,
                 )
@@ -651,48 +621,6 @@ class FilesystemAdapter(CachingAdapter):
 
             return song
 
-        def ingest_playlist(
-            api_playlist: Union[API.Playlist, API.Playlist], partial: bool = False
-        ) -> models.Playlist:
-            playlist_data: Dict[str, Any] = {
-                "id": api_playlist.id,
-                "name": api_playlist.name,
-                "song_count": api_playlist.song_count,
-                "duration": api_playlist.duration,
-                "created": getattr(api_playlist, "created", None),
-                "changed": getattr(api_playlist, "changed", None),
-                "comment": getattr(api_playlist, "comment", None),
-                "owner": getattr(api_playlist, "owner", None),
-                "public": getattr(api_playlist, "public", None),
-                "_cover_art": self._do_ingest_new_data(
-                    KEYS.COVER_ART_FILE, api_playlist.cover_art, None
-                )
-                if api_playlist.cover_art
-                else None,
-            }
-
-            if not partial:
-                # If it's partial, then don't ingest the songs.
-                playlist_data.update(
-                    {
-                        "_songs": [
-                            self._do_ingest_new_data(KEYS.SONG, s.id, s)
-                            for s in api_playlist.songs
-                        ],
-                    }
-                )
-
-            playlist, playlist_created = models.Playlist.get_or_create(
-                id=playlist_data["id"], defaults=playlist_data
-            )
-
-            # Update the values if the playlist already existed.
-            if not playlist_created:
-                setattrs(playlist, playlist_data)
-                playlist.save()
-
-            return playlist
-
         def compute_file_hash(filename: str) -> str:
             file_hash = hashlib.sha1()
             with open(filename, "rb") as f:
@@ -703,11 +631,62 @@ class FilesystemAdapter(CachingAdapter):
 
         return_val = None
 
+        # Set the cache info.
+        now = datetime.now()
+        cache_info, cache_info_created = models.CacheInfo.get_or_create(
+            cache_key=data_key,
+            parameter=param,
+            defaults={
+                "cache_key": data_key,
+                "parameter": param,
+                "last_ingestion_time": now,
+                # If it's partial data, then set it to be invalid so it will only be
+                # used in the event that the ground truth adapter can't service the
+                # request.
+                "valid": not partial,
+            },
+        )
+        if not cache_info_created:
+            cache_info.valid = cache_info.valid or not partial
+            cache_info.last_ingestion_time = now
+            cache_info.save()
+
         if data_key == KEYS.ALBUM:
-            return_val = ingest_album_data(data)
+            album = cast(API.Album, data)
+            album_id = album.id or f"invalid:{self._strhash(album.name)}"
+            album_data = {
+                "id": album_id,
+                "name": album.name,
+                "created": getattr(album, "created", None),
+                "duration": getattr(album, "duration", None),
+                "play_count": getattr(album, "play_count", None),
+                "song_count": getattr(album, "song_count", None),
+                "starred": getattr(album, "starred", None),
+                "year": getattr(album, "year", None),
+                "genre": ingest_genre_data(g) if (g := album.genre) else None,
+                "artist": ingest_artist_data(ar) if (ar := album.artist) else None,
+                "_songs": [
+                    ingest_song_data(s, fill_album=False) for s in album.songs or []
+                ],
+                "_cover_art": self._do_ingest_new_data(
+                    KEYS.COVER_ART_FILE, album.cover_art, data=None,
+                )
+                if album.cover_art
+                else None,
+            }
+
+            db_album, created = models.Album.get_or_create(
+                id=album_id, defaults=album_data
+            )
+
+            if not created:
+                setattrs(db_album, album_data)
+                db_album.save()
+
+            return_val = db_album
 
         elif data_key == KEYS.ALBUMS:
-            albums = [ingest_album_data(a) for a in data]
+            albums = [self._do_ingest_new_data(KEYS.ALBUM, a.id, a) for a in data]
             album_query_result, created = models.AlbumQueryResult.get_or_create(
                 query_hash=param, defaults={"query_hash": param, "albums": albums}
             )
@@ -732,11 +711,11 @@ class FilesystemAdapter(CachingAdapter):
             ).execute()
 
         elif data_key == KEYS.COVER_ART_FILE:
-            cache_info_extra["file_id"] = param
+            cache_info.file_id = param
 
             if data is not None:
                 file_hash = compute_file_hash(data)
-                cache_info_extra["file_hash"] = file_hash
+                cache_info.file_hash = file_hash
 
                 # Copy the actual cover art file
                 shutil.copy(str(data), str(self.cover_art_dir.joinpath(file_hash)))
@@ -746,7 +725,20 @@ class FilesystemAdapter(CachingAdapter):
 
         elif data_key == KEYS.GENRES:
             for g in data:
-                ingest_genre_data(g)
+                self._do_ingest_new_data(KEYS.GENRE, None, g)
+
+        elif data_key == KEYS.GENRE:
+            api_genre = cast(API.Genre, data)
+            genre_data = getattrs(api_genre, ["name", "song_count", "album_count"])
+            genre, created = models.Genre.get_or_create(
+                name=api_genre.name, defaults=genre_data
+            )
+
+            if not created:
+                setattrs(genre, genre_data)
+                genre.save()
+
+            return_val = genre
 
         elif data_key == KEYS.IGNORED_ARTICLES:
             models.IgnoredArticle.insert_many(
@@ -757,12 +749,48 @@ class FilesystemAdapter(CachingAdapter):
             ).execute()
 
         elif data_key == KEYS.PLAYLIST_DETAILS:
-            return_val = ingest_playlist(data)
+            api_playlist = cast(API.Playlist, data)
+            playlist_data: Dict[str, Any] = {
+                "id": api_playlist.id,
+                "name": api_playlist.name,
+                "song_count": api_playlist.song_count,
+                "duration": api_playlist.duration,
+                "created": getattr(api_playlist, "created", None),
+                "changed": getattr(api_playlist, "changed", None),
+                "comment": getattr(api_playlist, "comment", None),
+                "owner": getattr(api_playlist, "owner", None),
+                "public": getattr(api_playlist, "public", None),
+                "_cover_art": (
+                    self._do_ingest_new_data(
+                        KEYS.COVER_ART_FILE, api_playlist.cover_art, None
+                    )
+                    if api_playlist.cover_art
+                    else None
+                ),
+            }
+
+            if not partial:
+                # If it's partial, then don't ingest the songs.
+                playlist_data["_songs"] = [
+                    self._do_ingest_new_data(KEYS.SONG, s.id, s)
+                    for s in api_playlist.songs
+                ]
+
+            playlist, playlist_created = models.Playlist.get_or_create(
+                id=playlist_data["id"], defaults=playlist_data
+            )
+
+            # Update the values if the playlist already existed.
+            if not playlist_created:
+                setattrs(playlist, playlist_data)
+                playlist.save()
+
+            return_val = playlist
 
         elif data_key == KEYS.PLAYLISTS:
             self._playlists = None
             for p in data:
-                ingest_playlist(p, partial=True)
+                self._do_ingest_new_data(KEYS.PLAYLIST_DETAILS, p.id, p, partial=True)
             models.Playlist.delete().where(
                 models.Playlist.id.not_in([p.id for p in data])
             ).execute()
@@ -770,49 +798,26 @@ class FilesystemAdapter(CachingAdapter):
         elif data_key == KEYS.SEARCH_RESULTS:
             data = cast(API.SearchResult, data)
             for a in data._artists.values():
-                ingest_artist_data(a)
+                self._do_ingest_new_data(KEYS.ARTIST, a.id, a, partial=True)
 
             for a in data._albums.values():
-                ingest_album_data(a)
+                self._do_ingest_new_data(KEYS.ALBUM, a.id, a, partial=True)
 
             for s in data._songs.values():
-                ingest_song_data(s)
+                self._do_ingest_new_data(KEYS.SONG, s.id, s, partial=True)
 
             for p in data._playlists.values():
-                ingest_playlist(p, partial=True)
+                self._do_ingest_new_data(KEYS.PLAYLIST_DETAILS, p.id, p, partial=True)
 
         elif data_key == KEYS.SONG:
             return_val = ingest_song_data(data)
 
         elif data_key == KEYS.SONG_FILE:
-            cache_info_extra["file_id"] = param
+            cache_info.file_id = param
 
         elif data_key == KEYS.SONG_FILE_PERMANENT:
             data_key = KEYS.SONG_FILE
-            cache_info_extra["cache_permanently"] = True
-
-        # Set the cache info.
-        now = datetime.now()
-        cache_info, cache_info_created = models.CacheInfo.get_or_create(
-            cache_key=data_key,
-            parameter=param,
-            defaults={
-                "cache_key": data_key,
-                "parameter": param,
-                "last_ingestion_time": now,
-                # If it's partial data, then set it to be invalid so it will only be
-                # used in the event that the ground truth adapter can't service the
-                # request.
-                "valid": not partial,
-                **cache_info_extra,
-            },
-        )
-        if not cache_info_created:
-            cache_info.last_ingestion_time = now
-            cache_info.valid = not partial
-            for k, v in cache_info_extra.items():
-                setattr(cache_info, k, v)
-            cache_info.save()
+            cache_info.cache_permanently = True
 
         # Special handling for Song
         if data_key == KEYS.SONG_FILE and data:
@@ -833,8 +838,7 @@ class FilesystemAdapter(CachingAdapter):
                 filename.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy(str(buffer_filename), str(filename))
 
-            cache_info.save()
-
+        cache_info.save()
         return return_val if return_val is not None else cache_info
 
     def _do_invalidate_data(
@@ -845,33 +849,29 @@ class FilesystemAdapter(CachingAdapter):
             models.CacheInfo.cache_key == data_key, models.CacheInfo.parameter == param
         ).execute()
 
-        cover_art_cache_key = CachingAdapter.CachedDataKey.COVER_ART_FILE
-
-        if data_key == CachingAdapter.CachedDataKey.ALBUM:
-            album = models.Album.get_or_none(models.Album.id == param)
-            if album:
-                self._do_invalidate_data(cover_art_cache_key, album.cover_art)
-
-        elif data_key == CachingAdapter.CachedDataKey.ARTIST:
+        if data_key == KEYS.ALBUM:
             # Invalidate the corresponding cover art.
+            if album := models.Album.get_or_none(models.Album.id == param):
+                self._do_invalidate_data(KEYS.COVER_ART_FILE, album.cover_art)
+
+        elif data_key == KEYS.ARTIST:
+            # Invalidate the corresponding cover art and albums.
             if artist := models.Artist.get_or_none(models.Artist.id == param):
-                self._do_invalidate_data(cover_art_cache_key, artist.artist_image_url)
+                self._do_invalidate_data(KEYS.COVER_ART_FILE, artist.artist_image_url)
                 for album in artist.albums or []:
                     self._do_invalidate_data(
                         CachingAdapter.CachedDataKey.ALBUM, album.id
                     )
 
-        elif data_key == CachingAdapter.CachedDataKey.PLAYLIST_DETAILS:
+        elif data_key == KEYS.PLAYLIST_DETAILS:
             # Invalidate the corresponding cover art.
             if playlist := models.Playlist.get_or_none(models.Playlist.id == param):
-                self._do_invalidate_data(cover_art_cache_key, playlist.cover_art)
+                self._do_invalidate_data(KEYS.COVER_ART_FILE, playlist.cover_art)
 
-        elif data_key == CachingAdapter.CachedDataKey.SONG_FILE:
+        elif data_key == KEYS.SONG_FILE:
             # Invalidate the corresponding cover art.
             if song := models.Song.get_or_none(models.Song.id == param):
-                self._do_invalidate_data(
-                    CachingAdapter.CachedDataKey.COVER_ART_FILE, song.cover_art
-                )
+                self._do_invalidate_data(KEYS.COVER_ART_FILE, song.cover_art)
 
     def _do_delete_data(
         self, data_key: CachingAdapter.CachedDataKey, param: Optional[str]
@@ -881,45 +881,41 @@ class FilesystemAdapter(CachingAdapter):
             models.CacheInfo.cache_key == data_key, models.CacheInfo.parameter == param,
         )
 
-        if data_key == CachingAdapter.CachedDataKey.COVER_ART_FILE:
+        if data_key == KEYS.COVER_ART_FILE:
             if cache_info:
                 self.cover_art_dir.joinpath(str(cache_info.file_hash)).unlink(
                     missing_ok=True
                 )
 
-        elif data_key == CachingAdapter.CachedDataKey.PLAYLIST_DETAILS:
+        elif data_key == KEYS.PLAYLIST_DETAILS:
             # Delete the playlist and corresponding cover art.
             if playlist := models.Playlist.get_or_none(models.Playlist.id == param):
                 if cover_art := playlist.cover_art:
-                    self._do_delete_data(
-                        CachingAdapter.CachedDataKey.COVER_ART_FILE, cover_art
-                    )
+                    self._do_delete_data(KEYS.COVER_ART_FILE, cover_art)
 
                 playlist.delete_instance()
 
-        elif data_key == CachingAdapter.CachedDataKey.SONG_FILE:
+        elif data_key == KEYS.SONG_FILE:
             if cache_info:
                 self._compute_song_filename(cache_info).unlink(missing_ok=True)
 
-        elif data_key == CachingAdapter.CachedDataKey.ALL_SONGS:
+        elif data_key == KEYS.ALL_SONGS:
             shutil.rmtree(str(self.music_dir))
             shutil.rmtree(str(self.cover_art_dir))
             self.music_dir.mkdir(parents=True, exist_ok=True)
             self.cover_art_dir.mkdir(parents=True, exist_ok=True)
 
             models.CacheInfo.update({"valid": False}).where(
-                models.CacheInfo.cache_key == CachingAdapter.CachedDataKey.SONG_FILE
+                models.CacheInfo.cache_key == KEYS.SONG_FILE
             ).execute()
             models.CacheInfo.update({"valid": False}).where(
-                models.CacheInfo.cache_key
-                == CachingAdapter.CachedDataKey.COVER_ART_FILE
+                models.CacheInfo.cache_key == KEYS.COVER_ART_FILE
             ).execute()
 
-        elif data_key == CachingAdapter.CachedDataKey.EVERYTHING:
-            self._do_delete_data(CachingAdapter.CachedDataKey.ALL_SONGS, None)
+        elif data_key == KEYS.EVERYTHING:
+            self._do_delete_data(KEYS.ALL_SONGS, None)
             for table in models.ALL_TABLES:
                 table.truncate_table()
 
         if cache_info:
-            cache_info.valid = False
-            cache_info.save()
+            cache_info.delete_instance()

@@ -824,6 +824,7 @@ class CachingAdapter(Adapter):
         ARTISTS = "artists"
         COVER_ART_FILE = "cover_art_file"
         DIRECTORY = "directory"
+        GENRE = "genre"
         GENRES = "genres"
         IGNORED_ARTICLES = "ignored_articles"
         PLAYLIST_DETAILS = "get_playlist_details"

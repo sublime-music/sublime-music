@@ -221,6 +221,24 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
     with pytest.raises(CacheMissError):
         cache_adapter.get_playlist_details("2")
 
+    # Now ingest the playlist list and make sure that it doesn't override the songs in
+    # the first Playlist.
+    cache_adapter.ingest_new_data(
+        KEYS.PLAYLISTS,
+        None,
+        [
+            SubsonicAPI.Playlist(
+                "1", "foo", song_count=3, duration=timedelta(seconds=41.2)
+            ),
+            SubsonicAPI.Playlist(
+                "3", "test3", song_count=3, duration=timedelta(seconds=30)
+            ),
+        ],
+    )
+
+    playlist = cache_adapter.get_playlist_details("1")
+    verify_songs(playlist.songs, MOCK_SUBSONIC_SONGS)
+
 
 def test_no_caching_get_playlist_details(adapter: FilesystemAdapter):
     with pytest.raises(Exception):

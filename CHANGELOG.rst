@@ -1,8 +1,29 @@
-v0.10.3
+v0.10.4
 =======
 
 .. TODO in next release:
 .. * A man page has been added. Contributed by @baldurmen.
+
+.. note::
+
+   This version does not have a Flatpak due to issues getting Python 3.8 working
+   within the Flatpak environment. See `Issue #218
+   <https://gitlab.com/sumner/sublime-music/-/issues/218_>`_
+
+**Website:** Sublime Music has a website! https://sublimemusic.app
+
+**Packaging**
+
+* Sublime Music is now available in Debian Unstable, and hopefully soon in
+  Debian Testing.
+
+**Bug Fixes**
+
+* Loading the play queue from the server is now more reliable and works properly
+  with Gonic (Contributed by @sentriz).
+
+v0.10.3
+=======
 
 This is a hotfix release. I forgot to add the Subsonic logo resources to
 ``setup.py``. All of the interesting updates happened in `v0.10.2`_.

@@ -276,6 +276,7 @@ class MainWindow(Gtk.ApplicationWindow):
                     setting_box.pack_end(switch, False, False, 0)
 
                 elif descriptor == int:
+                    # TODO do stuff to make this not apply until you are done editing
 
                     def restrict_to_ints(
                         entry: Gtk.Entry, text: str, length: int, position: int

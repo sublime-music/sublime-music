@@ -102,6 +102,51 @@
           ],
           "modules": [
             {
+              "name": "python-3.8",
+              "sources": [
+                {
+                  "type": "archive",
+                  "url": "https://www.python.org/ftp/python/3.8.3/Python-3.8.3.tar.xz",
+                  "sha256": "dfab5ec723c218082fe3d5d7ae17ecbdebffa9a1aea4d64aa3a2ecdd2e795864"
+                }
+              ],
+              "config-opts": [
+                "--enable-shared",
+                "--with-ensurepip=yes",
+                "--with-system-expat",
+                "--with-system-ffi",
+                "--enable-loadable-sqlite-extensions",
+                "--with-dbmliborder=gdbm",
+                "--enable-unicode=ucs4"
+              ],
+              "post-install": [
+                "chmod 644 $FLATPAK_DEST/lib/libpython3.8.so.1.0"
+              ],
+              "cleanup": [
+                "/bin/2to3*",
+                "/bin/easy_install*",
+                "/bin/idle*",
+                "/bin/pydoc*",
+                "/bin/python*-config",
+                "/bin/pyvenv*",
+                "/include",
+                "/lib/pkgconfig",
+                "/lib/python*/config",
+                "/share",
+                "/lib/python*/test",
+                "/lib/python*/*/test",
+                "/lib/python*/*/tests",
+                "/lib/python*/lib-tk/test",
+                "/lib/python*/lib-dynload/_*_test.*.so",
+                "/lib/python*/lib-dynload/_test*.*.so",
+                "/lib/python*/idlelib",
+                "/lib/python*/tkinter*",
+                "/lib/python*/turtle*",
+                "/lib/python*/lib2to3*",
+                "/lib/python3.8/config/libpython3.8.a"
+              ]
+            },
+            {
               "name": "luajit",
               "no-autogen": true,
               "cleanup": [
