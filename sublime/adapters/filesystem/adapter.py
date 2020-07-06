@@ -4,7 +4,7 @@ import shutil
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast, Dict, Iterable, Optional, Sequence, Set, Tuple, Union
+from typing import Any, cast, Dict, Iterable, Optional, Sequence, Set, Tuple
 
 from gi.repository import Gtk
 from peewee import fn, prefetch
