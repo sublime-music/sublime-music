@@ -103,7 +103,8 @@ class ArtistAndArtistInfo(SublimeAPI.Artist):
     last_fm_url: Optional[str] = None
 
     def __post_init__(self):
-        self.album_count = self.album_count or len(self.albums)
+        if not self.album_count and len(self.albums) > 0:
+            self.album_count = len(self.albums)
         if not self.artist_image_url:
             self.artist_image_url = self.cover_art
 
