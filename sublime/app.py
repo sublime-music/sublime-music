@@ -1024,6 +1024,22 @@ class SublimeMusicApp(Gtk.Application):
             new_play_queue = tuple(s.id for s in play_queue.songs)
             new_song_progress = play_queue.position
 
+            def do_resume(clear_notification: bool):
+                assert self.player_manager
+                if was_playing := self.app_config.state.playing:
+                    self.on_play_pause()
+
+                self.app_config.state.play_queue = new_play_queue
+                self.app_config.state.song_progress = play_queue.position
+                self.app_config.state.current_song_index = play_queue.current_index or 0
+                self.player_manager.reset()
+                if clear_notification:
+                    self.app_config.state.current_notification = None
+                self.update_window()
+
+                if was_playing:
+                    self.on_play_pause()
+
             if prompt_confirm:
                 # If there's not a significant enough difference in the song state,
                 # don't prompt.
@@ -1043,7 +1059,7 @@ class SublimeMusicApp(Gtk.Application):
                     if song_index == play_queue.current_index and progress_diff < 15:
                         return
 
-                # TODO (#167): info bar here (maybe pop up above the player controls?)
+                # Show a notification to resume the play queue.
                 resume_text = "Do you want to resume the play queue"
                 if play_queue.changed_by or play_queue.changed:
                     resume_text += " saved"
@@ -1056,27 +1072,14 @@ class SublimeMusicApp(Gtk.Application):
                         resume_text += f" at {changed_str}"
                 resume_text += "?"
 
-                def on_resume_click():
-                    if was_playing := self.app_config.state.playing:
-                        self.on_play_pause()
-
-                    self.app_config.state.play_queue = new_play_queue
-                    self.app_config.state.song_progress = play_queue.position
-                    self.app_config.state.current_song_index = (
-                        play_queue.current_index or 0
-                    )
-                    self.player_manager.reset()
-                    self.app_config.state.current_notification = None
-                    self.update_window()
-
-                    if was_playing:
-                        self.on_play_pause()
-
                 self.app_config.state.current_notification = UIState.UINotification(
                     markup=f"<b>{resume_text}</b>",
-                    actions=(("Resume", on_resume_click),),
+                    actions=(("Resume", partial(do_resume, True)),),
                 )
                 self.update_window()
+
+            else:  # just resume the play queue immediately
+                do_resume(False)
 
         play_queue_future = AdapterManager.get_play_queue()
         play_queue_future.add_done_callback(lambda f: GLib.idle_add(do_update, f))
