@@ -36,8 +36,6 @@ test:
     - apt install xvfb
     - Xvfb :119 -screen 0 1024x768x16 &
     - export DISPLAY=:119
-    - pulseaudio -D --system --exit-idle-time=-1
-    - pactl load-module module-null-sink sink_name=DummyOutput sink_properties=device.description="Virtual_Dummy_Output"
   script:
     - pipenv run ./cicd/pytest.sh
   artifacts:

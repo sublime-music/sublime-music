@@ -24,6 +24,8 @@ class MPVPlayer(Player):
     _volume = 100.0
     _muted = False
 
+    _is_mock = False
+
     @staticmethod
     def get_configuration_options() -> Dict[str, Union[Type, Tuple[str, ...]]]:
         return {REPLAY_GAIN_KEY: ("Disabled", "Track", "Album")}
@@ -37,6 +39,8 @@ class MPVPlayer(Player):
         config: Dict[str, Union[str, int, bool]],
     ):
         self.mpv = mpv.MPV()
+        if MPVPlayer._is_mock:
+            self.mpv.audio_device = "null"
         self.mpv.audio_client_name = "sublime-music"
         self.change_settings(config)
 

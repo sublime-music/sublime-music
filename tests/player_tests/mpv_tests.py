@@ -4,6 +4,8 @@ from time import sleep
 
 from sublime.players.mpv import MPVPlayer
 
+MPVPlayer._is_mock = True
+
 
 def test_init():
     empty_fn = lambda *a, **k: None
