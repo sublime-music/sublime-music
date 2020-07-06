@@ -1108,6 +1108,8 @@ class SublimeMusicApp(Gtk.Application):
             if order_token != self.song_playing_order_token:
                 return
 
+            # TODO (#189): make this actually use the player's allowed list of schemes
+            # to play.
             uri = AdapterManager.get_song_filename_or_stream(song)
 
             # Prevent it from doing the thing where it continually loads

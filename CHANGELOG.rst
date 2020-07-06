@@ -10,17 +10,30 @@ v0.10.4
    within the Flatpak environment. See `Issue #218
    <https://gitlab.com/sumner/sublime-music/-/issues/218_>`_
 
-**Website:** Sublime Music has a website! https://sublimemusic.app
+**New Website:** Sublime Music has a website! https://sublimemusic.app
 
-**Packaging**
+**Distro Packages**
 
 * Sublime Music is now available in Debian Unstable, and hopefully soon in
   Debian Testing.
+
+**Feature Improvements**
+
+* Player settings now get applied immediately, rather than after restarting
+  Sublime Music.
+* Getting the list of Chromecasts for the Device popup now happens much faster.
 
 **Bug Fixes**
 
 * Loading the play queue from the server is now more reliable and works properly
   with Gonic (Contributed by @sentriz).
+* *Regression Fix*: The load play queue button in the play queue popup works
+  again.
+
+**Under the Hood**
+
+* The API for players has been greatly improved and is now actually documented
+  which will enable more player types in the future.
 
 v0.10.3
 =======
