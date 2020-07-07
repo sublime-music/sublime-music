@@ -63,6 +63,7 @@ setup(
         "python-Levenshtein",
         "python-mpv",
         "requests",
+        "semver",
     ],
     extras_require={
         "keyring": ["keyring"],

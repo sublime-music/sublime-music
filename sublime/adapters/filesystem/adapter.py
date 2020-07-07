@@ -572,7 +572,10 @@ class FilesystemAdapter(CachingAdapter):
             return_val = db_album
 
         elif data_key == KEYS.ALBUMS:
-            albums = [self._do_ingest_new_data(KEYS.ALBUM, a.id, a) for a in data]
+            albums = [
+                self._do_ingest_new_data(KEYS.ALBUM, a.id, a, partial=True)
+                for a in data
+            ]
             album_query_result, created = models.AlbumQueryResult.get_or_create(
                 query_hash=param, defaults={"query_hash": param, "albums": albums}
             )
@@ -617,7 +620,7 @@ class FilesystemAdapter(CachingAdapter):
                     ],
                 ),
                 "albums": [
-                    self._do_ingest_new_data(KEYS.ALBUM, a.id, a)
+                    self._do_ingest_new_data(KEYS.ALBUM, a.id, a, partial=True)
                     for a in artist.albums or []
                 ],
                 "_artist_image_url": (
