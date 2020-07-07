@@ -16,6 +16,16 @@ v0.10.4
 
 * Sublime Music is now available in Debian Unstable, and hopefully soon in
   Debian Testing.
+* *For package maintainers:*
+
+  The following dependencies were added:
+
+  * ``semver``
+
+  The following dependencies are now optional:
+
+  * ``pychromecast``
+  * ``bottle``
 
 **Feature Improvements**
 
@@ -27,7 +37,7 @@ v0.10.4
 
 * Loading the play queue from the server is now more reliable and works properly
   with Gonic (Contributed by @sentriz).
-* *Regression Fix*: The load play queue button in the play queue popup works
+* *Fixed Regression*: The load play queue button in the play queue popup works
   again.
 
 **Under the Hood**
