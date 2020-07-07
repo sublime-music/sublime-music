@@ -539,11 +539,8 @@ class SubsonicAdapter(Adapter):
         artist = self._get_json(self._make_url("getArtist"), id=artist_id).artist
         assert artist, f"Error getting artist {artist_id}"
         try:
-            artist.augment_with_artist_info(
-                self._get_json(
-                    self._make_url("getArtistInfo2"), id=artist_id
-                ).artist_info
-            )
+            artist_info = self._get_json(self._make_url("getArtistInfo2"), id=artist_id)
+            artist.augment_with_artist_info(artist_info.artist_info)
         except Exception:
             pass
         return artist
