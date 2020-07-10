@@ -22,6 +22,10 @@ v0.10.4
 
   * ``semver``
 
+  The following dependencies were removed:
+
+  * ``pyyaml``
+
   The following dependencies are now optional:
 
   * ``pychromecast``
@@ -39,6 +43,9 @@ v0.10.4
   with Gonic (Contributed by @sentriz).
 * *Fixed Regression*: The load play queue button in the play queue popup works
   again.
+* Caching behavior has been greatly improved.
+* The Subsonic adapter disables saving and loading the play queue if the server
+  doesn't implement the Subsonic API v1.12.0.
 
 **Under the Hood**
 

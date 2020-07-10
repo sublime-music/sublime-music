@@ -25,7 +25,7 @@ Linux Desktop.
 Features
 --------
 
-* Switch between multiple Subsonic-API-compliant servers.
+* Switch between multiple Subsonic-API-compliant [1]_ servers.
 * Play music through Chromecast devices on the same LAN.
 * Offline Mode where Sublime Music will not make any network requests.
 * DBus MPRIS interface integration for controlling Sublime Music via clients
@@ -36,6 +36,8 @@ Features
 * Intuitive play queue.
 * Create/delete/edit playlists.
 * Download songs for offline listening.
+
+.. [1] Requires a server which implements the Subsonic API version 1.8.0+.
 
 Installation
 ------------

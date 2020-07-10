@@ -264,41 +264,28 @@ class SubsonicAdapter(Adapter):
     def ping_status(self) -> bool:
         return self._server_available.value
 
-    # TODO (#199) make these way smarter
-    can_get_playlists = True
-    can_get_playlist_details = True
-    can_get_cover_art_uri = True
-    can_get_song_uri = True
-    can_stream = True
-    can_get_ignored_articles = True
+    can_create_playlist = True
+    can_delete_playlist = True
     can_get_album = True
+    can_get_albums = True
+    can_get_artist = True
+    can_get_artists = True
+    can_get_cover_art_uri = True
     can_get_directory = True
+    can_get_ignored_articles = True
+    can_get_playlist_details = True
+    can_get_playlists = True
+    can_get_song_details = True
+    can_get_song_uri = True
+    can_scrobble_song = True
+    can_search = True
+    can_stream = True
+    can_update_playlist = True
 
-    # TODO Consider just requiring the server to implement at least 1.8.0
     def version_at_least(self, version: str) -> bool:
         if not self._version.value:
             return False
         return semver.VersionInfo.parse(self._version.value.decode()) >= version
-
-    @property
-    def can_create_playlist(self) -> bool:
-        return self.version_at_least("1.2.0")
-
-    @property
-    def can_delete_playlist(self) -> bool:
-        return self.version_at_least("1.2.0")
-
-    @property
-    def can_get_albums(self) -> bool:
-        return self.version_at_least("1.8.0")
-
-    @property
-    def can_get_artists(self) -> bool:
-        return self.version_at_least("1.8.0")
-
-    @property
-    def can_get_artist(self) -> bool:
-        return self.version_at_least("1.8.0")
 
     @property
     def can_get_genres(self) -> bool:
@@ -311,22 +298,6 @@ class SubsonicAdapter(Adapter):
     @property
     def can_save_play_queue(self) -> bool:
         return self.version_at_least("1.12.0")
-
-    @property
-    def can_get_song_details(self) -> bool:
-        return self.version_at_least("1.8.0")
-
-    @property
-    def can_scrobble_song(self) -> bool:
-        return self.version_at_least("1.5.0")
-
-    @property
-    def can_search(self) -> bool:
-        return self.version_at_least("1.8.0")
-
-    @property
-    def can_update_playlist(self) -> bool:
-        return self.version_at_least("1.8.0")
 
     _schemes = None
 
