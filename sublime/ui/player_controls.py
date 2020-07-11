@@ -192,11 +192,11 @@ class PlayerControls(Gtk.ActionBar):
             self.album_name.set_markup("")
             self.artist_name.set_markup("")
 
+        self.load_play_queue_button.set_sensitive(not self.offline_mode)
+
         # Short circuit if no changes to the play queue
         force |= self.offline_mode != app_config.offline_mode
         self.offline_mode = app_config.offline_mode
-        self.load_play_queue_button.set_sensitive(not self.offline_mode)
-
         if not force and (
             self.current_play_queue == app_config.state.play_queue
             and self.current_playing_index == app_config.state.current_song_index
@@ -387,6 +387,10 @@ class PlayerControls(Gtk.ActionBar):
             # TODO (#88): scroll the currently playing song into view.
             self.play_queue_popover.popup()
             self.play_queue_popover.show_all()
+
+            # Hide the load play queue button if the adapter can't do that.
+            if not AdapterManager.can_get_play_queue():
+                self.load_play_queue_button.hide()
 
     def on_song_activated(self, t: Any, idx: Gtk.TreePath, c: Any):
         if not self.play_queue_store[idx[0]][0]:
