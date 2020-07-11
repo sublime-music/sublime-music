@@ -13,6 +13,7 @@ def test_init():
 
 
 def is_close(expected: float, value: float, delta: float = 0.5) -> bool:
+    print(f"EXPECTED: {expected}, VALUE: {value}")  # noqa: T001
     return abs(value - expected) < delta
 
 
@@ -59,10 +60,20 @@ def test_play():
     assert mpv_player.playing
 
     # Test seek
-    sleep(0.1)
-    assert is_close(10, mpv_player.mpv.time_pos)
+    for _ in range(5):
+        sleep(0.1)
+        if is_close(10, mpv_player.mpv.time_pos):
+            break
+    else:
+        raise Exception("Never was close")
     mpv_player.seek(timedelta(seconds=20))
-    assert is_close(20, mpv_player.mpv.time_pos)
+
+    for _ in range(5):
+        sleep(0.1)
+        if is_close(20, mpv_player.mpv.time_pos):
+            break
+    else:
+        raise Exception("Never was close")
 
     # Pause so that it doesn't keep playing while testing
     mpv_player.pause()

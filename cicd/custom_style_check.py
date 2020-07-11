@@ -50,6 +50,9 @@ valid = True
 for path in Path("sublime").glob("**/*.py"):
     valid &= check_file(path)
 
+for path in Path("tests").glob("**/*.py"):
+    valid &= check_file(path)
+
 """
 Checks that the version in the CHANGELOG is the same as the version in ``__init__.py``.
 """

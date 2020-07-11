@@ -24,10 +24,9 @@ def test_config_default_cache_location():
     assert config.cache_location == Path("~/.local/share/sublime-music").expanduser()
 
 
-def test_server_property():
-    # TODO change the cache location so it doesn't clutter the
-    # ~/.local/share/sublime-music directory
+def test_server_property(tmp_path: Path):
     config = AppConfiguration()
+    config.cache_location = tmp_path
     provider = ProviderConfiguration(
         id="1",
         name="foo",
@@ -39,11 +38,7 @@ def test_server_property():
     config.current_provider_id = "1"
     assert config.provider == provider
 
-    expected_state_file_location = Path("~/.local/share").expanduser()
-    expected_state_file_location = expected_state_file_location.joinpath(
-        "sublime-music", "1", "state.pickle",
-    )
-    assert config._state_file_location == expected_state_file_location
+    assert config._state_file_location == tmp_path.joinpath("1", "state.pickle",)
 
 
 def test_json_load_unload(config_filename: Path):

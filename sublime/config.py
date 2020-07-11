@@ -206,10 +206,8 @@ class AppConfiguration(DataClassJsonMixin):
         if not (provider := self.provider):
             return None
 
-        state_filename = Path(os.environ.get("XDG_DATA_HOME") or "~/.local/share")
-        return state_filename.expanduser().joinpath(
-            "sublime-music", provider.id, "state.pickle"
-        )
+        assert self.cache_location
+        return self.cache_location.joinpath(provider.id, "state.pickle")
 
     def save(self):
         # Save the config as YAML.

@@ -127,7 +127,7 @@ def test_get_song_details(adapter_manager: AdapterManager):
     # song = AdapterManager.get_song_details("1")
     # print(song)
     # assert 0
-    # TODO
+    # TODO (#180)
     pass
 
 
@@ -178,18 +178,18 @@ def test_search_result_update():
 
 
 def test_search(adapter_manager: AdapterManager):
-    # TODO
+    # TODO (#180)
     return
     results = []
 
-    # TODO ingest data
+    # TODO (#180) ingest data
 
     def search_callback(result: SearchResult):
         results.append((result.artists, result.albums, result.songs, result.playlists))
 
     AdapterManager.search("ohea", search_callback=search_callback).result()
 
-    # TODO test getting results from the server and updating using that
+    # TODO (#180) test getting results from the server and updating using that
     while len(results) < 1:
         sleep(0.1)
 
