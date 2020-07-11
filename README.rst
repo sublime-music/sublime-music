@@ -11,12 +11,12 @@ Linux Desktop.
 .. _Gonic: https://github.com/sentriz/gonic
 .. _Navidrome: https://www.navidrome.org/
 
-.. figure:: ./_static/screenshots/play-queue.png
+.. figure:: https://gitlab.com/sublime-music/sublime-music/-/raw/master/docs/_static/screenshots/play-queue.png
    :align: center
-   :target: ./_static/screenshots/play-queue.png
+   :target: https://gitlab.com/sublime-music/sublime-music/-/raw/master/docs/_static/screenshots/play-queue.png
 
-   The Albums tab of Sublime Music with the Play Queue opened. :doc:`More
-   Screenshots <./screenshots>`
+   The Albums tab of Sublime Music with the Play Queue opened. `More
+   Screenshots <https://sublime-music.gitlab.io/sublime-music/screenshots.html_>`_
 
 Features
 --------
