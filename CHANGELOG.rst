@@ -50,7 +50,9 @@ v0.10.4
 **Under the Hood**
 
 * The API for players has been greatly improved and is now actually documented
-  which will enable more player types in the future.
+  which will enable more player types in the future. Additionally, a Player
+  Manager has been put in between the core logic of the app and the player logic
+  which will help facilitate easier API transitions in the future.
 
 v0.10.3
 =======
