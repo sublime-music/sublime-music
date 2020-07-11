@@ -613,7 +613,9 @@ class AlbumsListWithSongs(Gtk.Overlay):
             self.spinner.hide()
             return
 
-        new_albums = sorted(artist.albums or [], key=lambda a: a.name)
+        new_albums = sorted(
+            artist.albums or [], key=lambda a: (a.year or float("inf"), a.name)
+        )
 
         if self.albums == new_albums:
             # Just go through all of the colidren and update them.
