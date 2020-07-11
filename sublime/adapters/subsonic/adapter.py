@@ -146,6 +146,12 @@ class SubsonicAdapter(Adapter):
                         timeout=2,
                         is_exponential_backoff_ping=True,
                     )
+                except requests.exceptions.SSLError:
+                    errors["__ping__"] = (
+                        "<b>Error connecting to the server.</b>\n"
+                        "An SSL error occurred while connecting to the server.\n"
+                        "You may need to explicitly specify http://."
+                    )
                 except requests.ConnectionError:
                     errors["__ping__"] = (
                         "<b>Unable to connect to the server.</b>\n"
@@ -153,7 +159,7 @@ class SubsonicAdapter(Adapter):
                     )
                 except ServerError as e:
                     errors["__ping__"] = (
-                        "<b>Error connecting in to the server.</b>\n"
+                        "<b>Error connecting to the server.</b>\n"
                         f"Error {e.status_code}: {str(e)}"
                     )
                 except Exception as e:
