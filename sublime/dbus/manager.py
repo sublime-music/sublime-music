@@ -11,7 +11,7 @@ from gi.repository import Gio, GLib
 
 from sublime.adapters import AdapterManager, CacheMissError
 from sublime.config import AppConfiguration
-from sublime.players import Player
+from sublime.players import PlayerManager
 from sublime.ui.state import RepeatType
 
 
@@ -53,9 +53,11 @@ class DBusManager:
         on_set_property: Callable[
             [Gio.DBusConnection, str, str, str, str, GLib.Variant], None
         ],
-        get_config_and_player: Callable[[], Tuple[AppConfiguration, Optional[Player]]],
+        get_config_and_player_manager: Callable[
+            [], Tuple[AppConfiguration, Optional[PlayerManager]]
+        ],
     ):
-        self.get_config_and_player = get_config_and_player
+        self.get_config_and_player_manager = get_config_and_player_manager
         self.do_on_method_call = do_on_method_call
         self.on_set_property = on_set_property
         self.connection = connection
@@ -187,8 +189,8 @@ class DBusManager:
         return DBusManager._escape_re.sub(replace, id)
 
     def property_dict(self) -> Dict[str, Any]:
-        config, player = self.get_config_and_player()
-        if config is None or player is None:
+        config, player_manager = self.get_config_and_player_manager()
+        if config is None or player_manager is None:
             return {}
 
         state = config.state
@@ -225,7 +227,7 @@ class DBusManager:
                     (False, True): "Stopped",
                     (True, False): "Paused",
                     (True, True): "Playing",
-                }[player is not None and player.song_loaded, state.playing],
+                }[player_manager.song_loaded, state.playing],
                 "LoopStatus": state.repeat_type.as_mpris_loop_status(),
                 "Rate": 1.0,
                 "Shuffle": state.shuffle_on,

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
 
 from sublime.adapters import AlbumSearchQuery
 from sublime.adapters.api_objects import Genre, Song
@@ -14,10 +14,16 @@ class RepeatType(Enum):
 
     @property
     def icon(self) -> str:
-        icon_name = ["repeat-symbolic", "repeat-symbolic", "repeat-song-symbolic"][
-            self.value
-        ]
-        return f"media-playlist-{icon_name}"
+        """
+        Get the icon for the repeat type.
+
+        >>> RepeatType.NO_REPEAT.icon, RepeatType.REPEAT_QUEUE.icon
+        ('media-playlist-repeat-symbolic', 'media-playlist-repeat-symbolic')
+        >>> RepeatType.REPEAT_SONG.icon
+        'media-playlist-repeat-song-symbolic'
+        """
+        song_str = "-song" if self == RepeatType.REPEAT_SONG else ""
+        return f"media-playlist-repeat{song_str}-symbolic"
 
     def as_mpris_loop_status(self) -> str:
         return ["None", "Playlist", "Track"][self.value]
@@ -57,6 +63,9 @@ class UIState:
     song_progress: timedelta = timedelta()
     song_stream_cache_progress: Optional[timedelta] = timedelta()
     current_device: str = "this device"
+    connecting_to_device: bool = False
+    connected_device_name: Optional[str] = None
+    available_players: Dict[Type, Set[Tuple[str, str]]] = field(default_factory=dict)
 
     # UI state
     current_tab: str = "albums"
@@ -87,6 +96,7 @@ class UIState:
         del state["song_stream_cache_progress"]
         del state["current_notification"]
         del state["playing"]
+        del state["available_players"]
         return state
 
     def __setstate__(self, state: Dict[str, Any]):
@@ -94,6 +104,12 @@ class UIState:
         self.song_stream_cache_progress = None
         self.current_notification = None
         self.playing = False
+
+        from sublime.players import PlayerManager
+
+        self.available_players = {
+            pt: set() for pt in PlayerManager.available_player_types
+        }
 
     def migrate(self):
         pass

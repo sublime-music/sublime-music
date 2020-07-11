@@ -47,28 +47,29 @@ setup(
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
     ],
     keywords="airsonic subsonic libresonic gonic music",
     packages=find_packages(exclude=["tests"]),
     package_data={"sublime": ["ui/app_styles.css", *package_data_files]},
     install_requires=[
-        "bottle",
         "dataclasses-json",
         "deepdiff",
         "fuzzywuzzy",
         'osxmmkeys ; sys_platform=="darwin"',
         "peewee",
-        "pychromecast",
         "PyGObject",
         "python-dateutil",
         "python-Levenshtein",
         "python-mpv",
-        "pyyaml",
         "requests",
+        "semver",
     ],
-    extras_require={"keyring": ["keyring"]},
+    extras_require={
+        "keyring": ["keyring"],
+        "chromecast": ["pychromecast"],
+        "server": ["bottle"],
+    },
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and
     # allow pip to create the appropriate form of executable for the target

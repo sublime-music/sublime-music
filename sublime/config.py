@@ -2,9 +2,8 @@ import logging
 import os
 import pickle
 from dataclasses import dataclass, field
-from enum import Enum
 from pathlib import Path
-from typing import Any, cast, Dict, Optional, Type
+from typing import Any, cast, Dict, Optional, Tuple, Type, Union
 
 import dataclasses_json
 from dataclasses_json import config, DataClassJsonMixin
@@ -19,30 +18,17 @@ def encode_path(path: Path) -> str:
 
 
 dataclasses_json.cfg.global_config.decoders[Path] = Path
-dataclasses_json.cfg.global_config.decoders[Optional[Path]] = (
+dataclasses_json.cfg.global_config.decoders[
+    Optional[Path]  # type: ignore
+] = (
     lambda p: Path(p) if p else None
 )
 
+
 dataclasses_json.cfg.global_config.encoders[Path] = encode_path
-dataclasses_json.cfg.global_config.encoders[Optional[Path]] = encode_path
-
-
-class ReplayGainType(Enum):
-    NO = 0
-    TRACK = 1
-    ALBUM = 2
-
-    def as_string(self) -> str:
-        return ["no", "track", "album"][self.value]
-
-    @staticmethod
-    def from_string(replay_gain_type: str) -> "ReplayGainType":
-        return {
-            "no": ReplayGainType.NO,
-            "disabled": ReplayGainType.NO,
-            "track": ReplayGainType.TRACK,
-            "album": ReplayGainType.ALBUM,
-        }[replay_gain_type.lower()]
+dataclasses_json.cfg.global_config.encoders[
+    Optional[Path]  # type: ignore
+] = encode_path
 
 
 @dataclass
@@ -127,19 +113,23 @@ class AppConfiguration(DataClassJsonMixin):
     current_provider_id: Optional[str] = None
     _loaded_provider_id: Optional[str] = field(default=None, init=False)
 
+    # Players
+    player_config: Dict[str, Dict[str, Union[Type, Tuple[str, ...]]]] = field(
+        default_factory=dict
+    )
+
     # Global Settings
     song_play_notification: bool = True
     offline_mode: bool = False
-    serve_over_lan: bool = True
-    port_number: int = 8282
-    replay_gain: ReplayGainType = ReplayGainType.NO
     allow_song_downloads: bool = True
     download_on_stream: bool = True  # also download when streaming a song
     prefetch_amount: int = 3
     concurrent_download_limit: int = 5
 
-    # Deprecated
-    always_stream: bool = False  # always stream instead of downloading songs
+    # Deprecated. These have also been renamed to avoid using them elsewhere in the app.
+    _sol: bool = field(default=True, metadata=config(field_name="serve_over_lan"))
+    _pn: int = field(default=8282, metadata=config(field_name="port_number"))
+    _rg: int = field(default=0, metadata=config(field_name="replay_gain"))
 
     @staticmethod
     def load_from_file(filename: Path) -> "AppConfiguration":
@@ -169,7 +159,16 @@ class AppConfiguration(DataClassJsonMixin):
         for _, provider in self.providers.items():
             provider.migrate()
 
-        self.version = 5
+        if self.version < 6:
+            self.player_config = {
+                "Local Playback": {"Replay Gain": ["no", "track", "album"][self._rg]},
+                "Chromecast": {
+                    "Serve Local Files to Chromecasts on the LAN": self._sol,
+                    "LAN Server Port Number": self._pn,
+                },
+            }
+
+        self.version = 6
         self.state.migrate()
 
     @property
@@ -207,10 +206,8 @@ class AppConfiguration(DataClassJsonMixin):
         if not (provider := self.provider):
             return None
 
-        state_filename = Path(os.environ.get("XDG_DATA_HOME") or "~/.local/share")
-        return state_filename.expanduser().joinpath(
-            "sublime-music", provider.id, "state.pickle"
-        )
+        assert self.cache_location
+        return self.cache_location.joinpath(provider.id, "state.pickle")
 
     def save(self):
         # Save the config as YAML.

@@ -9,7 +9,8 @@ from sublime.adapters import (
     DownloadProgress,
     Result,
 )
-from sublime.config import AppConfiguration, ProviderConfiguration, ReplayGainType
+from sublime.config import AppConfiguration, ProviderConfiguration
+from sublime.players import PlayerManager
 from sublime.ui import albums, artists, browse, player_controls, playlists, util
 from sublime.ui.common import IconButton, IconMenuButton, SpinnerImage
 
@@ -110,7 +111,12 @@ class MainWindow(Gtk.ApplicationWindow):
     current_notification_hash = None
     current_other_providers: Tuple[ProviderConfiguration, ...] = ()
 
-    def update(self, app_config: AppConfiguration, force: bool = False):
+    def update(
+        self,
+        app_config: AppConfiguration,
+        player_manager: PlayerManager,
+        force: bool = False,
+    ):
         notification = app_config.state.current_notification
         if notification and (h := hash(notification)) != self.current_notification_hash:
             self.current_notification_hash = h
@@ -196,13 +202,138 @@ class MainWindow(Gtk.ApplicationWindow):
         # Main Settings
         self.notification_switch.set_active(app_config.song_play_notification)
 
-        # MPV Settings
-        self.replay_gain_options.set_active_id(app_config.replay_gain.as_string())
+        # Player settings
+        for c in self.player_settings_box.get_children():
+            self.player_settings_box.remove(c)
 
-        # Chromecast Settings
-        self.serve_over_lan_switch.set_active(app_config.serve_over_lan)
-        self.port_number_entry.set_value(app_config.port_number)
-        self.port_number_entry.set_sensitive(app_config.serve_over_lan)
+        def emit_player_settings_change(
+            player_name: str, option_name: str, value_extraction_fn: Callable, *args
+        ):
+            if self._updating_settings:
+                return
+            self.emit(
+                "refresh-window",
+                {
+                    "__player_setting__": (
+                        player_name,
+                        option_name,
+                        value_extraction_fn(*args),
+                    )
+                },
+                False,
+            )
+
+        for player_name, options in player_manager.get_configuration_options().items():
+            self.player_settings_box.add(Gtk.Separator())
+            self.player_settings_box.add(
+                self._create_label(
+                    f"{player_name} Settings", name="menu-settings-separator"
+                )
+            )
+
+            for option_name, descriptor in options.items():
+                setting_box = Gtk.Box()
+                setting_box.add(option_name_label := Gtk.Label(label=option_name))
+                option_name_label.get_style_context().add_class("menu-label")
+
+                option_value = app_config.player_config.get(player_name, {}).get(
+                    option_name
+                )
+
+                if type(descriptor) == tuple:
+                    option_store = Gtk.ListStore(str)
+                    for option in descriptor:
+                        option_store.append([option])
+                    combo = Gtk.ComboBox.new_with_model(option_store)
+                    combo.set_id_column(0)
+                    renderer_text = Gtk.CellRendererText()
+                    combo.pack_start(renderer_text, True)
+                    combo.add_attribute(renderer_text, "text", 0)
+                    combo.set_active_id(option_value)
+                    combo.connect(
+                        "changed",
+                        partial(
+                            emit_player_settings_change,
+                            player_name,
+                            option_name,
+                            lambda c: c.get_active_id(),
+                        ),
+                    )
+
+                    setting_box.pack_end(combo, False, False, 0)
+
+                elif descriptor == bool:
+                    switch = Gtk.Switch(active=option_value)
+                    switch.connect(
+                        "notify::active",
+                        partial(
+                            emit_player_settings_change,
+                            player_name,
+                            option_name,
+                            lambda s, _: s.get_active(),
+                        ),
+                    )
+                    setting_box.pack_end(switch, False, False, 0)
+
+                elif descriptor == int:
+                    int_editor_box = Gtk.Box()
+
+                    def restrict_to_ints(
+                        entry: Gtk.Entry, text: str, length: int, position: int
+                    ) -> bool:
+                        if self._updating_settings:
+                            return False
+                        if not text.isdigit():
+                            entry.emit_stop_by_name("insert-text")
+                            return True
+                        return False
+
+                    entry = Gtk.Entry(width_chars=8, text=option_value, sensitive=False)
+                    entry.connect("insert-text", restrict_to_ints)
+                    int_editor_box.add(entry)
+
+                    buttons_box = Gtk.Box()
+
+                    edit_button = IconButton("document-edit-symbolic", relief=True)
+                    confirm_button = IconButton("object-select-symbolic", relief=True)
+                    cancel_button = IconButton("process-stop-symbolic", relief=True)
+
+                    def on_edit_button_click(*a):
+                        entry.set_sensitive(True)
+                        buttons_box.remove(edit_button)
+                        buttons_box.add(cancel_button)
+                        buttons_box.add(confirm_button)
+                        buttons_box.show_all()
+
+                    def on_cancel_button_click(*a):
+                        entry.set_text(str(option_value))
+                        entry.set_sensitive(False)
+                        buttons_box.remove(cancel_button)
+                        buttons_box.remove(confirm_button)
+                        buttons_box.add(edit_button)
+                        buttons_box.show_all()
+
+                    edit_button.connect("clicked", on_edit_button_click)
+                    confirm_button.connect(
+                        "clicked",
+                        partial(
+                            emit_player_settings_change,
+                            player_name,
+                            option_name,
+                            lambda b: int(entry.get_text()),
+                        ),
+                    )
+                    cancel_button.connect("clicked", on_cancel_button_click)
+                    buttons_box.add(edit_button)
+
+                    int_editor_box.add(buttons_box)
+
+                    setting_box.pack_end(int_editor_box, False, False, 0)
+
+                setting_box.get_style_context().add_class("menu-button")
+                self.player_settings_box.add(setting_box)
+
+        self.player_settings_box.show_all()
 
         # Download Settings
         allow_song_downloads = app_config.allow_song_downloads
@@ -674,49 +805,8 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # PLAYER SETTINGS
         # ==============================================================================
-        vbox.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
-        vbox.add(
-            self._create_label(
-                "Local Playback Settings", name="menu-settings-separator"
-            )
-        )
-
-        # Replay Gain
-        replay_gain_box = Gtk.Box()
-        replay_gain_box.add(replay_gain_label := Gtk.Label(label="Replay Gain"))
-        replay_gain_label.get_style_context().add_class("menu-label")
-
-        replay_gain_option_store = Gtk.ListStore(str, str)
-        for id, option in (("no", "Disabled"), ("track", "Track"), ("album", "Album")):
-            replay_gain_option_store.append([id, option])
-
-        self.replay_gain_options = Gtk.ComboBox.new_with_model(replay_gain_option_store)
-        self.replay_gain_options.set_id_column(0)
-        renderer_text = Gtk.CellRendererText()
-        self.replay_gain_options.pack_start(renderer_text, True)
-        self.replay_gain_options.add_attribute(renderer_text, "text", 1)
-        self.replay_gain_options.connect("changed", self._on_replay_gain_change)
-
-        replay_gain_box.pack_end(self.replay_gain_options, False, False, 0)
-        replay_gain_box.get_style_context().add_class("menu-button")
-        vbox.add(replay_gain_box)
-
-        vbox.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
-        vbox.add(
-            self._create_label("Chromecast Settings", name="menu-settings-separator")
-        )
-
-        # Serve Local Files to Chromecast
-        serve_over_lan, self.serve_over_lan_switch = self._create_toggle_menu_button(
-            "Serve Local Files to Chromecasts on the LAN", "serve_over_lan"
-        )
-        vbox.add(serve_over_lan)
-
-        # Server Port
-        server_port_box, self.port_number_entry = self._create_spin_button_menu_item(
-            "LAN Server Port Number", 8000, 9000, 1, "port_number"
-        )
-        vbox.add(server_port_box)
+        self.player_settings_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        vbox.add(self.player_settings_box)
 
         # DOWNLOAD SETTINGS
         # ==============================================================================
@@ -876,11 +966,6 @@ class MainWindow(Gtk.ApplicationWindow):
     def _on_main_menu_clicked(self, *args):
         self.main_menu_popover.popup()
         self.main_menu_popover.show_all()
-
-    def _on_replay_gain_change(self, combo: Gtk.ComboBox):
-        self._emit_settings_change(
-            {"replay_gain": ReplayGainType.from_string(combo.get_active_id())}
-        )
 
     def _on_search_entry_focus(self, *args):
         self._show_search()

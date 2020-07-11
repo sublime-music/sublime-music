@@ -1,6 +1,6 @@
 from functools import lru_cache
 from random import randint
-from typing import Any, cast, Iterable, List, Tuple
+from typing import Any, cast, Dict, Iterable, List, Tuple
 
 from fuzzywuzzy import process
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
@@ -9,7 +9,6 @@ from sublime.adapters import AdapterManager, api_objects as API
 from sublime.config import AppConfiguration
 from sublime.ui import util
 from sublime.ui.common import (
-    EditFormDialog,
     IconButton,
     LoadError,
     SongListColumn,
@@ -17,16 +16,63 @@ from sublime.ui.common import (
 )
 
 
-class EditPlaylistDialog(EditFormDialog):
-    entity_name: str = "Playlist"
-    initial_size = (350, 120)
-    text_fields = [("Name", "name", False), ("Comment", "comment", False)]
-    boolean_fields = [("Public", "public")]
+class EditPlaylistDialog(Gtk.Dialog):
+    def __init__(self, parent: Any, playlist: API.Playlist):
+        Gtk.Dialog.__init__(self, transient_for=parent, flags=Gtk.DialogFlags.MODAL)
 
-    def __init__(self, *args, **kwargs):
-        delete_playlist = Gtk.Button(label="Delete Playlist")
-        self.extra_buttons = [(delete_playlist, Gtk.ResponseType.NO)]
-        super().__init__(*args, **kwargs)
+        # HEADER
+        self.header = Gtk.HeaderBar()
+        self._set_title(playlist.name)
+
+        cancel_button = Gtk.Button(label="Cancel")
+        cancel_button.connect("clicked", lambda _: self.close())
+        self.header.pack_start(cancel_button)
+
+        self.edit_button = Gtk.Button(label="Edit")
+        self.edit_button.get_style_context().add_class("suggested-action")
+        self.edit_button.connect(
+            "clicked", lambda *a: self.response(Gtk.ResponseType.APPLY)
+        )
+        self.header.pack_end(self.edit_button)
+
+        self.set_titlebar(self.header)
+
+        content_area = self.get_content_area()
+        content_grid = Gtk.Grid(column_spacing=10, row_spacing=10, margin=10)
+
+        make_label = lambda label_text: Gtk.Label(label_text, halign=Gtk.Align.END)
+
+        content_grid.attach(make_label("Playlist Name"), 0, 0, 1, 1)
+        self.name_entry = Gtk.Entry(text=playlist.name, hexpand=True)
+        self.name_entry.connect("changed", self._on_name_change)
+        content_grid.attach(self.name_entry, 1, 0, 1, 1)
+
+        content_grid.attach(make_label("Comment"), 0, 1, 1, 1)
+        self.comment_entry = Gtk.Entry(text=playlist.comment, hexpand=True)
+        content_grid.attach(self.comment_entry, 1, 1, 1, 1)
+
+        content_grid.attach(make_label("Public"), 0, 2, 1, 1)
+        self.public_switch = Gtk.Switch(active=playlist.public, halign=Gtk.Align.START)
+        content_grid.attach(self.public_switch, 1, 2, 1, 1)
+
+        content_area.add(content_grid)
+        self.show_all()
+
+    def _on_name_change(self, entry: Gtk.Entry):
+        text = entry.get_text()
+        if len(text) > 0:
+            self._set_title(text)
+        self.edit_button.set_sensitive(len(text) > 0)
+
+    def _set_title(self, playlist_name: str):
+        self.header.props.title = f"Edit {playlist_name}"
+
+    def get_data(self) -> Dict[str, Any]:
+        return {
+            "name": self.name_entry.get_text(),
+            "comment": self.comment_entry.get_text(),
+            "public": self.public_switch.get_active(),
+        }
 
 
 class PlaylistsPanel(Gtk.Paned):
@@ -673,53 +719,46 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
         result = dialog.run()
         # Using ResponseType.NO as the delete event.
-        if result in (Gtk.ResponseType.OK, Gtk.ResponseType.NO):
-            if result == Gtk.ResponseType.OK:
-                AdapterManager.update_playlist(
-                    self.playlist_id,
-                    name=dialog.data["name"].get_text(),
-                    comment=dialog.data["comment"].get_text(),
-                    public=dialog.data["public"].get_active(),
-                )
-            elif result == Gtk.ResponseType.NO:
-                # Delete the playlist.
-                confirm_dialog = Gtk.MessageDialog(
-                    transient_for=self.get_toplevel(),
-                    message_type=Gtk.MessageType.WARNING,
-                    buttons=Gtk.ButtonsType.NONE,
-                    text="Confirm deletion",
-                )
-                confirm_dialog.add_buttons(
-                    Gtk.STOCK_DELETE,
-                    Gtk.ResponseType.YES,
-                    Gtk.STOCK_CANCEL,
-                    Gtk.ResponseType.CANCEL,
-                )
-                confirm_dialog.format_secondary_markup(
-                    f'Are you sure you want to delete the "{playlist.name}" playlist?'
-                )
-                result = confirm_dialog.run()
-                confirm_dialog.destroy()
-                if result == Gtk.ResponseType.YES:
-                    AdapterManager.delete_playlist(self.playlist_id)
-                    playlist_deleted = True
-                else:
-                    # In this case, we don't want to do any invalidation of
-                    # anything.
-                    dialog.destroy()
-                    return
+        if result not in (Gtk.ResponseType.APPLY, Gtk.ResponseType.NO):
+            dialog.destroy()
+            return
 
-            # Force a re-fresh of the view
-            self.emit(
-                "refresh-window",
-                {
-                    "selected_playlist_id": None
-                    if playlist_deleted
-                    else self.playlist_id
-                },
-                True,
+        if result == Gtk.ResponseType.APPLY:
+            AdapterManager.update_playlist(self.playlist_id, **dialog.get_data())
+        elif result == Gtk.ResponseType.NO:
+            # Delete the playlist.
+            confirm_dialog = Gtk.MessageDialog(
+                transient_for=self.get_toplevel(),
+                message_type=Gtk.MessageType.WARNING,
+                buttons=Gtk.ButtonsType.NONE,
+                text="Confirm deletion",
             )
+            confirm_dialog.add_buttons(
+                Gtk.STOCK_DELETE,
+                Gtk.ResponseType.YES,
+                Gtk.STOCK_CANCEL,
+                Gtk.ResponseType.CANCEL,
+            )
+            confirm_dialog.format_secondary_markup(
+                f'Are you sure you want to delete the "{playlist.name}" playlist?'
+            )
+            result = confirm_dialog.run()
+            confirm_dialog.destroy()
+            if result == Gtk.ResponseType.YES:
+                AdapterManager.delete_playlist(self.playlist_id)
+                playlist_deleted = True
+            else:
+                # In this case, we don't want to do any invalidation of
+                # anything.
+                dialog.destroy()
+                return
 
+        # Force a re-fresh of the view
+        self.emit(
+            "refresh-window",
+            {"selected_playlist_id": None if playlist_deleted else self.playlist_id},
+            True,
+        )
         dialog.destroy()
 
     def on_playlist_list_download_all_button_click(self, _):

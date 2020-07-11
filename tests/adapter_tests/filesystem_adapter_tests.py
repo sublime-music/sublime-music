@@ -178,12 +178,12 @@ def test_caching_get_playlists(cache_adapter: FilesystemAdapter):
 def test_no_caching_get_playlists(adapter: FilesystemAdapter):
     adapter.get_playlists()
 
-    # TODO: Create a playlist (that should be allowed only if this is acting as
+    # TODO (#188): Create a playlist (that should be allowed only if this is acting as
     # a ground truth adapter)
     # cache_adapter.create_playlist()
 
     adapter.get_playlists()
-    # TODO: verify playlist
+    # TODO (#188): verify playlist
 
 
 def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
@@ -221,17 +221,35 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
     with pytest.raises(CacheMissError):
         cache_adapter.get_playlist_details("2")
 
+    # Now ingest the playlist list and make sure that it doesn't override the songs in
+    # the first Playlist.
+    cache_adapter.ingest_new_data(
+        KEYS.PLAYLISTS,
+        None,
+        [
+            SubsonicAPI.Playlist(
+                "1", "foo", song_count=3, duration=timedelta(seconds=41.2)
+            ),
+            SubsonicAPI.Playlist(
+                "3", "test3", song_count=3, duration=timedelta(seconds=30)
+            ),
+        ],
+    )
+
+    playlist = cache_adapter.get_playlist_details("1")
+    verify_songs(playlist.songs, MOCK_SUBSONIC_SONGS)
+
 
 def test_no_caching_get_playlist_details(adapter: FilesystemAdapter):
     with pytest.raises(Exception):
         adapter.get_playlist_details("1")
 
-    # TODO: Create a playlist (that should be allowed only if this is acting as
+    # TODO (#188): Create a playlist (that should be allowed only if this is acting as
     # a ground truth adapter)
     # cache_adapter.create_playlist()
 
     # adapter.get_playlist_details('1')
-    # TODO: verify playlist details
+    # TODO (#188): verify playlist details
 
 
 def test_caching_get_playlist_then_details(cache_adapter: FilesystemAdapter):
@@ -722,7 +740,9 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
             ],
             biography="this is a bio",
             music_brainz_id="mbid",
-            albums=[SubsonicAPI.Album(id="1", name="Foo", artist_id="1")],
+            albums=[
+                SubsonicAPI.Album(id="1", name="Foo", _artist="Bar", artist_id="1")
+            ],
         ),
     )
 

@@ -10,6 +10,7 @@ from typing import (
     cast,
     Dict,
     Iterable,
+    List,
     Optional,
     Sequence,
     Set,
@@ -178,7 +179,7 @@ class ConfigurationStore(dict):
         values = ", ".join(f"{k}={v!r}" for k, v in sorted(self.items()))
         return f"ConfigurationStore({values})"
 
-    def get_secret(self, key: str) -> Any:
+    def get_secret(self, key: str) -> Optional[str]:
         """
         Get the secret value in the store with the given key. If the key doesn't exist
         in the store, return the default. This will retrieve the secret from whatever is
@@ -186,7 +187,7 @@ class ConfigurationStore(dict):
         with secret storage yourself.
         """
         value = self.get(key)
-        if not isinstance(value, (tuple, list)) or len(value) != 2:
+        if not isinstance(value, list) or len(value) != 2:
             return None
 
         storage_type, storage_key = value
@@ -195,7 +196,7 @@ class ConfigurationStore(dict):
             "plaintext": lambda: storage_key,
         }[storage_type]()
 
-    def set_secret(self, key: str, value: Any = None) -> Any:
+    def set_secret(self, key: str, value: str = None):
         """
         Set the secret value of the given key in the store. This should be used for
         things such as passwords or API tokens. This will store the secret in whatever
@@ -206,7 +207,7 @@ class ConfigurationStore(dict):
             try:
                 password_id = None
                 if password_type_and_id := self.get(key):
-                    if cast(Tuple[str, str], password_type_and_id[0]) == "keyring":
+                    if cast(List[str], password_type_and_id)[0] == "keyring":
                         password_id = password_type_and_id[1]
 
                 if password_id is None:
@@ -823,6 +824,7 @@ class CachingAdapter(Adapter):
         ARTISTS = "artists"
         COVER_ART_FILE = "cover_art_file"
         DIRECTORY = "directory"
+        GENRE = "genre"
         GENRES = "genres"
         IGNORED_ARTICLES = "ignored_articles"
         PLAYLIST_DETAILS = "get_playlist_details"

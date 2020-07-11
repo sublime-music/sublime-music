@@ -24,6 +24,7 @@ from typing import (
 from urllib.parse import urlencode, urlparse
 
 import requests
+import semver
 from gi.repository import Gtk
 
 from .api_objects import Directory, Response
@@ -201,7 +202,7 @@ class SubsonicAdapter(Adapter):
             self.hostname = "https://" + self.hostname
 
         self.username = config["username"]
-        self.password = config.get_secret("password")
+        self.password = cast(str, config.get_secret("password"))
         self.verify_cert = config["verify_cert"]
 
         self.is_shutting_down = False
@@ -209,6 +210,7 @@ class SubsonicAdapter(Adapter):
         # TODO (#112): support XML?
 
     _ping_process: Optional[multiprocessing.Process] = None
+    _version = multiprocessing.Array("c", 20)
     _offline_mode = False
 
     def initial_sync(self):
@@ -262,27 +264,40 @@ class SubsonicAdapter(Adapter):
     def ping_status(self) -> bool:
         return self._server_available.value
 
-    # TODO (#199) make these way smarter
-    can_get_playlists = True
-    can_get_playlist_details = True
     can_create_playlist = True
-    can_update_playlist = True
     can_delete_playlist = True
-    can_get_cover_art_uri = True
-    can_get_song_uri = True
-    can_stream = True
-    can_get_song_details = True
-    can_scrobble_song = True
-    can_get_artists = True
-    can_get_artist = True
-    can_get_ignored_articles = True
-    can_get_albums = True
     can_get_album = True
+    can_get_albums = True
+    can_get_artist = True
+    can_get_artists = True
+    can_get_cover_art_uri = True
     can_get_directory = True
-    can_get_genres = True
-    can_get_play_queue = True
-    can_save_play_queue = True
+    can_get_ignored_articles = True
+    can_get_playlist_details = True
+    can_get_playlists = True
+    can_get_song_details = True
+    can_get_song_uri = True
+    can_scrobble_song = True
     can_search = True
+    can_stream = True
+    can_update_playlist = True
+
+    def version_at_least(self, version: str) -> bool:
+        if not self._version.value:
+            return False
+        return semver.VersionInfo.parse(self._version.value.decode()) >= version
+
+    @property
+    def can_get_genres(self) -> bool:
+        return self.version_at_least("1.9.0")
+
+    @property
+    def can_get_play_queue(self) -> bool:
+        return self.version_at_least("1.12.0")
+
+    @property
+    def can_save_play_queue(self) -> bool:
+        return self.version_at_least("1.12.0")
 
     _schemes = None
 
@@ -412,11 +427,13 @@ class SubsonicAdapter(Adapter):
         if not subsonic_response:
             raise ServerError(500, f"{url} returned invalid JSON.")
 
-        if subsonic_response["status"] == "failed":
+        if subsonic_response["status"] != "ok":
             raise ServerError(
                 subsonic_response["error"].get("code"),
                 subsonic_response["error"].get("message"),
             )
+
+        self._version.value = subsonic_response["version"].encode()
 
         logging.debug(f"Response from {url}: {subsonic_response}")
         return Response.from_dict(subsonic_response)
@@ -538,9 +555,14 @@ class SubsonicAdapter(Adapter):
     def get_artist(self, artist_id: str) -> API.Artist:
         artist = self._get_json(self._make_url("getArtist"), id=artist_id).artist
         assert artist, f"Error getting artist {artist_id}"
-        artist.augment_with_artist_info(
-            self._get_json(self._make_url("getArtistInfo2"), id=artist_id).artist_info
-        )
+        if self.version_at_least("1.11.0"):
+            try:
+                artist_info = self._get_json(
+                    self._make_url("getArtistInfo2"), id=artist_id
+                )
+                artist.augment_with_artist_info(artist_info.artist_info)
+            except Exception:
+                pass
         return artist
 
     def get_ignored_articles(self) -> Set[str]:
@@ -651,6 +673,7 @@ class SubsonicAdapter(Adapter):
         self._get(
             self._make_url("savePlayQueue"),
             id=song_ids,
+            timeout=2,
             current=song_ids[current_song_index]
             if current_song_index is not None
             else None,

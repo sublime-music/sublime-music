@@ -1,16 +1,15 @@
+import copy
 import math
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
-from pychromecast import Chromecast
 
 from sublime.adapters import AdapterManager, Result, SongCacheStatus
 from sublime.adapters.api_objects import Song
 from sublime.config import AppConfiguration
-from sublime.players import ChromecastPlayer
 from sublime.ui import util
 from sublime.ui.common import IconButton, IconToggleButton, SpinnerImage
 from sublime.ui.state import RepeatType
@@ -44,10 +43,8 @@ class PlayerControls(Gtk.ActionBar):
     current_device = None
     current_playing_index: Optional[int] = None
     current_play_queue: Tuple[str, ...] = ()
-    chromecasts: List[ChromecastPlayer] = []
     cover_art_update_order_token = 0
     play_queue_update_order_token = 0
-    devices_requested = False
     offline_mode = False
 
     def __init__(self):
@@ -64,8 +61,12 @@ class PlayerControls(Gtk.ActionBar):
         self.set_center_widget(playback_controls)
         self.pack_end(play_queue_volume)
 
+    connecting_to_device_token = 0
+    connecting_icon_index = 0
+
     def update(self, app_config: AppConfiguration, force: bool = False):
         self.current_device = app_config.state.current_device
+        self.update_device_list(app_config)
 
         duration = (
             app_config.state.current_song.duration
@@ -116,11 +117,29 @@ class PlayerControls(Gtk.ActionBar):
         self.play_button.set_sensitive(has_current_song)
         self.next_button.set_sensitive(has_current_song and has_next_song)
 
-        self.device_button.set_icon(
-            "chromecast{}-symbolic".format(
-                "" if app_config.state.current_device == "this device" else "-connected"
-            )
-        )
+        self.connecting_to_device = app_config.state.connecting_to_device
+
+        def cycle_connecting(connecting_to_device_token: int):
+            if (
+                self.connecting_to_device_token != connecting_to_device_token
+                or not self.connecting_to_device
+            ):
+                return
+            icon = f"chromecast-connecting-{self.connecting_icon_index}-symbolic"
+            self.device_button.set_icon(icon)
+            self.connecting_icon_index = (self.connecting_icon_index + 1) % 3
+            GLib.timeout_add(350, cycle_connecting, connecting_to_device_token)
+
+        icon = ""
+        if app_config.state.connecting_to_device:
+            icon = "-connecting-0"
+            self.connecting_icon_index = 0
+            self.connecting_to_device_token += 1
+            GLib.timeout_add(350, cycle_connecting, self.connecting_to_device_token)
+        elif app_config.state.current_device != "this device":
+            icon = "-connected"
+
+        self.device_button.set_icon(f"chromecast{icon}-symbolic")
 
         # Volume button and slider
         if app_config.state.is_muted:
@@ -172,9 +191,6 @@ class PlayerControls(Gtk.ActionBar):
             self.song_title.set_markup("")
             self.album_name.set_markup("")
             self.artist_name.set_markup("")
-
-        if self.devices_requested:
-            self.update_device_list()
 
         # Short circuit if no changes to the play queue
         force |= self.offline_mode != app_config.offline_mode
@@ -383,62 +399,63 @@ class PlayerControls(Gtk.ActionBar):
             {"no_reshuffle": True},
         )
 
-    def update_device_list(self, force: bool = False):
-        self.device_list_loading.show()
+    _current_player_id = None
+    _current_available_players: Dict[type, Set[Tuple[str, str]]] = {}
 
-        def chromecast_callback(chromecasts: List[Chromecast]):
-            self.chromecasts = chromecasts
-            for c in self.chromecast_device_list.get_children():
-                self.chromecast_device_list.remove(c)
+    def update_device_list(self, app_config: AppConfiguration):
+        if (
+            self._current_available_players == app_config.state.available_players
+            and self._current_player_id == app_config.state.current_device
+        ):
+            return
 
-            if self.current_device == "this device":
-                self.this_device.set_icon("audio-volume-high-symbolic")
-            else:
-                self.this_device.set_icon(None)
+        self._current_player_id = app_config.state.current_device
+        self._current_available_players = copy.deepcopy(
+            app_config.state.available_players
+        )
+        for c in self.device_list.get_children():
+            self.device_list.remove(c)
 
-            chromecasts.sort(key=lambda c: c.device.friendly_name)
-            for cc in chromecasts:
+        for i, (player_type, players) in enumerate(
+            app_config.state.available_players.items()
+        ):
+            if len(players) == 0:
+                continue
+            if i > 0:
+                self.device_list.add(
+                    Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+                )
+            self.device_list.add(
+                Gtk.Label(
+                    label=f"{player_type.name} Devices",
+                    halign=Gtk.Align.START,
+                    name="device-type-section-title",
+                )
+            )
+
+            for player_id, player_name in sorted(players, key=lambda p: p[1]):
                 icon = (
                     "audio-volume-high-symbolic"
-                    if str(cc.device.uuid) == self.current_device
+                    if player_id == self.current_device
                     else None
                 )
-                btn = IconButton(icon, label=cc.device.friendly_name)
-                btn.get_style_context().add_class("menu-button")
-                btn.connect(
+                button = IconButton(icon, label=player_name)
+                button.get_style_context().add_class("menu-button")
+                button.connect(
                     "clicked",
-                    lambda _, uuid: self.emit("device-update", uuid),
-                    cc.device.uuid,
+                    lambda _, player_id: self.emit("device-update", player_id),
+                    player_id,
                 )
-                self.chromecast_device_list.add(btn)
-                self.chromecast_device_list.show_all()
+                self.device_list.add(button)
 
-            self.device_list_loading.hide()
-            self.last_device_list_update = datetime.now()
-
-        update_diff = (
-            self.last_device_list_update
-            and (datetime.now() - self.last_device_list_update).seconds > 60
-        )
-        if force or len(self.chromecasts) == 0 or (update_diff and update_diff > 60):
-            future = ChromecastPlayer.get_chromecasts()
-            future.add_done_callback(
-                lambda f: GLib.idle_add(chromecast_callback, f.result())
-            )
-        else:
-            chromecast_callback(self.chromecasts)
+        self.device_list.show_all()
 
     def on_device_click(self, _: Any):
-        self.devices_requested = True
         if self.device_popover.is_visible():
             self.device_popover.popdown()
         else:
             self.device_popover.popup()
             self.device_popover.show_all()
-            self.update_device_list()
-
-    def on_device_refresh_click(self, _: Any):
-        self.update_device_list(force=True)
 
     def on_play_queue_button_press(self, tree: Any, event: Gdk.EventButton) -> bool:
         if event.button == 3:  # Right click
@@ -655,32 +672,17 @@ class PlayerControls(Gtk.ActionBar):
         device_popover_header.add(self.popover_label)
 
         refresh_devices = IconButton("view-refresh-symbolic", "Refresh device list")
-        refresh_devices.connect("clicked", self.on_device_refresh_click)
+        refresh_devices.set_action_name("app.refresh-devices")
         device_popover_header.pack_end(refresh_devices, False, False, 0)
 
         device_popover_box.add(device_popover_header)
 
-        device_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        device_list_and_loading = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-        self.this_device = IconButton(
-            "audio-volume-high-symbolic", label="This Device",
-        )
-        self.this_device.get_style_context().add_class("menu-button")
-        self.this_device.connect(
-            "clicked", lambda *a: self.emit("device-update", "this device")
-        )
-        device_list.add(self.this_device)
+        self.device_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        device_list_and_loading.add(self.device_list)
 
-        device_list.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
-
-        self.device_list_loading = Gtk.Spinner(active=True)
-        self.device_list_loading.get_style_context().add_class("menu-button")
-        device_list.add(self.device_list_loading)
-
-        self.chromecast_device_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        device_list.add(self.chromecast_device_list)
-
-        device_popover_box.pack_end(device_list, True, True, 0)
+        device_popover_box.pack_end(device_list_and_loading, True, True, 0)
 
         self.device_popover.add(device_popover_box)
 

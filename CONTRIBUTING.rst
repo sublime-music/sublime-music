@@ -47,11 +47,11 @@ install to develop the app. In general, the requirements are:
 - GTK3
 - GLib
 
-Specific Install Instructions for Various Distros/OSes
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Specific Requirements for Various Distros/OSes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * **Arch Linux:** `pacman -S libnm-glib libnotify python-gobject`
-* **macOS (Homebrew):** `brew install pygobject3 gtk+3 adwaita-icon-theme`
+* **macOS (Homebrew):** `brew install mp3 gobject-introspection pkg-config pygobject3 gtk+3 adwaita-icon-theme`
 
 Installing
 ----------

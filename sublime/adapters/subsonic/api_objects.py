@@ -29,11 +29,15 @@ encoder_functions = {
 
 for type_, translation_function in decoder_functions.items():
     dataclasses_json.cfg.global_config.decoders[type_] = translation_function
-    dataclasses_json.cfg.global_config.decoders[Optional[type_]] = translation_function
+    dataclasses_json.cfg.global_config.decoders[
+        Optional[type_]  # type: ignore
+    ] = translation_function
 
 for type_, translation_function in encoder_functions.items():
     dataclasses_json.cfg.global_config.encoders[type_] = translation_function
-    dataclasses_json.cfg.global_config.encoders[Optional[type_]] = translation_function
+    dataclasses_json.cfg.global_config.encoders[
+        Optional[type_]  # type: ignore
+    ] = translation_function
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -99,7 +103,8 @@ class ArtistAndArtistInfo(SublimeAPI.Artist):
     last_fm_url: Optional[str] = None
 
     def __post_init__(self):
-        self.album_count = self.album_count or len(self.albums)
+        if not self.album_count and len(self.albums) > 0:
+            self.album_count = len(self.albums)
         if not self.artist_image_url:
             self.artist_image_url = self.cover_art
 

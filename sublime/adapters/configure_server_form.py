@@ -157,7 +157,7 @@ class ConfigureServerForm(Gtk.Box):
             if cpd.default is not None:
                 config_store[key] = config_store.get(key, cpd.default)
 
-            label = Gtk.Label(cpd.description + ":", halign=Gtk.Align.END)
+            label = Gtk.Label(label=cpd.description, halign=Gtk.Align.END)
 
             input_el_box = Gtk.Box()
             self.entries[key] = cast(

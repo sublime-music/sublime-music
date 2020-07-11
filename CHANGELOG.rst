@@ -1,8 +1,59 @@
-v0.10.3
+v0.10.4
 =======
 
 .. TODO in next release:
 .. * A man page has been added. Contributed by @baldurmen.
+
+.. note::
+
+   This version does not have a Flatpak due to issues getting Python 3.8 working
+   within the Flatpak environment. See `Issue #218
+   <https://gitlab.com/sumner/sublime-music/-/issues/218_>`_
+
+**New Website:** Sublime Music has a website! https://sublimemusic.app
+
+**Distro Packages**
+
+* Sublime Music is now available in Debian Unstable, and hopefully soon in
+  Debian Testing.
+* *For package maintainers:*
+
+  The following dependencies were added:
+
+  * ``semver``
+
+  The following dependencies were removed:
+
+  * ``pyyaml``
+
+  The following dependencies are now optional:
+
+  * ``pychromecast``
+  * ``bottle``
+
+**Feature Improvements**
+
+* Player settings now get applied immediately, rather than after restarting
+  Sublime Music.
+* Getting the list of Chromecasts for the Device popup now happens much faster.
+
+**Bug Fixes**
+
+* Loading the play queue from the server is now more reliable and works properly
+  with Gonic (Contributed by @sentriz).
+* *Fixed Regression*: The load play queue button in the play queue popup works
+  again.
+* Caching behavior has been greatly improved.
+* The Subsonic adapter disables saving and loading the play queue if the server
+  doesn't implement the Subsonic API v1.12.0.
+
+**Under the Hood**
+
+* The API for players has been greatly improved and is now actually documented
+  which will enable more player types in the future.
+
+v0.10.3
+=======
 
 This is a hotfix release. I forgot to add the Subsonic logo resources to
 ``setup.py``. All of the interesting updates happened in `v0.10.2`_.

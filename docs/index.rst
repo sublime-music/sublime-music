@@ -25,7 +25,7 @@ Linux Desktop.
 Features
 --------
 
-* Switch between multiple Subsonic-API-compliant servers.
+* Switch between multiple Subsonic-API-compliant [1]_ servers.
 * Play music through Chromecast devices on the same LAN.
 * Offline Mode where Sublime Music will not make any network requests.
 * DBus MPRIS interface integration for controlling Sublime Music via clients
@@ -37,6 +37,8 @@ Features
 * Create/delete/edit playlists.
 * Download songs for offline listening.
 
+.. [1] Requires a server which implements the Subsonic API version 1.8.0+.
+
 Installation
 ------------
 
@@ -45,6 +47,13 @@ Installation
 Install the |AUR Package|_. Example using ``yay``::
 
     yay -S sublime-music
+
+If you want support for storing passwords in the system keychain, also install
+``python-keyring``.
+
+If you want support for playing on Chromecast devices, install
+``python-pychromecast``. If you want to serve cached files from your computer
+over the LAN to Chromecast devices also install ``python-bottle``.
 
 .. |AUR Package| replace:: ``sublime-music`` package
 .. _AUR Package: https://aur.archlinux.org/packages/sublime-music/
@@ -79,10 +88,17 @@ and run it by executing::
 
     pip install sublime-music
 
-Or if you want to store your passwords in the system keyring instead of in
-plain-text::
+There are a few optional dependencies that you can install. Here's an example of
+how to do that::
 
-    pip install sublime-music[keyring]
+    pip install sublime-music[keyring,chromecast,server]
+
+* ``keyring``: if you want to store your passwords in the system keyring instead
+  of in plain-text
+* ``chromecast``: if you want support for playing on Chromecast devices on the
+  LAN.
+* ``server``: if you want to be able to serve cached files from your computer
+  over the LAN to Chromecast devices
 
 .. note::
 
