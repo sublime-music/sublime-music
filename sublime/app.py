@@ -572,6 +572,7 @@ class SublimeMusicApp(Gtk.Application):
                 AdapterManager.on_offline_mode_change(offline_mode)
 
             del state_updates["__settings__"]
+            self.app_config.save()
 
         if player_setting := state_updates.get("__player_setting__"):
             player_name, option_name, value = player_setting
@@ -579,6 +580,7 @@ class SublimeMusicApp(Gtk.Application):
             del state_updates["__player_setting__"]
             if pm := self.player_manager:
                 pm.change_settings(self.app_config.player_config)
+            self.app_config.save()
 
         for k, v in state_updates.items():
             setattr(self.app_config.state, k, v)

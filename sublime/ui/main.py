@@ -276,7 +276,7 @@ class MainWindow(Gtk.ApplicationWindow):
                     setting_box.pack_end(switch, False, False, 0)
 
                 elif descriptor == int:
-                    # TODO do stuff to make this not apply until you are done editing
+                    int_editor_box = Gtk.Box()
 
                     def restrict_to_ints(
                         entry: Gtk.Entry, text: str, length: int, position: int
@@ -288,18 +288,47 @@ class MainWindow(Gtk.ApplicationWindow):
                             return True
                         return False
 
-                    entry = Gtk.Entry(width_chars=8, text=option_value)
-                    entry.connect(
-                        "changed",
+                    entry = Gtk.Entry(width_chars=8, text=option_value, sensitive=False)
+                    entry.connect("insert-text", restrict_to_ints)
+                    int_editor_box.add(entry)
+
+                    buttons_box = Gtk.Box()
+
+                    edit_button = IconButton("document-edit-symbolic", relief=True)
+                    confirm_button = IconButton("object-select-symbolic", relief=True)
+                    cancel_button = IconButton("process-stop-symbolic", relief=True)
+
+                    def on_edit_button_click(*a):
+                        entry.set_sensitive(True)
+                        buttons_box.remove(edit_button)
+                        buttons_box.add(cancel_button)
+                        buttons_box.add(confirm_button)
+                        buttons_box.show_all()
+
+                    def on_cancel_button_click(*a):
+                        entry.set_text(str(option_value))
+                        entry.set_sensitive(False)
+                        buttons_box.remove(cancel_button)
+                        buttons_box.remove(confirm_button)
+                        buttons_box.add(edit_button)
+                        buttons_box.show_all()
+
+                    edit_button.connect("clicked", on_edit_button_click)
+                    confirm_button.connect(
+                        "clicked",
                         partial(
                             emit_player_settings_change,
                             player_name,
                             option_name,
-                            lambda e: int(e.get_text()),
+                            lambda b: int(entry.get_text()),
                         ),
                     )
-                    entry.connect("insert-text", restrict_to_ints)
-                    setting_box.pack_end(entry, False, False, 0)
+                    cancel_button.connect("clicked", on_cancel_button_click)
+                    buttons_box.add(edit_button)
+
+                    int_editor_box.add(buttons_box)
+
+                    setting_box.pack_end(int_editor_box, False, False, 0)
 
                 setting_box.get_style_context().add_class("menu-button")
                 self.player_settings_box.add(setting_box)
