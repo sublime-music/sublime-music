@@ -541,7 +541,7 @@ class FilesystemAdapter(CachingAdapter):
                 ),
                 "artist": (
                     self._do_ingest_new_data(KEYS.ARTIST, ar.id, ar, partial=True)
-                    if (ar := album.artist) and not partial
+                    if (ar := album.artist)
                     else None
                 ),
                 "_songs": (
