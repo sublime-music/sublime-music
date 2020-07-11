@@ -162,7 +162,7 @@ class CacheMissError(Exception):
         super().__init__(*args)
 
 
-KEYRING_APP_NAME = "com.sumnerevans.SublimeMusic"
+KEYRING_APP_NAME = "app.sublimemusic.SublimeMusic"
 
 
 class ConfigurationStore(dict):

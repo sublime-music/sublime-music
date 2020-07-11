@@ -89,7 +89,7 @@ Building the flatpak
 - The script ``flatpak_build.sh`` will run the required commands to grab the
   remaining dependencies and build the flatpak.
 - You can install the Flatpak using: ``flatpak install sublime-music.flatpak``
-  and run it using ``flatpak run com.sumnerevans.SublimeMusic``.
+  and run it using ``flatpak run app.sublimemusic.SublimeMusic``.
 
 Code Style
 ----------

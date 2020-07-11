@@ -76,7 +76,7 @@ Then, you can install Sublime Music with::
 
 and run it by executing::
 
-    flatpak run com.sumnerevans.SublimeMusic
+    flatpak run app.sublimemusic.SublimeMusic
 
 .. _Releases: https://gitlab.com/sublime-music/sublime-music/-/releases
 
@@ -103,6 +103,11 @@ how to do that::
    an OS that hasn't deprecated Python 2 yet.
 
 -------------------------------------------------------------------------------
+
+|website|_
+
+.. |website| replace:: **Click HERE for the Sublime Music website.**
+.. _website: https://sublimemusic.app
 
 |userdoc|_
 

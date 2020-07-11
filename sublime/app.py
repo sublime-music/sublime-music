@@ -50,7 +50,7 @@ from .ui.state import RepeatType, UIState
 
 class SublimeMusicApp(Gtk.Application):
     def __init__(self, config_file: Path):
-        super().__init__(application_id="com.sumnerevans.sublimemusic")
+        super().__init__(application_id="app.sublimemusic.SublimeMusic")
         if glib_notify_exists:
             Notify.init("Sublime Music")
 

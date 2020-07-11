@@ -80,7 +80,7 @@ Then, you can install Sublime Music with::
 
 and run it by executing::
 
-    flatpak run com.sumnerevans.SublimeMusic
+    flatpak run app.sublimemusic.SublimeMusic
 
 .. _Releases: https://gitlab.com/sublime-music/sublime-music/-/releases
 
