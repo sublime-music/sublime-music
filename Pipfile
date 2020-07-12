@@ -24,6 +24,7 @@ rst2html5 = "*"
 sphinx = "*"
 sphinx-rtd-theme = "*"
 termcolor = "*"
+requirements-parser = "*"
 
 [packages]
 sublime-music = {editable = true, extras = ["chromecast", "keyring", "server"], path = "."}

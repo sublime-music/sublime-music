@@ -5,12 +5,10 @@ set -xe
 REPO=${REPO:-/repo}
 APPID=app.sublimemusic.SublimeMusic
 
+pip install requirements-parser
+
 rm -rf flatpak-builder-tools
 git clone https://github.com/flatpak/flatpak-builder-tools.git
-
-pushd flatpak-builder-tools
-git checkout 8dd64fc
-popd
 
 python3 ./flatpak-builder-tools/pip/flatpak-pip-generator \
     --requirements-file=flatpak-requirements.txt \
