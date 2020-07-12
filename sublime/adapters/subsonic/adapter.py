@@ -182,7 +182,8 @@ class SubsonicAdapter(Adapter):
 
     @staticmethod
     def migrate_configuration(config_store: ConfigurationStore):
-        pass
+        if "salt_auth" not in config_store:
+            config_store["salt_auth"] = False
 
     def __init__(self, config: ConfigurationStore, data_directory: Path):
         self.data_directory = data_directory
@@ -221,7 +222,7 @@ class SubsonicAdapter(Adapter):
         self.username = config["username"]
         self.password = cast(str, config.get_secret("password"))
         self.verify_cert = config["verify_cert"]
-        self.use_salt_auth = config["salt_auth"] if "salt_auth" in config else False
+        self.use_salt_auth = config["salt_auth"]
 
         self.is_shutting_down = False
 
@@ -367,9 +368,8 @@ class SubsonicAdapter(Adapter):
         Authentication section of www.subsonic.org/pages/api.jsp for more information
         """
         salt = "".join(random.choices(string.ascii_letters + string.digits, k=8))
-        unhashed_token = "{}{}".format(self.password, salt)
-        hashed_token = hashlib.md5(str.encode(unhashed_token)).hexdigest()
-        return (salt, hashed_token)
+        token = hashlib.md5(f"{self.password}{salt}".encode()).hexdigest()
+        return (salt, token)
 
     def _make_url(self, endpoint: str) -> str:
         return f"{self.hostname}/rest/{endpoint}.view"

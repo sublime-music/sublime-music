@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import re
@@ -124,8 +125,33 @@ def test_salt_auth_logic(salt_auth_adapter: SubsonicAdapter):
     params = salt_auth_adapter._get_params()
     assert "p" not in params
     assert "s" in params
+    salt = params["s"]
     assert "t" in params
+    assert params["t"] == hashlib.md5(f"testpass{salt}".encode()).hexdigest()
     assert all(key in params and params[key] == expected[key] for key in expected)
+
+
+def test_migrate_configuration_populate_salt_auth():
+    config = ConfigurationStore(
+        server_address="https://subsonic.example.com",
+        username="test",
+        verify_cert=True,
+    )
+    SubsonicAdapter.migrate_configuration(config)
+    assert "salt_auth" in config
+    assert not config["salt_auth"]
+
+
+def test_migrate_configuration_salt_auth_present():
+    config = ConfigurationStore(
+        server_address="https://subsonic.example.com",
+        username="test",
+        verify_cert=True,
+        salt_auth=True,
+    )
+    SubsonicAdapter.migrate_configuration(config)
+    assert "salt_auth" in config
+    assert config["salt_auth"]
 
 
 def test_make_url(adapter: SubsonicAdapter):
