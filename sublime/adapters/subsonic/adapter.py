@@ -313,18 +313,22 @@ class SubsonicAdapter(Adapter):
             self._schemes = (urlparse(self.hostname)[0],)
         return self._schemes
 
-    # TODO (#203) make this way smarter
-    supported_artist_query_types = {
-        AlbumSearchQuery.Type.RANDOM,
-        AlbumSearchQuery.Type.NEWEST,
-        AlbumSearchQuery.Type.FREQUENT,
-        AlbumSearchQuery.Type.RECENT,
-        AlbumSearchQuery.Type.STARRED,
-        AlbumSearchQuery.Type.ALPHABETICAL_BY_NAME,
-        AlbumSearchQuery.Type.ALPHABETICAL_BY_ARTIST,
-        AlbumSearchQuery.Type.YEAR_RANGE,
-        AlbumSearchQuery.Type.GENRE,
-    }
+    @property
+    def supported_artist_query_types(self) -> Set[AlbumSearchQuery.Type]:
+        supported = {
+            AlbumSearchQuery.Type.RANDOM,
+            AlbumSearchQuery.Type.NEWEST,
+            AlbumSearchQuery.Type.FREQUENT,
+            AlbumSearchQuery.Type.RECENT,
+            AlbumSearchQuery.Type.STARRED,
+            AlbumSearchQuery.Type.ALPHABETICAL_BY_NAME,
+            AlbumSearchQuery.Type.ALPHABETICAL_BY_ARTIST,
+        }
+        if self.version_at_least("1.10.1"):
+            supported.add(AlbumSearchQuery.Type.YEAR_RANGE)
+            supported.add(AlbumSearchQuery.Type.GENRE)
+
+        return supported
 
     # Helper mothods for making requests
     # ==================================================================================

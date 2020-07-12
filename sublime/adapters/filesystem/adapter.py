@@ -136,7 +136,6 @@ class FilesystemAdapter(CachingAdapter):
         return self._can_get_key(KEYS.GENRES)
 
     supported_schemes = ("file",)
-    # TODO (#203)
     supported_artist_query_types = {
         AlbumSearchQuery.Type.RANDOM,
         AlbumSearchQuery.Type.NEWEST,

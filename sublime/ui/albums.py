@@ -230,6 +230,12 @@ class AlbumsPanel(Gtk.Box):
     def update(self, app_config: AppConfiguration = None, force: bool = False):
         self.updating_query = True
 
+        supported_type_strings = {
+            _to_type(t) for t in AdapterManager.get_supported_artist_query_types()
+        }
+        for i, el in enumerate(self.sort_type_combo_store):
+            self.sort_type_combo_store[i][2] = el[0] in supported_type_strings
+
         # (En|Dis)able getting genres.
         self.sort_type_combo_store[1][2] = AdapterManager.can_get_genres()
 

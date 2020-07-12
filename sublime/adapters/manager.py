@@ -553,18 +553,9 @@ class AdapterManager:
     @staticmethod
     def get_supported_artist_query_types() -> Set[AlbumSearchQuery.Type]:
         assert AdapterManager._instance
-
-        supported_artist_query_types: Set[AlbumSearchQuery.Type] = set()
-        supported_artist_query_types.union(
+        return (
             AdapterManager._instance.ground_truth_adapter.supported_artist_query_types
         )
-
-        if caching_adapter := AdapterManager._instance.caching_adapter:
-            supported_artist_query_types.union(
-                caching_adapter.supported_artist_query_types
-            )
-
-        return supported_artist_query_types
 
     R = TypeVar("R")
 

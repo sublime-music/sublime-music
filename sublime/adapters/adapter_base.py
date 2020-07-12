@@ -469,7 +469,6 @@ class Adapter(abc.ABC):
 
         :returns: A set of :class:`AlbumSearchQuery.Type` objects.
         """
-        # TODO (#203): use this
         return set()
 
     @property
