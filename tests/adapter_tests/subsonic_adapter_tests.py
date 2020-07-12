@@ -24,11 +24,31 @@ def adapter(tmp_path: Path):
         server_address="https://subsonic.example.com",
         username="test",
         verify_cert=True,
+        salt_auth=False,
     )
     config.set_secret("password", "testpass")
 
     adapter = SubsonicAdapter(config, tmp_path)
     adapter._is_mock = True
+
+    yield adapter
+    adapter.shutdown()
+
+
+@pytest.fixture
+def salt_auth_adapter(tmp_path: Path):
+    ConfigurationStore.MOCK = True
+    config = ConfigurationStore(
+        server_address="https://subsonic.example.com",
+        username="test",
+        verify_cert=True,
+        salt_auth=True,
+    )
+    config.set_secret("password", "testpass")
+
+    adapter = SubsonicAdapter(config, tmp_path)
+    adapter._is_mock = True
+
     yield adapter
     adapter.shutdown()
 
@@ -82,7 +102,7 @@ def test_config_form():
     SubsonicAdapter.get_configuration_form(config_store)
 
 
-def test_request_making_methods(adapter: SubsonicAdapter):
+def test_plain_auth_logic(adapter: SubsonicAdapter):
     expected = {
         "u": "test",
         "p": "testpass",
@@ -92,6 +112,23 @@ def test_request_making_methods(adapter: SubsonicAdapter):
     }
     assert sorted(expected.items()) == sorted(adapter._get_params().items())
 
+
+def test_salt_auth_logic(salt_auth_adapter: SubsonicAdapter):
+    expected = {
+        "u": "test",
+        "c": "Sublime Music",
+        "f": "json",
+        "v": "1.15.0",
+    }
+
+    params = salt_auth_adapter._get_params()
+    assert "p" not in params
+    assert "s" in params
+    assert "t" in params
+    assert all(key in params and params[key] == expected[key] for key in expected)
+
+
+def test_make_url(adapter: SubsonicAdapter):
     assert adapter._make_url("foo") == "https://subsonic.example.com/rest/foo.view"
 
 

@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import math
@@ -5,6 +6,7 @@ import multiprocessing
 import os
 import pickle
 import random
+import string
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -109,6 +111,15 @@ class SubsonicAdapter(Adapter):
                 helptext="If toggled, Sublime Music will periodically save the play "
                 "queue state so that you can resume on other devices.",
             ),
+            "salt_auth": ConfigParamDescriptor(
+                bool,
+                "Use Salt Authentication",
+                default=False,
+                advanced=True,
+                helptext="If toggled, Sublime Music will use salted hash tokens "
+                "instead of the plain password in the request urls (only supported on "
+                "Subsonic API 1.13.0+)",
+            ),
         }
 
         if networkmanager_imported:
@@ -210,6 +221,7 @@ class SubsonicAdapter(Adapter):
         self.username = config["username"]
         self.password = cast(str, config.get_secret("password"))
         self.verify_cert = config["verify_cert"]
+        self.use_salt_auth = config["salt_auth"] if "salt_auth" in config else False
 
         self.is_shutting_down = False
 
@@ -333,13 +345,31 @@ class SubsonicAdapter(Adapter):
         Gets the parameters that are needed for all requests to the Subsonic API. See
         Subsonic API Introduction for details.
         """
-        return {
+        params = {
             "u": self.username,
-            "p": self.password,
             "c": "Sublime Music",
             "f": "json",
             "v": "1.15.0",
         }
+
+        if self.use_salt_auth:
+            salt, token = self._generate_auth_token()
+            params["s"] = salt
+            params["t"] = token
+        else:
+            params["p"] = self.password
+
+        return params
+
+    def _generate_auth_token(self) -> Tuple[str, str]:
+        """
+        Generates the necessary authentication data to call the Subsonic API See the
+        Authentication section of www.subsonic.org/pages/api.jsp for more information
+        """
+        salt = "".join(random.choices(string.ascii_letters + string.digits, k=8))
+        unhashed_token = "{}{}".format(self.password, salt)
+        hashed_token = hashlib.md5(str.encode(unhashed_token)).hexdigest()
+        return (salt, hashed_token)
 
     def _make_url(self, endpoint: str) -> str:
         return f"{self.hostname}/rest/{endpoint}.view"
