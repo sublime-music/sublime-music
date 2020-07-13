@@ -212,12 +212,11 @@ class SubsonicAdapter(Adapter):
         self.verify_cert = config["verify_cert"]
 
         self.is_shutting_down = False
+        self._ping_process: Optional[multiprocessing.Process] = None
+        self._version = multiprocessing.Array("c", 20)
+        self._offline_mode = False
 
         # TODO (#112): support XML?
-
-    _ping_process: Optional[multiprocessing.Process] = None
-    _version = multiprocessing.Array("c", 20)
-    _offline_mode = False
 
     def initial_sync(self):
         # Try to ping the server five times using exponential backoff (2^5 = 32s).
@@ -342,7 +341,7 @@ class SubsonicAdapter(Adapter):
             "p": self.password,
             "c": "Sublime Music",
             "f": "json",
-            "v": "1.15.0",
+            "v": self._version.value.decode() or "1.8.0",
         }
 
     def _make_url(self, endpoint: str) -> str:
