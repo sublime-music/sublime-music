@@ -1,3 +1,25 @@
+v0.11.1
+=======
+
+**Feature Improvements**
+
+* Albums are sorted by year on the Artists detail view. (Contributed by
+  @sentriz.)
+* If the server doesn't support it, the Load Play Queue button on the Play Queue
+  popup is now hidden. (#203)
+* If the server doesn't support them, the "by year" and "by genre" sort options
+  on the Albums tab are disabled. (#203)
+* The app ID has been changed from ``com.sumnerevans.SublimeMusic`` to
+  ``app.sublimemusic.SublimeMusic``. (#170)
+* Better errors are shown on the Configure Provider dialog when there are SSL
+  errors connecting to the Subsonic server. (#236)
+
+**Bug Fixes**
+
+* Fixed issue where users couldn't log in to LMS due to Sublime Music always
+  sending version number "1.15.0" instead of figuring out what version of the
+  API the server actually reports.
+
 v0.11.0
 =======
 
@@ -40,7 +62,7 @@ v0.11.0
 **Bug Fixes**
 
 * Loading the play queue from the server is now more reliable and works properly
-  with Gonic (Contributed by @sentriz).
+  with Gonic. (Contributed by @sentriz.)
 * *Fixed Regression*: The load play queue button in the play queue popup works
   again.
 * Caching behavior has been greatly improved.
