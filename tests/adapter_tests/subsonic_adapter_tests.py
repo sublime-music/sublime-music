@@ -88,7 +88,7 @@ def test_request_making_methods(adapter: SubsonicAdapter):
         "p": "testpass",
         "c": "Sublime Music",
         "f": "json",
-        "v": "1.15.0",
+        "v": "1.8.0",
     }
     assert sorted(expected.items()) == sorted(adapter._get_params().items())
 
