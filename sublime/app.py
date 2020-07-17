@@ -594,7 +594,7 @@ class SublimeMusicApp(Gtk.Application):
         self.show_configure_servers_dialog()
 
     def on_edit_current_music_provider(self, *args):
-        self.show_configure_servers_dialog(self.app_config.provider)
+        self.show_configure_servers_dialog(self.app_config.provider.clone())
 
     def on_switch_music_provider(self, _, provider_id: GLib.Variant):
         if self.app_config.state.playing:
@@ -983,7 +983,9 @@ class SublimeMusicApp(Gtk.Application):
         if result == Gtk.ResponseType.APPLY:
             assert dialog.provider_config is not None
             provider_id = dialog.provider_config.id
+            dialog.provider_config.persist_secrets()
             self.app_config.providers[provider_id] = dialog.provider_config
+            self.app_config.save()
 
             if provider_id == self.app_config.current_provider_id:
                 # Just update the window.

@@ -47,6 +47,25 @@ class ProviderConfiguration:
         if self.caching_adapter_type:
             self.caching_adapter_type.migrate_configuration(self.caching_adapter_config)
 
+    def clone(self) -> "ProviderConfiguration":
+        return ProviderConfiguration(
+            self.id,
+            self.name,
+            self.ground_truth_adapter_type,
+            self.ground_truth_adapter_config.clone(),
+            self.caching_adapter_type,
+            (
+                self.caching_adapter_config.clone()
+                if self.caching_adapter_config
+                else None
+            ),
+        )
+
+    def persist_secrets(self):
+        self.ground_truth_adapter_config.persist_secrets()
+        if self.caching_adapter_config:
+            self.caching_adapter_config.persist_secrets()
+
 
 def encode_providers(
     providers_dict: Dict[str, Dict[str, Any]]

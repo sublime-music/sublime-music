@@ -1,4 +1,5 @@
 import abc
+import copy
 import hashlib
 import uuid
 from dataclasses import dataclass
@@ -174,18 +175,47 @@ class ConfigurationStore(dict):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._changed_secrets_store = {}
 
     def __repr__(self) -> str:
         values = ", ".join(f"{k}={v!r}" for k, v in sorted(self.items()))
         return f"ConfigurationStore({values})"
 
+    def clone(self) -> "ConfigurationStore":
+        configuration_store = ConfigurationStore(**copy.deepcopy(self))
+        configuration_store._changed_secrets_store = copy.deepcopy(
+            self._changed_secrets_store
+        )
+        return configuration_store
+
+    def persist_secrets(self):
+        if not keyring_imported or ConfigurationStore.MOCK:
+            return
+
+        for key, secret in self._changed_secrets_store.items():
+            try:
+                password_id = None
+                if password_type_and_id := self.get(key):
+                    if cast(List[str], password_type_and_id)[0] == "keyring":
+                        password_id = password_type_and_id[1]
+
+                if password_id is None:
+                    password_id = str(uuid.uuid4())
+
+                keyring.set_password(KEYRING_APP_NAME, password_id, secret)
+                self[key] = ["keyring", password_id]
+            except Exception:
+                return
+
     def get_secret(self, key: str) -> Optional[str]:
         """
-        Get the secret value in the store with the given key. If the key doesn't exist
-        in the store, return the default. This will retrieve the secret from whatever is
-        configured as the underlying secret storage mechanism so you don't have to deal
-        with secret storage yourself.
+        Get the secret value in the store with the given key. This will retrieve the
+        secret from whatever is configured as the underlying secret storage mechanism so
+        you don't have to deal with secret storage yourself.
         """
+        if secret := self._changed_secrets_store.get(key):
+            return secret
+
         value = self.get(key)
         if not isinstance(value, list) or len(value) != 2:
             return None
@@ -199,26 +229,11 @@ class ConfigurationStore(dict):
     def set_secret(self, key: str, value: str = None):
         """
         Set the secret value of the given key in the store. This should be used for
-        things such as passwords or API tokens. This will store the secret in whatever
-        is configured as the underlying secret storage mechanism so you don't have to
-        deal with secret storage yourself.
+        things such as passwords or API tokens. When :class:`persist_secrets` is called,
+        the secrets will be stored in whatever is configured as the underlying secret
+        storage mechanism so you don't have to deal with secret storage yourself.
         """
-        if keyring_imported and not ConfigurationStore.MOCK:
-            try:
-                password_id = None
-                if password_type_and_id := self.get(key):
-                    if cast(List[str], password_type_and_id)[0] == "keyring":
-                        password_id = password_type_and_id[1]
-
-                if password_id is None:
-                    password_id = str(uuid.uuid4())
-
-                keyring.set_password(KEYRING_APP_NAME, password_id, value)
-                self[key] = ["keyring", password_id]
-                return
-            except Exception:
-                pass
-
+        self._changed_secrets_store[key] = value
         self[key] = ["plaintext", value]
 
 
