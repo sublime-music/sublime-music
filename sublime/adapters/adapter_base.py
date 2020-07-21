@@ -657,7 +657,6 @@ class Adapter(abc.ABC):
             only be ``True`` if :class:`supports_streaming` returns ``True``.
         :returns: The URI for the given song.
         """
-        # TODO (#189)
         raise self._check_can_error("get_song_uri")
 
     def get_song_details(self, song_id: str) -> Song:

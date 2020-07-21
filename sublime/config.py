@@ -18,7 +18,9 @@ def encode_path(path: Path) -> str:
 
 
 dataclasses_json.cfg.global_config.decoders[Path] = Path
-dataclasses_json.cfg.global_config.decoders[Optional[Path]] = (
+dataclasses_json.cfg.global_config.decoders[
+    Optional[Path]  # type: ignore
+] = (
     lambda p: Path(p) if p else None
 )
 
