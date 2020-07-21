@@ -139,7 +139,7 @@ def test_migrate_configuration_populate_salt_auth():
     )
     SubsonicAdapter.migrate_configuration(config)
     assert "salt_auth" in config
-    assert not config["salt_auth"]
+    assert config["salt_auth"]
 
 
 def test_migrate_configuration_salt_auth_present():
@@ -147,11 +147,11 @@ def test_migrate_configuration_salt_auth_present():
         server_address="https://subsonic.example.com",
         username="test",
         verify_cert=True,
-        salt_auth=True,
+        salt_auth=False,
     )
     SubsonicAdapter.migrate_configuration(config)
     assert "salt_auth" in config
-    assert config["salt_auth"]
+    assert not config["salt_auth"]
 
 
 def test_make_url(adapter: SubsonicAdapter):
