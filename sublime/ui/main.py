@@ -1065,7 +1065,7 @@ class MainWindow(Gtk.ApplicationWindow):
             image.set_loading(False)
             image.set_from_file(f.result())
 
-        artwork_future = AdapterManager.get_cover_art_filename(cover_art_id)
+        artwork_future = AdapterManager.get_cover_art_uri(cover_art_id, "file")
         artwork_future.add_done_callback(lambda f: GLib.idle_add(image_callback, f))
 
         return row
@@ -1196,7 +1196,7 @@ class DownloadStatusBox(Gtk.Box):
             image.set_loading(False)
             image.set_from_file(f.result())
 
-        artwork_future = AdapterManager.get_cover_art_filename(self.song.cover_art)
+        artwork_future = AdapterManager.get_cover_art_uri(self.song.cover_art, "file")
         artwork_future.add_done_callback(lambda f: GLib.idle_add(image_callback, f))
 
     def update_progress(self, progress_fraction: float):

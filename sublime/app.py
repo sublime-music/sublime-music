@@ -469,8 +469,8 @@ class SublimeMusicApp(Gtk.Application):
             )
 
             def make_playlist_tuple(p: Playlist) -> GLib.Variant:
-                cover_art_filename = AdapterManager.get_cover_art_filename(
-                    p.cover_art, allow_download=False,
+                cover_art_filename = AdapterManager.get_cover_art_uri(
+                    p.cover_art, "file", allow_download=False,
                 ).result()
                 return (f"/playlist/{p.id}", p.name, cover_art_filename or "")
 
@@ -1165,8 +1165,8 @@ class SublimeMusicApp(Gtk.Application):
                             )
                             song_notification.show()
 
-                        cover_art_result = AdapterManager.get_cover_art_filename(
-                            song.cover_art
+                        cover_art_result = AdapterManager.get_cover_art_uri(
+                            song.cover_art, "file"
                         )
                         cover_art_result.add_done_callback(
                             lambda f: on_cover_art_download_complete(f.result())

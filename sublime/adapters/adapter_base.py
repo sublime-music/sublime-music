@@ -438,7 +438,6 @@ class Adapter(abc.ABC):
         Examples of values that could be provided include ``http``, ``https``, ``file``,
         or ``ftp``.
         """
-        # TODO (#189) actually use this
         return ()
 
     @property
@@ -446,6 +445,7 @@ class Adapter(abc.ABC):
         """
         Whether or not the adapter supports :class:`get_cover_art_uri`.
         """
+        return False
 
     @property
     def can_stream(self) -> bool:

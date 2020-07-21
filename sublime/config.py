@@ -18,9 +18,7 @@ def encode_path(path: Path) -> str:
 
 
 dataclasses_json.cfg.global_config.decoders[Path] = Path
-dataclasses_json.cfg.global_config.decoders[
-    Optional[Path]  # type: ignore
-] = (
+dataclasses_json.cfg.global_config.decoders[Optional[Path]] = (
     lambda p: Path(p) if p else None
 )
 
@@ -111,7 +109,7 @@ def decode_providers(
                 else None
             ),
             caching_adapter_config=(
-                ConfigurationStore(**config.get("caching_adapter_config", {}))
+                ConfigurationStore(**(config.get("caching_adapter_config") or {}))
             ),
         )
         for id_, config in providers_dict.items()

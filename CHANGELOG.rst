@@ -19,6 +19,8 @@ v0.11.1
 * Fixed issue where users couldn't log in to LMS due to Sublime Music always
   sending version number "1.15.0" instead of figuring out what version of the
   API the server actually reports.
+* Fixed issue where edits to the music provider configurations were applied even
+  if ESC was pressed. (#247)
 
 v0.11.0
 =======

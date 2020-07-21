@@ -839,8 +839,8 @@ class AlbumsGrid(Gtk.Overlay):
             artwork.set_from_file(filename.result())
             artwork.set_loading(False)
 
-        cover_art_filename_future = AdapterManager.get_cover_art_filename(
-            item.album.cover_art
+        cover_art_filename_future = AdapterManager.get_cover_art_uri(
+            item.album.cover_art, "file"
         )
         if cover_art_filename_future.data_is_available:
             on_artwork_downloaded(cover_art_filename_future)
