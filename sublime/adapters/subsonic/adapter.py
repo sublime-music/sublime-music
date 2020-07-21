@@ -169,19 +169,13 @@ class SubsonicAdapter(Adapter):
                         "Double check the server address."
                     )
                 except ServerError as e:
-                    if e.status_code == 41:
-                        # as per subsonic api docs, description of status_code 41 is
-                        # "Token authentication not supported for LDAP users." so fall
-                        # back to password auth
-                        config_store["salt_auth"] = False
-                        logging.warn(
-                            "Salted auth no supported for LDAP users, falling back to "
-                            "regular password auth"
-                        )
-                    elif e.status_code == 10 and config_store["salt_auth"]:
-                        # if salt auth is not enabled, server will return error server
-                        # error with status_code 10 since it'll interpret it as a
-                        # missing (password) parameter
+                    if e.status_code in [10, 41] and config_store["salt_auth"]:
+                        # status code 10: if salt auth is not enabled, server will
+                        # return error server error with status_code 10 since it'll
+                        # interpret it as a missing (password) parameter
+                        # status code 41: as per subsonic api docs, description of
+                        # status_code 41 is "Token authentication not supported for LDAP
+                        # users." so fall back to password auth
                         try:
                             config_store["salt_auth"] = False
                             tmp_adapter = SubsonicAdapter(
@@ -196,8 +190,12 @@ class SubsonicAdapter(Adapter):
                                 "Salted auth not supported, falling back to regular "
                                 "password auth"
                             )
-                        except ServerError:
+                        except ServerError as retry_e:
                             config_store["salt_auth"] = True
+                            errors["__ping__"] = (
+                                "<b>Error connecting to the server.</b>\n"
+                                f"Error {retry_e.status_code}: {str(retry_e)}"
+                            )
                     else:
                         errors["__ping__"] = (
                             "<b>Error connecting to the server.</b>\n"
