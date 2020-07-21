@@ -114,7 +114,7 @@ class SubsonicAdapter(Adapter):
             "salt_auth": ConfigParamDescriptor(
                 bool,
                 "Use Salt Authentication",
-                default=False,
+                default=True,
                 advanced=True,
                 helptext="If toggled, Sublime Music will use salted hash tokens "
                 "instead of the plain password in the request urls (only supported on "
@@ -169,10 +169,40 @@ class SubsonicAdapter(Adapter):
                         "Double check the server address."
                     )
                 except ServerError as e:
-                    errors["__ping__"] = (
-                        "<b>Error connecting to the server.</b>\n"
-                        f"Error {e.status_code}: {str(e)}"
-                    )
+                    if e.status_code == 41:
+                        # as per subsonic api docs, description of status_code 41 is
+                        # "Token authentication not supported for LDAP users." so fall
+                        # back to password auth
+                        config_store["salt_auth"] = False
+                        logging.warn(
+                            "Salted auth no supported for LDAP users, falling back to "
+                            "regular password auth"
+                        )
+                    elif e.status_code == 10 and config_store["salt_auth"]:
+                        # if salt auth is not enabled, server will return error server
+                        # error with status_code 10 since it'll interpret it as a
+                        # missing (password) parameter
+                        try:
+                            config_store["salt_auth"] = False
+                            tmp_adapter = SubsonicAdapter(
+                                config_store, Path(tmp_dir_name)
+                            )
+                            tmp_adapter._get_json(
+                                tmp_adapter._make_url("ping"),
+                                timeout=2,
+                                is_exponential_backoff_ping=True,
+                            )
+                            logging.warn(
+                                "Salted auth not supported, falling back to regular "
+                                "password auth"
+                            )
+                        except ServerError:
+                            config_store["salt_auth"] = True
+                    else:
+                        errors["__ping__"] = (
+                            "<b>Error connecting to the server.</b>\n"
+                            f"Error {e.status_code}: {str(e)}"
+                        )
                 except Exception as e:
                     errors["__ping__"] = str(e)
 
@@ -183,7 +213,7 @@ class SubsonicAdapter(Adapter):
     @staticmethod
     def migrate_configuration(config_store: ConfigurationStore):
         if "salt_auth" not in config_store:
-            config_store["salt_auth"] = False
+            config_store["salt_auth"] = True
 
     def __init__(self, config: ConfigurationStore, data_directory: Path):
         self.data_directory = data_directory
