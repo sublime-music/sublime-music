@@ -237,8 +237,7 @@ class ChromecastPlayer(Player):
             song = AdapterManager.get_song_details(
                 self._serving_song_id.value.decode()
             ).result()
-            filename = AdapterManager.get_song_filename_or_stream(song)
-            assert filename.startswith("file://")
+            filename = AdapterManager.get_song_file_uri(song)
             with open(filename[7:], "rb") as fin:
                 song_buffer = io.BytesIO(fin.read())
 
@@ -300,7 +299,15 @@ class ChromecastPlayer(Player):
             uri = f"http://{host_ip}:{self.config.get(LAN_PORT_KEY)}/s/{token.decode()}"
             logging.info("Serving {song.name} at {uri}")
 
-        cover_art_url = AdapterManager.get_cover_art_uri(song.cover_art, size=1000)
+        assert AdapterManager._instance
+        networked_scheme_priority = ("https", "http")
+        scheme = sorted(
+            AdapterManager._instance.ground_truth_adapter.supported_schemes,
+            key=lambda s: networked_scheme_priority.index(s),
+        )[0]
+        cover_art_url = AdapterManager.get_cover_art_uri(
+            song.cover_art, scheme, size=1000
+        )
         self._current_chromecast.media_controller.play_media(
             uri,
             # Just pretend that whatever we send it is mp3, even if it isn't.

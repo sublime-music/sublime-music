@@ -277,8 +277,8 @@ class DBusManager:
             ).result()
 
             try:
-                cover_art = AdapterManager.get_cover_art_filename(
-                    playlist.cover_art, allow_download=False
+                cover_art = AdapterManager.get_cover_art_uri(
+                    playlist.cover_art, "file", allow_download=False
                 ).result()
             except CacheMissError:
                 cover_art = ""
@@ -319,8 +319,8 @@ class DBusManager:
         )
 
         try:
-            cover_art = AdapterManager.get_cover_art_filename(
-                song.cover_art, allow_download=False
+            cover_art = AdapterManager.get_cover_art_uri(
+                song.cover_art, "file", allow_download=False
             ).result()
         except CacheMissError:
             cover_art = ""

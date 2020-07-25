@@ -7,6 +7,7 @@ from datetime import timedelta
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
+from urllib.parse import urlparse
 
 try:
     import osxmmkeys
@@ -35,6 +36,7 @@ except Exception:
 from .adapters import (
     AdapterManager,
     AlbumSearchQuery,
+    CacheMissError,
     DownloadProgress,
     Result,
     SongCacheStatus,
@@ -469,8 +471,8 @@ class SublimeMusicApp(Gtk.Application):
             )
 
             def make_playlist_tuple(p: Playlist) -> GLib.Variant:
-                cover_art_filename = AdapterManager.get_cover_art_filename(
-                    p.cover_art, allow_download=False,
+                cover_art_filename = AdapterManager.get_cover_art_uri(
+                    p.cover_art, "file", allow_download=False,
                 ).result()
                 return (f"/playlist/{p.id}", p.name, cover_art_filename or "")
 
@@ -1112,9 +1114,27 @@ class SublimeMusicApp(Gtk.Application):
             if order_token != self.song_playing_order_token:
                 return
 
-            # TODO (#189): make this actually use the player's allowed list of schemes
-            # to play.
-            uri = AdapterManager.get_song_filename_or_stream(song)
+            uri = None
+            try:
+                if "file" in self.player_manager.supported_schemes:
+                    uri = AdapterManager.get_song_file_uri(song)
+            except CacheMissError:
+                logging.debug("Couldn't find the file, will attempt to stream.")
+
+            if not uri:
+                try:
+                    uri = AdapterManager.get_song_stream_uri(song)
+                except Exception:
+                    pass
+                if (
+                    not uri
+                    or urlparse(uri).scheme not in self.player_manager.supported_schemes
+                ):
+                    self.app_config.state.current_notification = UIState.UINotification(
+                        markup=f"<b>Unable to play {song.title}.</b>",
+                        icon="dialog-error",
+                    )
+                    return
 
             # Prevent it from doing the thing where it continually loads
             # songs when it has to download.
@@ -1165,8 +1185,8 @@ class SublimeMusicApp(Gtk.Application):
                             )
                             song_notification.show()
 
-                        cover_art_result = AdapterManager.get_cover_art_filename(
-                            song.cover_art
+                        cover_art_result = AdapterManager.get_cover_art_uri(
+                            song.cover_art, "file"
                         )
                         cover_art_result.add_done_callback(
                             lambda f: on_cover_art_download_complete(f.result())
@@ -1190,7 +1210,7 @@ class SublimeMusicApp(Gtk.Application):
 
                         os.system(f"osascript -e '{' '.join(osascript_command)}'")
                 except Exception:
-                    logging.exception(
+                    logging.warning(
                         "Unable to display notification. Is a notification daemon running?"  # noqa: E501
                     )
 
@@ -1215,7 +1235,7 @@ class SublimeMusicApp(Gtk.Application):
                     assert self.player_manager
                     if self.player_manager.can_start_playing_with_no_latency:
                         self.player_manager.play_media(
-                            AdapterManager.get_song_filename_or_stream(song),
+                            AdapterManager.get_song_file_uri(song),
                             self.app_config.state.song_progress,
                             song,
                         )

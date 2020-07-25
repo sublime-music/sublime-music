@@ -111,7 +111,7 @@ def decode_providers(
                 else None
             ),
             caching_adapter_config=(
-                ConfigurationStore(**config.get("caching_adapter_config", {}))
+                ConfigurationStore(**(config.get("caching_adapter_config") or {}))
             ),
         )
         for id_, config in providers_dict.items()

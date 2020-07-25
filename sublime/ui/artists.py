@@ -1,4 +1,5 @@
 from datetime import timedelta
+from functools import partial
 from random import randint
 from typing import cast, List, Sequence
 
@@ -462,7 +463,7 @@ class ArtistDetailPanel(Gtk.Box):
         self.albums_list.update(artist, app_config, force=force)
 
     @util.async_callback(
-        AdapterManager.get_cover_art_filename,
+        partial(AdapterManager.get_cover_art_uri, scheme="file"),
         before_download=lambda self: self.artist_artwork.set_loading(True),
         on_failure=lambda self, e: self.artist_artwork.set_loading(False),
     )

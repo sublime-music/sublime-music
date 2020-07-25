@@ -281,7 +281,8 @@ class SubsonicAdapter(Adapter):
     can_get_playlist_details = True
     can_get_playlists = True
     can_get_song_details = True
-    can_get_song_uri = True
+    can_get_song_file_uri = True
+    can_get_song_stream_uri = True
     can_scrobble_song = True
     can_search = True
     can_stream = True
@@ -537,10 +538,14 @@ class SubsonicAdapter(Adapter):
         params = {"id": cover_art_id, "size": size, **self._get_params()}
         return self._make_url("getCoverArt") + "?" + urlencode(params)
 
-    def get_song_uri(self, song_id: str, scheme: str, stream: bool = False) -> str:
+    def get_song_file_uri(self, song_id: str, schemes: Iterable[str]) -> str:
+        assert any(s in schemes for s in self.supported_schemes)
         params = {"id": song_id, **self._get_params()}
-        endpoint = "stream" if stream else "download"
-        return self._make_url(endpoint) + "?" + urlencode(params)
+        return self._make_url("download") + "?" + urlencode(params)
+
+    def get_song_stream_uri(self, song_id: str) -> str:
+        params = {"id": song_id, **self._get_params()}
+        return self._make_url("stream") + "?" + urlencode(params)
 
     def get_song_details(self, song_id: str) -> API.Song:
         song = self._get_json(self._make_url("getSong"), id=song_id).song

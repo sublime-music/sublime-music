@@ -371,13 +371,13 @@ def test_invalidate_song_file(cache_adapter: FilesystemAdapter):
     cache_adapter.invalidate_data(KEYS.COVER_ART_FILE, "s1")
 
     with pytest.raises(CacheMissError):
-        cache_adapter.get_song_uri("1", "file")
+        cache_adapter.get_song_file_uri("1", "file")
 
     with pytest.raises(CacheMissError):
         cache_adapter.get_cover_art_uri("s1", "file", size=300)
 
     # Make sure it didn't delete the other song.
-    assert cache_adapter.get_song_uri("2", "file").endswith("song2.mp3")
+    assert cache_adapter.get_song_file_uri("2", "file").endswith("song2.mp3")
 
 
 def test_malformed_song_path(cache_adapter: FilesystemAdapter):
@@ -390,10 +390,10 @@ def test_malformed_song_path(cache_adapter: FilesystemAdapter):
         KEYS.SONG_FILE, "2", ("fine/path/song2.mp3", MOCK_SONG_FILE2, None)
     )
 
-    song_uri = cache_adapter.get_song_uri("1", "file")
+    song_uri = cache_adapter.get_song_file_uri("1", "file")
     assert song_uri.endswith(f"/music/{MOCK_SONG_FILE_HASH}")
 
-    song_uri2 = cache_adapter.get_song_uri("2", "file")
+    song_uri2 = cache_adapter.get_song_file_uri("2", "file")
     assert song_uri2.endswith("fine/path/song2.mp3")
 
 
@@ -467,7 +467,7 @@ def test_delete_song_data(cache_adapter: FilesystemAdapter):
         KEYS.COVER_ART_FILE, "s1", MOCK_ALBUM_ART,
     )
 
-    music_file_path = cache_adapter.get_song_uri("1", "file")
+    music_file_path = cache_adapter.get_song_file_uri("1", "file")
     cover_art_path = cache_adapter.get_cover_art_uri("s1", "file", size=300)
 
     cache_adapter.delete_data(KEYS.SONG_FILE, "1")
@@ -477,7 +477,7 @@ def test_delete_song_data(cache_adapter: FilesystemAdapter):
     assert not Path(cover_art_path).exists()
 
     try:
-        cache_adapter.get_song_uri("1", "file")
+        cache_adapter.get_song_file_uri("1", "file")
         assert 0, "DID NOT raise CacheMissError"
     except CacheMissError as e:
         assert e.partial_data is None

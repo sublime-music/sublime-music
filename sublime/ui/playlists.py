@@ -1,4 +1,4 @@
-from functools import lru_cache
+from functools import lru_cache, partial
 from random import randint
 from typing import Any, cast, Dict, Iterable, List, Tuple
 
@@ -679,7 +679,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_action_buttons.show_all()
 
     @util.async_callback(
-        AdapterManager.get_cover_art_filename,
+        partial(AdapterManager.get_cover_art_uri, scheme="file"),
         before_download=lambda self: self.playlist_artwork.set_loading(True),
         on_failure=lambda self, e: self.playlist_artwork.set_loading(False),
     )

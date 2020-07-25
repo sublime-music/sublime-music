@@ -540,17 +540,6 @@ class AdapterManager:
         return future_finished
 
     @staticmethod
-    def _get_scheme() -> str:
-        # TODO (#189): eventually this will come from the players
-        assert AdapterManager._instance
-        scheme_priority = ("https", "http")
-        schemes = sorted(
-            AdapterManager._instance.ground_truth_adapter.supported_schemes,
-            key=scheme_priority.index,
-        )
-        return list(schemes)[0]
-
-    @staticmethod
     def get_supported_artist_query_types() -> Set[AlbumSearchQuery.Type]:
         assert AdapterManager._instance
         return (
@@ -666,13 +655,17 @@ class AdapterManager:
         return AdapterManager._ground_truth_can_do("delete_playlist")
 
     @staticmethod
-    def can_get_song_filename_or_stream() -> bool:
-        return AdapterManager._ground_truth_can_do("get_song_uri")
+    def can_get_song_file_uri() -> bool:
+        return AdapterManager._ground_truth_can_do("get_song_file_uri")
+
+    @staticmethod
+    def can_get_song_stream_uri() -> bool:
+        return AdapterManager._ground_truth_can_do("get_song_stream_uri")
 
     @staticmethod
     def can_batch_download_songs() -> bool:
         # We can only download from the ground truth adapter.
-        return AdapterManager._ground_truth_can_do("get_song_uri")
+        return AdapterManager._ground_truth_can_do("get_song_file_uri")
 
     @staticmethod
     def can_get_genres() -> bool:
@@ -805,122 +798,133 @@ class AdapterManager:
                 CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, playlist_id
             )
 
-    # TODO (#189): allow this to take a set of schemes and unify with
-    # get_cover_art_filename
     @staticmethod
-    def get_cover_art_uri(cover_art_id: str = None, size: int = 300) -> str:
+    def _get_networked_scheme() -> str:
         assert AdapterManager._instance
+        networked_scheme_priority = ("https", "http")
+        return sorted(
+            AdapterManager._instance.ground_truth_adapter.supported_schemes,
+            key=lambda s: networked_scheme_priority.index(s),
+        )[0]
+
+    @staticmethod
+    def get_cover_art_uri(
+        cover_art_id: Optional[str],
+        scheme: str,
+        size: int = 300,
+        before_download: Callable[[], None] = None,
+        force: bool = False,
+        allow_download: bool = True,
+    ) -> Result[str]:
+        existing_filename = str(
+            Path(__file__).parent.joinpath("images/default-album-art.png")
+        )
         if (
             not AdapterManager._ground_truth_can_do("get_cover_art_uri")
             or not cover_art_id
         ):
-            return ""
-
-        return AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
-            cover_art_id, AdapterManager._get_scheme(), size=size
-        )
-
-    @staticmethod
-    def get_cover_art_filename(
-        cover_art_id: str = None,
-        before_download: Callable[[], None] = None,
-        force: bool = False,  # TODO (#202): rename to use_ground_truth_adapter?
-        allow_download: bool = True,
-    ) -> Result[str]:
-        existing_cover_art_filename = str(
-            Path(__file__).parent.joinpath("images/default-album-art.png")
-        )
-        if cover_art_id is None:
-            return Result(existing_cover_art_filename)
+            return Result(existing_filename if scheme == "file" else "")
 
         assert AdapterManager._instance
-
-        # If the ground truth adapter can't provide cover art, just give up immediately.
-        if not AdapterManager._ground_truth_can_do("get_cover_art_uri"):
-            return Result(existing_cover_art_filename)
-
-        # There could be partial data if the cover art exists, but for some reason was
-        # marked out-of-date.
-        if AdapterManager._can_use_cache(force, "get_cover_art_uri"):
-            assert AdapterManager._instance.caching_adapter
-            try:
-                return Result(
-                    AdapterManager._instance.caching_adapter.get_cover_art_uri(
-                        cover_art_id, "file", size=300
-                    )
-                )
-            except CacheMissError as e:
-                if e.partial_data is not None:
-                    existing_cover_art_filename = cast(str, e.partial_data)
-                logging.info(f'Cache Miss on {"get_cover_art_uri"}.')
-            except Exception:
-                logging.exception(
-                    f'Error on {"get_cover_art_uri"} retrieving from cache.'
-                )
-
-        if AdapterManager._instance.caching_adapter and force:
-            AdapterManager._instance.caching_adapter.invalidate_data(
-                CachingAdapter.CachedDataKey.COVER_ART_FILE, cover_art_id
-            )
-
-        if not allow_download or (
-            AdapterManager._offline_mode
-            and AdapterManager._instance.ground_truth_adapter.is_networked
-        ):
-            return Result(existing_cover_art_filename)
-
-        future: Result[str] = AdapterManager._create_download_result(
-            AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
-                cover_art_id, AdapterManager._get_scheme(), size=300
-            ),
-            cover_art_id,
-            before_download,
-            default_value=existing_cover_art_filename,
+        supported_schemes = (
+            AdapterManager._instance.ground_truth_adapter.supported_schemes
         )
 
-        if AdapterManager._instance.caching_adapter:
-            future.add_done_callback(
-                AdapterManager._create_caching_done_callback(
+        # If the scheme is supported natively, then return it.
+        if scheme in supported_schemes:
+            uri = AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
+                cover_art_id, scheme, size=size
+            )
+            return Result(uri)
+
+        # If the scheme is "file", then we may need to try to download.
+        if scheme == "file" and (
+            "http" in supported_schemes or "https" in supported_schemes
+        ):
+            if AdapterManager._can_use_cache(force, "get_cover_art_uri"):
+                assert AdapterManager._instance.caching_adapter
+                try:
+                    return Result(
+                        AdapterManager._instance.caching_adapter.get_cover_art_uri(
+                            cover_art_id, "file", size=size
+                        )
+                    )
+                except CacheMissError as e:
+                    if e.partial_data is not None:
+                        existing_filename = cast(str, e.partial_data)
+                    logging.info("Cache Miss on get_cover_art_uri.")
+                except Exception:
+                    logging.exception(
+                        "Error on get_cover_art_uri retrieving from cache."
+                    )
+
+            # If we are forcing, invalidate the existing cached data.
+            if AdapterManager._instance.caching_adapter and force:
+                AdapterManager._instance.caching_adapter.invalidate_data(
                     CachingAdapter.CachedDataKey.COVER_ART_FILE, cover_art_id
                 )
+
+            if not allow_download or (
+                AdapterManager._offline_mode
+                and AdapterManager._instance.ground_truth_adapter.is_networked
+            ):
+                return Result(existing_filename)
+
+            # Create a download result.
+            future = AdapterManager._create_download_result(
+                AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
+                    cover_art_id, AdapterManager._get_networked_scheme(), size=size,
+                ),
+                cover_art_id,
+                before_download,
+                default_value=existing_filename,
             )
 
-        return future
+            if AdapterManager._instance.caching_adapter:
+                future.add_done_callback(
+                    AdapterManager._create_caching_done_callback(
+                        CachingAdapter.CachedDataKey.COVER_ART_FILE, cover_art_id
+                    )
+                )
 
-    # TODO (#189): allow this to take a set of schemes
+            return future
+
+        return Result("")
+
     @staticmethod
-    def get_song_filename_or_stream(
-        song: Song, format: str = None, force_stream: bool = False
-    ) -> str:
+    def get_song_file_uri(song: Song) -> str:
         assert AdapterManager._instance
         cached_song_filename = None
-        if AdapterManager._can_use_cache(force_stream, "get_song_uri"):
-            assert AdapterManager._instance.caching_adapter
+        if AdapterManager._can_use_cache(False, "get_song_file_uri"):
+            assert (caching_adapter := AdapterManager._instance.caching_adapter)
             try:
-                return AdapterManager._instance.caching_adapter.get_song_uri(
-                    song.id, "file"
-                )
+                if "file" not in caching_adapter.supported_schemes:
+                    raise Exception("file not a supported scheme")
+
+                return caching_adapter.get_song_file_uri(song.id, "file")
             except CacheMissError as e:
                 if e.partial_data is not None:
                     cached_song_filename = cast(str, e.partial_data)
-                logging.info(f'Cache Miss on {"get_song_filename_or_stream"}.')
+                logging.info("Cache Miss on get_song_file_uri.")
             except Exception:
-                logging.exception(
-                    f'Error on {"get_song_filename_or_stream"} retrieving from cache.'
-                )
+                logging.exception("Error on get_song_file_uri retrieving from cache.")
 
+        ground_truth_adapter = AdapterManager._instance.ground_truth_adapter
         if (
-            not AdapterManager._ground_truth_can_do("stream")
-            or not AdapterManager._ground_truth_can_do("get_song_uri")
-            or (
-                AdapterManager._instance.ground_truth_adapter.is_networked
-                and AdapterManager._offline_mode
-            )
+            not AdapterManager._ground_truth_can_do("get_song_file_uri")
+            or (ground_truth_adapter.is_networked and AdapterManager._offline_mode)
+            or ("file" not in ground_truth_adapter.supported_schemes)
         ):
             raise CacheMissError(partial_data=cached_song_filename)
 
-        return AdapterManager._instance.ground_truth_adapter.get_song_uri(
-            song.id, AdapterManager._get_scheme(), stream=True,
+        return ground_truth_adapter.get_song_file_uri(song.id, "file")
+
+    @staticmethod
+    def get_song_stream_uri(song: Song) -> str:
+        assert AdapterManager._instance
+        # TODO
+        return AdapterManager._instance.ground_truth_adapter.get_song_stream_uri(
+            song.id
         )
 
     @staticmethod
@@ -968,7 +972,9 @@ class AdapterManager:
             # Download the actual song file.
             try:
                 # If the song file is already cached, just indicate done immediately.
-                AdapterManager._instance.caching_adapter.get_song_uri(song_id, "file")
+                AdapterManager._instance.caching_adapter.get_song_file_uri(
+                    song_id, "file"
+                )
                 AdapterManager._instance.download_limiter_semaphore.release()
                 AdapterManager._instance.song_download_progress(
                     song_id, DownloadProgress(DownloadProgress.Type.DONE),
@@ -984,8 +990,8 @@ class AdapterManager:
                 song_tmp_filename_result: Result[
                     str
                 ] = AdapterManager._create_download_result(
-                    AdapterManager._instance.ground_truth_adapter.get_song_uri(
-                        song_id, AdapterManager._get_scheme()
+                    AdapterManager._instance.ground_truth_adapter.get_song_file_uri(
+                        song_id, AdapterManager._get_networked_scheme()
                     ),
                     song_id,
                     lambda: before_download(song_id),

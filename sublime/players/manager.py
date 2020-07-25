@@ -1,6 +1,6 @@
 import logging
 from datetime import timedelta
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union
 
 from sublime.adapters.api_objects import Song
 
@@ -88,6 +88,12 @@ class PlayerManager:
     def _get_current_player(self) -> Any:
         if current_player_type := self._get_current_player_type():
             return self.players.get(current_player_type)
+
+    @property
+    def supported_schemes(self) -> Set[str]:
+        if cp := self._get_current_player():
+            return cp.supported_schemes
+        return set()
 
     @property
     def can_start_playing_with_no_latency(self) -> bool:

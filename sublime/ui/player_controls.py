@@ -1,7 +1,7 @@
 import copy
 import math
-
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Set, Tuple
 
@@ -246,7 +246,7 @@ class PlayerControls(Gtk.ActionBar):
         def get_cover_art_filename_or_create_future(
             cover_art_id: Optional[str], idx: int, order_token: int
         ) -> Optional[str]:
-            cover_art_result = AdapterManager.get_cover_art_filename(cover_art_id)
+            cover_art_result = AdapterManager.get_cover_art_uri(cover_art_id, "file")
             if not cover_art_result.data_is_available:
                 cover_art_result.add_done_callback(
                     make_idle_index_capturing_function(
@@ -331,7 +331,7 @@ class PlayerControls(Gtk.ActionBar):
         self.editing_play_queue_song_list = False
 
     @util.async_callback(
-        AdapterManager.get_cover_art_filename,
+        partial(AdapterManager.get_cover_art_uri, scheme="file"),
         before_download=lambda self: self.album_art.set_loading(True),
         on_failure=lambda self, e: self.album_art.set_loading(False),
     )
