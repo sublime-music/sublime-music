@@ -922,7 +922,8 @@ class AdapterManager:
     @staticmethod
     def get_song_stream_uri(song: Song) -> str:
         assert AdapterManager._instance
-        # TODO
+        if not AdapterManager._ground_truth_can_do("get_song_stream_uri"):
+            raise Exception(f"Can't stream song '{song.title}'.")
         return AdapterManager._instance.ground_truth_adapter.get_song_stream_uri(
             song.id
         )
