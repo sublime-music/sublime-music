@@ -55,7 +55,6 @@ build:
 
 build_flatpak:
   image: registry.gitlab.com/sublime-music/sublime-music/flatpak-build:latest
-  allow_failure: true
   stage: build
   script:
     - cd flatpak
