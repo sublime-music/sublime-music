@@ -237,8 +237,7 @@ class ChromecastPlayer(Player):
             song = AdapterManager.get_song_details(
                 self._serving_song_id.value.decode()
             ).result()
-            filename = AdapterManager.get_song_filename_or_stream(song)
-            assert filename.startswith("file://")
+            filename = AdapterManager.get_song_file_uri(song)
             with open(filename[7:], "rb") as fin:
                 song_buffer = io.BytesIO(fin.read())
 

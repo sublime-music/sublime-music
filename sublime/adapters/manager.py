@@ -655,13 +655,17 @@ class AdapterManager:
         return AdapterManager._ground_truth_can_do("delete_playlist")
 
     @staticmethod
-    def can_get_song_filename_or_stream() -> bool:
-        return AdapterManager._ground_truth_can_do("get_song_uri")
+    def can_get_song_file_uri() -> bool:
+        return AdapterManager._ground_truth_can_do("get_song_file_uri")
+
+    @staticmethod
+    def can_get_song_stream_uri() -> bool:
+        return AdapterManager._ground_truth_can_do("get_song_stream_uri")
 
     @staticmethod
     def can_batch_download_songs() -> bool:
         # We can only download from the ground truth adapter.
-        return AdapterManager._ground_truth_can_do("get_song_uri")
+        return AdapterManager._ground_truth_can_do("get_song_file_uri")
 
     @staticmethod
     def can_get_genres() -> bool:
@@ -848,10 +852,10 @@ class AdapterManager:
                 except CacheMissError as e:
                     if e.partial_data is not None:
                         existing_filename = cast(str, e.partial_data)
-                    logging.info(f'Cache Miss on {"get_cover_art_uri"}.')
+                    logging.info("Cache Miss on get_cover_art_uri.")
                 except Exception:
                     logging.exception(
-                        f'Error on {"get_cover_art_uri"} retrieving from cache.'
+                        "Error on get_cover_art_uri retrieving from cache."
                     )
 
             # If we are forcing, invalidate the existing cached data.
@@ -887,40 +891,40 @@ class AdapterManager:
 
         return Result("")
 
-    # TODO (#189): allow this to take a set of schemes
     @staticmethod
-    def get_song_filename_or_stream(
-        song: Song, format: str = None, force_stream: bool = False
-    ) -> str:
+    def get_song_file_uri(song: Song) -> str:
         assert AdapterManager._instance
         cached_song_filename = None
-        if AdapterManager._can_use_cache(force_stream, "get_song_uri"):
-            assert AdapterManager._instance.caching_adapter
+        if AdapterManager._can_use_cache(False, "get_song_file_uri"):
+            assert (caching_adapter := AdapterManager._instance.caching_adapter)
             try:
-                return AdapterManager._instance.caching_adapter.get_song_uri(
-                    song.id, "file"
-                )
+                if "file" not in caching_adapter.supported_schemes:
+                    raise Exception("file not a supported scheme")
+
+                return caching_adapter.get_song_file_uri(song.id, "file")
             except CacheMissError as e:
                 if e.partial_data is not None:
                     cached_song_filename = cast(str, e.partial_data)
-                logging.info(f'Cache Miss on {"get_song_filename_or_stream"}.')
+                logging.info("Cache Miss on get_song_file_uri.")
             except Exception:
-                logging.exception(
-                    f'Error on {"get_song_filename_or_stream"} retrieving from cache.'
-                )
+                logging.exception("Error on get_song_file_uri retrieving from cache.")
 
+        ground_truth_adapter = AdapterManager._instance.ground_truth_adapter
         if (
-            not AdapterManager._ground_truth_can_do("stream")
-            or not AdapterManager._ground_truth_can_do("get_song_uri")
-            or (
-                AdapterManager._instance.ground_truth_adapter.is_networked
-                and AdapterManager._offline_mode
-            )
+            not AdapterManager._ground_truth_can_do("get_song_file_uri")
+            or (ground_truth_adapter.is_networked and AdapterManager._offline_mode)
+            or ("file" not in ground_truth_adapter.supported_schemes)
         ):
             raise CacheMissError(partial_data=cached_song_filename)
 
-        return AdapterManager._instance.ground_truth_adapter.get_song_uri(
-            song.id, AdapterManager._get_networked_scheme(), stream=True,
+        return ground_truth_adapter.get_song_file_uri(song.id, "file")
+
+    @staticmethod
+    def get_song_stream_uri(song: Song) -> str:
+        assert AdapterManager._instance
+        # TODO
+        return AdapterManager._instance.ground_truth_adapter.get_song_stream_uri(
+            song.id
         )
 
     @staticmethod
@@ -968,7 +972,9 @@ class AdapterManager:
             # Download the actual song file.
             try:
                 # If the song file is already cached, just indicate done immediately.
-                AdapterManager._instance.caching_adapter.get_song_uri(song_id, "file")
+                AdapterManager._instance.caching_adapter.get_song_file_uri(
+                    song_id, "file"
+                )
                 AdapterManager._instance.download_limiter_semaphore.release()
                 AdapterManager._instance.song_download_progress(
                     song_id, DownloadProgress(DownloadProgress.Type.DONE),
@@ -984,7 +990,7 @@ class AdapterManager:
                 song_tmp_filename_result: Result[
                     str
                 ] = AdapterManager._create_download_result(
-                    AdapterManager._instance.ground_truth_adapter.get_song_uri(
+                    AdapterManager._instance.ground_truth_adapter.get_song_file_uri(
                         song_id, AdapterManager._get_networked_scheme()
                     ),
                     song_id,

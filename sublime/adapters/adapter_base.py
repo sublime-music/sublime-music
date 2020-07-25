@@ -448,16 +448,16 @@ class Adapter(abc.ABC):
         return False
 
     @property
-    def can_stream(self) -> bool:
+    def can_get_song_file_uri(self) -> bool:
         """
-        Whether or not the adapter can provide a stream URI.
+        Whether or not the adapter supports :class:`get_song_file_uri`.
         """
         return False
 
     @property
-    def can_get_song_uri(self) -> bool:
+    def can_get_song_stream_uri(self) -> bool:
         """
-        Whether or not the adapter supports :class:`get_song_uri`.
+        Whether or not the adapter supports :class:`get_song_stream_uri`.
         """
         return False
 
@@ -645,19 +645,26 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("get_cover_art_uri")
 
-    def get_song_uri(self, song_id: str, scheme: str, stream: bool = False) -> str:
+    def get_song_file_uri(self, song_id: str, schemes: Iterable[str]) -> str:
         """
-        Get a URI for a given song.
+        Get a URI for a given song. This URI must give the full file.
 
         :param song_id: The ID of the song to get a URI for.
-        :param scheme: The URI scheme that should be returned. It is guaranteed that
-            ``scheme`` will be one of the schemes returned by
+        :param schemes: A set of URI schemes that can be returned. It is guaranteed that
+            all of the items in ``schemes`` will be one of the schemes returned by
             :class:`supported_schemes`.
-        :param stream: Whether or not the URI returned should be a stream URI. This will
-            only be ``True`` if :class:`supports_streaming` returns ``True``.
         :returns: The URI for the given song.
         """
-        raise self._check_can_error("get_song_uri")
+        raise self._check_can_error("get_song_file_uri")
+
+    def get_song_stream_uri(self, song_id: str) -> str:
+        """
+        Get a URI for streaming the given song.
+
+        :param song_id: The ID of the song to get the stream URI for.
+        :returns: the stream URI for the given song.
+        """
+        raise self._check_can_error("get_song_stream_uri")
 
     def get_song_details(self, song_id: str) -> Song:
         """

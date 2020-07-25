@@ -101,7 +101,7 @@ class FilesystemAdapter(CachingAdapter):
 
     # TODO (#200) make these dependent on cache state. Need to do this kinda efficiently
     can_get_cover_art_uri = True
-    can_get_song_uri = True
+    can_get_song_file_uri = True
     can_get_song_details = True
     can_get_artist = True
     can_get_albums = True
@@ -286,7 +286,7 @@ class FilesystemAdapter(CachingAdapter):
 
         raise CacheMissError()
 
-    def get_song_uri(self, song_id: str, scheme: str, stream: bool = False) -> str:
+    def get_song_file_uri(self, song_id: str, schemes: Iterable[str]) -> str:
         song = models.Song.get_or_none(models.Song.id == song_id)
         if not song:
             if self.is_cache:
