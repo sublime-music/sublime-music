@@ -35,6 +35,7 @@ class PlayerManager:
         player_device_change_callback: Callable[[PlayerDeviceEvent], None],
         config: Dict[str, Dict[str, Union[Type, Tuple[str, ...]]]],
     ):
+        self.current_song: Optional[Song] = None
         self.on_timepos_change = on_timepos_change
         self.on_track_end = on_track_end
         self.config = config
@@ -153,6 +154,7 @@ class PlayerManager:
             current_player.set_muted(muted)
 
     def play_media(self, uri: str, progress: timedelta, song: Song):
+        self.current_song = song
         if current_player := self._get_current_player():
             current_player.play_media(uri, progress, song)
 

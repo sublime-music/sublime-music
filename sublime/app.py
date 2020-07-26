@@ -645,7 +645,9 @@ class SublimeMusicApp(Gtk.Application):
 
         self.app_config.state.playing = not self.app_config.state.playing
 
-        if self.player_manager.song_loaded:
+        if self.player_manager.song_loaded and (
+            self.player_manager.current_song == self.app_config.state.current_song
+        ):
             self.player_manager.toggle_play()
             self.save_play_queue()
         else:
@@ -655,6 +657,9 @@ class SublimeMusicApp(Gtk.Application):
         self.update_window()
 
     def on_next_track(self, *args):
+        if self.app_config.state.current_song is None:
+            # This may happen due to DBUS, ignore.
+            return
         # Handle song repeating
         if self.app_config.state.repeat_type == RepeatType.REPEAT_SONG:
             song_index_to_play = self.app_config.state.current_song_index
@@ -670,9 +675,17 @@ class SublimeMusicApp(Gtk.Application):
         else:
             song_index_to_play = self.app_config.state.current_song_index + 1
 
-        self.play_song(song_index_to_play, reset=True)
+        self.app_config.state.current_song_index = song_index_to_play
+        self.app_config.state.song_progress = timedelta(0)
+        if self.player_manager.playing:
+            self.play_song(song_index_to_play, reset=True)
+        else:
+            self.update_window()
 
     def on_prev_track(self, *args):
+        if self.app_config.state.current_song is None:
+            # This may happen due to DBUS, ignore.
+            return
         # Go back to the beginning of the song if we are past 5 seconds.
         # Otherwise, go to the previous song.
         no_repeat = self.app_config.state.repeat_type == RepeatType.NO_REPEAT
@@ -689,12 +702,17 @@ class SublimeMusicApp(Gtk.Application):
             # Go back to the beginning of the song.
             song_index_to_play = self.app_config.state.current_song_index
 
-        self.play_song(
-            song_index_to_play,
-            reset=True,
-            # search backwards for a song to play if offline
-            playable_song_search_direction=-1,
-        )
+        self.app_config.state.current_song_index = song_index_to_play
+        self.app_config.state.song_progress = timedelta(0)
+        if self.player_manager.playing:
+            self.play_song(
+                song_index_to_play,
+                reset=True,
+                # search backwards for a song to play if offline
+                playable_song_search_direction=-1,
+            )
+        else:
+            self.update_window()
 
     @dbus_propagate()
     def on_repeat_press(self, *args):
