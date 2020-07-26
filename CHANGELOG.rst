@@ -13,6 +13,8 @@ v0.11.1
   ``app.sublimemusic.SublimeMusic``. (#170)
 * Better errors are shown on the Configure Provider dialog when there are SSL
   errors connecting to the Subsonic server. (#236)
+* Playlists are prefetched on server connect to avoid lots of cache miss errors
+  on the DBus diffing.
 
 **Bug Fixes**
 
@@ -21,6 +23,14 @@ v0.11.1
   API the server actually reports.
 * Fixed issue where edits to the music provider configurations were applied even
   if ESC was pressed. (#247)
+* Fixed issue where pressing next/previous would start playing even if the
+  player was paused. (#131)
+* Fixed issue where using DBUS to go next/previous ignored when no song was
+  playing (#185)
+
+**Under the Hood**
+
+* Improved the API for getting song URIs from the adapters.
 
 v0.11.0
 =======
