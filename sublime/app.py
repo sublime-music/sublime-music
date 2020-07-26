@@ -327,12 +327,20 @@ class SublimeMusicApp(Gtk.Application):
         GLib.timeout_add(10000, check_if_connected)
 
         # Update after Adapter Initial Sync
-        inital_sync_result = AdapterManager.initial_sync()
-        inital_sync_result.add_done_callback(lambda _: self.update_window())
+        def after_initial_sync(_):
+            self.update_window()
 
-        # Prompt to load the play queue from the server.
-        if AdapterManager.can_get_play_queue():
-            self.update_play_state_from_server(prompt_confirm=True)
+            # Prompt to load the play queue from the server.
+            if AdapterManager.can_get_play_queue():
+                self.update_play_state_from_server(prompt_confirm=True)
+
+            # Get the playlists, just so that we don't have tons of cache misses from
+            # DBus trying to get the playlists.
+            if AdapterManager.can_get_playlists():
+                AdapterManager.get_playlists()
+
+        inital_sync_result = AdapterManager.initial_sync()
+        inital_sync_result.add_done_callback(after_initial_sync)
 
         # Send out to the bus that we exist.
         if self.dbus_manager:
