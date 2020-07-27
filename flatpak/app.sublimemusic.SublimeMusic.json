@@ -20,11 +20,12 @@
     "--socket=wayland",
     "--share=network",
     "--socket=pulseaudio",
-    "--socket=session-bus",
+    "--talk-name=org.freedesktop.Notifications",
     "--own-name=org.mpris.MediaPlayer2.SublimeMusic",
     "--filesystem=xdg-config/sublime-music",
     "--filesystem=xdg-cache/sublime-music",
-    "--filesystem=xdg-data/sublime-music"
+    "--filesystem=xdg-data/sublime-music",
+    "--env=TMPDIR=/tmp"
   ],
   "modules": [
     {
