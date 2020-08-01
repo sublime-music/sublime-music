@@ -966,7 +966,7 @@ class AdapterManager:
                 AdapterManager._instance.song_download_progress(
                     song_id, DownloadProgress(DownloadProgress.Type.CANCELLED),
                 )
-                return Result('', is_download=True)
+                return Result("", is_download=True)
 
             logging.info(f"Downloading {song_id}")
 
@@ -980,7 +980,7 @@ class AdapterManager:
                 AdapterManager._instance.song_download_progress(
                     song_id, DownloadProgress(DownloadProgress.Type.DONE),
                 )
-                return Result('', is_download=True)
+                return Result("", is_download=True)
             except CacheMissError:
                 # The song is not already cached.
                 if before_download:
