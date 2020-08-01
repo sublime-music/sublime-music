@@ -1,3 +1,10 @@
+v0.11.5
+=======
+
+**Bug Fixes**
+
+* Fixes more bugs with search not working in certain situations. (#253)
+
 v0.11.4
 =======
 
