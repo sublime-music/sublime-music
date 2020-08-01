@@ -211,16 +211,23 @@ class SearchResult:
     def artists(self) -> List[Artist]:
         return self._to_result(self._artists, lambda a: (a.name,))
 
+    def _try_get_artist_name(self, obj: Union[Album, Song]) -> Optional[str]:
+        try:
+            assert obj.artist
+            return obj.artist.name
+        except Exception:
+            return None
+
     @property
     def albums(self) -> List[Album]:
         return self._to_result(
-            self._albums, lambda a: (a.name, a.artist.name if a.artist else None)
+            self._albums, lambda a: (a.name, self._try_get_artist_name(a))
         )
 
     @property
     def songs(self) -> List[Song]:
         return self._to_result(
-            self._songs, lambda s: (s.title, s.artist.name if s.artist else None)
+            self._songs, lambda s: (s.title, self._try_get_artist_name(s))
         )
 
     @property
