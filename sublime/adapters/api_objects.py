@@ -181,21 +181,24 @@ class SearchResult:
         self, it: Dict[str, _S], transform: Callable[[_S], Tuple[Optional[str], ...]],
     ) -> List[_S]:
         assert self.query
-        all_results = sorted(
-            (
-                (
-                    max(
-                        self.similiarity_partial(t.lower())
-                        for t in transform(x)
-                        if t is not None
-                    ),
-                    x,
-                )
-                for x in it.values()
-            ),
-            key=lambda rx: rx[0],
-            reverse=True,
-        )
+        all_results = []
+        for value in it.values():
+            transformed = transform(value)
+            if any(t is None for t in transformed):
+                continue
+
+            max_similarity = max(
+                self.similiarity_partial(t.lower())
+                for t in transformed
+                if t is not None
+            )
+            if max_similarity < 60:
+                continue
+
+            all_results.append((max_similarity, value))
+
+        all_results.sort(key=lambda rx: rx[0], reverse=True)
+
         result: List[SearchResult._S] = []
         for ratio, x in all_results:
             if ratio >= 60 and len(result) < 20:
