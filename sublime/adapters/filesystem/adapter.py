@@ -939,4 +939,5 @@ class FilesystemAdapter(CachingAdapter):
                 table.truncate_table()
 
         if cache_info:
-            cache_info.delete_instance()
+            cache_info.valid = False
+            cache_info.save()

@@ -952,7 +952,7 @@ class AdapterManager:
         cancelled = False
         AdapterManager._cancelled_song_ids -= set(song_ids)
 
-        def do_download_song(song_id: str):
+        def do_download_song(song_id: str) -> Result:
             assert AdapterManager._instance
             assert AdapterManager._instance.caching_adapter
 
@@ -966,7 +966,7 @@ class AdapterManager:
                 AdapterManager._instance.song_download_progress(
                     song_id, DownloadProgress(DownloadProgress.Type.CANCELLED),
                 )
-                return
+                return Result('', is_download=True)
 
             logging.info(f"Downloading {song_id}")
 
@@ -980,6 +980,7 @@ class AdapterManager:
                 AdapterManager._instance.song_download_progress(
                     song_id, DownloadProgress(DownloadProgress.Type.DONE),
                 )
+                return Result('', is_download=True)
             except CacheMissError:
                 # The song is not already cached.
                 if before_download:
@@ -1004,9 +1005,6 @@ class AdapterManager:
                     assert AdapterManager._instance.caching_adapter
                     AdapterManager._instance.download_limiter_semaphore.release()
 
-                    if AdapterManager._song_download_jobs.get(song_id):
-                        del AdapterManager._song_download_jobs[song_id]
-
                     try:
                         AdapterManager._instance.caching_adapter.ingest_new_data(
                             CachingAdapter.CachedDataKey.SONG_FILE,
@@ -1014,10 +1012,14 @@ class AdapterManager:
                             (None, f.result(), None),
                         )
                     finally:
+                        if AdapterManager._song_download_jobs.get(song_id):
+                            del AdapterManager._song_download_jobs[song_id]
+
                         on_song_download_complete(song_id)
 
                 song_tmp_filename_result.add_done_callback(on_download_done)
                 AdapterManager._song_download_jobs[song_id] = song_tmp_filename_result
+                return song_tmp_filename_result
 
         def do_batch_download_songs():
             sleep(delay)
@@ -1040,7 +1042,7 @@ class AdapterManager:
                 # simultaneously.
                 AdapterManager._instance.download_limiter_semaphore.acquire()
 
-                result = Result(do_download_song, song_id, is_download=True)
+                result = do_download_song(song_id)
 
                 if one_at_a_time:
                     # Wait the file to download.

@@ -1,3 +1,13 @@
+v0.11.2
+=======
+
+**Bug Fixes**
+
+* Fixes bug where search didn't work in certain situations. (#253)
+* Fixed bug when you deleted a song and then re-downloaded it.
+* Fixed issue where all of the next N songs started downloading at once instead
+  of one at a time when prefetching songs for the play queue.
+
 v0.11.1
 =======
 
