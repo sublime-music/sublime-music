@@ -105,6 +105,7 @@ class UIState:
         self.current_notification = None
         self.playing = False
 
+    def __init_available_players__(self):
         from sublime.players import PlayerManager
 
         self.available_players = {

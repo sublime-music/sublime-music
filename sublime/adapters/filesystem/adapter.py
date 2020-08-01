@@ -386,7 +386,10 @@ class FilesystemAdapter(CachingAdapter):
             models.Album,
             CachingAdapter.CachedDataKey.ALBUMS,
             ignore_cache_miss=True,
-            where_clauses=(~(models.Album.id.startswith("invalid:")),),
+            where_clauses=(
+                ~(models.Album.id.startswith("invalid:")),
+                models.Album.artist.is_null(False),
+            ),
         )
 
     def get_album(self, album_id: str) -> API.Album:
@@ -419,11 +422,14 @@ class FilesystemAdapter(CachingAdapter):
         search_result.add_results(
             "songs",
             self._get_list(
-                models.Song, CachingAdapter.CachedDataKey.SONG, ignore_cache_miss=True
+                models.Song,
+                CachingAdapter.CachedDataKey.SONG,
+                ignore_cache_miss=True,
+                where_clauses=(models.Song.artist.is_null(False),),
             ),
         )
         search_result.add_results(
-            "playlists", self.get_playlists(ignore_cache_miss=True)
+            "playlists", self.get_playlists(ignore_cache_miss=True),
         )
         return search_result
 
@@ -786,38 +792,37 @@ class FilesystemAdapter(CachingAdapter):
             song_data = getattrs(
                 api_song, ["id", "title", "track", "year", "duration", "parent_id"]
             )
-            if not partial:
-                song_data["genre"] = (
-                    self._do_ingest_new_data(KEYS.GENRE, None, g)
-                    if (g := api_song.genre)
-                    else None
+            song_data["genre"] = (
+                self._do_ingest_new_data(KEYS.GENRE, None, g)
+                if (g := api_song.genre)
+                else None
+            )
+            song_data["artist"] = (
+                self._do_ingest_new_data(KEYS.ARTIST, ar.id, ar, partial=True)
+                if (ar := api_song.artist)
+                else None
+            )
+            song_data["album"] = (
+                self._do_ingest_new_data(KEYS.ALBUM, al.id, al, partial=True)
+                if (al := api_song.album)
+                else None
+            )
+            song_data["_cover_art"] = (
+                self._do_ingest_new_data(
+                    KEYS.COVER_ART_FILE, api_song.cover_art, data=None,
                 )
-                song_data["artist"] = (
-                    self._do_ingest_new_data(KEYS.ARTIST, ar.id, ar, partial=True)
-                    if (ar := api_song.artist) and not partial
-                    else None
+                if api_song.cover_art
+                else None
+            )
+            song_data["file"] = (
+                self._do_ingest_new_data(
+                    KEYS.SONG_FILE,
+                    api_song.id,
+                    data=(api_song.path, None, api_song.size),
                 )
-                song_data["album"] = (
-                    self._do_ingest_new_data(KEYS.ALBUM, al.id, al, partial=True)
-                    if (al := api_song.album)
-                    else None
-                )
-                song_data["_cover_art"] = (
-                    self._do_ingest_new_data(
-                        KEYS.COVER_ART_FILE, api_song.cover_art, data=None,
-                    )
-                    if api_song.cover_art
-                    else None
-                )
-                song_data["file"] = (
-                    self._do_ingest_new_data(
-                        KEYS.SONG_FILE,
-                        api_song.id,
-                        data=(api_song.path, None, api_song.size),
-                    )
-                    if api_song.path
-                    else None
-                )
+                if api_song.path
+                else None
+            )
 
             song, created = models.Song.get_or_create(
                 id=song_data["id"], defaults=song_data

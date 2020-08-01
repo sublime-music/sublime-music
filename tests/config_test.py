@@ -38,10 +38,10 @@ def test_server_property(tmp_path: Path):
     config.current_provider_id = "1"
     assert config.provider == provider
 
-    assert config._state_file_location == tmp_path.joinpath("1", "state.pickle",)
+    assert config._state_file_location == tmp_path.joinpath("1", "state.pickle")
 
 
-def test_json_load_unload(config_filename: Path):
+def test_json_load_unload(config_filename: Path, tmp_path: Path):
     ConfigurationStore.MOCK = True
     subsonic_config_store = ConfigurationStore(username="test")
     subsonic_config_store.set_secret("password", "testpass")
@@ -59,6 +59,7 @@ def test_json_load_unload(config_filename: Path):
         current_provider_id="1",
         filename=config_filename,
     )
+    original_config.cache_location = tmp_path
 
     original_config.save()
 

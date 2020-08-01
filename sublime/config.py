@@ -220,6 +220,8 @@ class AppConfiguration(DataClassJsonMixin):
                 # Just ignore any errors, it is only UI state.
                 self._state = UIState()
 
+        self._state.__init_available_players__()
+
     @property
     def _state_file_location(self) -> Optional[Path]:
         if not (provider := self.provider):

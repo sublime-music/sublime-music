@@ -147,10 +147,18 @@ class SearchResult:
 
     def __init__(self, query: str = None):
         self.query = query
+        self.similiarity_partial = partial(
+            similarity_ratio, self.query.lower() if self.query else ""
+        )
         self._artists: Dict[str, Artist] = {}
         self._albums: Dict[str, Album] = {}
         self._songs: Dict[str, Song] = {}
         self._playlists: Dict[str, Playlist] = {}
+
+    def __repr__(self) -> str:
+        fields = ("query", "_artists", "_albums", "_songs", "_playlists")
+        formatted_fields = map(lambda f: f"{f}={getattr(self, f)}", fields)
+        return f"<SearchResult {' '.join(formatted_fields)}>"
 
     def add_results(self, result_type: str, results: Iterable):
         """Adds the ``results`` to the ``_result_type`` set."""
@@ -177,7 +185,7 @@ class SearchResult:
             (
                 (
                     max(
-                        partial(similarity_ratio, self.query.lower())(t.lower())
+                        self.similiarity_partial(t.lower())
                         for t in transform(x)
                         if t is not None
                     ),

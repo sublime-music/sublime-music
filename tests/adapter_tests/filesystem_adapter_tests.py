@@ -983,10 +983,18 @@ def test_search(cache_adapter: FilesystemAdapter):
         "albums",
         [
             SubsonicAPI.Album(
-                id="album1", name="Foo", artist_id="artist1", cover_art="cal1"
+                id="album1",
+                name="Foo",
+                artist_id="artist1",
+                _artist="foo",
+                cover_art="cal1",
             ),
             SubsonicAPI.Album(
-                id="album2", name="Boo", artist_id="artist1", cover_art="cal2"
+                id="album2",
+                name="Boo",
+                artist_id="artist1",
+                _artist="foo",
+                cover_art="cal2",
             ),
         ],
     )
@@ -1002,13 +1010,27 @@ def test_search(cache_adapter: FilesystemAdapter):
     search_result.add_results(
         "songs",
         [
-            SubsonicAPI.Song("s1", "amazing boo", cover_art="s1"),
-            SubsonicAPI.Song("s2", "foo of all foo", cover_art="s2"),
+            SubsonicAPI.Song(
+                "s1",
+                "amazing boo",
+                cover_art="s1",
+                _artist="artist3",
+                artist_id="ohea1",
+            ),
+            SubsonicAPI.Song(
+                "s2",
+                "foo of all foo",
+                cover_art="s2",
+                _artist="artist4",
+                artist_id="ohea2",
+            ),
         ],
     )
     cache_adapter.ingest_new_data(KEYS.SEARCH_RESULTS, None, search_result)
 
     search_result = cache_adapter.search("foo")
-    assert [s.title for s in search_result.songs] == ["foo of all foo", "amazing boo"]
+    assert [
+        (s.title, s.artist.name if s.artist else None) for s in search_result.songs
+    ] == [("foo of all foo", "artist4"), ("amazing boo", "artist3")]
     assert [a.name for a in search_result.artists] == ["foo", "better boo"]
     assert [a.name for a in search_result.albums] == ["Foo", "Boo"]

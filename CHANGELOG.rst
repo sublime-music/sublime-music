@@ -26,7 +26,7 @@ v0.11.1
 * Fixed issue where pressing next/previous would start playing even if the
   player was paused. (#131)
 * Fixed issue where using DBUS to go next/previous ignored when no song was
-  playing (#185)
+  playing. (#185)
 
 **Under the Hood**
 
