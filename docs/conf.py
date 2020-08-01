@@ -17,6 +17,7 @@
 # -- Project information -----------------------------------------------------
 
 import datetime
+import importlib.util
 
 project = "Sublime Music"
 copyright = f"{datetime.datetime.today().year}, Sumner Evans"
@@ -24,7 +25,10 @@ author = "Sumner Evans"
 gitlab_url = "https://gitlab.com/sublime-music/sublime-music/"
 
 # Get the version from the package.
-import sublime
+module_name = "sublime"
+spec = importlib.util.spec_from_file_location(module_name, "../sublime/__init__.py")
+sublime = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(sublime)
 
 version = release = f"v{sublime.__version__}"
 
