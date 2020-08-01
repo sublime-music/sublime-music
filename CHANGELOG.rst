@@ -1,3 +1,9 @@
+v0.11.4
+=======
+
+Improved the way that the version is retrieved for building the documentation to
+make it easier to package for the AUR.
+
 v0.11.2
 =======
 
