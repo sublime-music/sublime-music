@@ -7,6 +7,7 @@ v0.11.2
 * Fixed bug when you deleted a song and then re-downloaded it.
 * Fixed issue where all of the next N songs started downloading at once instead
   of one at a time when prefetching songs for the play queue.
+* Improved performance of the searching for songs in the playlist list. (#28)
 
 v0.11.1
 =======

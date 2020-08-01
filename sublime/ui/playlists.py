@@ -1,8 +1,9 @@
+import math
 from functools import lru_cache, partial
 from random import randint
-from typing import Any, cast, Dict, Iterable, List, Tuple
+from typing import Any, cast, Dict, List, Sequence, Tuple
 
-from fuzzywuzzy import process
+from fuzzywuzzy import fuzz, process
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from sublime.adapters import AdapterManager, api_objects as API
@@ -433,28 +434,18 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
         @lru_cache(maxsize=1024)
-        def row_score(key: str, row_items: Iterable[str]) -> int:
-            return max(map(lambda m: m[1], process.extract(key, row_items)))
-
-        @lru_cache()
-        def max_score_for_key(key: str, rows: Tuple) -> int:
-            return max(row_score(key, row) for row in rows)
+        def row_score(key: str, row_items: Tuple[str]) -> int:
+            return fuzz.partial_ratio(key, " ".join(row_items).lower())
 
         def playlist_song_list_search_fn(
-            model: Gtk.ListStore,
+            store: Gtk.ListStore,
             col: int,
             key: str,
             treeiter: Gtk.TreeIter,
             data: Any = None,
         ) -> bool:
-            # TODO (#28): this is very inefficient, it's slow when the result
-            # is close to the bottom of the list. Would be good to research
-            # what the default one does (maybe it uses an index?).
-            max_score = max_score_for_key(key, tuple(tuple(row[1:4]) for row in model))
-            row_max_score = row_score(key, tuple(model[treeiter][1:4]))
-            if row_max_score == max_score:
-                return False  # indicates match
-            return True
+            threshold = math.ceil(math.ceil(len(key) * 0.8) / len(key) * 100)
+            return row_score(key.lower(), tuple(store[treeiter][2:5])) < threshold
 
         self.playlist_songs = Gtk.TreeView(
             model=self.playlist_song_store,
