@@ -18,6 +18,7 @@
 
 import datetime
 import importlib.util
+from pathlib import Path
 
 project = "Sublime Music"
 copyright = f"{datetime.datetime.today().year}, Sumner Evans"
@@ -26,7 +27,8 @@ gitlab_url = "https://gitlab.com/sublime-music/sublime-music/"
 
 # Get the version from the package.
 module_name = "sublime"
-spec = importlib.util.spec_from_file_location(module_name, "../sublime/__init__.py")
+init_file = Path(__file__).parent.parent.joinpath("sublime/__init__.py").resolve()
+spec = importlib.util.spec_from_file_location(module_name, str(init_file))
 sublime = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sublime)
 
