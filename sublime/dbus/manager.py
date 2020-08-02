@@ -70,7 +70,7 @@ class DBusManager:
                 "org.mpris.MediaPlayer2.TrackList.xml",
             ]
             for spec in specs:
-                spec_path = resolve_path(f"dbus/mpris_specs/{spec}")
+                spec_path = resolve_path("dbus/mpris_specs", spec)
                 with open(spec_path) as f:
                     node_info = Gio.DBusNodeInfo.new_for_xml(f.read())
 
