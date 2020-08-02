@@ -857,6 +857,12 @@ class PlaylistDetailPanel(Gtk.Overlay):
                 tree,
                 self.offline_mode,
                 on_download_state_change=on_download_state_change,
+                on_remove_downloads_click=(
+                    lambda: (
+                        self.offline_mode
+                        and self.playlist_songs.get_selection().unselect_all()
+                    )
+                ),
                 extra_menu_items=[
                     (
                         Gtk.ModelButton(

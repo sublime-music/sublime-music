@@ -190,6 +190,7 @@ def show_song_popover(
     offline_mode: bool,
     position: Gtk.PositionType = Gtk.PositionType.BOTTOM,
     on_download_state_change: Callable[[str], None] = lambda _: None,
+    on_remove_downloads_click: Callable[[], Any] = lambda: None,
     on_playlist_state_change: Callable[[], None] = lambda: None,
     show_remove_from_playlist_button: bool = False,
     extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = None,
@@ -201,11 +202,12 @@ def show_song_popover(
             on_song_download_complete=on_download_state_change,
         )
 
-    def on_remove_downloads_click(_: Any):
+    def do_on_remove_downloads_click(_: Any):
         AdapterManager.cancel_download_songs(song_ids)
         AdapterManager.batch_delete_cached_songs(
             song_ids, on_song_delete=on_download_state_change,
         )
+        on_remove_downloads_click()
 
     def on_add_to_playlist_click(_: Any, playlist: Playlist):
         update_playlist_result = AdapterManager.update_playlist(
@@ -304,7 +306,7 @@ def show_song_popover(
         browse_to_song,
         Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
         (download_song_button, on_download_songs_click),
-        (remove_download_button, on_remove_downloads_click),
+        (remove_download_button, do_on_remove_downloads_click),
         Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
         Gtk.ModelButton(
             text=f"Add {pluralize('song', song_count)} to playlist",
