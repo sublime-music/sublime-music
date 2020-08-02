@@ -1,3 +1,26 @@
+v0.11.7
+=======
+
+**Bug Fixes**
+
+* Fixed issue where songs in the playlist list would stay selected even after
+  their downloads were deleted when in Offline Mode. (#221)
+* Fixed issue where the playlist image would continually load if the playlist
+  refresh failed.
+
+**Distro Packages**
+
+* Sublime Music is now in Debian Testing:
+  https://packages.debian.org/bullseye/sublime-music
+* Sublime Music is in NixOS Unstable:
+  https://nixos.org/nixos/packages.html?attr=sublime-music&channel=nixpkgs-unstable&query=sublime-music
+* Package maintainers now have the option to move the following directories to
+  ``/usr/share/sublime-music``: ``adapters/icons``, ``adapters/images``,
+  ``adapters/subsonic/icons``, ``dbus/mpris_specs/``, ``ui/icons/``, and
+  ``ui/images/``. Sublime Music will look first in the directory where the
+  ``sublime/__init__.py`` file is installed for those files, and then fall back
+  to ``/usr/share/sublime-music`` for finding those files. (#179)
+
 v0.11.6
 =======
 
