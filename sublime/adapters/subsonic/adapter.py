@@ -27,6 +27,8 @@ import requests
 import semver
 from gi.repository import Gtk
 
+from sublime.util import resolve_path
+
 from .api_objects import Directory, Response
 from .. import (
     Adapter,
@@ -85,7 +87,7 @@ class SubsonicAdapter(Adapter):
             name="Subsonic",
             description="Connect to a Subsonic-compatible server",
             icon_basename="subsonic",
-            icon_dir=Path(__file__).parent.joinpath("icons"),
+            icon_dir=resolve_path("adapters/subsonic/icons"),
         )
 
     @staticmethod

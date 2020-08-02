@@ -7,12 +7,13 @@ from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, Result, SongCacheStatus
-from sublime.adapters.api_objects import Song
-from sublime.config import AppConfiguration
-from sublime.ui import util
-from sublime.ui.common import IconButton, IconToggleButton, SpinnerImage
-from sublime.ui.state import RepeatType
+from . import util
+from .common import IconButton, IconToggleButton, SpinnerImage
+from .state import RepeatType
+from ..adapters import AdapterManager, Result, SongCacheStatus
+from ..adapters.api_objects import Song
+from ..config import AppConfiguration
+from ..util import resolve_path
 
 
 class PlayerControls(Gtk.ActionBar):
@@ -759,7 +760,7 @@ class PlayerControls(Gtk.ActionBar):
             # If this is the playing song, then overlay the play icon.
             if model.get_value(tree_iter, 3):
                 play_overlay_pixbuf = GdkPixbuf.Pixbuf.new_from_file(
-                    str(Path(__file__).parent.joinpath("images/play-queue-play.png"))
+                    str(resolve_path("ui/images/play-queue-play.png"))
                 )
 
                 play_overlay_pixbuf.composite(

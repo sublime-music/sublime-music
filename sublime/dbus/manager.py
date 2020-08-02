@@ -1,6 +1,5 @@
 import functools
 import logging
-import os
 import re
 from collections import defaultdict
 from datetime import timedelta
@@ -9,10 +8,11 @@ from typing import Any, Callable, DefaultDict, Dict, List, Match, Optional, Tupl
 from deepdiff import DeepDiff
 from gi.repository import Gio, GLib
 
-from sublime.adapters import AdapterManager, CacheMissError
-from sublime.config import AppConfiguration
-from sublime.players import PlayerManager
-from sublime.ui.state import RepeatType
+from ..adapters import AdapterManager, CacheMissError
+from ..config import AppConfiguration
+from ..players import PlayerManager
+from ..ui.state import RepeatType
+from ..util import resolve_path
 
 
 def dbus_propagate(param_self: Any = None) -> Callable:
@@ -70,9 +70,7 @@ class DBusManager:
                 "org.mpris.MediaPlayer2.TrackList.xml",
             ]
             for spec in specs:
-                spec_path = os.path.join(
-                    os.path.dirname(__file__), f"mpris_specs/{spec}",
-                )
+                spec_path = resolve_path(f"dbus/mpris_specs/{spec}")
                 with open(spec_path) as f:
                     node_info = Gio.DBusNodeInfo.new_for_xml(f.read())
 

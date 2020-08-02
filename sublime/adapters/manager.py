@@ -51,6 +51,7 @@ from .api_objects import (
 )
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter
+from ..util import resolve_path
 
 REQUEST_DELAY: Optional[Tuple[float, float]] = None
 if delay_str := os.environ.get("REQUEST_DELAY"):
@@ -816,9 +817,7 @@ class AdapterManager:
         force: bool = False,
         allow_download: bool = True,
     ) -> Result[str]:
-        existing_filename = str(
-            Path(__file__).parent.joinpath("images/default-album-art.png")
-        )
+        existing_filename = str(resolve_path("adapters/images/default-album-art.png"))
         if (
             not AdapterManager._ground_truth_can_do("get_cover_art_uri")
             or not cover_art_id

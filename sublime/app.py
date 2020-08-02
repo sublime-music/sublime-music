@@ -48,6 +48,7 @@ from .players import PlayerDeviceEvent, PlayerEvent, PlayerManager
 from .ui.configure_provider import ConfigureProviderDialog
 from .ui.main import MainWindow
 from .ui.state import RepeatType, UIState
+from .util import resolve_path
 
 
 class SublimeMusicApp(Gtk.Application):
@@ -131,10 +132,7 @@ class SublimeMusicApp(Gtk.Application):
             if icon_dir := adapter.get_ui_info().icon_dir:
                 default_icon_theme.append_search_path(str(icon_dir))
 
-        icon_dirs = [
-            Path(__file__).parent.joinpath("ui", "icons"),
-            Path(__file__).parent.joinpath("adapters", "icons"),
-        ]
+        icon_dirs = [resolve_path("ui/icons"), resolve_path("adapters/icons")]
         for icon_dir in icon_dirs:
             default_icon_theme.append_search_path(str(icon_dir))
 
@@ -145,9 +143,7 @@ class SublimeMusicApp(Gtk.Application):
         # Configure the CSS provider so that we can style elements on the
         # window.
         css_provider = Gtk.CssProvider()
-        css_provider.load_from_path(
-            os.path.join(os.path.dirname(__file__), "ui/app_styles.css")
-        )
+        css_provider.load_from_path(str(resolve_path("ui/app_styles.css")))
         context = Gtk.StyleContext()
         screen = Gdk.Screen.get_default()
         context.add_provider_for_screen(
