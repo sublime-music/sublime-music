@@ -2,7 +2,6 @@ import copy
 import math
 from datetime import timedelta
 from functools import partial
-from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
