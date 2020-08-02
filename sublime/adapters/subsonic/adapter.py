@@ -354,7 +354,6 @@ class SubsonicAdapter(Adapter):
         self,
         url: str,
         timeout: Union[float, Tuple[float, float], None] = None,
-        # TODO (#122): retry count
         is_exponential_backoff_ping: bool = False,
         **params,
     ) -> Any:
@@ -390,7 +389,6 @@ class SubsonicAdapter(Adapter):
                     url, params=params, verify=self.verify_cert, timeout=timeout,
                 )
 
-            # TODO (#122): make better
             if result.status_code != 200:
                 raise ServerError(
                     result.status_code, f"{url} returned status={result.status_code}."
@@ -433,7 +431,6 @@ class SubsonicAdapter(Adapter):
         )
         subsonic_response = result.json().get("subsonic-response")
 
-        # TODO (#122): make better
         if not subsonic_response:
             raise ServerError(500, f"{url} returned invalid JSON.")
 
@@ -487,7 +484,6 @@ class SubsonicAdapter(Adapter):
 
     def get_playlist_details(self, playlist_id: str) -> API.Playlist:
         result = self._get_json(self._make_url("getPlaylist"), id=playlist_id).playlist
-        # TODO (#122) better error (here and elsewhere)
         assert result, f"Error getting playlist {playlist_id}"
         return result
 

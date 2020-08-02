@@ -372,8 +372,8 @@ class AdapterManager:
             fn = getattr(AdapterManager._instance.ground_truth_adapter, function_name)
             try:
                 return fn(*params, **kwargs)
-            except Exception:
-                raise CacheMissError(partial_data=partial_data)
+            except Exception as e:
+                raise CacheMissError(partial_data=partial_data) from e
 
         return Result(future_fn)
 

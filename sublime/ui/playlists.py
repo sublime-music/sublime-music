@@ -525,7 +525,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
     @util.async_callback(
         AdapterManager.get_playlist_details,
         before_download=lambda self: self.show_loading_all(),
-        on_failure=lambda self, e: self.playlist_view_loading_box.hide(),
+        on_failure=lambda self, e: self.hide_loading_all(),
     )
     def update_playlist_view(
         self,
@@ -893,6 +893,10 @@ class PlaylistDetailPanel(Gtk.Overlay):
     def show_loading_all(self):
         self.playlist_artwork.set_loading(True)
         self.playlist_view_loading_box.show_all()
+
+    def hide_loading_all(self):
+        self.playlist_artwork.set_loading(False)
+        self.playlist_view_loading_box.hide()
 
     def make_label(self, text: str = None, name: str = None, **params,) -> Gtk.Label:
         return Gtk.Label(
