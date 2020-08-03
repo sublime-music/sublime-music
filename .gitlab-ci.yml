@@ -63,6 +63,13 @@ build_flatpak:
     paths:
       - flatpak/sublime-music.flatpak
 
+build_snap:
+  image: snapcore/snapcraft
+  allow_failure: true
+  stage: build
+  script:
+    - ./cicd/snapcraft.sh
+
 # Deploy documenation and code coverage to GitLab Pages
 pages:
   only:

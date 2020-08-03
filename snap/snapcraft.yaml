@@ -1,0 +1,45 @@
+name: sublime-music
+version: git
+summary: Sublime Music
+description: |
+  Sublime Music is a native, GTK3 Subsonic/Airsonic client for the Linux
+  Desktop.
+base: core20
+confinement: strict
+
+parts:
+  # python-stringcase:
+  #   plugin: python
+  #   source: https://github.com/okunishinishi/python-stringcase
+  #   source-type: git
+  # python-typing-inspect:
+  #   plugin: python
+  #   source: https://github.com/ilevkivskyi/typing_inspect
+  #   source-type: git
+  # python-dataclasses-json:
+  #   plugin: python
+  #   source: https://github.com/lidatong/dataclasses-json
+  #   source-type: git
+  # python-mpv:
+  #   plugin: python
+  #   source: https://github.com/jaseg/python-mpv
+  #   source-type: git
+  #   stage-packages:
+  #     - mpv
+  sublime-music:
+    plugin: python
+    source: .
+    stage-packages:
+      - python3-marshmallow
+      - python3-dateutil
+      - python3-deepdiff
+      - python3-levenshtein
+      - python3-fuzzywuzzy
+      - python3-peewee
+      - python-gobject
+      - python3-requests
+      - python3-semver
+
+apps:
+  sublime-music:
+    command: bin/sublime-music
