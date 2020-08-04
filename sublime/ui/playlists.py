@@ -56,6 +56,10 @@ class EditPlaylistDialog(Gtk.Dialog):
         self.public_switch = Gtk.Switch(active=playlist.public, halign=Gtk.Align.START)
         content_grid.attach(self.public_switch, 1, 2, 1, 1)
 
+        delete_button = Gtk.Button(label="Delete")
+        delete_button.connect("clicked", lambda *a: self.response(Gtk.ResponseType.NO))
+        content_grid.attach(delete_button, 0, 3, 1, 2)
+
         content_area.add(content_grid)
         self.show_all()
 
