@@ -1041,11 +1041,13 @@ class SublimeMusicApp(Gtk.Application):
             assert self.player_manager
             self.player_manager.pause()
             self.app_config.state.playing = False
+            self.app_config.state.loading_play_queue = True
             self.update_window()
 
         def do_update(f: Result[PlayQueue]):
             play_queue = f.result()
             if not play_queue:
+                self.app_config.state.loading_play_queue = False
                 return
             play_queue.position = play_queue.position or timedelta(0)
 
@@ -1060,6 +1062,7 @@ class SublimeMusicApp(Gtk.Application):
                 self.app_config.state.play_queue = new_play_queue
                 self.app_config.state.song_progress = play_queue.position
                 self.app_config.state.current_song_index = play_queue.current_index or 0
+                self.app_config.state.loading_play_queue = False
                 self.player_manager.reset()
                 if clear_notification:
                     self.app_config.state.current_notification = None

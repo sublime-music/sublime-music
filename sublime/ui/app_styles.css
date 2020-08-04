@@ -230,6 +230,11 @@ entry.invalid {
   opacity: 0.5;
 }
 
+#play-queue-spinner {
+  min-height: 35px;
+  min-width: 35px;
+}
+
 /* ********** General ********** */
 .menu-button {
   padding: 5px;

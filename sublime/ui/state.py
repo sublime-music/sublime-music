@@ -79,6 +79,7 @@ class UIState:
     current_notification: Optional[UINotification] = None
     playlist_details_expanded: bool = True
     artist_details_expanded: bool = True
+    loading_play_queue: bool = False
 
     # State for Album sort.
     class _DefaultGenre(Genre):

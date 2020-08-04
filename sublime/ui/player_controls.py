@@ -193,6 +193,12 @@ class PlayerControls(Gtk.ActionBar):
             self.artist_name.set_markup("")
 
         self.load_play_queue_button.set_sensitive(not self.offline_mode)
+        if app_config.state.loading_play_queue:
+            self.play_queue_spinner.start()
+            self.play_queue_spinner.show()
+        else:
+            self.play_queue_spinner.stop()
+            self.play_queue_spinner.hide()
 
         # Short circuit if no changes to the play queue
         force |= self.offline_mode != app_config.offline_mode
@@ -699,7 +705,7 @@ class PlayerControls(Gtk.ActionBar):
         self.play_queue_button.connect("clicked", self.on_play_queue_click)
         box.pack_start(self.play_queue_button, False, True, 5)
 
-        self.play_queue_popover = Gtk.PopoverMenu(modal=False, name="up-next-popover",)
+        self.play_queue_popover = Gtk.PopoverMenu(modal=False, name="up-next-popover")
         self.play_queue_popover.set_relative_to(self.play_queue_button)
 
         play_queue_popover_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -721,6 +727,7 @@ class PlayerControls(Gtk.ActionBar):
 
         play_queue_popover_box.add(play_queue_popover_header)
 
+        play_queue_loading_overlay = Gtk.Overlay()
         play_queue_scrollbox = Gtk.ScrolledWindow(
             min_content_height=600, min_content_width=400,
         )
@@ -790,7 +797,16 @@ class PlayerControls(Gtk.ActionBar):
         self.play_queue_store.connect("row-deleted", self.on_play_queue_model_row_move)
 
         play_queue_scrollbox.add(self.play_queue_list)
-        play_queue_popover_box.pack_end(play_queue_scrollbox, True, True, 0)
+        play_queue_loading_overlay.add(play_queue_scrollbox)
+
+        self.play_queue_spinner = Gtk.Spinner(
+            name="play-queue-spinner",
+            active=False,
+            halign=Gtk.Align.CENTER,
+            valign=Gtk.Align.CENTER,
+        )
+        play_queue_loading_overlay.add_overlay(self.play_queue_spinner)
+        play_queue_popover_box.pack_end(play_queue_loading_overlay, True, True, 0)
 
         self.play_queue_popover.add(play_queue_popover_box)
 
