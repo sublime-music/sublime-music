@@ -84,6 +84,32 @@ and run it by executing::
 
 .. _Releases: https://gitlab.com/sublime-music/sublime-music/-/releases
 
+**Via NixOS**:
+
+Sublime-music is part of the nixpkgs-unstable channel that is used by NixOS_.
+
+To install sublime-music on NixOS, either use the declarative or the imperative way:
+
+- In ``configuration.nix`` (declarative)::
+
+    environment.systemPackages = [ pkgs.sublime-music ];
+
+- In command line (imperative)::
+
+    nix-env -iA sublime-music
+
+To customize the extra components installed, you need to use the ``override`` function provided by Nix::
+
+    (sublime-music.override {
+      serverSupport = true;
+      chromecastSupport = true;
+    })
+
+See `Nix package management`_ for more information.
+
+.. _NixOS: https://nixos.org/nixos
+.. _Nix package management: https://nixos.org/nixos/manual/index.html#sec-package-management
+
 **Via PyPi**::
 
     pip install sublime-music
