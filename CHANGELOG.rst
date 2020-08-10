@@ -1,3 +1,12 @@
+v0.11.8
+=======
+
+**Bug Fixes**
+
+* Fixed regression where you couldn't delete playlists.
+* Added loading indicator to the play queue when using the load play queue
+  button. (#130)
+
 v0.11.7
 =======
 
@@ -14,6 +23,7 @@ v0.11.7
   https://packages.debian.org/bullseye/sublime-music
 * Sublime Music is in NixOS Unstable:
   https://nixos.org/nixos/packages.html?attr=sublime-music&channel=nixpkgs-unstable&query=sublime-music
+  (thanks to @albakham)
 * Package maintainers now have the option to move the following directories to
   ``/usr/share/sublime-music``: ``adapters/icons``, ``adapters/images``,
   ``adapters/subsonic/icons``, ``dbus/mpris_specs/``, ``ui/icons/``, and
