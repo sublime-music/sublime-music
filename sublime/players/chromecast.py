@@ -49,6 +49,7 @@ class ChromecastPlayer(Player):
             return {}
         return {SERVE_FILES_KEY: bool, LAN_PORT_KEY: int}
 
+    @property
     def supported_schemes(self) -> Set[str]:
         schemes = {"http", "https"}
         if bottle_imported and self.config.get(SERVE_FILES_KEY):
@@ -307,7 +308,7 @@ class ChromecastPlayer(Player):
         )[0]
         cover_art_url = AdapterManager.get_cover_art_uri(
             song.cover_art, scheme, size=1000
-        )
+        ).result()
         self._current_chromecast.media_controller.play_media(
             uri,
             # Just pretend that whatever we send it is mp3, even if it isn't.
