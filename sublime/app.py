@@ -681,7 +681,7 @@ class SublimeMusicApp(Gtk.Application):
 
         self.app_config.state.current_song_index = song_index_to_play
         self.app_config.state.song_progress = timedelta(0)
-        if self.player_manager.playing:
+        if self.app_config.state.playing:
             self.play_song(song_index_to_play, reset=True)
         else:
             self.update_window()
