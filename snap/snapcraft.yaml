@@ -30,13 +30,15 @@ parts:
     plugin: python
     source: .
     stage-packages:
-      - python3-marshmallow
+      - gobject-introspection
       - python3-dateutil
       - python3-deepdiff
-      - python3-levenshtein
       - python3-fuzzywuzzy
+      - python3-gi
+      - python3-gi-cairo
+      - python3-levenshtein
+      - python3-marshmallow
       - python3-peewee
-      - python-gobject
       - python3-requests
       - python3-semver
 

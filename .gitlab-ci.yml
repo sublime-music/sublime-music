@@ -65,7 +65,6 @@ build_flatpak:
 
 build_snap:
   image: snapcore/snapcraft
-  allow_failure: true
   stage: build
   script:
     - ./cicd/snapcraft.sh
