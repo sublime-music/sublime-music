@@ -1,3 +1,10 @@
+v0.11.9
+=======
+
+**Bug Fixes**
+
+* Fixed regressions with Chromecast playback.
+
 v0.11.8
 =======
 
