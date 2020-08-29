@@ -53,6 +53,7 @@ setup(
     packages=find_packages(exclude=["tests"]),
     package_data={"sublime": ["ui/app_styles.css", *package_data_files]},
     install_requires=[
+        "bleach",
         "dataclasses-json",
         "deepdiff",
         "fuzzywuzzy",
