@@ -1,4 +1,3 @@
-import bleach
 import logging
 import os
 import random
@@ -9,6 +8,8 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
 from urllib.parse import urlparse
+
+import bleach
 
 try:
     import osxmmkeys
@@ -1185,7 +1186,9 @@ class SublimeMusicApp(Gtk.Application):
                     if glib_notify_exists:
                         notification_lines = []
                         if album := song.album:
-                            notification_lines.append(f"<i>{bleach.clean(album.name)}</i>")
+                            notification_lines.append(
+                                f"<i>{bleach.clean(album.name)}</i>"
+                            )
                         if artist := song.artist:
                             notification_lines.append(bleach.clean(artist.name))
                         song_notification = Notify.Notification.new(
