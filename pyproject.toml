@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "sublime-music"
+name = "sublime_music"
 version = "0.11.9"
 description = "A native GTK *sonic client."
 license = "GPL-3.0-or-later"
@@ -25,7 +25,7 @@ exclude = ["tests"]
 "Bug Tracker" = "https://todo.sr.ht/~sumner/sublime-music"
 
 [tool.poetry.scripts]
-sublime-music = 'sublime.__main__:main'
+sublime-music = 'sublime_music.__main__:main'
 
 [tool.poetry.dependencies]
 python = "^3.8"
