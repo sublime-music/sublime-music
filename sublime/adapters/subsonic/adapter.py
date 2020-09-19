@@ -469,10 +469,10 @@ class SubsonicAdapter(Adapter):
                 raise data
             if hasattr(data, "__next__"):
                 if d := next(data):
-                    logging.info("MOCK DATA", d)
+                    logging.info("MOCK DATA %s", d)
                     return MockResult(d)
 
-            logging.info("MOCK DATA", data)
+            logging.info("MOCK DATA %s", data)
             return MockResult(data)
 
         self._get_mock_data = get_mock_data

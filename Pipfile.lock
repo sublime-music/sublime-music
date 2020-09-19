@@ -354,7 +354,6 @@
             "version": "==0.6.0"
         },
         "urllib3": {
-            "extras": [],
             "hashes": [
                 "sha256:91056c15fa70756691db97756772bb1eb9678fa585d9184f24534b100dc60f4a",
                 "sha256:e7983572181f5e1522d9c98453462384ee92a0be7fac5f1413a1e35c56cc0461"
@@ -976,7 +975,6 @@
             "version": "==3.7.4.3"
         },
         "urllib3": {
-            "extras": [],
             "hashes": [
                 "sha256:91056c15fa70756691db97756772bb1eb9678fa585d9184f24534b100dc60f4a",
                 "sha256:e7983572181f5e1522d9c98453462384ee92a0be7fac5f1413a1e35c56cc0461"
