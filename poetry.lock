@@ -580,6 +580,14 @@ idna = ">=2.5,<3"
 urllib3 = ">=1.21.1,<1.25.0 || >1.25.0,<1.25.1 || >1.25.1,<1.26"
 
 [[package]]
+name = "requirements-parser"
+version = "0.2.0"
+description = "Parses Pip requirement files"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "secretstorage"
 version = "3.1.2"
 description = "Python bindings to FreeDesktop.org Secret Service API"
@@ -693,14 +701,14 @@ python-versions = "*"
 ifaddr = ">=0.1.7"
 
 [extras]
-keyring = ["keyring"]
 chromecast = ["pychromecast"]
+keyring = ["keyring"]
 server = ["bottle"]
 
 [metadata]
 lock-version = "1.0"
 python-versions = "^3.8"
-content-hash = "b205eec2da8442d64ad3e77af6740a626b5e79e32b22709e5954a5d49fc8d72b"
+content-hash = "8cc15955b68459eeec39b5401c1433195033006da356b290b3a0f49e58f8bf06"
 
 [metadata.files]
 appdirs = [
@@ -1036,6 +1044,10 @@ regex = [
 requests = [
     {file = "requests-2.24.0-py2.py3-none-any.whl", hash = "sha256:fe75cc94a9443b9246fc7049224f75604b113c36acb93f87b80ed42c44cbb898"},
     {file = "requests-2.24.0.tar.gz", hash = "sha256:b3559a131db72c33ee969480840fff4bb6dd111de7dd27c8ee1f820f4f00231b"},
+]
+requirements-parser = [
+    {file = "requirements-parser-0.2.0.tar.gz", hash = "sha256:5963ee895c2d05ae9f58d3fc641082fb38021618979d6a152b6b1398bd7d4ed4"},
+    {file = "requirements_parser-0.2.0-py2-none-any.whl", hash = "sha256:76650b4a9d98fc65edf008a7920c076bb2a76c08eaae230ce4cfc6f51ea6a773"},
 ]
 secretstorage = [
     {file = "SecretStorage-3.1.2-py3-none-any.whl", hash = "sha256:b5ec909dde94d4ae2fa26af7c089036997030f0cf0a5cb372b4cccabd81c143b"},
