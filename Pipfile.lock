@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "f018bc2d21d6dc296af872daca484440360496dc7fd3746880da2fe2996ed0ce"
+            "sha256": "ffa02059c0bee3c21617e14fe892e9988a2b0be10ad1f440a352922d21fb5ede"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -354,21 +354,22 @@
             "version": "==0.6.0"
         },
         "urllib3": {
+            "extras": [],
+            "hashes": [
+                "sha256:91056c15fa70756691db97756772bb1eb9678fa585d9184f24534b100dc60f4a",
+                "sha256:e7983572181f5e1522d9c98453462384ee92a0be7fac5f1413a1e35c56cc0461"
+            ],
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4'",
+            "version": "==1.25.10"
+        },
+        "webencodings": {
             "editable": true,
             "extras": [
                 "chromecast",
                 "keyring",
                 "server"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4'",
             "path": "."
-        },
-        "webencodings": {
-            "hashes": [
-                "sha256:a0af1213f3c2226497a97e2b3aa01a7e4bee4f403f95be16fc9acd2947514a78",
-                "sha256:b36a1c245f2d304965eb4e0a82848379241dc04b865afcc4aab16748587e1923"
-            ],
-            "version": "==0.5.1"
         },
         "zeroconf": {
             "hashes": [
@@ -825,6 +826,14 @@
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'",
             "version": "==2.24.0"
         },
+        "requirements-parser": {
+            "hashes": [
+                "sha256:5963ee895c2d05ae9f58d3fc641082fb38021618979d6a152b6b1398bd7d4ed4",
+                "sha256:76650b4a9d98fc65edf008a7920c076bb2a76c08eaae230ce4cfc6f51ea6a773"
+            ],
+            "index": "pypi",
+            "version": "==0.2.0"
+        },
         "rope": {
             "hashes": [
                 "sha256:658ad6705f43dcf3d6df379da9486529cf30e02d9ea14c5682aa80eb33b649e1"
@@ -967,14 +976,13 @@
             "version": "==3.7.4.3"
         },
         "urllib3": {
-            "editable": true,
-            "extras": [
-                "chromecast",
-                "keyring",
-                "server"
+            "extras": [],
+            "hashes": [
+                "sha256:91056c15fa70756691db97756772bb1eb9678fa585d9184f24534b100dc60f4a",
+                "sha256:e7983572181f5e1522d9c98453462384ee92a0be7fac5f1413a1e35c56cc0461"
             ],
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4'",
-            "path": "."
+            "version": "==1.25.10"
         }
     }
 }

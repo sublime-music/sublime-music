@@ -1,7 +1,7 @@
 {
   "app-id": "app.sublimemusic.SublimeMusic",
   "runtime": "org.gnome.Platform",
-  "runtime-version": "3.36",
+  "runtime-version": "3.38",
   "sdk": "org.gnome.Sdk",
   "command": "sublime-music",
   "rename-icon": "sublime-music",
@@ -74,51 +74,6 @@
         }
       ],
       "modules": [
-        {
-          "name": "python-3.8",
-          "sources": [
-            {
-              "type": "archive",
-              "url": "https://www.python.org/ftp/python/3.8.5/Python-3.8.5.tar.xz",
-              "sha256": "e3003ed57db17e617acb382b0cade29a248c6026b1bd8aad1f976e9af66a83b0"
-            }
-          ],
-          "config-opts": [
-            "--enable-shared",
-            "--with-ensurepip=yes",
-            "--with-system-expat",
-            "--with-system-ffi",
-            "--enable-loadable-sqlite-extensions",
-            "--with-dbmliborder=gdbm",
-            "--enable-unicode=ucs4"
-          ],
-          "post-install": [
-            "chmod 644 $FLATPAK_DEST/lib/libpython3.8.so.1.0"
-          ],
-          "cleanup": [
-            "/bin/2to3*",
-            "/bin/easy_install*",
-            "/bin/idle*",
-            "/bin/pydoc*",
-            "/bin/python*-config",
-            "/bin/pyvenv*",
-            "/include",
-            "/lib/pkgconfig",
-            "/lib/python*/config",
-            "/share",
-            "/lib/python*/test",
-            "/lib/python*/*/test",
-            "/lib/python*/*/tests",
-            "/lib/python*/lib-tk/test",
-            "/lib/python*/lib-dynload/_*_test.*.so",
-            "/lib/python*/lib-dynload/_test*.*.so",
-            "/lib/python*/idlelib",
-            "/lib/python*/tkinter*",
-            "/lib/python*/turtle*",
-            "/lib/python*/lib2to3*",
-            "/lib/python3.8/config/libpython3.8.a"
-          ]
-        },
         "pypi-dependencies.json",
         {
           "name": "libmpv",
