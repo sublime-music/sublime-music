@@ -25,3 +25,8 @@ for tag in tags:
         for arg in sys.argv[1:]:
             print(f"+ {' '.join(arg.split())}")
             subprocess.run(arg.split()).check_returncode()
+
+        # Don't run the else statement of the for loop.
+        break
+else:
+    print("No version tag found for this commit. Skipping")
