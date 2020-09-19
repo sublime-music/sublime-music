@@ -1,0 +1,32 @@
+image: archlinux
+packages:
+  - dbus
+  - python-poetry
+  - xorg-server-xvfb
+sources:
+  - https://git.sr.ht/~sumner/offlinemsmtp
+environment:
+  REPO_NAME: sublime-music
+# triggers:
+#   - action: email
+#     condition: failure
+#     to: ~sumner/sublime-music-devel@lists.sr.ht
+tasks:
+  - setup: |
+      cd ${REPO_NAME}
+      poetry install
+      echo "cd ${REPO_NAME}" >> ~/.buildenv
+      echo "source $(poetry env info -p)/bin/activate" >> ~/.buildenv
+
+  - lint: |
+      python setup.py check -mrs
+      black --check .
+      flake8
+      mypy sublime tests/**/*.py
+      cicd/custom_style_check.py
+
+  - test: |
+      ./cicd/start-dbus.sh
+      Xvfb :119 -screen 0 1024x768x16 &
+      export DISPLAY=:119
+      ./cicd/pytest.sh
