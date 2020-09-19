@@ -1,9 +1,10 @@
-image: archlinux
+image: alpine/edge
 packages:
-  - python
-  - xorg-server-xvfb
+  - py3-pip
+  - py3-setuptools
+  - py3-twine
 sources:
-  - https://git.sr.ht/~sumner/offlinemsmtp
+  - https://git.sr.ht/~sumner/sublime-music
 environment:
   REPO_NAME: sublime-music
 # triggers:
@@ -16,7 +17,7 @@ tasks:
       echo "cd ${REPO_NAME}" >> ~/.buildenv
 
   - build: |
-      python setup.py sdist
+      python3 setup.py sdist
 
   - deploy-pypi: |
       ./cicd/run_if_tagged_with_version                             \

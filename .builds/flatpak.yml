@@ -2,8 +2,9 @@ image: archlinux
 packages:
   - flatpak
   - flatpak-builder
+  - python-pip
 sources:
-  - https://git.sr.ht/~sumner/offlinemsmtp
+  - https://git.sr.ht/~sumner/sublime-music
 environment:
   REPO_NAME: sublime-music
 # triggers:

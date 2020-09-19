@@ -5,7 +5,7 @@ packages:
   - openssh
   - py3-docutils
 sources:
-  - https://git.sr.ht/~sumner/offlinemsmtp
+  - https://git.sr.ht/~sumner/sublime-music
 secrets:
   # README Personal Access Token
   - 2fb5fd72-fa96-46c6-ab90-6b7cabebba16
