@@ -8,19 +8,19 @@ with open(here.joinpath("README.rst"), encoding="utf-8") as f:
     long_description = f.read()
 
 # Find the version
-with open(here.joinpath("sublime", "__init__.py")) as f:
+with open(here.joinpath("sublime_music", "__init__.py")) as f:
     for line in f:
         if line.startswith("__version__"):
             version = eval(line.split()[-1])
             break
 
 package_data_dirs = [
-    here.joinpath("sublime", "adapters", "icons"),
-    here.joinpath("sublime", "adapters", "images"),
-    here.joinpath("sublime", "adapters", "subsonic", "icons"),
-    here.joinpath("sublime", "dbus", "mpris_specs"),
-    here.joinpath("sublime", "ui", "icons"),
-    here.joinpath("sublime", "ui", "images"),
+    here.joinpath("sublime_music", "adapters", "icons"),
+    here.joinpath("sublime_music", "adapters", "images"),
+    here.joinpath("sublime_music", "adapters", "subsonic", "icons"),
+    here.joinpath("sublime_music", "dbus", "mpris_specs"),
+    here.joinpath("sublime_music", "ui", "icons"),
+    here.joinpath("sublime_music", "ui", "images"),
 ]
 package_data_files = []
 for data_dir in package_data_dirs:
@@ -28,7 +28,7 @@ for data_dir in package_data_dirs:
         package_data_files.append(str(file))
 
 setup(
-    name="sublime-music",
+    name="sublime_music",
     version=version,
     url="https://gitlab.com/sublime-music/sublime-music",
     description="A native GTK *sonic client.",
@@ -51,7 +51,7 @@ setup(
     ],
     keywords="airsonic subsonic libresonic gonic music",
     packages=find_packages(exclude=["tests"]),
-    package_data={"sublime": ["ui/app_styles.css", *package_data_files]},
+    package_data={"sublime_music": ["ui/app_styles.css", *package_data_files]},
     install_requires=[
         "bleach",
         "dataclasses-json",

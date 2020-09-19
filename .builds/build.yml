@@ -27,7 +27,7 @@ tasks:
       python setup.py check -mrs
       black --check .
       flake8
-      mypy sublime tests/**/*.py
+      mypy sublime_music tests/**/*.py
       cicd/custom_style_check.py
 
   - test: |
