@@ -41,7 +41,10 @@ def test_song_list_column():
 def test_spinner_image():
     initial_size = 300
     image = common.SpinnerImage(
-        loading=False, image_name="test", spinner_name="ohea", image_size=initial_size,
+        loading=False,
+        image_name="test",
+        spinner_name="ohea",
+        image_size=initial_size,
     )
     image.set_from_file(None)
     assert image.image.get_pixbuf() is None

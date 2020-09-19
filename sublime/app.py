@@ -107,7 +107,8 @@ class SublimeMusicApp(Gtk.Application):
         add_action("go-online", self.on_go_online)
         add_action("refresh-devices", self.on_refresh_devices)
         add_action(
-            "refresh-window", lambda *a: self.on_refresh_window(None, {}, True),
+            "refresh-window",
+            lambda *a: self.on_refresh_window(None, {}, True),
         )
         add_action("mute-toggle", self.on_mute_toggle)
         add_action(
@@ -413,7 +414,8 @@ class SublimeMusicApp(Gtk.Application):
             # repeat song IDs.
             metadatas: Iterable[Any] = [
                 self.dbus_manager.get_mpris_metadata(
-                    i, self.app_config.state.play_queue,
+                    i,
+                    self.app_config.state.play_queue,
                 )
                 for i in range(len(self.app_config.state.play_queue))
             ]
@@ -457,7 +459,10 @@ class SublimeMusicApp(Gtk.Application):
             )
 
         def get_playlists(
-            index: int, max_count: int, order: str, reverse_order: bool,
+            index: int,
+            max_count: int,
+            order: str,
+            reverse_order: bool,
         ) -> GLib.Variant:
             playlists_result = AdapterManager.get_playlists()
             if not playlists_result.data_is_available:
@@ -473,12 +478,15 @@ class SublimeMusicApp(Gtk.Application):
                 "Modified": lambda p: p.changed,
             }
             playlists.sort(
-                key=sorters.get(order, lambda p: p), reverse=reverse_order,
+                key=sorters.get(order, lambda p: p),
+                reverse=reverse_order,
             )
 
             def make_playlist_tuple(p: Playlist) -> GLib.Variant:
                 cover_art_filename = AdapterManager.get_cover_art_uri(
-                    p.cover_art, "file", allow_download=False,
+                    p.cover_art,
+                    "file",
+                    allow_download=False,
                 ).result()
                 return (f"/playlist/{p.id}", p.name, cover_art_filename or "")
 
@@ -570,9 +578,7 @@ class SublimeMusicApp(Gtk.Application):
 
     # ########## ACTION HANDLERS ########## #
     @dbus_propagate()
-    def on_refresh_window(
-        self, _, state_updates: Dict[str, Any], force: bool = False,
-    ):
+    def on_refresh_window(self, _, state_updates: Dict[str, Any], force: bool = False):
         if settings := state_updates.get("__settings__"):
             for k, v in settings.items():
                 setattr(self.app_config, k, v)
@@ -879,9 +885,7 @@ class SublimeMusicApp(Gtk.Application):
                 return
 
             self.app_config.state.current_song_index -= len(before_current)
-            self.play_song(
-                self.app_config.state.current_song_index, reset=True,
-            )
+            self.play_song(self.app_config.state.current_song_index, reset=True)
         else:
             self.app_config.state.current_song_index -= len(before_current)
             self.update_window()
@@ -1001,7 +1005,8 @@ class SublimeMusicApp(Gtk.Application):
 
     # ########## HELPER METHODS ########## #
     def show_configure_servers_dialog(
-        self, provider_config: Optional[ProviderConfiguration] = None,
+        self,
+        provider_config: Optional[ProviderConfiguration] = None,
     ):
         """Show the Connect to Server dialog."""
         dialog = ConfigureProviderDialog(self.window, provider_config)
@@ -1192,7 +1197,8 @@ class SublimeMusicApp(Gtk.Application):
                         if artist := song.artist:
                             notification_lines.append(bleach.clean(artist.name))
                         song_notification = Notify.Notification.new(
-                            song.title, "\n".join(notification_lines),
+                            song.title,
+                            "\n".join(notification_lines),
                         )
                         song_notification.add_action(
                             "clicked",

@@ -37,10 +37,12 @@ class BrowsePanel(Gtk.Overlay):
 
         self.root_directory_listing = ListAndDrilldown()
         self.root_directory_listing.connect(
-            "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+            "song-clicked",
+            lambda _, *args: self.emit("song-clicked", *args),
         )
         self.root_directory_listing.connect(
-            "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
+            "refresh-window",
+            lambda _, *args: self.emit("refresh-window", *args),
         )
         window_box.add(self.root_directory_listing)
 
@@ -88,7 +90,8 @@ class BrowsePanel(Gtk.Overlay):
             while current_dir_id:
                 try:
                     directory = AdapterManager.get_directory(
-                        current_dir_id, before_download=self.spinner.show,
+                        current_dir_id,
+                        before_download=self.spinner.show,
                     ).result()
                 except CacheMissError as e:
                     directory = cast(API.Directory, e.partial_data)
@@ -128,10 +131,12 @@ class ListAndDrilldown(Gtk.Paned):
 
         self.list = MusicDirectoryList()
         self.list.connect(
-            "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+            "song-clicked",
+            lambda _, *args: self.emit("song-clicked", *args),
         )
         self.list.connect(
-            "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
+            "refresh-window",
+            lambda _, *args: self.emit("refresh-window", *args),
         )
         self.pack1(self.list, False, False)
 
@@ -163,7 +168,8 @@ class ListAndDrilldown(Gtk.Paned):
             if len(children) == 0:
                 drilldown = ListAndDrilldown()
                 drilldown.connect(
-                    "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+                    "song-clicked",
+                    lambda _, *args: self.emit("song-clicked", *args),
                 )
                 drilldown.connect(
                     "refresh-window",
@@ -277,7 +283,9 @@ class MusicDirectoryList(Gtk.Box):
         self.directory_id = directory_id or self.directory_id
         self.selected_id = selected_id or self.selected_id
         self.update_store(
-            self.directory_id, force=force, order_token=self.update_order_token,
+            self.directory_id,
+            force=force,
+            order_token=self.update_order_token,
         )
 
         if app_config:
@@ -428,7 +436,8 @@ class MusicDirectoryList(Gtk.Box):
     # ==================================================================================
     def create_row(self, model: DrilldownElement) -> Gtk.ListBoxRow:
         row = Gtk.ListBoxRow(
-            action_name="app.browse-to", action_target=GLib.Variant("s", model.id),
+            action_name="app.browse-to",
+            action_target=GLib.Variant("s", model.id),
         )
         rowbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         rowbox.add(
@@ -461,7 +470,7 @@ class MusicDirectoryList(Gtk.Box):
             {},
         )
 
-    def on_song_button_press(self, tree: Gtk.TreeView, event: Gdk.EventButton,) -> bool:
+    def on_song_button_press(self, tree: Gtk.TreeView, event: Gdk.EventButton) -> bool:
         if event.button == 3:  # Right click
             clicked_path = tree.get_path_at_pos(event.x, event.y)
             if not clicked_path:

@@ -178,7 +178,9 @@ class SearchResult:
     _S = TypeVar("_S")
 
     def _to_result(
-        self, it: Dict[str, _S], transform: Callable[[_S], Tuple[Optional[str], ...]],
+        self,
+        it: Dict[str, _S],
+        transform: Callable[[_S], Tuple[Optional[str], ...]],
     ) -> List[_S]:
         assert self.query
         all_results = []

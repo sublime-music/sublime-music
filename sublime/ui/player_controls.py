@@ -21,15 +21,15 @@ class PlayerControls(Gtk.ActionBar):
     """
 
     __gsignals__ = {
-        "song-scrub": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (float,),),
-        "volume-change": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (float,),),
-        "device-update": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str,),),
+        "song-scrub": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (float,)),
+        "volume-change": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (float,)),
+        "device-update": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str,)),
         "song-clicked": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (int, object, object),
         ),
-        "songs-removed": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (object,),),
+        "songs-removed": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (object,)),
         "refresh-window": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
@@ -242,12 +242,16 @@ class PlayerControls(Gtk.ActionBar):
             return f"<b>{title}</b>\n{util.dot_join(album, artist)}"
 
         def make_idle_index_capturing_function(
-            idx: int, order_tok: int, fn: Callable[[int, int, Any], None],
+            idx: int,
+            order_tok: int,
+            fn: Callable[[int, int, Any], None],
         ) -> Callable[[Result], None]:
             return lambda f: GLib.idle_add(fn, idx, order_tok, f.result())
 
         def on_cover_art_future_done(
-            idx: int, order_token: int, cover_art_filename: str,
+            idx: int,
+            order_token: int,
+            cover_art_filename: str,
         ):
             if order_token != self.play_queue_update_order_token:
                 return
@@ -269,9 +273,7 @@ class PlayerControls(Gtk.ActionBar):
             # The cover art is already cached.
             return cover_art_result.result()
 
-        def on_song_details_future_done(
-            idx: int, order_token: int, song_details: Song,
-        ):
+        def on_song_details_future_done(idx: int, order_token: int, song_details: Song):
             if order_token != self.play_queue_update_order_token:
                 return
 
@@ -559,7 +561,8 @@ class PlayerControls(Gtk.ActionBar):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         self.album_art = SpinnerImage(
-            image_name="player-controls-album-artwork", image_size=70,
+            image_name="player-controls-album-artwork",
+            image_size=70,
         )
         box.pack_start(self.album_art, False, False, 0)
 
@@ -691,12 +694,16 @@ class PlayerControls(Gtk.ActionBar):
         self.device_popover.set_relative_to(self.device_button)
 
         device_popover_box = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL, name="device-popover-box",
+            orientation=Gtk.Orientation.VERTICAL,
+            name="device-popover-box",
         )
         device_popover_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         self.popover_label = Gtk.Label(
-            label="<b>Devices</b>", use_markup=True, halign=Gtk.Align.START, margin=5,
+            label="<b>Devices</b>",
+            use_markup=True,
+            halign=Gtk.Align.START,
+            margin=5,
         )
         device_popover_header.add(self.popover_label)
 
@@ -748,7 +755,8 @@ class PlayerControls(Gtk.ActionBar):
 
         play_queue_loading_overlay = Gtk.Overlay()
         play_queue_scrollbox = Gtk.ScrolledWindow(
-            min_content_height=600, min_content_width=400,
+            min_content_height=600,
+            min_content_width=400,
         )
 
         self.play_queue_store = Gtk.ListStore(
@@ -759,7 +767,9 @@ class PlayerControls(Gtk.ActionBar):
             str,  # song ID
         )
         self.play_queue_list = Gtk.TreeView(
-            model=self.play_queue_store, reorderable=True, headers_visible=False,
+            model=self.play_queue_store,
+            reorderable=True,
+            headers_visible=False,
         )
         selection = self.play_queue_list.get_selection()
         selection.set_mode(Gtk.SelectionMode.MULTIPLE)

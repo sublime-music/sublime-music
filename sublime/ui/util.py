@@ -45,7 +45,7 @@ def format_song_duration(duration_secs: Union[int, timedelta, None]) -> str:
     return f"{duration_secs // 60}:{duration_secs % 60:02}"
 
 
-def pluralize(string: str, number: int, pluralized_form: str = None,) -> str:
+def pluralize(string: str, number: int, pluralized_form: str = None) -> str:
     """
     Pluralize the given string given the count as a number.
 
@@ -205,7 +205,8 @@ def show_song_popover(
     def do_on_remove_downloads_click(_: Any):
         AdapterManager.cancel_download_songs(song_ids)
         AdapterManager.batch_delete_cached_songs(
-            song_ids, on_song_delete=on_download_state_change,
+            song_ids,
+            on_song_delete=on_download_state_change,
         )
         on_remove_downloads_click()
 
@@ -438,7 +439,10 @@ def async_callback(
                     GLib.idle_add(fn)
 
             result: Result = future_fn(
-                *args, before_download=on_before_download, force=force, **kwargs,
+                *args,
+                before_download=on_before_download,
+                force=force,
+                **kwargs,
             )
             result.add_done_callback(
                 functools.partial(future_callback, result.data_is_available)

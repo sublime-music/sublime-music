@@ -40,10 +40,12 @@ class ArtistsPanel(Gtk.Paned):
 
         self.artist_detail_panel = ArtistDetailPanel()
         self.artist_detail_panel.connect(
-            "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+            "song-clicked",
+            lambda _, *args: self.emit("song-clicked", *args),
         )
         self.artist_detail_panel.connect(
-            "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
+            "refresh-window",
+            lambda _, *args: self.emit("refresh-window", *args),
         )
         self.pack2(self.artist_detail_panel, True, False)
 
@@ -315,7 +317,8 @@ class ArtistDetailPanel(Gtk.Box):
         self.album_list_scrolledwindow = Gtk.ScrolledWindow()
         self.albums_list = AlbumsListWithSongs()
         self.albums_list.connect(
-            "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+            "song-clicked",
+            lambda _, *args: self.emit("song-clicked", *args),
         )
         self.album_list_scrolledwindow.add(self.albums_list)
         self.pack_start(self.album_list_scrolledwindow, True, True, 0)
@@ -408,7 +411,9 @@ class ArtistDetailPanel(Gtk.Box):
         self.play_shuffle_buttons.show_all()
 
         self.update_artist_artwork(
-            artist.artist_image_url, force=force, order_token=order_token,
+            artist.artist_image_url,
+            force=force,
+            order_token=order_token,
         )
 
         for c in self.error_container.get_children():
@@ -489,24 +494,31 @@ class ArtistDetailPanel(Gtk.Box):
     # =========================================================================
     def on_view_refresh_click(self, *args):
         self.update_artist_view(
-            self.artist_id, force=True, order_token=self.update_order_token,
+            self.artist_id,
+            force=True,
+            order_token=self.update_order_token,
         )
 
     def on_download_all_click(self, _):
         AdapterManager.batch_download_songs(
             self.get_artist_song_ids(),
             before_download=lambda _: self.update_artist_view(
-                self.artist_id, order_token=self.update_order_token,
+                self.artist_id,
+                order_token=self.update_order_token,
             ),
             on_song_download_complete=lambda _: self.update_artist_view(
-                self.artist_id, order_token=self.update_order_token,
+                self.artist_id,
+                order_token=self.update_order_token,
             ),
         )
 
     def on_play_all_clicked(self, _):
         songs = self.get_artist_song_ids()
         self.emit(
-            "song-clicked", 0, songs, {"force_shuffle_state": False},
+            "song-clicked",
+            0,
+            songs,
+            {"force_shuffle_state": False},
         )
 
     def on_shuffle_all_button(self, _):
@@ -633,7 +645,8 @@ class AlbumsListWithSongs(Gtk.Overlay):
         for album in self.albums:
             album_with_songs = AlbumWithSongs(album, show_artist_name=False)
             album_with_songs.connect(
-                "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+                "song-clicked",
+                lambda _, *args: self.emit("song-clicked", *args),
             )
             album_with_songs.connect("song-selected", self.on_song_selected)
             album_with_songs.show_all()

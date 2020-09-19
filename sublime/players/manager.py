@@ -67,7 +67,8 @@ class PlayerManager:
         }
 
     def change_settings(
-        self, config: Dict[str, Dict[str, Union[Type, Tuple[str, ...]]]],
+        self,
+        config: Dict[str, Dict[str, Union[Type, Tuple[str, ...]]]],
     ):
         self.config = config
         for player_type, player in self.players.items():

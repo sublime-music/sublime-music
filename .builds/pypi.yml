@@ -1,6 +1,6 @@
 image: archlinux
 packages:
-  - python-poetry
+  - python
   - xorg-server-xvfb
 sources:
   - https://git.sr.ht/~sumner/offlinemsmtp
@@ -13,15 +13,16 @@ environment:
 tasks:
   - setup: |
       cd ${REPO_NAME}
-      poetry install
       echo "cd ${REPO_NAME}" >> ~/.buildenv
-      echo "source $(poetry env info -p)/bin/activate" >> ~/.buildenv
 
   - build: |
       python setup.py sdist
 
-  - deploy_pypi: |
-      echo "deploy"
+  - deploy-pypi: |
+      ./cicd/run_if_tagged_with_version                             \
+        "twine upload -r testpypi dist/*"                           \
+        "twine upload dist/*"
 
-  - verify_pypi: |
-      echo "deploy"
+  - verify-pypi: |
+      ./cicd/run_if_tagged_with_version                             \
+        "pip install ${REPO_NAME}"

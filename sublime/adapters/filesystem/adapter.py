@@ -60,9 +60,7 @@ class FilesystemAdapter(CachingAdapter):
     def migrate_configuration(config_store: ConfigurationStore):
         pass
 
-    def __init__(
-        self, config: dict, data_directory: Path, is_cache: bool = False,
-    ):
+    def __init__(self, config: dict, data_directory: Path, is_cache: bool = False):
         self.data_directory = data_directory
         self.cover_art_dir = self.data_directory.joinpath("cover_art")
         self.music_dir = self.data_directory.joinpath("music")
@@ -311,7 +309,9 @@ class FilesystemAdapter(CachingAdapter):
 
     def get_song_details(self, song_id: str) -> models.Song:
         return self._get_object_details(
-            models.Song, song_id, CachingAdapter.CachedDataKey.SONG,
+            models.Song,
+            song_id,
+            CachingAdapter.CachedDataKey.SONG,
         )
 
     def get_artists(self, ignore_cache_miss: bool = False) -> Sequence[API.Artist]:
@@ -429,7 +429,8 @@ class FilesystemAdapter(CachingAdapter):
             ),
         )
         search_result.add_results(
-            "playlists", self.get_playlists(ignore_cache_miss=True),
+            "playlists",
+            self.get_playlists(ignore_cache_miss=True),
         )
         return search_result
 
@@ -439,7 +440,10 @@ class FilesystemAdapter(CachingAdapter):
         return hashlib.sha1(bytes(string, "utf8")).hexdigest()
 
     def ingest_new_data(
-        self, data_key: CachingAdapter.CachedDataKey, param: Optional[str], data: Any,
+        self,
+        data_key: CachingAdapter.CachedDataKey,
+        param: Optional[str],
+        data: Any,
     ):
         assert self.is_cache, "FilesystemAdapter is not in cache mode!"
 
@@ -809,7 +813,9 @@ class FilesystemAdapter(CachingAdapter):
             )
             song_data["_cover_art"] = (
                 self._do_ingest_new_data(
-                    KEYS.COVER_ART_FILE, api_song.cover_art, data=None,
+                    KEYS.COVER_ART_FILE,
+                    api_song.cover_art,
+                    data=None,
                 )
                 if api_song.cover_art
                 else None
@@ -863,7 +869,9 @@ class FilesystemAdapter(CachingAdapter):
         return return_val if return_val is not None else cache_info
 
     def _do_invalidate_data(
-        self, data_key: CachingAdapter.CachedDataKey, param: Optional[str],
+        self,
+        data_key: CachingAdapter.CachedDataKey,
+        param: Optional[str],
     ):
         logging.debug(f"_do_invalidate_data param={param} data_key={data_key}")
         models.CacheInfo.update({"valid": False}).where(
@@ -899,7 +907,8 @@ class FilesystemAdapter(CachingAdapter):
     ):
         logging.debug(f"_do_delete_data param={param} data_key={data_key}")
         cache_info = models.CacheInfo.get_or_none(
-            models.CacheInfo.cache_key == data_key, models.CacheInfo.parameter == param,
+            models.CacheInfo.cache_key == data_key,
+            models.CacheInfo.parameter == param,
         )
 
         if data_key == KEYS.COVER_ART_FILE:

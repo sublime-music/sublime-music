@@ -24,14 +24,14 @@ class MainWindow(Gtk.ApplicationWindow):
             GObject.TYPE_NONE,
             (int, object, object),
         ),
-        "songs-removed": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (object,),),
+        "songs-removed": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (object,)),
         "refresh-window": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
             (object, bool),
         ),
-        "notification-closed": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (),),
-        "go-to": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str, str),),
+        "notification-closed": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, ()),
+        "go-to": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str, str)),
     }
 
     _updating_settings: bool = False
@@ -100,7 +100,8 @@ class MainWindow(Gtk.ApplicationWindow):
             "songs-removed", lambda _, *a: self.emit("songs-removed", *a)
         )
         self.player_controls.connect(
-            "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
+            "refresh-window",
+            lambda _, *args: self.emit("refresh-window", *args),
         )
         flowbox.pack_start(self.player_controls, False, True, 0)
 
@@ -167,7 +168,8 @@ class MainWindow(Gtk.ApplicationWindow):
                 f"{icon_basename}-{icon_status}-symbolic"
             )
             self.connection_status_icon.set_from_icon_name(
-                f"server-{icon_status}-symbolic", Gtk.IconSize.BUTTON,
+                f"server-{icon_status}-symbolic",
+                Gtk.IconSize.BUTTON,
             )
             self.connection_status_label.set_text(status_label)
             self.connected_status_box.show_all()
@@ -194,7 +196,10 @@ class MainWindow(Gtk.ApplicationWindow):
 
             for provider in sorted(other_providers, key=lambda p: p.name.lower()):
                 self.provider_options_box.pack_start(
-                    self._create_switch_provider_button(provider), False, True, 0,
+                    self._create_switch_provider_button(provider),
+                    False,
+                    True,
+                    0,
                 )
 
             self.provider_options_box.show_all()
@@ -489,17 +494,21 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _on_retry_all_clicked(self, _):
         AdapterManager.batch_download_songs(
-            self._failed_downloads, lambda _: None, lambda _: None,
+            self._failed_downloads,
+            lambda _: None,
+            lambda _: None,
         )
 
     def _create_stack(self, **kwargs: Gtk.Widget) -> Gtk.Stack:
         stack = Gtk.Stack()
         for name, child in kwargs.items():
             child.connect(
-                "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+                "song-clicked",
+                lambda _, *args: self.emit("song-clicked", *args),
             )
             child.connect(
-                "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
+                "refresh-window",
+                lambda _, *args: self.emit("refresh-window", *args),
             )
             stack.add_titled(child, name.lower(), name)
         return stack
@@ -671,7 +680,8 @@ class MainWindow(Gtk.ApplicationWindow):
         current_downloads_header = Gtk.Box()
         current_downloads_header.add(
             current_downloads_label := Gtk.Label(
-                label="Current Downloads", name="menu-header",
+                label="Current Downloads",
+                name="menu-header",
             )
         )
         current_downloads_label.get_style_context().add_class("menu-label")
@@ -767,7 +777,8 @@ class MainWindow(Gtk.ApplicationWindow):
         vbox.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
 
         music_provider_button = self._create_model_button(
-            "Switch Music Provider", menu_name="switch-provider",
+            "Switch Music Provider",
+            menu_name="switch-provider",
         )
         vbox.add(music_provider_button)
 
@@ -858,7 +869,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.search_popup = Gtk.PopoverMenu(modal=False)
 
         results_scrollbox = Gtk.ScrolledWindow(
-            min_content_width=500, min_content_height=700,
+            min_content_width=500,
+            min_content_height=700,
         )
 
         def make_search_result_header(text: str) -> Gtk.Label:
@@ -867,7 +879,8 @@ class MainWindow(Gtk.ApplicationWindow):
             return label
 
         search_results_box = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL, name="search-results",
+            orientation=Gtk.Orientation.VERTICAL,
+            name="search-results",
         )
         self.search_results_loading = Gtk.Spinner(active=False, name="search-spinner")
         search_results_box.add(self.search_results_loading)
@@ -1155,8 +1168,8 @@ class MainWindow(Gtk.ApplicationWindow):
 
 class DownloadStatusBox(Gtk.Box):
     __gsignals__ = {
-        "cancel-clicked": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str,),),
-        "retry-clicked": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str,),),
+        "cancel-clicked": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str,)),
+        "retry-clicked": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (str,)),
     }
 
     def __init__(self, song_id: str):

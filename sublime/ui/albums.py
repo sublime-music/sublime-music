@@ -164,10 +164,12 @@ class AlbumsPanel(Gtk.Box):
         scrolled_window = Gtk.ScrolledWindow()
         self.grid = AlbumsGrid()
         self.grid.connect(
-            "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+            "song-clicked",
+            lambda _, *args: self.emit("song-clicked", *args),
         )
         self.grid.connect(
-            "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
+            "refresh-window",
+            lambda _, *args: self.emit("refresh-window", *args),
         )
         self.grid.connect("cover-clicked", self.on_grid_cover_clicked)
         self.grid.connect("num-pages-changed", self.on_grid_num_pages_changed)
@@ -195,7 +197,9 @@ class AlbumsPanel(Gtk.Box):
         return combo, store
 
     def populate_genre_combo(
-        self, app_config: AppConfiguration = None, force: bool = False,
+        self,
+        app_config: AppConfiguration = None,
+        force: bool = False,
     ):
         if not AdapterManager.can_get_genres():
             self.updating_query = False
@@ -464,13 +468,17 @@ class AlbumsPanel(Gtk.Box):
 
     def on_grid_cover_clicked(self, grid: Any, id: str):
         self.emit(
-            "refresh-window", {"selected_album_id": id}, False,
+            "refresh-window",
+            {"selected_album_id": id},
+            False,
         )
 
     def on_show_count_dropdown_change(self, combo: Gtk.ComboBox):
         show_count = int(self.get_id(combo) or 30)
         self.emit(
-            "refresh-window", {"album_page_size": show_count, "album_page": 0}, False,
+            "refresh-window",
+            {"album_page_size": show_count, "album_page": 0},
+            False,
         )
 
     def emit_if_not_updating(self, *args):
@@ -483,7 +491,7 @@ class AlbumsGrid(Gtk.Overlay):
     """Defines the albums panel."""
 
     __gsignals__ = {
-        "cover-clicked": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (object,),),
+        "cover-clicked": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (object,)),
         "refresh-window": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
@@ -789,9 +797,7 @@ class AlbumsGrid(Gtk.Overlay):
         new_items_per_row = min((rect.width // 230), 7)
         if new_items_per_row != self.items_per_row:
             self.items_per_row = new_items_per_row
-            self.detail_box_inner.set_size_request(
-                self.items_per_row * 230 - 10, -1,
-            )
+            self.detail_box_inner.set_size_request(self.items_per_row * 230 - 10, -1)
 
             self.reflow_grids(
                 force_reload_from_master=True,
@@ -899,10 +905,14 @@ class AlbumsGrid(Gtk.Overlay):
             # Just remove everything and re-add all of the items. It's not worth trying
             # to diff in this case.
             self.list_store_top.splice(
-                0, len(self.list_store_top), window[:entries_before_fold],
+                0,
+                len(self.list_store_top),
+                window[:entries_before_fold],
             )
             self.list_store_bottom.splice(
-                0, len(self.list_store_bottom), window[entries_before_fold:],
+                0,
+                len(self.list_store_bottom),
+                window[entries_before_fold:],
             )
         elif selected_index or entries_before_fold != self.page_size:
             # This case handles when the selection changes and the entries need to be
@@ -940,7 +950,8 @@ class AlbumsGrid(Gtk.Overlay):
             model = self.list_store_top[relative_selected_index]
             detail_element = AlbumWithSongs(model.album, cover_art_size=300)
             detail_element.connect(
-                "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+                "song-clicked",
+                lambda _, *args: self.emit("song-clicked", *args),
             )
             detail_element.connect("song-selected", lambda *a: None)
 

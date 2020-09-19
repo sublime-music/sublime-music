@@ -574,7 +574,7 @@ class Adapter(abc.ABC):
         """
         raise self._check_can_error("get_playlists")
 
-    def get_playlist_details(self, playlist_id: str,) -> Playlist:
+    def get_playlist_details(self, playlist_id: str) -> Playlist:
         """
         Get the details for the given ``playlist_id``. If the playlist_id does not
         exist, then this function should throw an exception.
@@ -586,7 +586,7 @@ class Adapter(abc.ABC):
         raise self._check_can_error("get_playlist_details")
 
     def create_playlist(
-        self, name: str, songs: Sequence[Song] = None,
+        self, name: str, songs: Sequence[Song] = None
     ) -> Optional[Playlist]:
         """
         Creates a playlist of the given name with the given songs.

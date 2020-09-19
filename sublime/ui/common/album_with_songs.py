@@ -15,7 +15,7 @@ from .spinner_image import SpinnerImage
 
 class AlbumWithSongs(Gtk.Box):
     __gsignals__ = {
-        "song-selected": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, (),),
+        "song-selected": (GObject.SignalFlags.RUN_FIRST, GObject.TYPE_NONE, ()),
         "song-clicked": (
             GObject.SignalFlags.RUN_FIRST,
             GObject.TYPE_NONE,
@@ -122,7 +122,9 @@ class AlbumWithSongs(Gtk.Box):
 
         album_details.add(
             Gtk.Label(
-                label=util.dot_join(*stats), halign=Gtk.Align.START, margin_left=10,
+                label=util.dot_join(*stats),
+                halign=Gtk.Align.START,
+                margin_left=10,
             )
         )
 
@@ -235,7 +237,10 @@ class AlbumWithSongs(Gtk.Box):
     def play_btn_clicked(self, btn: Any):
         song_ids = [x[-1] for x in self.album_song_store]
         self.emit(
-            "song-clicked", 0, song_ids, {"force_shuffle_state": False},
+            "song-clicked",
+            0,
+            song_ids,
+            {"force_shuffle_state": False},
         )
 
     def shuffle_btn_clicked(self, btn: Any):

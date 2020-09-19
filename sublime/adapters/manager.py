@@ -493,7 +493,8 @@ class AdapterManager:
                     # Everything succeeded.
                     if expected_size_exists:
                         AdapterManager._instance.song_download_progress(
-                            id, DownloadProgress(DownloadProgress.Type.DONE),
+                            id,
+                            DownloadProgress(DownloadProgress.Type.DONE),
                         )
                 except Exception as e:
                     if expected_size_exists and not download_cancelled:
@@ -872,7 +873,9 @@ class AdapterManager:
             # Create a download result.
             future = AdapterManager._create_download_result(
                 AdapterManager._instance.ground_truth_adapter.get_cover_art_uri(
-                    cover_art_id, AdapterManager._get_networked_scheme(), size=size,
+                    cover_art_id,
+                    AdapterManager._get_networked_scheme(),
+                    size=size,
                 ),
                 cover_art_id,
                 before_download,
@@ -963,7 +966,8 @@ class AdapterManager:
             ):
                 AdapterManager._instance.download_limiter_semaphore.release()
                 AdapterManager._instance.song_download_progress(
-                    song_id, DownloadProgress(DownloadProgress.Type.CANCELLED),
+                    song_id,
+                    DownloadProgress(DownloadProgress.Type.CANCELLED),
                 )
                 return Result("", is_download=True)
 
@@ -977,7 +981,8 @@ class AdapterManager:
                 )
                 AdapterManager._instance.download_limiter_semaphore.release()
                 AdapterManager._instance.song_download_progress(
-                    song_id, DownloadProgress(DownloadProgress.Type.DONE),
+                    song_id,
+                    DownloadProgress(DownloadProgress.Type.DONE),
                 )
                 return Result("", is_download=True)
             except CacheMissError:
@@ -1033,7 +1038,8 @@ class AdapterManager:
             for song_id in song_ids:
                 # Everything succeeded.
                 AdapterManager._instance.song_download_progress(
-                    song_id, DownloadProgress(DownloadProgress.Type.QUEUED),
+                    song_id,
+                    DownloadProgress(DownloadProgress.Type.QUEUED),
                 )
 
             for song_id in song_ids:
@@ -1057,7 +1063,8 @@ class AdapterManager:
             # Alert the UI that the downloads are cancelled.
             for song_id in song_ids:
                 AdapterManager._instance.song_download_progress(
-                    song_id, DownloadProgress(DownloadProgress.Type.CANCELLED),
+                    song_id,
+                    DownloadProgress(DownloadProgress.Type.CANCELLED),
                 )
 
         return Result(do_batch_download_songs, is_download=True, on_cancel=on_cancel)
@@ -1070,7 +1077,8 @@ class AdapterManager:
         )
         for song_id in song_ids:
             AdapterManager._instance.song_download_progress(
-                song_id, DownloadProgress(DownloadProgress.Type.CANCELLED),
+                song_id,
+                DownloadProgress(DownloadProgress.Type.CANCELLED),
             )
             if AdapterManager._song_download_jobs.get(song_id):
                 AdapterManager._song_download_jobs[song_id].cancel()
@@ -1360,8 +1368,10 @@ class AdapterManager:
                 return True
 
             try:
-                ground_truth_search_results = AdapterManager._instance.ground_truth_adapter.search(  # noqa: E501
-                    query
+                ground_truth_search_results = (
+                    AdapterManager._instance.ground_truth_adapter.search(  # noqa: E501
+                        query
+                    )
                 )
                 search_result.update(ground_truth_search_results)
                 search_callback(search_result)

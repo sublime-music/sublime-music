@@ -104,10 +104,12 @@ class PlaylistsPanel(Gtk.Paned):
 
         self.playlist_detail_panel = PlaylistDetailPanel()
         self.playlist_detail_panel.connect(
-            "song-clicked", lambda _, *args: self.emit("song-clicked", *args),
+            "song-clicked",
+            lambda _, *args: self.emit("song-clicked", *args),
         )
         self.playlist_detail_panel.connect(
-            "refresh-window", lambda _, *args: self.emit("refresh-window", *args),
+            "refresh-window",
+            lambda _, *args: self.emit("refresh-window", *args),
         )
         self.pack2(self.playlist_detail_panel, True, False)
 
@@ -158,7 +160,7 @@ class PlaylistList(Gtk.Box):
 
         loading_new_playlist = Gtk.ListBox()
 
-        self.loading_indicator = Gtk.ListBoxRow(activatable=False, selectable=False,)
+        self.loading_indicator = Gtk.ListBoxRow(activatable=False, selectable=False)
         loading_spinner = Gtk.Spinner(name="playlist-list-spinner", active=True)
         self.loading_indicator.add(loading_spinner)
         loading_new_playlist.add(self.loading_indicator)
@@ -364,13 +366,17 @@ class PlaylistDetailPanel(Gtk.Overlay):
         )
 
         self.play_all_button = IconButton(
-            "media-playback-start-symbolic", label="Play All", relief=True,
+            "media-playback-start-symbolic",
+            label="Play All",
+            relief=True,
         )
         self.play_all_button.connect("clicked", self.on_play_all_clicked)
         self.play_shuffle_buttons.pack_start(self.play_all_button, False, False, 0)
 
         self.shuffle_all_button = IconButton(
-            "media-playlist-shuffle-symbolic", label="Shuffle All", relief=True,
+            "media-playlist-shuffle-symbolic",
+            label="Shuffle All",
+            relief=True,
         )
         self.shuffle_all_button.connect("clicked", self.on_shuffle_all_button)
         self.play_shuffle_buttons.pack_start(self.shuffle_all_button, False, False, 5)
@@ -908,7 +914,7 @@ class PlaylistDetailPanel(Gtk.Overlay):
         self.playlist_artwork.set_loading(False)
         self.playlist_view_loading_box.hide()
 
-    def make_label(self, text: str = None, name: str = None, **params,) -> Gtk.Label:
+    def make_label(self, text: str = None, name: str = None, **params) -> Gtk.Label:
         return Gtk.Label(
             label=text,
             name=name,
@@ -919,7 +925,10 @@ class PlaylistDetailPanel(Gtk.Overlay):
 
     @util.async_callback(AdapterManager.get_playlist_details)
     def _update_playlist_order(
-        self, playlist: API.Playlist, app_config: AppConfiguration, **kwargs,
+        self,
+        playlist: API.Playlist,
+        app_config: AppConfiguration,
+        **kwargs,
     ):
         self.playlist_view_loading_box.show_all()
         update_playlist_future = AdapterManager.update_playlist(

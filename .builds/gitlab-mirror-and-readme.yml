@@ -1,8 +1,9 @@
-image: archlinux
+image: alpine/edge
 packages:
   - curl
+  - git
   - openssh
-  - python-docutils
+  - py3-docutils
 sources:
   - https://git.sr.ht/~sumner/offlinemsmtp
 secrets:
@@ -21,7 +22,6 @@ tasks:
       cd ${REPO_NAME}
       echo "cd ${REPO_NAME}" >> ~/.buildenv
 
-  # TODO
   # - gitlab-mirror: |
   #     ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
   #     git push --quiet --mirror git@gitlab.com:sublime-music/sublime-music.git

@@ -261,7 +261,9 @@ class SubsonicAdapter(Adapter):
 
         # Try to ping the server.
         self._get_json(
-            self._make_url("ping"), timeout=timeout, is_exponential_backoff_ping=True,
+            self._make_url("ping"),
+            timeout=timeout,
+            is_exponential_backoff_ping=True,
         )
 
     def on_offline_mode_change(self, offline_mode: bool):
@@ -388,7 +390,10 @@ class SubsonicAdapter(Adapter):
                 result = self._get_mock_data()
             else:
                 result = requests.get(
-                    url, params=params, verify=self.verify_cert, timeout=timeout,
+                    url,
+                    params=params,
+                    verify=self.verify_cert,
+                    timeout=timeout,
                 )
 
             if result.status_code != 200:
@@ -490,7 +495,7 @@ class SubsonicAdapter(Adapter):
         return result
 
     def create_playlist(
-        self, name: str, songs: Sequence[API.Song] = None,
+        self, name: str, songs: Sequence[API.Song] = None
     ) -> Optional[API.Playlist]:
         return self._get_json(
             self._make_url("createPlaylist"),

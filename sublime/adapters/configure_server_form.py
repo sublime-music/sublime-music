@@ -111,7 +111,10 @@ class ConfigureServerForm(Gtk.Box):
         self.is_networked = is_networked
 
         content_grid = Gtk.Grid(
-            column_spacing=10, row_spacing=5, margin_left=10, margin_right=10,
+            column_spacing=10,
+            row_spacing=5,
+            margin_left=10,
+            margin_right=10,
         )
         advanced_grid = Gtk.Grid(column_spacing=10, row_spacing=10)
 
@@ -175,7 +178,8 @@ class ConfigureServerForm(Gtk.Box):
 
             if cpd.helptext:
                 help_icon = Gtk.Image.new_from_icon_name(
-                    "help-about", Gtk.IconSize.BUTTON,
+                    "help-about",
+                    Gtk.IconSize.BUTTON,
                 )
                 help_icon.get_style_context().add_class("configure-form-help-icon")
                 help_icon.set_tooltip_markup(cpd.helptext)

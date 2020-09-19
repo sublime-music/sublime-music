@@ -137,7 +137,13 @@ class DBusManager:
 
             return
         self.do_on_method_call(
-            connection, sender, path, interface, method, params, invocation,
+            connection,
+            sender,
+            path,
+            interface,
+            method,
+            params,
+            invocation,
         )
 
     @staticmethod
@@ -153,7 +159,8 @@ class DBusManager:
 
         if type(value) == dict:
             return GLib.Variant(
-                "a{sv}", {k: DBusManager.to_variant(v) for k, v in value.items()},
+                "a{sv}",
+                {k: DBusManager.to_variant(v) for k, v in value.items()},
             )
 
         variant_type = {list: "as", str: "s", int: "i", float: "d", bool: "b"}.get(
@@ -230,7 +237,8 @@ class DBusManager:
                 "Rate": 1.0,
                 "Shuffle": state.shuffle_on,
                 "Metadata": self.get_mpris_metadata(
-                    state.current_song_index, state.play_queue,
+                    state.current_song_index,
+                    state.play_queue,
                 )
                 if state.current_song
                 else {},

@@ -70,7 +70,10 @@ class SortedManyToManyQuery(ManyToManyQuery):
 
 class SortedManyToManyFieldAccessor(ManyToManyFieldAccessor):
     def __get__(
-        self, instance: Model, instance_type: Any = None, force_query: bool = False,
+        self,
+        instance: Model,
+        instance_type: Any = None,
+        force_query: bool = False,
     ):
         if instance is not None:
             if not force_query and self.src_fk.backref != "+":
