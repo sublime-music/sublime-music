@@ -170,7 +170,8 @@ def test_search_result_update():
 
     search_results2 = SearchResult(query="foo")
     search_results2.add_results(
-        "artists", [SubsonicAPI.ArtistAndArtistInfo(id="3", name="foo2")],
+        "artists",
+        [SubsonicAPI.ArtistAndArtistInfo(id="3", name="foo2")],
     )
 
     search_results1.update(search_results2)
