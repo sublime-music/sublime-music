@@ -2,6 +2,8 @@ image: archlinux
 packages:
   - dbus
   - gobject-introspection
+  - gtk3
+  - mpv
   - python-cairo
   - python-gobject
   - python-poetry

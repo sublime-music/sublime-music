@@ -17,4 +17,4 @@ tasks:
 
   - build-flatpak: |
       cd ${REPO_NAME}/flatpak
-      REPO=repo ./flatpak_build.sh
+      # REPO=repo ./flatpak_build.sh
