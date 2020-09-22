@@ -67,6 +67,9 @@
       "build-commands": [
         "pip3 install --prefix=/app ."
       ],
+      "build-options": {
+        "build-args": [ "--share=network" ]
+      },
       "sources": [
         {
           "type": "dir",

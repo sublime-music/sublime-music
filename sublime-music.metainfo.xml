@@ -89,7 +89,8 @@
     <update_contact>me_AT_sumnerevans.com</update_contact>
 
     <releases>
-        <release version="0.10.2" date="2020-06-07"></release>
+        <release version="0.11.9" date="2020-09-22"></release>
         <release version="0.10.3" date="2020-06-07"></release>
+        <release version="0.10.2" date="2020-06-07"></release>
     </releases>
 </component>

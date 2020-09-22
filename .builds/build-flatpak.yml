@@ -1,0 +1,22 @@
+image: archlinux
+packages:
+  - dbus
+  - gobject-introspection
+  - gtk3
+  - mpv
+  - python-cairo
+  - python-gobject
+  - python-poetry
+  - xorg-server-xvfb
+sources:
+  - https://git.sr.ht/~sumner/sublime-music
+environment:
+  REPO_NAME: sublime-music
+# triggers:
+#   - action: email
+#     condition: failure
+#     to: ~sumner/sublime-music-devel@lists.sr.ht
+tasks:
+  - build-flatpak: |
+      cd ${REPO_NAME}/flatpak
+      REPO=repo ./flatpak_build.sh

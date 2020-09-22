@@ -38,10 +38,6 @@ tasks:
   - build: |
       python setup.py sdist
 
-  - build-flatpak: |
-      cd ${REPO_NAME}/flatpak
-      # REPO=repo ./flatpak_build.sh
-
   - deploy-pypi: |
       ./cicd/run_if_tagged_with_version                             \
         "twine upload -r testpypi dist/*"                           \
