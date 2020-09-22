@@ -40,7 +40,7 @@ RUN apt update && \
 RUN cd /usr/local/src && \
     curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
 
-RUN pip3 install pipenv
+RUN pip3 install poetry
 
 # Install the correct Python version with pyenv
 COPY install-python.sh /tmp/install-python.sh

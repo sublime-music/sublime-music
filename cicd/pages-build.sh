@@ -3,7 +3,7 @@
 set -xe
 
 pushd docs
-pipenv run make html
+poetry run make html
 popd
 
 mv docs/_build/html public

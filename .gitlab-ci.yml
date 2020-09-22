@@ -22,11 +22,11 @@ lint:
   before_script:
     - ./cicd/install-project-deps.sh
   script:
-    - pipenv run python setup.py check -mrs
-    - pipenv run black --check .
-    - pipenv run flake8
-    - pipenv run mypy sublime tests/**/*.py
-    - pipenv run cicd/custom_style_check.py
+    - poetry run python setup.py check -mrs
+    - poetry run black --check .
+    - poetry run flake8
+    - poetry run mypy sublime tests/**/*.py
+    - poetry run cicd/custom_style_check.py
 
 test:
   stage: test
@@ -37,7 +37,7 @@ test:
     - Xvfb :119 -screen 0 1024x768x16 &
     - export DISPLAY=:119
   script:
-    - pipenv run ./cicd/pytest.sh
+    - poetry run ./cicd/pytest.sh
   artifacts:
     paths:
       - htmlcov
@@ -47,7 +47,7 @@ build:
   before_script:
     - ./cicd/install-project-deps.sh
   script:
-    - pipenv run python setup.py sdist
+    - poetry run python setup.py sdist
   artifacts:
     paths:
       - dist/*
@@ -115,7 +115,7 @@ publish_release:
   before_script:
     - ./cicd/install-project-deps.sh
   script:
-    - pipenv run ./cicd/publish-gitlab-release.sh
+    - poetry run ./cicd/publish-gitlab-release.sh
 
 # Scheduled Jobs
 # =============================================================================
