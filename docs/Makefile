@@ -11,7 +11,7 @@ BUILDDIR      = _build
 SPHINXDOCBUILD = sphinx-apidoc
 SPHINXDOCOPTS  = -f -e -T
 DOCSSOURCE     = ./api/
-PROJECTDIR     = ../sublime/
+PROJECTDIR     = ../sublime_music/
 
 # Put it first so that "make" without argument is like "make help".
 help:

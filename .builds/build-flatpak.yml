@@ -1,11 +1,14 @@
 image: archlinux
 packages:
   - dbus
+  - flatpak
+  - flatpak-builder
   - gobject-introspection
   - gtk3
   - mpv
   - python-cairo
   - python-gobject
+  - python-pip
   - python-poetry
   - xorg-server-xvfb
 sources:
@@ -19,4 +22,4 @@ environment:
 tasks:
   - build-flatpak: |
       cd ${REPO_NAME}/flatpak
-      REPO=repo ./flatpak_build.sh
+      sudo REPO=repo ./flatpak_build.sh

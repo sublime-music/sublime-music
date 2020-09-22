@@ -26,13 +26,13 @@ author = "Sumner Evans"
 gitlab_url = "https://gitlab.com/sublime-music/sublime-music/"
 
 # Get the version from the package.
-module_name = "sublime"
-init_file = Path(__file__).parent.parent.joinpath("sublime/__init__.py").resolve()
+module_name = "sublime_music"
+init_file = Path(__file__).parent.parent.joinpath("sublime_music/__init__.py").resolve()
 spec = importlib.util.spec_from_file_location(module_name, str(init_file))
-sublime = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(sublime)
+sublime_music = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(sublime_music)
 
-version = release = f"v{sublime.__version__}"
+version = release = f"v{sublime_music.__version__}"
 
 # -- General configuration ---------------------------------------------------
 

@@ -1,3 +1,10 @@
+v0.11.10
+========
+
+**The wait is over!** Thanks to help from jlanda_, the Flatpak is back!
+
+.. _jlanda: https://gitlab.com/jlanda
+
 v0.11.9
 =======
 

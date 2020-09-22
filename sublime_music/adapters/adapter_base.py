@@ -569,8 +569,9 @@ class Adapter(abc.ABC):
         """
         Get a list of all of the playlists known by the adapter.
 
-        :returns: A list of all of the :class:`sublime.adapter.api_objects.Playlist`
-            objects known to the adapter.
+        :returns: A list of all of the
+            :class:`sublime_music.adapter.api_objects.Playlist` objects known to the
+            adapter.
         """
         raise self._check_can_error("get_playlists")
 
@@ -580,7 +581,7 @@ class Adapter(abc.ABC):
         exist, then this function should throw an exception.
 
         :param playlist_id: The ID of the playlist to retrieve.
-        :returns: A :class:`sublime.adapter.api_objects.Play` object for the given
+        :returns: A :class:`sublime_music.adapter.api_objects.Play` object for the given
             playlist.
         """
         raise self._check_can_error("get_playlist_details")
@@ -593,9 +594,9 @@ class Adapter(abc.ABC):
 
         :param name: The human-readable name of the playlist.
         :param songs: A list of songs that should be included in the playlist.
-        :returns: A :class:`sublime.adapter.api_objects.Playlist` object for the created
-            playlist. If getting this information will incurr network overhead, then
-            just return ``None``.
+        :returns: A :class:`sublime_music.adapter.api_objects.Playlist` object for the
+            created playlist. If getting this information will incurr network overhead,
+            then just return ``None``.
         """
         raise self._check_can_error("create_playlist")
 
@@ -618,8 +619,8 @@ class Adapter(abc.ABC):
             shared/public vs. not shared/private playlists concept, setting this to
             ``True`` will make the playlist shared/public.
         :param song_ids: A list of song IDs that should be included in the playlist.
-        :returns: A :class:`sublime.adapter.api_objects.Playlist` object for the updated
-            playlist.
+        :returns: A :class:`sublime_music.adapter.api_objects.Playlist` object for the
+            updated playlist.
         """
         raise self._check_can_error("update_playlist")
 
@@ -671,7 +672,7 @@ class Adapter(abc.ABC):
         Get the details for a given song ID.
 
         :param song_id: The ID of the song to get the details for.
-        :returns: The :class:`sublime.adapters.api_objects.Song`.
+        :returns: The :class:`sublime_music.adapters.api_objects.Song`.
         """
         raise self._check_can_error("get_song_details")
 
@@ -679,7 +680,7 @@ class Adapter(abc.ABC):
         """
         Scrobble the given song.
 
-        :params song: The :class:`sublime.adapters.api_objects.Song` to scrobble.
+        :params song: The :class:`sublime_music.adapters.api_objects.Song` to scrobble.
         """
         raise self._check_can_error("scrobble_song")
 
@@ -687,7 +688,7 @@ class Adapter(abc.ABC):
         """
         Get a list of all of the artists known to the adapter.
 
-        :returns: A list of all of the :class:`sublime.adapter.api_objects.Artist`
+        :returns: A list of all of the :class:`sublime_music.adapter.api_objects.Artist`
             objects known to the adapter.
         """
         raise self._check_can_error("get_artists")
@@ -697,7 +698,7 @@ class Adapter(abc.ABC):
         Get the details for the given artist ID.
 
         :param artist_id: The ID of the artist to get the details for.
-        :returns: The :classs`sublime.adapters.api_objects.Artist`
+        :returns: The :classs`sublime_music.adapters.api_objects.Artist`
         """
         raise self._check_can_error("get_artist")
 
@@ -723,7 +724,7 @@ class Adapter(abc.ABC):
 
         :param query: An :class:`AlbumSearchQuery` object representing the types of
             albums to return.
-        :returns: A list of all of the :class:`sublime.adapter.api_objects.Album`
+        :returns: A list of all of the :class:`sublime_music.adapter.api_objects.Album`
             objects known to the adapter that match the query.
         """
         raise self._check_can_error("get_albums")
@@ -733,7 +734,7 @@ class Adapter(abc.ABC):
         Get the details for the given album ID.
 
         :param album_id: The ID of the album to get the details for.
-        :returns: The :classs`sublime.adapters.api_objects.Album`
+        :returns: The :classs`sublime_music.adapters.api_objects.Album`
         """
         raise self._check_can_error("get_album")
 
@@ -747,8 +748,9 @@ class Adapter(abc.ABC):
         :param directory_id: The directory to retrieve. If the special value ``"root"``
             is given, the adapter should list all of the directories at the root of the
             filesystem tree.
-        :returns: A list of the :class:`sublime.adapter.api_objects.Directory` and
-            :class:`sublime.adapter.api_objects.Song` objects in the given directory.
+        :returns: A list of the :class:`sublime_music.adapter.api_objects.Directory` and
+            :class:`sublime_music.adapter.api_objects.Song` objects in the given
+            directory.
         """
         raise self._check_can_error("get_directory")
 
@@ -756,7 +758,7 @@ class Adapter(abc.ABC):
         """
         Get a list of the genres known to the adapter.
 
-        :returns: A list of all of the :classs`sublime.adapter.api_objects.Genre`
+        :returns: A list of all of the :classs`sublime_music.adapter.api_objects.Genre`
             objects known to the adapter.
         """
         raise self._check_can_error("get_genres")
@@ -767,7 +769,7 @@ class Adapter(abc.ABC):
         the play queue from the cloud.
 
         :returns: The cloud-saved play queue as a
-            :class:`sublime.adapter.api_objects.PlayQueue` object.
+            :class:`sublime_music.adapter.api_objects.PlayQueue` object.
         """
         raise self._check_can_error("get_play_queue")
 
@@ -791,7 +793,7 @@ class Adapter(abc.ABC):
         Return search results fro the given query.
 
         :param query: The query string.
-        :returns: A :class:`sublime.adapters.api_objects.SearchResult` object
+        :returns: A :class:`sublime_music.adapters.api_objects.SearchResult` object
             representing the results of the search.
         """
         raise self._check_can_error("search")
