@@ -2,11 +2,10 @@ import logging
 from datetime import timedelta
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union
 
-from ..adapters.api_objects import Song
-
 from .base import PlayerDeviceEvent, PlayerEvent
 from .chromecast import ChromecastPlayer  # noqa: F401
 from .mpv import MPVPlayer  # noqa: F401
+from ..adapters.api_objects import Song
 
 
 class PlayerManager:

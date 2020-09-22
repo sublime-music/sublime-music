@@ -117,6 +117,7 @@ before knowing if your code is the correct style.
   * ``flake8-importorder`` (with the ``edited`` import style): enforce ordering
     of import statements.
   * ``flake8-pep3101``: no ``%`` string formatting.
+  * ``flake8-print``: to prevent using the ``print`` function.
 
 * `mypy`_ is used for type checking. All type errors must be resolved.
 

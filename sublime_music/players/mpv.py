@@ -4,9 +4,8 @@ from typing import Callable, cast, Dict, Optional, Tuple, Type, Union
 
 import mpv
 
-from ..adapters.api_objects import Song
-
 from .base import Player, PlayerDeviceEvent, PlayerEvent
+from ..adapters.api_objects import Song
 
 REPLAY_GAIN_KEY = "Replay Gain"
 

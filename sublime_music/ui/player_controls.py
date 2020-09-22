@@ -211,11 +211,6 @@ class PlayerControls(Gtk.ActionBar):
         self.current_play_queue = app_config.state.play_queue
         self.current_playing_index = app_config.state.current_song_index
 
-        print("DIFF STORE")
-        from time import time
-
-        s = time()
-
         # Set the Play Queue button popup.
         play_queue_len = len(app_config.state.play_queue)
         if play_queue_len == 0:
@@ -286,13 +281,10 @@ class PlayerControls(Gtk.ActionBar):
             if filename:
                 self.play_queue_store[idx][1] = filename
 
-        print("A", time() - s)
         current_play_queue = [x[-1] for x in self.play_queue_store]
         if app_config.state.play_queue != current_play_queue:
             self.play_queue_update_order_token += 1
 
-        print("B", time() - s)
-        ohea = {1: 0.0, 2: 0.0, 3: 0.0}
         song_details_results = []
         for i, (song_id, cached_status) in enumerate(
             zip(
@@ -300,9 +292,7 @@ class PlayerControls(Gtk.ActionBar):
                 AdapterManager.get_cached_statuses(app_config.state.play_queue),
             )
         ):
-            f = time()
             song_details_result = AdapterManager.get_song_details(song_id)
-            ohea[1] += time() - f
 
             cover_art_filename = ""
             label = "\n"
@@ -319,7 +309,6 @@ class PlayerControls(Gtk.ActionBar):
                     cover_art_filename = filename
             else:
                 song_details_results.append((i, song_details_result))
-            ohea[2] += time() - f
 
             new_store.append(
                 [
@@ -334,16 +323,8 @@ class PlayerControls(Gtk.ActionBar):
                     song_id,
                 ]
             )
-            ohea[3] += time() - f
-        print(
-            "ohea",
-            ohea,
-            list(map(lambda x: x / len(app_config.state.play_queue), ohea.values())),
-        )
-        print("C", time() - s)
 
         util.diff_song_store(self.play_queue_store, new_store)
-        print("FOO", time() - s)
 
         # Do this after the diff to avoid race conditions.
         for idx, song_details_result in song_details_results:

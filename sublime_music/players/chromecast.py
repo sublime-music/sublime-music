@@ -12,10 +12,9 @@ from uuid import UUID
 
 from gi.repository import GLib
 
+from .base import Player, PlayerDeviceEvent, PlayerEvent
 from ..adapters import AdapterManager
 from ..adapters.api_objects import Song
-
-from .base import Player, PlayerDeviceEvent, PlayerEvent
 
 try:
     import pychromecast
