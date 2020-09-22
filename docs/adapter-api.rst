@@ -8,8 +8,8 @@ server, data on the local filesystem, or even an entirely different service.
 
 This document is designed to help you understand the Adapter API so that you can
 create your own custom adapters. This document is best read in conjunction with
-the :class:`sublime.adapters.Adapter` documentation. This document is meant as a
-guide to tell you a general order in which to implement things.
+the :class:`sublime_music.adapters.Adapter` documentation. This document is
+meant as a guide to tell you a general order in which to implement things.
 
 Terms
 =====
@@ -35,8 +35,8 @@ Creating Your Adapter Class
 An adapter is composed of a single Python module. The adapter module can have
 arbitrary code, and as many files/classes/functions/etc. as necessary, however
 there must be one and only one class in the module which inherits from the
-:class:`sublime.adapters.Adapter` class. Normally, a single file with a single
-class should be enough to implement the entire adapter.
+:class:`sublime_music.adapters.Adapter` class. Normally, a single file with a
+single class should be enough to implement the entire adapter.
 
 .. warning::
 
@@ -49,16 +49,16 @@ class should be enough to implement the entire adapter.
 After you've created the class, you will want to implement the following
 functions and properties first:
 
-* ``get_ui_info``: Returns a :class:`sublime.adapters.UIInfo` with the info for
-  the adapter.
+* ``get_ui_info``: Returns a :class:`sublime_music.adapters.UIInfo` with the
+  info for the adapter.
 * ``__init__``: Used to initialize your adapter. See the
-  :class:`sublime.adapters.Adapter.__init__` documentation for the function
-  signature of the ``__init__`` function.
+  :class:`sublime_music.adapters.Adapter.__init__` documentation for the
+  function signature of the ``__init__`` function.
 * ``ping_status``: Assuming that your adapter requires connection to the
   internet, this property needs to be implemented. (If your adapter doesn't
   require connection to the internet, set
-  :class:`sublime.adapters.Adapter.is_networked` to ``False`` and ignore the
-  rest of this bullet point.)
+  :class:`sublime_music.adapters.Adapter.is_networked` to ``False`` and ignore
+  the rest of this bullet point.)
 
   This property will tell the UI whether or not the underlying server can be
   pinged.
@@ -80,12 +80,12 @@ functions and properties first:
 
   If you don't want to implement all of the GTK logic yourself, and just want a
   simple form, then you can use the
-  :class:`sublime.adapters.ConfigureServerForm` class to generate a form in a
-  declarative manner.
+  :class:`sublime_music.adapters.ConfigureServerForm` class to generate a form
+  in a declarative manner.
 
 .. note::
 
-   The :class:`sublime.adapters.Adapter` class is an `Abstract Base Class
+   The :class:`sublime_music.adapters.Adapter` class is an `Abstract Base Class
    <abc_>`_ and all required functions are annotated with the
    ``@abstractmethod`` decorator. This means that your adapter will fail to
    instantiate if the abstract methods are not implemented.
@@ -102,21 +102,21 @@ must do the following:
    name must be unique within your adapter.
 
 2. Add a new entry to the return value of your
-   :class:`sublime.adapters.Adapter.get_config_parameters` function with the key
-   being the name from (1), and the value being a
-   :class:`sublime.adapters.ConfigParamDescriptor`. The order of the keys in the
-   dictionary matters, since the UI uses that to determine the order in which
-   the configuration parameters will be shown in the UI.
+   :class:`sublime_music.adapters.Adapter.get_config_parameters` function with
+   the key being the name from (1), and the value being a
+   :class:`sublime_music.adapters.ConfigParamDescriptor`. The order of the keys
+   in the dictionary matters, since the UI uses that to determine the order in
+   which the configuration parameters will be shown in the UI.
 
 3. Add any verifications that are necessary for your configuration parameter in
-   your :class:`sublime.adapters.Adapter.verify_configuration` function. If you
-   parameter descriptor has ``required = True``, then that parameter is
+   your :class:`sublime_music.adapters.Adapter.verify_configuration` function.
+   If you parameter descriptor has ``required = True``, then that parameter is
    guaranteed to appear in the configuration.
 
 4. The configuration parameter will be passed into your
-   :class:`sublime.adapters.Adapter.init` function. It is guaranteed that the
-   ``verify_configuration`` will have been called first, so there is no need to
-   re-verify the config that is passed.
+   :class:`sublime_music.adapters.Adapter.init` function. It is guaranteed that
+   the ``verify_configuration`` will have been called first, so there is no need
+   to re-verify the config that is passed.
 
 Implementing Data Retrieval Methods
 -----------------------------------

@@ -11,5 +11,7 @@ RUN dnf -y update && \
 
 RUN flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-RUN flatpak install -y org.gnome.Platform//3.34 && \
-    flatpak install -y org.gnome.Sdk//3.34
+RUN flatpak install -y org.gnome.Platform//3.38 && \
+    flatpak install -y org.gnome.Sdk//3.38
+
+RUN pip3 install requirements-parser

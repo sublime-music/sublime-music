@@ -47,7 +47,7 @@ def check_file(path: Path) -> bool:
 
 
 valid = True
-for path in Path("sublime").glob("**/*.py"):
+for path in Path("sublime_music").glob("**/*.py"):
     valid &= check_file(path)
 
 for path in Path("tests").glob("**/*.py"):
@@ -56,7 +56,7 @@ for path in Path("tests").glob("**/*.py"):
 """
 Checks that the version in the CHANGELOG is the same as the version in ``__init__.py``.
 """
-with open(Path("sublime/__init__.py")) as f:
+with open(Path("sublime_music/__init__.py")) as f:
     for line in f:
         if line.startswith("__version__"):
             version = eval(line.split()[-1])

@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from sublime.adapters import ConfigurationStore
-from sublime.adapters.filesystem import FilesystemAdapter
-from sublime.adapters.subsonic import SubsonicAdapter
-from sublime.config import AppConfiguration, ProviderConfiguration
+from sublime_music.adapters import ConfigurationStore
+from sublime_music.adapters.filesystem import FilesystemAdapter
+from sublime_music.adapters.subsonic import SubsonicAdapter
+from sublime_music.config import AppConfiguration, ProviderConfiguration
 
 
 @pytest.fixture

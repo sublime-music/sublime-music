@@ -1,0 +1,33 @@
+image: alpine/edge
+packages:
+  - curl
+  - git
+  - openssh
+  - py3-docutils
+sources:
+  - https://git.sr.ht/~sumner/sublime-music
+secrets:
+  # README Personal Access Token
+  - 2fb5fd72-fa96-46c6-ab90-6b7cabebba16
+environment:
+  REPO_NAME: sublime-music
+triggers:
+  - action: email
+    condition: failure
+    to: ~sumner/sublime-music-devel@lists.sr.ht
+tasks:
+  - setup: |
+      echo "cd ${REPO_NAME}" >> ~/.buildenv
+
+  # If we are on the master branch, compile the README.rst to HTML and set it
+  # as the README for the repo.
+  - readme: |
+      set +x
+      git branch --contains | grep master &&
+        rst2html5 --no-doc-title README.rst |                       \
+          curl -H "Content-Type: text/html"                         \
+            -H "Authorization: Bearer $(cat ~/.readme-token)"       \
+            -XPUT                                                   \
+            --data-binary @-                                        \
+            "https://git.sr.ht/api/repos/${REPO_NAME}/readme" &&
+        echo "README set" || echo "Skipping README set because not on master"

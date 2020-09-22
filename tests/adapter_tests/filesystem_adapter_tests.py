@@ -9,14 +9,14 @@ import pytest
 
 from peewee import SelectQuery
 
-from sublime.adapters import (
+from sublime_music.adapters import (
     AlbumSearchQuery,
     api_objects as SublimeAPI,
     CacheMissError,
     SongCacheStatus,
 )
-from sublime.adapters.filesystem import FilesystemAdapter
-from sublime.adapters.subsonic import api_objects as SubsonicAPI
+from sublime_music.adapters.filesystem import FilesystemAdapter
+from sublime_music.adapters.subsonic import api_objects as SubsonicAPI
 
 MOCK_DATA_FILES = Path(__file__).parent.joinpath("mock_data")
 MOCK_ALBUM_ART = MOCK_DATA_FILES.joinpath("album-art.png")
@@ -90,7 +90,8 @@ def cache_adapter(tmp_path: Path):
 
 
 def mock_data_files(
-    request_name: str, mode: str = "r",
+    request_name: str,
+    mode: str = "r",
 ) -> Generator[Tuple[Path, Any], None, None]:
     """
     Yields all of the files in the mock_data directory that start with ``request_name``.
@@ -272,7 +273,9 @@ def test_caching_get_playlist_then_details(cache_adapter: FilesystemAdapter):
 
     # Simulate getting playlist details for id=1, then id=2
     cache_adapter.ingest_new_data(
-        KEYS.PLAYLIST_DETAILS, "1", SubsonicAPI.Playlist("1", "test1"),
+        KEYS.PLAYLIST_DETAILS,
+        "1",
+        SubsonicAPI.Playlist("1", "test1"),
     )
 
     cache_adapter.ingest_new_data(
@@ -308,7 +311,9 @@ def test_invalidate_playlist(cache_adapter: FilesystemAdapter):
         [SubsonicAPI.Playlist("1", "test1"), SubsonicAPI.Playlist("2", "test2")],
     )
     cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, "pl_test1", MOCK_ALBUM_ART,
+        KEYS.COVER_ART_FILE,
+        "pl_test1",
+        MOCK_ALBUM_ART,
     )
     cache_adapter.ingest_new_data(
         KEYS.PLAYLIST_DETAILS,
@@ -316,7 +321,9 @@ def test_invalidate_playlist(cache_adapter: FilesystemAdapter):
         SubsonicAPI.Playlist("2", "test2", cover_art="pl_2", songs=[]),
     )
     cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, "pl_2", MOCK_ALBUM_ART2,
+        KEYS.COVER_ART_FILE,
+        "pl_2",
+        MOCK_ALBUM_ART2,
     )
 
     stale_uri_1 = cache_adapter.get_cover_art_uri("pl_test1", "file", size=300)
@@ -362,7 +369,9 @@ def test_invalidate_song_file(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(KEYS.SONG, "2", MOCK_SUBSONIC_SONGS[0])
     cache_adapter.ingest_new_data(KEYS.SONG, "1", MOCK_SUBSONIC_SONGS[1])
     cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, "s1", MOCK_ALBUM_ART,
+        KEYS.COVER_ART_FILE,
+        "s1",
+        MOCK_ALBUM_ART,
     )
     cache_adapter.ingest_new_data(KEYS.SONG_FILE, "1", (None, MOCK_SONG_FILE, None))
     cache_adapter.ingest_new_data(KEYS.SONG_FILE, "2", (None, MOCK_SONG_FILE2, None))
@@ -430,7 +439,9 @@ def test_delete_playlists(cache_adapter: FilesystemAdapter):
         SubsonicAPI.Playlist("2", "test1", cover_art="pl_2", songs=[]),
     )
     cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, "pl_1", MOCK_ALBUM_ART,
+        KEYS.COVER_ART_FILE,
+        "pl_1",
+        MOCK_ALBUM_ART,
     )
 
     # Deleting a playlist should get rid of it entirely.
@@ -451,7 +462,8 @@ def test_delete_playlists(cache_adapter: FilesystemAdapter):
 
     # Even if the cover art failed to be deleted, it should cache miss.
     shutil.copy(
-        MOCK_ALBUM_ART, str(cache_adapter.cover_art_dir.joinpath(MOCK_ALBUM_ART_HASH)),
+        MOCK_ALBUM_ART,
+        str(cache_adapter.cover_art_dir.joinpath(MOCK_ALBUM_ART_HASH)),
     )
     try:
         cache_adapter.get_cover_art_uri("pl_1", "file", size=300)
@@ -464,7 +476,9 @@ def test_delete_song_data(cache_adapter: FilesystemAdapter):
     cache_adapter.ingest_new_data(KEYS.SONG, "1", MOCK_SUBSONIC_SONGS[1])
     cache_adapter.ingest_new_data(KEYS.SONG_FILE, "1", (None, MOCK_SONG_FILE, None))
     cache_adapter.ingest_new_data(
-        KEYS.COVER_ART_FILE, "s1", MOCK_ALBUM_ART,
+        KEYS.COVER_ART_FILE,
+        "s1",
+        MOCK_ALBUM_ART,
     )
 
     music_file_path = cache_adapter.get_song_file_uri("1", "file")
@@ -747,14 +761,18 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
     )
 
     artist = cache_adapter.get_artist("1")
-    assert artist.artist_image_url and (
-        artist.id,
-        artist.name,
-        artist.album_count,
-        artist.artist_image_url,
-        artist.biography,
-        artist.music_brainz_id,
-    ) == ("1", "Bar", 1, "image", "this is a bio", "mbid")
+    assert (
+        artist.artist_image_url
+        and (
+            artist.id,
+            artist.name,
+            artist.album_count,
+            artist.artist_image_url,
+            artist.biography,
+            artist.music_brainz_id,
+        )
+        == ("1", "Bar", 1, "image", "this is a bio", "mbid")
+    )
     assert artist.similar_artists == [
         SubsonicAPI.ArtistAndArtistInfo(id="A", name="B"),
         SubsonicAPI.ArtistAndArtistInfo(id="C", name="D"),
@@ -787,14 +805,18 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
     )
 
     artist = cache_adapter.get_artist("1")
-    assert artist.artist_image_url and (
-        artist.id,
-        artist.name,
-        artist.album_count,
-        artist.artist_image_url,
-        artist.biography,
-        artist.music_brainz_id,
-    ) == ("1", "Foo", 2, "image2", "this is a bio2", "mbid2")
+    assert (
+        artist.artist_image_url
+        and (
+            artist.id,
+            artist.name,
+            artist.album_count,
+            artist.artist_image_url,
+            artist.biography,
+            artist.music_brainz_id,
+        )
+        == ("1", "Foo", 2, "image2", "this is a bio2", "mbid2")
+    )
     assert artist.similar_artists == [
         SubsonicAPI.ArtistAndArtistInfo(id="A", name="B"),
         SubsonicAPI.ArtistAndArtistInfo(id="E", name="F"),
@@ -837,7 +859,14 @@ def test_caching_get_album(cache_adapter: FilesystemAdapter):
         album.song_count,
         album.year,
         album.play_count,
-    ) == ("a1", "foo", "c", 2, 2020, 20,)
+    ) == (
+        "a1",
+        "foo",
+        "c",
+        2,
+        2020,
+        20,
+    )
     assert album.artist
     assert (album.artist.id, album.artist.name) == ("art1", "cool")
     assert album.songs

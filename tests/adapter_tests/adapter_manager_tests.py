@@ -3,10 +3,15 @@ from time import sleep
 
 import pytest
 
-from sublime.adapters import AdapterManager, ConfigurationStore, Result, SearchResult
-from sublime.adapters.filesystem import FilesystemAdapter
-from sublime.adapters.subsonic import api_objects as SubsonicAPI, SubsonicAdapter
-from sublime.config import AppConfiguration, ProviderConfiguration
+from sublime_music.adapters import (
+    AdapterManager,
+    ConfigurationStore,
+    Result,
+    SearchResult,
+)
+from sublime_music.adapters.filesystem import FilesystemAdapter
+from sublime_music.adapters.subsonic import api_objects as SubsonicAPI, SubsonicAdapter
+from sublime_music.config import AppConfiguration, ProviderConfiguration
 
 
 @pytest.fixture
@@ -170,7 +175,8 @@ def test_search_result_update():
 
     search_results2 = SearchResult(query="foo")
     search_results2.add_results(
-        "artists", [SubsonicAPI.ArtistAndArtistInfo(id="3", name="foo2")],
+        "artists",
+        [SubsonicAPI.ArtistAndArtistInfo(id="3", name="foo2")],
     )
 
     search_results1.update(search_results2)

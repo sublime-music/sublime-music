@@ -1,9 +1,22 @@
 v0.11.9
 =======
 
+**The wait is over!** Thanks to help from jlanda_, the **Flatpak** is back!  The
+Flatpak requires ``org.gnome.SDK//3.38`` and ``org.gnome.Platform//3.38``.
+
+.. _jlanda: https://gitlab.com/jlanda
+
 **Bug Fixes**
 
 * Fixed regressions with Chromecast playback.
+
+**Infrastructure**
+
+* Switched from Pipenv to Poetry because Poetry is so much faster.
+* Added a ``.envrc`` file for direnv users.
+* Started migrating from GitLab to sr.ht due to usability regressions in GitLab.
+* **Package name change:** The package name is now ``sublime_music`` instead of
+  ``sublime``.
 
 v0.11.8
 =======
