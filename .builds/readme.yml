@@ -2,8 +2,8 @@ image: alpine/edge
 packages:
   - curl
   - git
-  - openssh
-  - py3-docutils
+  - py3-pip
+  - python3
 sources:
   - https://git.sr.ht/~sumner/sublime-music
 secrets:
@@ -17,17 +17,19 @@ triggers:
     to: ~sumner/sublime-music-devel@lists.sr.ht
 tasks:
   - setup: |
+      pip3 install rst2html5
       echo "cd ${REPO_NAME}" >> ~/.buildenv
+      echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.buildenv
 
   # If we are on the master branch, compile the README.rst to HTML and set it
   # as the README for the repo.
   - readme: |
       set +x
       git branch --contains | grep master &&
-        rst2html5 --no-doc-title README.rst |                       \
-          curl -H "Content-Type: text/html"                         \
-            -H "Authorization: Bearer $(cat ~/.readme-token)"       \
-            -XPUT                                                   \
-            --data-binary @-                                        \
+        rst2html5 --template="{body}" README.rst |                          \
+          curl -H "Content-Type: text/html"                                 \
+            -H "Authorization: Bearer $(cat ~/.readme-token)"               \
+            -XPUT                                                           \
+            --data-binary @-                                                \
             "https://git.sr.ht/api/repos/${REPO_NAME}/readme" &&
         echo "README set" || echo "Skipping README set because not on master"

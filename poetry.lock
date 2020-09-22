@@ -315,6 +315,18 @@ python-versions = "*"
 speedup = ["python-levenshtein (>=0.12)"]
 
 [[package]]
+name = "genshi"
+version = "0.7.3"
+description = "A toolkit for generation of output for the web"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.extras]
+i18n = ["Babel (>=0.8)"]
+plugin = ["setuptools (>=0.6a2)"]
+
+[[package]]
 name = "idna"
 version = "2.10"
 description = "Internationalized Domain Names in Applications (IDNA)"
@@ -726,6 +738,19 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "rst2html5"
+version = "1.10.6"
+description = "Generates (X)HTML5 documents from standalone reStructuredText sources"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+docutils = ">=0.14"
+genshi = ">=0.7"
+pygments = ">=2.0.2"
+
+[[package]]
 name = "secretstorage"
 version = "3.1.2"
 description = "Python bindings to FreeDesktop.org Secret Service API"
@@ -971,7 +996,7 @@ server = ["bottle"]
 [metadata]
 lock-version = "1.0"
 python-versions = "^3.8"
-content-hash = "9b5bc5f3a3b231e3366a8d7120c3fad10bd9a37601c05f73def347ccf659deb7"
+content-hash = "8f2347fd5d6fb642a38a353623b5176a1c6766317c5bb165ef48779663b31d38"
 
 [metadata.files]
 alabaster = [
@@ -1165,6 +1190,10 @@ flake8-print = [
 fuzzywuzzy = [
     {file = "fuzzywuzzy-0.18.0-py2.py3-none-any.whl", hash = "sha256:928244b28db720d1e0ee7587acf660ea49d7e4c632569cad4f1cd7e68a5f0993"},
     {file = "fuzzywuzzy-0.18.0.tar.gz", hash = "sha256:45016e92264780e58972dca1b3d939ac864b78437422beecebb3095f8efd00e8"},
+]
+genshi = [
+    {file = "Genshi-0.7.3-py3-none-any.whl", hash = "sha256:5e92e278ca1ea395349a451d54fc81dc3c1b543c48939a15bd36b7b3335e1560"},
+    {file = "Genshi-0.7.3.tar.gz", hash = "sha256:7933c95151d7dd2124a2b4c8dd85bb6aec881ca17c0556da0b40e56434b313a0"},
 ]
 idna = [
     {file = "idna-2.10-py2.py3-none-any.whl", hash = "sha256:b97d804b1e9b523befed77c48dacec60e6dcb0b5391d57af6a65a312a90648c0"},
@@ -1393,6 +1422,9 @@ requests = [
 requirements-parser = [
     {file = "requirements-parser-0.2.0.tar.gz", hash = "sha256:5963ee895c2d05ae9f58d3fc641082fb38021618979d6a152b6b1398bd7d4ed4"},
     {file = "requirements_parser-0.2.0-py2-none-any.whl", hash = "sha256:76650b4a9d98fc65edf008a7920c076bb2a76c08eaae230ce4cfc6f51ea6a773"},
+]
+rst2html5 = [
+    {file = "rst2html5-1.10.6-py2.py3-none-any.whl", hash = "sha256:8e64e80c52d0383aa04f2701a7627c2f2a09d59c61a3dc3555d845333bc31648"},
 ]
 secretstorage = [
     {file = "SecretStorage-3.1.2-py3-none-any.whl", hash = "sha256:b5ec909dde94d4ae2fa26af7c089036997030f0cf0a5cb372b4cccabd81c143b"},

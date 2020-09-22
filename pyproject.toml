@@ -60,6 +60,7 @@ termcolor = "^1.1.0"
 requirements-parser = "^0.2.0"
 sphinx = "^3.2.1"
 sphinx_rtd_theme = "^0.5.0"
+rst2html5 = "^1.10.6"
 
 [tool.poetry.extras]
 chromecast = ["pychromecast"]
