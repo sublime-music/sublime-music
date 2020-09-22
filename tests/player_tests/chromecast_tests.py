@@ -1,4 +1,4 @@
-from sublime.players.chromecast import ChromecastPlayer
+from sublime_music.players.chromecast import ChromecastPlayer
 
 
 def test_init():

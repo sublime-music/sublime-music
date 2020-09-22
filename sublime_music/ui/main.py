@@ -3,16 +3,16 @@ from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import (
+from ..adapters import (
     AdapterManager,
     api_objects as API,
     DownloadProgress,
     Result,
 )
-from sublime.config import AppConfiguration, ProviderConfiguration
-from sublime.players import PlayerManager
-from sublime.ui import albums, artists, browse, player_controls, playlists, util
-from sublime.ui.common import IconButton, IconMenuButton, SpinnerImage
+from ..config import AppConfiguration, ProviderConfiguration
+from ..players import PlayerManager
+from ..ui import albums, artists, browse, player_controls, playlists, util
+from ..ui.common import IconButton, IconMenuButton, SpinnerImage
 
 
 class MainWindow(Gtk.ApplicationWindow):

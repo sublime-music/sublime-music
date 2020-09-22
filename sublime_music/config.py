@@ -8,8 +8,8 @@ from typing import Any, cast, Dict, Optional, Tuple, Type, Union
 import dataclasses_json
 from dataclasses_json import config, DataClassJsonMixin
 
-from sublime.adapters import ConfigurationStore
-from sublime.ui.state import UIState
+from .adapters import ConfigurationStore
+from .ui.state import UIState
 
 
 # JSON decoder and encoder translations
@@ -85,7 +85,7 @@ def encode_providers(
 def decode_providers(
     providers_dict: Dict[str, Dict[str, Any]]
 ) -> Dict[str, ProviderConfiguration]:
-    from sublime.adapters import AdapterManager
+    from sublime_music.adapters import AdapterManager
 
     def find_adapter_type(type_name: str) -> Type:
         for available_adapter in AdapterManager.available_adapters:

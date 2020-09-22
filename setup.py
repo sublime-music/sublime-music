@@ -75,5 +75,5 @@ setup(
     # "scripts" keyword. Entry points provide cross-platform support and
     # allow pip to create the appropriate form of executable for the target
     # platform.
-    entry_points={"console_scripts": ["sublime-music=sublime.__main__:main"]},
+    entry_points={"console_scripts": ["sublime-music=sublime_music.__main__:main"]},
 )

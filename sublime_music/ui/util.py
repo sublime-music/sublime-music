@@ -16,9 +16,9 @@ from typing import (
 from deepdiff import DeepDiff
 from gi.repository import Gdk, GLib, Gtk
 
-from sublime.adapters import AdapterManager, CacheMissError, Result, SongCacheStatus
-from sublime.adapters.api_objects import Playlist, Song
-from sublime.config import AppConfiguration
+from ..adapters import AdapterManager, CacheMissError, Result, SongCacheStatus
+from ..adapters.api_objects import Playlist, Song
+from ..config import AppConfiguration
 
 
 def format_song_duration(duration_secs: Union[int, timedelta, None]) -> str:

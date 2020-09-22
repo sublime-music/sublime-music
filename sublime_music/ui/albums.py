@@ -6,16 +6,16 @@ from typing import Any, Callable, cast, Iterable, List, Optional, Tuple
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import (
+from ..adapters import (
     AdapterManager,
     AlbumSearchQuery,
     api_objects as API,
     CacheMissError,
     Result,
 )
-from sublime.config import AppConfiguration
-from sublime.ui import util
-from sublime.ui.common import AlbumWithSongs, IconButton, LoadError, SpinnerImage
+from ..config import AppConfiguration
+from ..ui import util
+from ..ui.common import AlbumWithSongs, IconButton, LoadError, SpinnerImage
 
 
 def _to_type(query_type: AlbumSearchQuery.Type) -> str:

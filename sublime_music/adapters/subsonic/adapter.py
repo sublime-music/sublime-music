@@ -27,7 +27,7 @@ import requests
 import semver
 from gi.repository import Gtk
 
-from sublime.util import resolve_path
+from sublime_music.util import resolve_path
 
 from .api_objects import Directory, Response
 from .. import (

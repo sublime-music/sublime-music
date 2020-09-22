@@ -3,9 +3,9 @@ from typing import Any, cast, List
 
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, api_objects as API, Result
-from sublime.config import AppConfiguration
-from sublime.ui import util
+from sublime_music.adapters import AdapterManager, api_objects as API, Result
+from sublime_music.config import AppConfiguration
+from sublime_music.ui import util
 
 from .icon_button import IconButton
 from .load_error import LoadError

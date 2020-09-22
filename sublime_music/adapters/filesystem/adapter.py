@@ -9,7 +9,7 @@ from typing import Any, cast, Dict, Iterable, Optional, Sequence, Set, Tuple
 from gi.repository import Gtk
 from peewee import fn, prefetch
 
-from sublime.adapters import api_objects as API
+from sublime_music.adapters import api_objects as API
 
 from . import models
 from .. import (

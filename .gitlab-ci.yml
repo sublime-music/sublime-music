@@ -25,7 +25,7 @@ lint:
     - poetry run python setup.py check -mrs
     - poetry run black --check .
     - poetry run flake8
-    - poetry run mypy sublime tests/**/*.py
+    - poetry run mypy sublime_music tests/**/*.py
     - poetry run cicd/custom_style_check.py
 
 test:

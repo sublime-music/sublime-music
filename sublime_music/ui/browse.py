@@ -3,10 +3,10 @@ from typing import Any, cast, List, Optional, Tuple
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, api_objects as API, CacheMissError, Result
-from sublime.config import AppConfiguration
-from sublime.ui import util
-from sublime.ui.common import IconButton, LoadError, SongListColumn
+from ..adapters import AdapterManager, api_objects as API, CacheMissError, Result
+from ..config import AppConfiguration
+from ..ui import util
+from ..ui.common import IconButton, LoadError, SongListColumn
 
 
 class BrowsePanel(Gtk.Overlay):

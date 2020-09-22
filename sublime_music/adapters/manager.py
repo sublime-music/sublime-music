@@ -30,7 +30,7 @@ from typing import (
 
 import requests
 
-from sublime.config import ProviderConfiguration
+from sublime_music.config import ProviderConfiguration
 
 from .adapter_base import (
     Adapter,
@@ -273,7 +273,7 @@ class AdapterManager:
         config: Any,
         on_song_download_progress: Callable[[Any, str, DownloadProgress], None],
     ):
-        from sublime.config import AppConfiguration
+        from sublime_music.config import AppConfiguration
 
         assert isinstance(config, AppConfiguration)
 

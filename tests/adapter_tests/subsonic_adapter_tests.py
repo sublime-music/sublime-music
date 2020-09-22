@@ -8,11 +8,8 @@ from typing import Any, Generator, List, Tuple
 import pytest
 from dateutil.tz import tzutc
 
-from sublime.adapters import ConfigurationStore
-from sublime.adapters.subsonic import (
-    api_objects as SubsonicAPI,
-    SubsonicAdapter,
-)
+from sublime_music.adapters import ConfigurationStore
+from sublime_music.adapters.subsonic import api_objects as SubsonicAPI, SubsonicAdapter
 
 MOCK_DATA_FILES = Path(__file__).parent.joinpath("mock_data")
 

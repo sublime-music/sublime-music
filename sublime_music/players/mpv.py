@@ -4,7 +4,7 @@ from typing import Callable, cast, Dict, Optional, Tuple, Type, Union
 
 import mpv
 
-from sublime.adapters.api_objects import Song
+from ..adapters.api_objects import Song
 
 from .base import Player, PlayerDeviceEvent, PlayerEvent
 

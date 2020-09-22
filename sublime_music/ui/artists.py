@@ -5,15 +5,15 @@ from typing import cast, List, Sequence
 
 from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
-from sublime.adapters import (
+from ..adapters import (
     AdapterManager,
     api_objects as API,
     CacheMissError,
     SongCacheStatus,
 )
-from sublime.config import AppConfiguration
-from sublime.ui import util
-from sublime.ui.common import AlbumWithSongs, IconButton, LoadError, SpinnerImage
+from ..config import AppConfiguration
+from ..ui import util
+from ..ui.common import AlbumWithSongs, IconButton, LoadError, SpinnerImage
 
 
 class ArtistsPanel(Gtk.Paned):

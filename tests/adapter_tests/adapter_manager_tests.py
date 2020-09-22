@@ -3,10 +3,15 @@ from time import sleep
 
 import pytest
 
-from sublime.adapters import AdapterManager, ConfigurationStore, Result, SearchResult
-from sublime.adapters.filesystem import FilesystemAdapter
-from sublime.adapters.subsonic import api_objects as SubsonicAPI, SubsonicAdapter
-from sublime.config import AppConfiguration, ProviderConfiguration
+from sublime_music.adapters import (
+    AdapterManager,
+    ConfigurationStore,
+    Result,
+    SearchResult,
+)
+from sublime_music.adapters.filesystem import FilesystemAdapter
+from sublime_music.adapters.subsonic import api_objects as SubsonicAPI, SubsonicAdapter
+from sublime_music.config import AppConfiguration, ProviderConfiguration
 
 
 @pytest.fixture

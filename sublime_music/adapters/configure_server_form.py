@@ -252,7 +252,7 @@ class ConfigureServerForm(Gtk.Box):
     def _set_verification_status(
         self, verifying: bool, is_valid: bool = False, error_text: str = None
     ):
-        from sublime.ui import util
+        from sublime_music.ui import util
 
         if verifying:
             if not self.verifying_in_progress:
@@ -304,7 +304,7 @@ class ConfigureServerForm(Gtk.Box):
     def _verify_config(self, ratchet: int):
         self.emit("config-valid-changed", False)
 
-        from sublime.adapters import Result
+        from sublime_music.adapters import Result
 
         if self.required_config_parameter_keys.issubset(set(self.config_store.keys())):
             if self._verification_status_ratchet != ratchet:

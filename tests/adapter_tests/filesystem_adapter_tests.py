@@ -9,14 +9,14 @@ import pytest
 
 from peewee import SelectQuery
 
-from sublime.adapters import (
+from sublime_music.adapters import (
     AlbumSearchQuery,
     api_objects as SublimeAPI,
     CacheMissError,
     SongCacheStatus,
 )
-from sublime.adapters.filesystem import FilesystemAdapter
-from sublime.adapters.subsonic import api_objects as SubsonicAPI
+from sublime_music.adapters.filesystem import FilesystemAdapter
+from sublime_music.adapters.subsonic import api_objects as SubsonicAPI
 
 MOCK_DATA_FILES = Path(__file__).parent.joinpath("mock_data")
 MOCK_ALBUM_ART = MOCK_DATA_FILES.joinpath("album-art.png")

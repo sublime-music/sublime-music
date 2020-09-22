@@ -2,7 +2,7 @@ import logging
 from datetime import timedelta
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union
 
-from sublime.adapters.api_objects import Song
+from ..adapters.api_objects import Song
 
 from .base import PlayerDeviceEvent, PlayerEvent
 from .chromecast import ChromecastPlayer  # noqa: F401
@@ -19,7 +19,8 @@ class PlayerManager:
     ]:
         """
         :returns: Dictionary of the name of the player -> option configs (see
-            :class:`sublime.players.base.Player.get_configuration_options` for details).
+            :class:`sublime_music.players.base.Player.get_configuration_options` for
+            details).
         """
         return {
             p.name: p.get_configuration_options()

@@ -14,7 +14,7 @@ from peewee import (
     TextField,
 )
 
-from sublime.adapters.adapter_base import CachingAdapter
+from sublime_music.adapters.adapter_base import CachingAdapter
 
 
 # Custom Fields

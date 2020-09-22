@@ -4,9 +4,9 @@ from typing import Any, Optional, Type
 
 from gi.repository import Gio, GObject, Gtk, Pango
 
-from sublime.adapters import AdapterManager, UIInfo
-from sublime.adapters.filesystem import FilesystemAdapter
-from sublime.config import ConfigurationStore, ProviderConfiguration
+from ..adapters import AdapterManager, UIInfo
+from ..adapters.filesystem import FilesystemAdapter
+from ..config import ConfigurationStore, ProviderConfiguration
 
 
 class AdapterTypeModel(GObject.GObject):

@@ -12,8 +12,8 @@ from uuid import UUID
 
 from gi.repository import GLib
 
-from sublime.adapters import AdapterManager
-from sublime.adapters.api_objects import Song
+from ..adapters import AdapterManager
+from ..adapters.api_objects import Song
 
 from .base import Player, PlayerDeviceEvent, PlayerEvent
 

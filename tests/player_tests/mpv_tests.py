@@ -3,7 +3,7 @@ from pathlib import Path
 
 # from time import sleep
 
-from sublime.players.mpv import MPVPlayer
+from sublime_music.players.mpv import MPVPlayer
 
 MPVPlayer._is_mock = True
 

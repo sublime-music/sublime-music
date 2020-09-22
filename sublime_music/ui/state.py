@@ -3,8 +3,8 @@ from datetime import timedelta
 from enum import Enum
 from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
 
-from sublime.adapters import AlbumSearchQuery
-from sublime.adapters.api_objects import Genre, Song
+from ..adapters import AlbumSearchQuery
+from ..adapters.api_objects import Genre, Song
 
 
 class RepeatType(Enum):
@@ -109,7 +109,7 @@ class UIState:
         self.playing = False
 
     def __init_available_players__(self):
-        from sublime.players import PlayerManager
+        from sublime_music.players import PlayerManager
 
         self.available_players = {
             pt: set() for pt in PlayerManager.available_player_types
@@ -125,7 +125,7 @@ class UIState:
         if not self.play_queue or self.current_song_index < 0:
             return None
 
-        from sublime.adapters import AdapterManager
+        from sublime_music.adapters import AdapterManager
 
         current_song_id = self.play_queue[self.current_song_index]
 

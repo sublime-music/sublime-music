@@ -4,7 +4,7 @@ from datetime import timedelta
 from enum import Enum
 from typing import Callable, Dict, Optional, Set, Tuple, Type, Union
 
-from sublime.adapters.api_objects import Song
+from ..adapters.api_objects import Song
 
 
 @dataclass
