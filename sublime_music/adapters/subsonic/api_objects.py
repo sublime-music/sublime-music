@@ -158,6 +158,8 @@ class Directory(SublimeAPI.Directory):
     )
 
     def __post_init__(self):
+        if not isinstance(self.id, str):
+            self.id = str(self.id)
         self.parent_id = (self.parent_id or "root") if self.id != "root" else None
 
         self.name = self.name or self.title
@@ -199,6 +201,8 @@ class Song(SublimeAPI.Song, DataClassJsonMixin):
     starred: Optional[datetime] = None
 
     def __post_init__(self):
+        if not isinstance(self.id, str):
+            self.id = str(self.id)
         self.parent_id = (self.parent_id or "root") if self.id != "root" else None
         self.artist = (
             None
@@ -227,6 +231,8 @@ class Playlist(SublimeAPI.Playlist):
     cover_art: Optional[str] = None
 
     def __post_init__(self):
+        if not isinstance(self.id, str):
+            self.id = str(self.id)
         if self.songs is None:
             return
         if self.song_count is None:
