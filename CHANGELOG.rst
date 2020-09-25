@@ -2,7 +2,8 @@ v0.11.9
 =======
 
 **The wait is over!** Thanks to help from jlanda_, the **Flatpak** is back!  The
-Flatpak requires ``org.gnome.SDK//3.38`` and ``org.gnome.Platform//3.38``.
+Flatpak requires ``org.gnome.SDK//3.38`` and ``org.gnome.Platform//3.38`` to be
+installed on your system.
 
 .. _jlanda: https://gitlab.com/jlanda
 

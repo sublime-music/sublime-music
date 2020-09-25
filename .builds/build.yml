@@ -38,11 +38,12 @@ tasks:
   - build: |
       python setup.py sdist
 
-  - deploy-pypi: |
-      ./cicd/run_if_tagged_with_version                             \
-        "twine upload -r testpypi dist/*"                           \
-        "twine upload dist/*"
+  # TODO migrate deploy to sr.ht
+  # - deploy-pypi: |
+  #     ./cicd/run_if_tagged_with_version                             \
+  #       "twine upload -r testpypi dist/*"                           \
+  #       "twine upload dist/*"
 
-  - verify-pypi: |
-      ./cicd/run_if_tagged_with_version                             \
-        "pip install ${REPO_NAME}"
+  # - verify-pypi: |
+  #     ./cicd/run_if_tagged_with_version                             \
+  #       "pip install ${REPO_NAME}"

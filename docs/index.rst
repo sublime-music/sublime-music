@@ -115,11 +115,19 @@ In the future, you will be able to install via Flathub. For now, if you want to
 try the Flatpak, you will have to install it manually by visiting the Releases_
 page and downloading the ``.flatpak`` file from there.
 
-Then, you can install Sublime Music with::
+Next, install the dependencies for Sublime Music. If you haven't already, follow
+the instructions to setup ``flathub`` here:
+https://docs.flatpak.org/en/latest/using-flatpak.html#add-a-remote
+
+Then, install the dependencies of Sublime Music::
+
+    sudo flatpak install -y org.gnome.Platform//3.38 org.gnome.Sdk//3.38
+
+And finally, install Sublime Music with::
 
     sudo flatpak install sublime-music.flatpak
 
-and run it by executing::
+To run Sublime, use the following command::
 
     flatpak run app.sublimemusic.SublimeMusic
 
