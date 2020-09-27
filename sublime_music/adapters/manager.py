@@ -452,6 +452,9 @@ class AdapterManager:
                         raise Exception("Didn't expect JSON!")
 
                     total_size = int(request.headers.get("Content-Length", 0))
+                    if total_size == 0:
+                        raise Exception("No data sent by server.")
+
                     if expected_size_exists:
                         if total_size != expected_size:
                             raise Exception(
