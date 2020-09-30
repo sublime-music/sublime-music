@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import math
@@ -5,6 +6,7 @@ import multiprocessing
 import os
 import pickle
 import random
+import string
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -111,6 +113,15 @@ class SubsonicAdapter(Adapter):
                 helptext="If toggled, Sublime Music will periodically save the play "
                 "queue state so that you can resume on other devices.",
             ),
+            "salt_auth": ConfigParamDescriptor(
+                bool,
+                "Use Salt Authentication",
+                default=True,
+                advanced=True,
+                helptext="If toggled, Sublime Music will use salted hash tokens "
+                "instead of the plain password in the request urls (only supported on "
+                "Subsonic API 1.13.0+)",
+            ),
         }
 
         if networkmanager_imported:
@@ -160,10 +171,38 @@ class SubsonicAdapter(Adapter):
                         "Double check the server address."
                     )
                 except ServerError as e:
-                    errors["__ping__"] = (
-                        "<b>Error connecting to the server.</b>\n"
-                        f"Error {e.status_code}: {str(e)}"
-                    )
+                    if e.status_code in [10, 41] and config_store["salt_auth"]:
+                        # status code 10: if salt auth is not enabled, server will
+                        # return error server error with status_code 10 since it'll
+                        # interpret it as a missing (password) parameter
+                        # status code 41: as per subsonic api docs, description of
+                        # status_code 41 is "Token authentication not supported for LDAP
+                        # users." so fall back to password auth
+                        try:
+                            config_store["salt_auth"] = False
+                            tmp_adapter = SubsonicAdapter(
+                                config_store, Path(tmp_dir_name)
+                            )
+                            tmp_adapter._get_json(
+                                tmp_adapter._make_url("ping"),
+                                timeout=2,
+                                is_exponential_backoff_ping=True,
+                            )
+                            logging.warn(
+                                "Salted auth not supported, falling back to regular "
+                                "password auth"
+                            )
+                        except ServerError as retry_e:
+                            config_store["salt_auth"] = True
+                            errors["__ping__"] = (
+                                "<b>Error connecting to the server.</b>\n"
+                                f"Error {retry_e.status_code}: {str(retry_e)}"
+                            )
+                    else:
+                        errors["__ping__"] = (
+                            "<b>Error connecting to the server.</b>\n"
+                            f"Error {e.status_code}: {str(e)}"
+                        )
                 except Exception as e:
                     errors["__ping__"] = str(e)
 
@@ -173,7 +212,8 @@ class SubsonicAdapter(Adapter):
 
     @staticmethod
     def migrate_configuration(config_store: ConfigurationStore):
-        pass
+        if "salt_auth" not in config_store:
+            config_store["salt_auth"] = True
 
     def __init__(self, config: ConfigurationStore, data_directory: Path):
         self.data_directory = data_directory
@@ -212,6 +252,7 @@ class SubsonicAdapter(Adapter):
         self.username = config["username"]
         self.password = cast(str, config.get_secret("password"))
         self.verify_cert = config["verify_cert"]
+        self.use_salt_auth = config["salt_auth"]
 
         self.is_shutting_down = False
         self._ping_process: Optional[multiprocessing.Process] = None
@@ -341,13 +382,30 @@ class SubsonicAdapter(Adapter):
         Gets the parameters that are needed for all requests to the Subsonic API. See
         Subsonic API Introduction for details.
         """
-        return {
+        params = {
             "u": self.username,
-            "p": self.password,
             "c": "Sublime Music",
             "f": "json",
             "v": self._version.value.decode() or "1.8.0",
         }
+
+        if self.use_salt_auth:
+            salt, token = self._generate_auth_token()
+            params["s"] = salt
+            params["t"] = token
+        else:
+            params["p"] = self.password
+
+        return params
+
+    def _generate_auth_token(self) -> Tuple[str, str]:
+        """
+        Generates the necessary authentication data to call the Subsonic API See the
+        Authentication section of www.subsonic.org/pages/api.jsp for more information
+        """
+        salt = "".join(random.choices(string.ascii_letters + string.digits, k=8))
+        token = hashlib.md5(f"{self.password}{salt}".encode()).hexdigest()
+        return (salt, token)
 
     def _make_url(self, endpoint: str) -> str:
         return f"{self.hostname}/rest/{endpoint}.view"

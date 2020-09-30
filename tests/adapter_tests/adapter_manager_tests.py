@@ -21,6 +21,7 @@ def adapter_manager(tmp_path: Path):
         server_address="https://subsonic.example.com",
         username="test",
         verify_cert=True,
+        salt_auth=False,
     )
     subsonic_config_store.set_secret("password", "testpass")
 
