@@ -12,10 +12,12 @@ sources:
   - https://git.sr.ht/~sumner/sublime-music
 environment:
   REPO_NAME: sublime-music
-triggers:
-  - action: email
-    condition: failure
-    to: ~sumner/sublime-music-devel@lists.sr.ht
+# triggers:
+#   - action: email
+#     condition: failure
+#     to: ~sumner/sublime-music-devel@lists.sr.ht
+artifacts:
+  - sublime-music/dist
 tasks:
   - setup: |
       cd ${REPO_NAME}
