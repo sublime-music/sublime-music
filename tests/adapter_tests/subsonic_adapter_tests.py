@@ -112,12 +112,7 @@ def test_plain_auth_logic(adapter: SubsonicAdapter):
 
 
 def test_salt_auth_logic(salt_auth_adapter: SubsonicAdapter):
-    expected = {
-        "u": "test",
-        "c": "Sublime Music",
-        "f": "json",
-        "v": "1.15.0",
-    }
+    expected = {"u": "test", "c": "Sublime Music", "f": "json", "v": "1.8.0"}
 
     params = salt_auth_adapter._get_params()
     assert "p" not in params
