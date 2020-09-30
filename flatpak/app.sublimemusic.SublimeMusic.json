@@ -21,7 +21,7 @@
     "--share=network",
     "--socket=pulseaudio",
     "--talk-name=org.freedesktop.Notifications",
-    "--own-name=org.mpris.MediaPlayer2.SublimeMusic",
+    "--own-name=org.mpris.MediaPlayer2.sublimemusic",
     "--filesystem=xdg-config/sublime-music",
     "--filesystem=xdg-cache/sublime-music",
     "--filesystem=xdg-data/sublime-music",

@@ -1,3 +1,11 @@
+v0.11.10
+========
+
+* Added the ability to use Salt Authentication. Thanks to @acompagno for the
+  contribution!
+* Fixed issue where the Flatpak couldn't respond to media keys due to a DBus
+  name mismatch.
+
 v0.11.9
 =======
 
