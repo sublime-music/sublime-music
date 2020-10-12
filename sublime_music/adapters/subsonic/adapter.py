@@ -641,15 +641,19 @@ class SubsonicAdapter(Adapter):
         return artist
 
     def get_ignored_articles(self) -> Set[str]:
-        ignored_articles = ""
+        ignored_articles = "The El La Los Las Le Les"
         try:
             # If we already got the ignored articles from the get_artists, do that here.
             with open(self.ignored_articles_cache_file, "rb+") as f:
                 ignored_articles = pickle.load(f)
         except Exception:
-            # Whatever the exception, fall back on getting from the server.
-            if artists := self._get_json(self._make_url("getArtists")).artists:
-                ignored_articles = artists.ignored_articles
+            try:
+                # Whatever the exception, fall back on getting from the server.
+                if artists := self._get_json(self._make_url("getArtists")).artists:
+                    ignored_articles = artists.ignored_articles
+            except Exception:
+                # Use the default ignored articles.
+                pass
 
         return set(ignored_articles.split())
 
