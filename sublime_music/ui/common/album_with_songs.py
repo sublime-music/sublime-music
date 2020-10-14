@@ -327,7 +327,7 @@ class AlbumWithSongs(Gtk.Box):
                     [
                         playable,
                         status,
-                        util.esc(song.title),
+                        song.title or "",
                         util.format_song_duration(song.duration),
                         song.id,
                     ]
