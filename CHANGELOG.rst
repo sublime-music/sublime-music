@@ -5,6 +5,15 @@ v0.11.10
   contribution!
 * Fixed issue where the Flatpak couldn't respond to media keys due to a DBus
   name mismatch.
+* Fixed bug where song titles were escaped incorrectly in the album songs view.
+  Thanks to @edwargix for the contribution!
+
+**Infrastructure**
+
+* Added a ``shell.nix`` file
+* Use the built-in Nix shell handling in direnv for making the development
+  environment more deterministic.
+* The Flatpak is saved on as an asset on each sourcehut build.
 
 v0.11.9
 =======
