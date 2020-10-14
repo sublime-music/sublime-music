@@ -52,9 +52,6 @@ try:
 except Exception:
     # I really don't care what kind of exception it is, all that matters is the
     # import failed for some reason.
-    logging.warning(
-        "Unable to import NM from GLib. Detection of SSID will be disabled."
-    )
     networkmanager_imported = False
 
 REQUEST_DELAY: Optional[Tuple[float, float]] = None
