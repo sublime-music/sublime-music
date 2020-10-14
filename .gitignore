@@ -1,3 +1,4 @@
+.direnv
 flatpak/flatpak_build_dir/
 flatpak/sublime-music.flatpak
 flatpak/repo

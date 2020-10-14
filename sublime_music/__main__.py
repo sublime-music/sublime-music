@@ -39,7 +39,7 @@ def main():
 
     min_log_level = getattr(logging, args.loglevel.upper(), None)
     if not isinstance(min_log_level, int):
-        logging.error(f"Invalid log level: {args.loglevel.upper()}.")
+        print(f"Invalid log level: {args.loglevel.upper()}.")  # noqa: T001
         min_log_level = logging.WARNING
 
     logging.basicConfig(

@@ -1,5 +1,4 @@
 {
-  "python.jediEnabled": false,
   "python.analysis.openFilesOnly": false,
   "python.linting.pylintEnabled": false,
   "python.linting.flake8Enabled": true,

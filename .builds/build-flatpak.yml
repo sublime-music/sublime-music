@@ -15,6 +15,8 @@ sources:
   - https://git.sr.ht/~sumner/sublime-music
 environment:
   REPO_NAME: sublime-music
+artifacts:
+  - sublime-music/flatpak/sublime-music.flatpak
 # triggers:
 #   - action: email
 #     condition: failure

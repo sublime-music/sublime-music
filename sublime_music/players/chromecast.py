@@ -116,7 +116,7 @@ class ChromecastPlayer(Player):
             return
 
         if self.stop_get_chromecasts is not None:
-            self.stop_get_chromecasts()
+            self.stop_get_chromecasts.cancel()
 
         for id_, chromecast in self._chromecasts.items():
             self.player_device_change_callback(
