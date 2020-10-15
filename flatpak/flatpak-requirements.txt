@@ -3,7 +3,7 @@ bottle==0.12.18
 casttube==0.2.1
 certifi==2020.6.20
 chardet==3.0.4
-dataclasses-json==0.5.
+dataclasses-json==0.5.2
 deepdiff==5.0.2
 fuzzywuzzy==0.18.0
 idna==2.10
