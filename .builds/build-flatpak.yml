@@ -17,10 +17,10 @@ environment:
   REPO_NAME: sublime-music
 artifacts:
   - sublime-music/flatpak/sublime-music.flatpak
-# triggers:
-#   - action: email
-#     condition: failure
-#     to: ~sumner/sublime-music-devel@lists.sr.ht
+triggers:
+  - action: email
+    condition: failure
+    to: ~sumner/sublime-music-devel@lists.sr.ht
 tasks:
   - build-flatpak: |
       cd ${REPO_NAME}/flatpak
