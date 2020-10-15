@@ -56,28 +56,29 @@ Specific Requirements for Various Distros/OSes
 Installing
 ----------
 
-This project uses a ``Pipfile`` for managing dev dependencies. Make sure that
-you have Pipenv_ (and Pyenv_ if necessary) set up properly, then run::
+This project uses Poetry_ to manage dependences for both the core package as
+well as for development. Make sure that you have Poetry_ (and Pyenv_ if
+necessary) set up properly, then run::
 
-    $ pipenv install --dev
+    $ poetry install
 
 to install the development dependencies as well as install ``sublime-music``
 into the virtual environment as editable.
 
-.. _Pipenv: https://pipenv.readthedocs.io/
+.. _Poetry: https:/python-poetry.org/
 .. _Pyenv: https://github.com/pyenv/pyenv
 
 Running
 -------
 
-If your Pipenv virtual environment is activated, the just run::
+If your Poetry virtual environment is activated, the just run::
 
     $ sublime-music
 
-to run the application. If you do not want to activate the pipenv virtual
+to run the application. If you do not want to activate the Poetry virtual
 environment, you can use::
 
-    $ pipenv run sublime-music
+    $ poetry run sublime-music
 
 Building the flatpak
 --------------------
@@ -104,7 +105,7 @@ to enforce a consistent (and as deterministic as possible) code style.
 
 Although you can technically do all of the formatting yourself, it is
 recommended that you use the following tools (they are automatically installed
-if you are using pipenv). The CI process uses these to check all commits, so you
+if you are using Poetry). The CI process uses these to check all commits, so you
 will probably want these so you don't have to wait for results of the build
 before knowing if your code is the correct style.
 
