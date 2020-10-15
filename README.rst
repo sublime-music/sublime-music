@@ -56,7 +56,8 @@ over the LAN to Chromecast devices also install ``python-bottle``.
 
 **Via NixOS**:
 
-Sublime Music is part of the nixpkgs-unstable channel that is used by NixOS_.
+Sublime Music is part of the ``nixos-20.09`` channel and newer (including
+``nixos-unstable``).
 
 To install Sublime Music on NixOS, either use the declarative or the imperative
 way:
@@ -80,19 +81,18 @@ function provided by Nix::
 The following components are supported:
 
 * ``chromecastSupport``: if you want support for playing on Chromecast devices
-  on the LAN
+  on the LAN. Defaults to ``false``.
 * ``serverSupport``: if you want to be able to serve cached files from your
-  computer over the LAN to Chromecast devices
+  computer over the LAN to Chromecast devices. Defaults to ``false``.
 * ``keyringSupport``: if you want to store your passwords in the system keyring
-  instead of in plain-text
+  instead of in plain-text. Defaults to ``true``.
 * ``notifySupport``: if you want to enable notifications when a new song begins
-  to play
+  to play. Defaults to ``true``.
 * ``networkSupport``: if you want to change the address used to access the
-  server depending on what network you are connected to.
+  server depending on what network you are connected to. Defaults to ``true``.
 
 See `Nix package management`_ for more information.
 
-.. _NixOS: https://nixos.org/nixos
 .. _Nix package management: https://nixos.org/nixos/manual/index.html#sec-package-management
 
 **Via the Debian package**
