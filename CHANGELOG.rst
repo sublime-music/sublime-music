@@ -1,3 +1,12 @@
+v0.11.11-devel
+==============
+
+**Infrastructure**
+
+* Convert entirely over to ``poetry`` from ``setuptools`` for building.
+* Add a custom check to ensure that the version in ``pyproject.toml`` matches
+  with the other instances of the version.
+
 v0.11.10
 ========
 

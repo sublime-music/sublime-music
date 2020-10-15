@@ -24,7 +24,7 @@ tasks:
       echo "source $(poetry env info -p)/bin/activate" >> ~/.buildenv
 
   - lint: |
-      python setup.py check -mrs
+      poetry check
       black --check .
       flake8
       mypy sublime_music tests/**/*.py
@@ -36,7 +36,7 @@ tasks:
       pytest
 
   - build: |
-      python setup.py sdist
+      poetry build
 
   # TODO migrate deploy to sr.ht
   # - deploy-pypi: |

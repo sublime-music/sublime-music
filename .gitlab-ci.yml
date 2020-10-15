@@ -22,7 +22,7 @@ lint:
   before_script:
     - ./cicd/install-project-deps.sh
   script:
-    - poetry run python setup.py check -mrs
+    - poetry check
     - poetry run black --check .
     - poetry run flake8
     - poetry run mypy sublime_music tests/**/*.py
@@ -47,7 +47,7 @@ build:
   before_script:
     - ./cicd/install-project-deps.sh
   script:
-    - poetry run python setup.py sdist
+    - poetry build
   artifacts:
     paths:
       - dist/*
