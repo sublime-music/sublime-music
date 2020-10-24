@@ -1,0 +1,67 @@
+{
+  "subsonic-response": {
+    "status": "ok",
+    "version": "1.15.0",
+    "artists": {
+      "index": [
+        {
+          "name": "A",
+          "artist": [
+            {
+              "id": "102",
+              "name": "Adele",
+              "coverArt": "ar-102",
+              "albumCount": 1
+            },
+            {
+              "id": "122",
+              "name": "Austin  French",
+              "coverArt": "ar-122",
+              "albumCount": 1
+            },
+            {
+              "id": "75",
+              "name": "The Afters",
+              "coverArt": "ar-75",
+              "albumCount": 2
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "artist": [
+            {
+              "id": "95",
+              "name": "The Band Perry",
+              "coverArt": "ar-95",
+              "albumCount": 1
+            },
+            {
+              "id": "41",
+              "name": "Basshunter",
+              "coverArt": "ar-41",
+              "albumCount": 1
+            }
+          ]
+        },
+        {
+          "name": "X-Z",
+          "artist": [
+            {
+              "id": "154",
+              "name": "Zac Brown Band",
+              "coverArt": "ar-154",
+              "albumCount": 3
+            },
+            {
+              "id": "25",
+              "name": "Zach Williams",
+              "coverArt": "ar-25",
+              "albumCount": 1
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

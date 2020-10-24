@@ -284,7 +284,7 @@ class IndexID3:
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ArtistsID3:
-    ignored_articles: str
+    ignored_articles: Optional[str] = None
     index: List[IndexID3] = field(default_factory=list)
 
 
@@ -303,7 +303,7 @@ class Genres:
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class Indexes:
-    ignored_articles: str
+    ignored_articles: Optional[str] = None
     index: List[Index] = field(default_factory=list)
 
 
