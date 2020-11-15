@@ -2,7 +2,6 @@ import abc
 import copy
 import hashlib
 import uuid
-import gi
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
@@ -19,7 +18,9 @@ from typing import (
     Tuple,
 )
 
-gi.require_version('Gtk', '3.0')
+import gi
+
+gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 try:
