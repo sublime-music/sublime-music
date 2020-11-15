@@ -328,6 +328,7 @@ class DBusManager:
             cover_art = AdapterManager.get_cover_art_uri(
                 song.cover_art, "file", allow_download=False
             ).result()
+            cover_art = "file://" + cover_art
         except CacheMissError:
             cover_art = ""
 
@@ -335,6 +336,8 @@ class DBusManager:
         return {
             "mpris:trackid": trackid,
             "mpris:length": duration,
+            # Art URIs should be sent as (UTF-8) strings.
+            # Local files should use the "file://" schema.
             "mpris:artUrl": cover_art,
             # TODO (#71) use walrus once MYPY isn't retarded
             "xesam:album": (song.album.name if song.album else ""),
