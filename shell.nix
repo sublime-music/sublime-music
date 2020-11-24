@@ -9,7 +9,7 @@ pkgs.mkShell {
   buildInputs = [
     bashInteractive
     flatpak
-    flatpak-builder
+    # flatpak-builder
     gcc
     git
     glib
