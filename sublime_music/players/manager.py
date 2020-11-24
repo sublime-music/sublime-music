@@ -90,6 +90,7 @@ class PlayerManager:
     def _get_current_player(self) -> Any:
         if current_player_type := self._get_current_player_type():
             return self.players.get(current_player_type)
+        logging.warning("Couldn't find current player!")
 
     @property
     def supported_schemes(self) -> Set[str]:

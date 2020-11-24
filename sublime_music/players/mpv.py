@@ -1,3 +1,4 @@
+import logging
 import threading
 from datetime import timedelta
 from typing import Callable, cast, Dict, Optional, Tuple, Type, Union
@@ -123,6 +124,7 @@ class MPVPlayer(Player):
             "force-seekable": "yes",
             "start": str(progress.total_seconds()),
         }
+        logging.info(f"MPV player playing {uri} with options: {options}")
         self.mpv.command(
             "loadfile", uri, "replace", ",".join(f"{k}={v}" for k, v in options.items())
         )
