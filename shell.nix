@@ -24,7 +24,14 @@ pkgs.mkShell {
     cairo
     mpv
     poetry
-    python38
+    (
+      python38.withPackages (
+        ps: with ps; [
+          jedi
+          neovim
+        ]
+      )
+    )
     rnix-lsp
   ];
 
