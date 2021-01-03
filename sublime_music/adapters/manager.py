@@ -423,9 +423,8 @@ class AdapterManager:
             if resource_downloading:
                 logging.info(f"{uri} already being downloaded.")
 
-                # The resource is already being downloaded. Busy loop until
-                # it has completed. Then, just return the path to the
-                # resource.
+                # The resource is already being downloaded. Busy loop until it has
+                # completed. Then, just return the path to the resource.
                 t = 0.0
                 while id in AdapterManager.current_download_ids and t < 20:
                     sleep(0.2)
