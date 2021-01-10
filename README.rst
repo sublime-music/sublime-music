@@ -2,7 +2,7 @@
    :alt: Sublime Music Logo
 
 Sublime Music is a native, GTK3
-`Subsonic`_/`Airsonic`_/`Revel`_/`Gonic`_/`Navidrome`_/\*sonic client for the
+`Subsonic`_/`Airsonic`_/`Revel`_/`Gonic`_/`Navidrome`_/`Ampache`_/\*sonic client for the
 Linux Desktop.
 
 .. _Subsonic: http://www.subsonic.org/pages/index.jsp
@@ -10,6 +10,7 @@ Linux Desktop.
 .. _Revel: https://gitlab.com/robozman/revel
 .. _Gonic: https://github.com/sentriz/gonic
 .. _Navidrome: https://www.navidrome.org/
+.. _Ampache: http://ampache.org/
 
 .. figure:: https://gitlab.com/sublime-music/sublime-music/-/raw/master/docs/_static/screenshots/play-queue.png
    :align: center

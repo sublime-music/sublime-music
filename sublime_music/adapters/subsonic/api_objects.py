@@ -17,10 +17,12 @@ from dateutil import parser
 
 from .. import api_objects as SublimeAPI
 
-# Translation map
+# Translation map for encoding/decoding API results. For instance some servers
+# may return a string where an integer is required.
 decoder_functions = {
     datetime: (lambda s: parser.parse(s) if s else None),
-    timedelta: (lambda s: timedelta(seconds=s) if s else None),
+    timedelta: (lambda s: timedelta(seconds=float(s)) if s else None),
+    int: (lambda s: int(s) if s else None),
 }
 encoder_functions = {
     datetime: (lambda d: datetime.strftime(d, "%Y-%m-%dT%H:%M:%S.%f%z") if d else None),
