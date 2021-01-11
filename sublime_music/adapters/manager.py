@@ -1183,9 +1183,9 @@ class AdapterManager:
     def _strip_ignored_articles(
         use_ground_truth_adapter: bool, ignored_articles: Set[str], string: str
     ) -> str:
-        first_word, *rest = string.split(maxsplit=1)
-        if first_word in ignored_articles:
-            return rest[0]
+        parts = string.split(maxsplit=1)
+        if len(parts) > 1 and parts[0] in ignored_articles:
+            return parts[1]
         return string
 
     _S = TypeVar("_S")

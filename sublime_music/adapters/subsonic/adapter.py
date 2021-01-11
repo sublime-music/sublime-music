@@ -592,8 +592,12 @@ class SubsonicAdapter(Adapter):
     def delete_playlist(self, playlist_id: str):
         self._get_json(self._make_url("deletePlaylist"), id=playlist_id)
 
-    def get_cover_art_uri(self, cover_art_id: str, scheme: str, size: int) -> str:
-        params = {"id": cover_art_id, "size": size, **self._get_params()}
+    def get_cover_art_uri(self, cover_art: str, scheme: str, size: int) -> str:
+        # Some servers return a full URL instead of an ID
+        if cover_art.startswith("http://") or cover_art.startswith("https://"):
+            return cover_art
+
+        params = {"id": cover_art, "size": size, **self._get_params()}
         return self._make_url("getCoverArt") + "?" + urlencode(params)
 
     def get_song_file_uri(self, song_id: str, schemes: Iterable[str]) -> str:
