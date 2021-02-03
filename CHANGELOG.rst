@@ -1,11 +1,31 @@
 v0.11.11.dev1
 =============
 
+.. TODO in next release:
+.. * A man page has been added. Contributed by @baldurmen.
+
+**Bug Fixes**
+
+* Fixed some issues for Ampache compatibility. Thanks to @BenjaminSchaaf for the
+  contribution. (#272)
+* Improved compatibility with the MPRIS DBUS spec. Thanks to @esiqveland for the
+  contribution.
+* Fixed a few bugs with ignored articles.
+* Fixed GI import warning. Thanks to @baldurmen for the contribution.
+* Fixed issues related to the new year.
+
+**Documentation**
+
+* Improved NixOS docs.
+
 **Infrastructure**
 
-* Convert entirely over to ``poetry`` from ``setuptools`` for building.
+* Convert entirely over to ``poetry`` from ``setuptools`` for building and
+  developing and updated the documentation accordingly.
 * Add a custom check to ensure that the version in ``pyproject.toml`` matches
   with the other instances of the version.
+* Improvements to the sourcehut build pipelines.
+* Improvements to the shell.nix for development.
 
 v0.11.10
 ========
@@ -145,9 +165,6 @@ v0.11.1
 
 v0.11.0
 =======
-
-.. TODO in next release:
-.. * A man page has been added. Contributed by @baldurmen.
 
 .. note::
 
