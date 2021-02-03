@@ -1,5 +1,6 @@
+from datetime import datetime
 from pathlib import Path
-from typing import Union
+from typing import Tuple, Union
 
 
 def resolve_path(*joinpath_args: Union[str, Path]) -> Path:
@@ -12,3 +13,10 @@ def resolve_path(*joinpath_args: Union[str, Path]) -> Path:
         f"{Path(*joinpath_args)} could not be found in any of the following "
         "directories: {', '.join(roots)}"
     )
+
+
+def this_decade() -> Tuple[int, int]:
+    """Returns a tuple representing the start and end year of the current decade."""
+    now = datetime.now()
+    decade_start = now.year // 10 * 10
+    return (decade_start, decade_start + 10)

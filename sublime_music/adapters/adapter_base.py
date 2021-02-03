@@ -40,6 +40,7 @@ from .api_objects import (
     SearchResult,
     Song,
 )
+from ..util import this_decade
 
 
 class SongCacheStatus(Enum):
@@ -114,7 +115,7 @@ class AlbumSearchQuery:
         GENRE = 8
 
     type: Type
-    year_range: Tuple[int, int] = (2010, 2020)
+    year_range: Tuple[int, int] = this_decade()
     genre: Genre = _Genre("Rock")
 
     _strhash: Optional[str] = None

@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
 
 from ..adapters import AlbumSearchQuery
 from ..adapters.api_objects import Genre, Song
+from ..util import this_decade
 
 
 class RepeatType(Enum):
@@ -89,7 +90,7 @@ class UIState:
     current_album_search_query: AlbumSearchQuery = AlbumSearchQuery(
         AlbumSearchQuery.Type.RANDOM,
         genre=_DefaultGenre(),
-        year_range=(2010, 2020),
+        year_range=this_decade(),
     )
 
     active_playlist_id: Optional[str] = None
