@@ -2,23 +2,30 @@
 
 set -xe
 
+ARCH=${ARCH:""}
 REPO=${REPO:-/repo}
 APPID=app.sublimemusic.SublimeMusic
 
-# TODO move these to the Docker container
-pip3 install requirements-parser
-flatpak install -y org.gnome.Platform//3.38
-flatpak install -y org.gnome.Sdk//3.38
+if [ -z "$ARCH" ]; then
+    ARCH_ARG=""
+else
+    ARCH_ARG="--arch=$ARCH"
+fi
+
+pip3 install toml
+flatpak install -y org.gnome.Platform/$ARCH/3.38
+flatpak install -y org.gnome.Sdk/$ARCH/3.38
 
 rm -rf flatpak-builder-tools
 git clone https://github.com/flatpak/flatpak-builder-tools.git
 
-python3 ./flatpak-builder-tools/pip/flatpak-pip-generator \
-    --requirements-file=flatpak-requirements.txt \
-    --output pypi-dependencies
+python3 ./flatpak-builder-tools/poetry/flatpak-poetry-generator.py \
+    ../poetry.lock \
+    --production \
+    -o pypi-dependencies.json
 
 mkdir -p $REPO
 
-flatpak-builder --force-clean --repo=$REPO flatpak_build_dir ${APPID}.json
+flatpak-builder --force-clean $ARCH_ARG --repo=$REPO flatpak_build_dir ${APPID}.json
 
-flatpak build-bundle $REPO sublime-music.flatpak $APPID
+flatpak build-bundle $ARCH_ARG $REPO sublime-music.flatpak $APPID
