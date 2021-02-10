@@ -68,7 +68,9 @@
         "pip3 install --prefix=/app ."
       ],
       "build-options": {
-        "build-args": [ "--share=network" ]
+        "build-args": [
+          "--share=network"
+        ]
       },
       "sources": [
         {
@@ -167,6 +169,25 @@
                   "sha256": "8351328cdfbcb2432e63938721dd781eb8c11ebc56e3a89d0f84576b96002c61"
                 }
               ]
+            }
+          ]
+        },
+        {
+          "name": "libhandy",
+          "buildsystem": "meson",
+          "builddir": true,
+          "config-opts": [
+            "-Dexamples=false",
+            "-Dglade_catalog=disabled",
+            "-Dintrospection=disabled",
+            "-Dtests=false",
+            "-Dvapi=false"
+          ],
+          "sources": [
+            {
+              "type": "git",
+              "branch": "flap-handle",
+              "url": "https://gitlab.gnome.org/BenjaminSchaaf/libhandy.git"
             }
           ]
         }
