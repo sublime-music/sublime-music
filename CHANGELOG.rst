@@ -1,5 +1,5 @@
-v0.11.11.dev1
-=============
+v0.11.11
+========
 
 .. TODO in next release:
 .. * A man page has been added. Contributed by @baldurmen.
@@ -21,9 +21,12 @@ v0.11.11.dev1
 **Infrastructure**
 
 * Convert entirely over to ``poetry`` from ``setuptools`` for building and
-  developing and updated the documentation accordingly.
+  deploying and updated the documentation accordingly.
 * Add a custom check to ensure that the version in ``pyproject.toml`` matches
   with the other instances of the version.
+* Converted to using the ``flatpak-poetry-generator`` instead of the
+  ``flatpak-pip-generator`` for Flatpak builds. Thanks to @BenjaminSchaaf for
+  the contribution.
 * Improvements to the sourcehut build pipelines.
 * Improvements to the shell.nix for development.
 
