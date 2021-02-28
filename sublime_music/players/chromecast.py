@@ -150,22 +150,10 @@ class ChromecastPlayer(Player):
             )
         )
 
-        # This normally happens when "Stop Casting" is pressed in the Google
-        # Home app.
+        # This happens when the Chromecast is first activated or after "Stop Casting" is
+        # pressed in the Google Home app. Reset `song_loaded` so that it calls
+        # `play_media` the next time around rather than trying to toggle the play state.
         if status.session_id is None:
-            self.on_player_event(
-                PlayerEvent(
-                    PlayerEvent.EventType.PLAY_STATE_CHANGE,
-                    str(self._current_chromecast.device.uuid),
-                    playing=False,
-                )
-            )
-            self.on_player_event(
-                PlayerEvent(
-                    PlayerEvent.EventType.DISCONNECT,
-                    str(self._current_chromecast.device.uuid),
-                )
-            )
             self.song_loaded = False
 
     time_increment_order_token = 0
@@ -177,6 +165,7 @@ class ChromecastPlayer(Player):
             and status.player_state == "IDLE"
             and self._timepos > 0
         ):
+            logging.debug("Chromecast track ended")
             self.on_track_end()
             return
 
@@ -209,7 +198,7 @@ class ChromecastPlayer(Player):
             self.server_process.terminate()
 
         try:
-            self._current_chromecast.disconnect()
+            self._current_chromecast.quit_app()
         except Exception:
             pass
 
@@ -224,8 +213,8 @@ class ChromecastPlayer(Player):
             return """
             <h1>Sublime Music Local Music Server</h1>
             <p>
-                Sublime Music uses this port as a server for serving music Chromecasts
-                on the same LAN.
+                Sublime Music uses this port as a server for serving music to
+                Chromecasts on the same LAN.
             </p>
             """
 

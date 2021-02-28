@@ -1,3 +1,8 @@
+v0.11.12
+========
+
+* Fixed some bugs with Chromecast active song highlighting (#274)
+
 v0.11.11
 ========
 
