@@ -1,11 +1,14 @@
 # Contributing
 
-Contributions are welcome! You can [create an issue][glissues] or [submit a
-MR][glmr] on [GitLab][gl]. You can also join our [Matrix chat][matrix]. You can
-also send patches to the [~sumner/sublime-music-devel][srhtdevel] mailing list,
-start discussions on [~sumner/sublime-music-discuss][srhtdiscuss] and/or
-subscribe to [~sumner/sublime-music-announce][srhtannounce] for low-volume
-announcements about the project.
+Contributions are welcome! You can engane with the project in many ways:
+
+* GitLab: [create an issue][glissues] or [submit a MR][glmr] on [GitLab][gl].
+* Matrix: join our [Matrix chat][matrix].
+* Sourcehut: send patches to the [~sumner/sublime-music-devel][srhtdevel]
+  mailing list, start discussions on
+  [~sumner/sublime-music-discuss][srhtdiscuss] and/or subscribe to
+  [~sumner/sublime-music-announce][srhtannounce] for low-volume announcements
+  about the project.
 
 ## Issue Reporting
 
