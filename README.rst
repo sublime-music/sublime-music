@@ -20,8 +20,8 @@ Linux Desktop.
 .. image:: https://img.shields.io/aur/version/sublime-music?logo=arch-linux&logoColor=fff
    :target: https://aur.archlinux.org/packages/sublime-music/
    :alt: AUR
-.. image:: https://img.shields.io/static/v1?logo=nixos&logoColor=fff&color=5277C3&label=NixOS Unstable&message=0.11.7
-   :target: https://search.nixos.org/packages?channel=20.09&query=sublime-music
+.. image:: https://img.shields.io/static/v1?logo=nixos&logoColor=fff&color=5277C3&label=NixOS&message=0.11.10
+   :target: https://search.nixos.org/packages?channel=unstable&query=sublime-music
    :alt: NixOS
 .. image:: https://img.shields.io/pypi/l/sublime-music?color=0c0
    :target: https://gitlab.com/sublime-music/sublime-music/-/blob/master/LICENSE
