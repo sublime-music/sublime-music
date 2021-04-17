@@ -3,6 +3,8 @@ from functools import partial
 from random import randint
 from typing import cast, List, Sequence
 
+import bleach
+
 from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
 from ..adapters import (
@@ -93,10 +95,9 @@ class ArtistList(Gtk.Box):
         list_scroll_window = Gtk.ScrolledWindow(min_content_width=250)
 
         def create_artist_row(model: _ArtistModel) -> Gtk.ListBoxRow:
-            label_text = [f"<b>{util.esc(model.name)}</b>"]
+            label_text = [f"<b>{model.name}</b>"]
 
-            album_count = model.album_count
-            if album_count:
+            if album_count := model.album_count:
                 label_text.append(
                     "{} {}".format(album_count, util.pluralize("album", album_count))
                 )
@@ -107,7 +108,7 @@ class ArtistList(Gtk.Box):
             )
             row.add(
                 Gtk.Label(
-                    label="\n".join(label_text),
+                    label=bleach.clean("\n".join(label_text)),
                     use_markup=True,
                     margin=12,
                     halign=Gtk.Align.START,
@@ -368,7 +369,7 @@ class ArtistDetailPanel(Gtk.Box):
             "Collapse" if self.artist_details_expanded else "Expand"
         )
 
-        self.artist_name.set_markup(util.esc(f"<b>{artist.name}</b>"))
+        self.artist_name.set_markup(bleach.clean(f"<b>{artist.name}</b>"))
         self.artist_name.set_tooltip_text(artist.name)
 
         if self.artist_details_expanded:
@@ -378,7 +379,7 @@ class ArtistDetailPanel(Gtk.Box):
             self.artist_stats.set_markup(self.format_stats(artist))
 
             if artist.biography:
-                self.artist_bio.set_markup(util.esc(artist.biography))
+                self.artist_bio.set_markup(bleach.clean(artist.biography))
                 self.artist_bio.show()
             else:
                 self.artist_bio.hide()

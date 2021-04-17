@@ -1,6 +1,8 @@
 from functools import partial
 from typing import Any, cast, List, Optional, Tuple
 
+import bleach
+
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from ..adapters import AdapterManager, api_objects as API, CacheMissError, Result
@@ -383,7 +385,7 @@ class MusicDirectoryList(Gtk.Box):
                         in ("folder-download-symbolic", "view-pin-symbolic")
                     ),
                     status_icon,
-                    util.esc(song.title),
+                    bleach.clean(song.title),
                     util.format_song_duration(song.duration),
                     song.id,
                 ]
@@ -442,7 +444,7 @@ class MusicDirectoryList(Gtk.Box):
         rowbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         rowbox.add(
             Gtk.Label(
-                label=f"<b>{util.esc(model.name)}</b>",
+                label=bleach.clean(f"<b>{model.name}</b>"),
                 use_markup=True,
                 margin=8,
                 halign=Gtk.Align.START,
