@@ -5,30 +5,38 @@ Sublime Music is a native, GTK3
 `Subsonic`_/`Airsonic`_/`Revel`_/`Gonic`_/`Navidrome`_/`Ampache`_/\*sonic client for the
 Linux Desktop.
 
-.. image:: https://gitlab.com/sublime-music/sublime-music/badges/master/pipeline.svg
-   :target: https://gitlab.com/sublime-music/sublime-music/pipelines
-   :alt: build status
-.. image:: https://img.shields.io/pypi/v/sublime-music?color=4DC71F&logo=python&logoColor=fff
-   :target: https://pypi.org/project/sublime-music/
-   :alt: PyPi version
-.. image:: https://gitlab.com/sublime-music/sublime-music/badges/master/coverage.svg
-   :target: https://sublime-music.gitlab.io/sublime-music/htmlcov
-   :alt: code coverage report
-.. image:: https://img.shields.io/matrix/sublime-music:matrix.org?logo=matrix
-   :target: https://matrix.to/#/!veTDkgvBExJGKIBYlU:matrix.org?via=matrix.org
-   :alt: Matrix chat
-.. image:: https://img.shields.io/aur/version/sublime-music?logo=arch-linux&logoColor=fff
-   :target: https://aur.archlinux.org/packages/sublime-music/
-   :alt: AUR
-.. image:: https://img.shields.io/static/v1?logo=nixos&logoColor=fff&color=5277C3&label=NixOS&message=0.11.10
-   :target: https://search.nixos.org/packages?channel=unstable&query=sublime-music
-   :alt: NixOS
-.. image:: https://img.shields.io/pypi/l/sublime-music?color=0c0
-   :target: https://gitlab.com/sublime-music/sublime-music/-/blob/master/LICENSE
-   :alt: GPLv3 or later
-.. image:: http://img.shields.io/liberapay/receives/sumner.svg?logo=liberapay
-   :target: https://liberapay.com/sumner/donate
-   :alt: liberapay donate
+CI
+  .. image:: https://gitlab.com/sublime-music/sublime-music/badges/master/pipeline.svg
+     :target: https://gitlab.com/sublime-music/sublime-music/pipelines
+     :alt: GitLab build status
+  .. image:: https://builds.sr.ht/~sumner/sublime-music/commits/build.yml.svg
+     :target: https://builds.sr.ht/~sumner/sublime-music/commits/build.yml
+     :alt: sourcehut build status
+  .. image:: https://gitlab.com/sublime-music/sublime-music/badges/master/coverage.svg
+     :target: https://sublime-music.gitlab.io/sublime-music/htmlcov
+     :alt: code coverage report
+
+Packages
+  .. image:: https://img.shields.io/pypi/v/sublime-music?color=4DC71F&logo=python&logoColor=fff
+     :target: https://pypi.org/project/sublime-music/
+     :alt: PyPi version
+  .. image:: https://img.shields.io/aur/version/sublime-music?logo=arch-linux&logoColor=fff
+     :target: https://aur.archlinux.org/packages/sublime-music/
+     :alt: AUR
+  .. image:: https://img.shields.io/static/v1?logo=nixos&logoColor=fff&color=5277C3&label=NixOS&message=0.11.10
+     :target: https://search.nixos.org/packages?channel=unstable&query=sublime-music
+     :alt: NixOS
+
+Community
+  .. image:: https://img.shields.io/matrix/sublime-music:matrix.org?logo=matrix
+     :target: https://matrix.to/#/!veTDkgvBExJGKIBYlU:matrix.org?via=matrix.org
+     :alt: Matrix chat
+  .. image:: https://img.shields.io/pypi/l/sublime-music?color=0c0
+     :target: https://gitlab.com/sublime-music/sublime-music/-/blob/master/LICENSE
+     :alt: GPLv3 or later
+  .. image:: http://img.shields.io/liberapay/receives/sumner.svg?logo=liberapay
+     :target: https://liberapay.com/sumner/donate
+     :alt: liberapay donate
 
 .. _Subsonic: http://www.subsonic.org/pages/index.jsp
 .. _Airsonic: https://airsonic.github.io/
@@ -36,6 +44,8 @@ Linux Desktop.
 .. _Gonic: https://github.com/sentriz/gonic
 .. _Navidrome: https://www.navidrome.org/
 .. _Ampache: http://ampache.org/
+
+-------------------------------------------------------------------------------
 
 .. figure:: https://gitlab.com/sublime-music/sublime-music/-/raw/master/docs/_static/screenshots/play-queue.png
    :align: center
