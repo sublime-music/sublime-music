@@ -1,13 +1,28 @@
 v0.11.12
 ========
 
-* Fixed some bugs with Chromecast active song highlighting (#274)
+**Dependency bumps** (attention: package maintainers):
+
+* ``bleach``: ``^3.2.1 -> ^3.3.0``
+* ``keyring``: ``^21.4.0 -> ^23.0.0``
+* ``pychromecast``: ``^7.3.0 -> ^9.1.1``
+
+**Bug Fixes**
+
+* Fixed some bugs with Chromecast active device highlighting. (#274)
+
+**Documentation**
+
+* A man page has been added and is installed via the Arch package. Thanks to
+  @baldurmen for the contribution.
+
+**Code Health and Infrastructure**
+
+* Converted to ``poetry-core``. Thanks to @SuperSandro2000 for the contribution.
+* Converted to use ``bleach`` for all HTML sanitization tasks. (#276)
 
 v0.11.11
 ========
-
-.. TODO in next release:
-.. * A man page has been added. Contributed by @baldurmen.
 
 **Bug Fixes**
 

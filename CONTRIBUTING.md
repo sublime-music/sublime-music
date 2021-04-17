@@ -38,8 +38,8 @@ submit a patch to the [~sumner/sublime-music-devel][srhtdevel] mailing list. If
 it is good, I will merge it in.
 
 To get an overview of the Sublime Music code structure, I recommend taking a
-look at the [`sublime` package
-documentation](https://sublime-music.gitlab.io/sublime-music/api/sublime.html).
+look at the [`sublime_music` package
+documentation](https://sublime-music.gitlab.io/sublime-music/api/sublime_music.html).
 
 ### Requirements
 
@@ -143,7 +143,7 @@ The CI process runs all of the above checks on the code. You can run the same
 checks that the lint job runs yourself with the following commands:
 ```
 $ flake8
-$ mypy sublime tests/**/*.py
+$ mypy sublime_music tests/**/*.py
 $ black --check .
 $ ./cicd/custom_style_check.py
 ```
