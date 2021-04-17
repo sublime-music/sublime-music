@@ -1191,14 +1191,12 @@ class SublimeMusicApp(Gtk.Application):
                     if glib_notify_exists:
                         notification_lines = []
                         if album := song.album:
-                            notification_lines.append(
-                                f"<i>{bleach.clean(album.name)}</i>"
-                            )
+                            notification_lines.append(f"<i>{album.name}</i>")
                         if artist := song.artist:
-                            notification_lines.append(bleach.clean(artist.name))
+                            notification_lines.append(artist.name)
                         song_notification = Notify.Notification.new(
                             song.title,
-                            "\n".join(notification_lines),
+                            bleach.clean("\n".join(notification_lines)),
                         )
                         song_notification.add_action(
                             "clicked",

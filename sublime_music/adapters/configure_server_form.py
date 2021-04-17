@@ -8,6 +8,8 @@ from pathlib import Path
 from time import sleep
 from typing import Any, Callable, cast, Dict, Iterable, Optional, Tuple, Type, Union
 
+import bleach
+
 from gi.repository import GLib, GObject, Gtk, Pango
 
 from . import ConfigurationStore
@@ -252,8 +254,6 @@ class ConfigureServerForm(Gtk.Box):
     def _set_verification_status(
         self, verifying: bool, is_valid: bool = False, error_text: str = None
     ):
-        from sublime_music.ui import util
-
         if verifying:
             if not self.verifying_in_progress:
                 for c in self.config_verification_box.get_children():
@@ -288,7 +288,7 @@ class ConfigureServerForm(Gtk.Box):
                 set_icon_and_label(
                     "config-ok-symbolic", "<b>Configuration is valid</b>"
                 )
-            elif escaped := util.esc(error_text):
+            elif escaped := bleach.clean(error_text or ""):
                 set_icon_and_label("config-error-symbolic", escaped)
 
         self.config_verification_box.show_all()

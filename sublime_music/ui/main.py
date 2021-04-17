@@ -1,6 +1,8 @@
 from functools import partial
 from typing import Any, Callable, Dict, Optional, Set, Tuple
 
+import bleach
+
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
 from ..adapters import (
@@ -1089,13 +1091,13 @@ class MainWindow(Gtk.ApplicationWindow):
             self._remove_all_from_widget(self.song_results)
             for song in search_results.songs:
                 label_text = util.dot_join(
-                    f"<b>{util.esc(song.title)}</b>",
-                    util.esc(song.artist.name if song.artist else None),
+                    f"<b>{song.title}</b>",
+                    song.artist.name if song.artist else None,
                 )
                 assert song.album and song.album.id
                 self.song_results.add(
                     self._create_search_result_row(
-                        label_text, "album", song.album.id, song.cover_art
+                        bleach.clean(label_text), "album", song.album.id, song.cover_art
                     )
                 )
 
@@ -1106,13 +1108,13 @@ class MainWindow(Gtk.ApplicationWindow):
             self._remove_all_from_widget(self.album_results)
             for album in search_results.albums:
                 label_text = util.dot_join(
-                    f"<b>{util.esc(album.name)}</b>",
-                    util.esc(album.artist.name if album.artist else None),
+                    f"<b>{album.name}</b>",
+                    album.artist.name if album.artist else None,
                 )
                 assert album.id
                 self.album_results.add(
                     self._create_search_result_row(
-                        label_text, "album", album.id, album.cover_art
+                        bleach.clean(label_text), "album", album.id, album.cover_art
                     )
                 )
 
@@ -1122,11 +1124,13 @@ class MainWindow(Gtk.ApplicationWindow):
         if search_results.artists is not None:
             self._remove_all_from_widget(self.artist_results)
             for artist in search_results.artists:
-                label_text = util.esc(artist.name)
                 assert artist.id
                 self.artist_results.add(
                     self._create_search_result_row(
-                        label_text, "artist", artist.id, artist.artist_image_url
+                        bleach.clean(artist.name),
+                        "artist",
+                        artist.id,
+                        artist.artist_image_url,
                     )
                 )
 
@@ -1136,10 +1140,12 @@ class MainWindow(Gtk.ApplicationWindow):
         if search_results.playlists:
             self._remove_all_from_widget(self.playlist_results)
             for playlist in search_results.playlists:
-                label_text = util.esc(playlist.name)
                 self.playlist_results.add(
                     self._create_search_result_row(
-                        label_text, "playlist", playlist.id, playlist.cover_art
+                        bleach.clean(playlist.name),
+                        "playlist",
+                        playlist.id,
+                        playlist.cover_art,
                     )
                 )
 
@@ -1182,10 +1188,10 @@ class DownloadStatusBox(Gtk.Box):
         )
         self.add(image)
 
-        artist = util.esc(self.song.artist.name if self.song.artist else None)
-        label_text = util.dot_join(f"<b>{util.esc(self.song.title)}</b>", artist)
+        artist = self.song.artist.name if self.song.artist else None
+        label_text = util.dot_join(f"<b>{self.song.title}</b>", artist)
         self.song_label = Gtk.Label(
-            label=label_text,
+            label=bleach.clean(label_text),
             ellipsize=Pango.EllipsizeMode.END,
             max_width_chars=30,
             name="currently-downloading-song-title",
