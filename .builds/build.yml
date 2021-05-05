@@ -15,10 +15,10 @@ secrets:
   - b4190b11-fdf7-4cee-b939-ea9fce44fa12
 environment:
   REPO_NAME: sublime-music
-# triggers:
-#   - action: email
-#     condition: failure
-#     to: ~sumner/sublime-music-devel@lists.sr.ht
+triggers:
+  - action: email
+    condition: failure
+    to: ~sumner/sublime-music-devel@lists.sr.ht
 tasks:
   - setup: |
       cd ${REPO_NAME}
