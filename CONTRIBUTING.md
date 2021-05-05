@@ -1,6 +1,6 @@
 # Contributing
 
-Contributions are welcome! You can engane with the project in many ways:
+Contributions are welcome! You can engage with the project in many ways:
 
 * GitLab: [create an issue][glissues] or [submit a MR][glmr] on [GitLab][gl].
 * Matrix: join our [Matrix chat][matrix].
@@ -146,6 +146,20 @@ $ flake8
 $ mypy sublime_music tests/**/*.py
 $ black --check .
 $ ./cicd/custom_style_check.py
+```
+
+### Commit Message Format
+
+Commits should be reasonably self-contained, that is, each commit should make
+sense in isolation. Amending and force pushing is encouraged to help maintain
+this.
+
+Commit messages should be formatted as follows:
+
+```
+{component}: {short description}
+
+{long description}
 ```
 
 ### Testing
