@@ -1,0 +1,28 @@
+#! /usr/bin/env python
+
+import re
+import subprocess
+import sys
+
+version_tag_re = re.compile(r"v\d+\.\d+\.\d+")
+
+
+tags = (
+    subprocess.run(["git", "tag", "--contains", "HEAD"], capture_output=True)
+    .stdout.decode()
+    .strip()
+    .split()
+)
+
+# If one of the tags is a version tag, then run the commands specified in the
+# parameters.
+for tag in tags:
+    if match := version_tag_re.match(tag):
+        print(f"VERSION TAG {tag} FOUND")
+        sys.exit(0)
+
+        # Don't run the else statement of the for loop.
+        break
+else:
+    print("NO VERSION TAG FOUND")
+    sys.exit(1)

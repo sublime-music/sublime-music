@@ -77,35 +77,6 @@ pages:
     paths:
       - public
 
-deploy_pypi:
-  image: python:3.8-alpine
-  stage: deploy
-  cache: {}
-  only:
-    variables:
-      # Only do a deploy if it's a version tag.
-      - $CI_COMMIT_TAG =~ /^v.*/
-  before_script:
-    - apk add gcc musl-dev libffi-dev openssl-dev
-    - pip install twine
-    - './cicd/create-pypirc.sh'
-  script:
-    # Upload to the test PyPi instance, then upload to the real one.
-    - twine upload -r pypi_test dist/*
-    - twine upload dist/*
-  after_script:
-    - echo "" > ~/.pypirc && rm -f ~/.pypirc
-
-verify_deploy:
-  stage: verify
-  cache: {}
-  only:
-    variables:
-      # Only verify the deploy if it's a version tag.
-      - $CI_COMMIT_TAG =~ /^v.*/
-  script:
-    - pip3 install sublime-music
-
 publish_release:
   stage: release
   only:
