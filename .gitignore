@@ -1,7 +1,4 @@
 .direnv
-flatpak/flatpak_build_dir/
-flatpak/sublime-music.flatpak
-flatpak/repo
 
 # Created by https://www.gitignore.io/api/python
 # Edit at https://www.gitignore.io/?templates=python

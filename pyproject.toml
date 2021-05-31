@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sublime_music"
-version = "0.11.12"
+version = "0.11.13"
 description = "A native GTK *sonic client."
 license = "GPL-3.0-or-later"
 authors = ["Sumner Evans <inquiries@sumnerevans.com>"]
@@ -74,10 +74,3 @@ server = ["bottle"]
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.black]
-exclude = '''
-(
-  /flatpak/
-)
-'''
