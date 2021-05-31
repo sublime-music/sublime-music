@@ -48,29 +48,6 @@ if [[ "${milestone}" != "" ]]; then
     milestones=",\"milestones\":[\"${milestone}\"]"
 fi
 
-# Determine whether or not to include the Flatpak build.
-set +e
-failed=$(curl \
-    --header "PRIVATE-TOKEN: ${RELEASE_PUBLISH_TOKEN}" \
-    --request GET \
-    "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/jobs?scope[]=failed" \
-    | grep '"name":"build_flatpak"')
-set -e
-
-assets=""
-if [[ $failed == "" ]]; then
-    assets=",
-    \"assets\": {
-        \"links\": [
-            {
-                \"name\": \"sublime-music-${CI_COMMIT_TAG}.flatpak\",
-                \"url\": \"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/flatpak/sublime-music.flatpak?job=build_flatpak\"
-            }
-        ]
-    }
-    "
-fi
-
 url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
 data="
 {

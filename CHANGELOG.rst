@@ -1,3 +1,10 @@
+v0.11.13
+========
+
+**Deprecations**
+
+* Official Flatpak support has been dropped (#309)
+
 v0.11.12
 ========
 

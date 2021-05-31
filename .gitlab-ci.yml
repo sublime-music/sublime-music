@@ -53,16 +53,6 @@ build:
       - dist/*
     expire_in: 7 days
 
-build_flatpak:
-  image: registry.gitlab.com/sublime-music/sublime-music/flatpak-build:latest
-  stage: build
-  script:
-    - cd flatpak
-    - ./flatpak_build.sh
-  artifacts:
-    paths:
-      - flatpak/sublime-music.flatpak
-
 # Deploy documenation and code coverage to GitLab Pages
 pages:
   only:
@@ -90,21 +80,6 @@ publish_release:
 
 # Scheduled Jobs
 # =============================================================================
-
-# Create the Docker image for Flatpak builds.
-flatpak_docker:
-  image: docker:1.13
-  stage: build-containers
-  only:
-    variables:
-      - $REBUILD_FLATPAK_DOCKER == "True"
-  services:
-    - docker:dind
-  script:
-    - docker version
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker build -t $CI_REGISTRY_IMAGE/flatpak-build:latest ./cicd/flatpak-build
-    - docker push $CI_REGISTRY_IMAGE/flatpak-build
 
 # Create the Docker image for Python testing/builds.
 python_docker:
