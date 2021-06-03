@@ -53,6 +53,8 @@ autodoc_default_options = {
     "show-inheritance": True,
     "special-members": "__init__",
 }
+autodoc_typehints = "description"
+
 autosectionlabel_prefix_document = True
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
