@@ -1,23 +1,5 @@
 let
-  pkgs = import <nixpkgs> {
-    overlays = [
-      (
-        self: super: {
-          libhandy = super.libhandy.overrideAttrs (
-            old: {
-              src = pkgs.fetchFromGitLab {
-                domain = "gitlab.gnome.org";
-                owner = "BenjaminSchaaf";
-                repo = "libhandy";
-                rev = "14431ed38cd0d655678497310a6400c7ee5ce68f";
-                sha256 = "1528m91h5pllacalmih7fy3gf7f3s1kq0n3kix1gc1q43wkbjq91";
-              };
-            }
-          );
-        }
-      )
-    ];
-  };
+  pkgs = import <nixpkgs> {};
 in
 pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
@@ -33,7 +15,6 @@ pkgs.mkShell {
     glib
     gobjectIntrospection
     gtk3
-    libhandy
     libnotify
     pango
     pkgconfig
