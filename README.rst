@@ -46,7 +46,7 @@ Packages
    :target: https://gitlab.com/sublime-music/sublime-music/-/raw/master/docs/_static/screenshots/play-queue.png
 
    The Albums tab of Sublime Music with the Play Queue opened. `More
-   Screenshots <https://sublime-music.gitlab.io/sublime-music/screenshots.html_>`_
+   Screenshots <https://sublime-music.gitlab.io/sublime-music/screenshots.html>`_
 
 Features
 --------
