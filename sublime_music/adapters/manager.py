@@ -636,6 +636,14 @@ class AdapterManager:
         return AdapterManager._ground_truth_can_do("get_song_stream_uri")
 
     @staticmethod
+    def can_get_song_rating() -> bool:
+        return AdapterManager._ground_truth_can_do("get_song_rating")
+
+    @staticmethod
+    def can_set_song_rating() -> bool:
+        return AdapterManager._ground_truth_can_do("set_song_rating")
+
+    @staticmethod
     def can_batch_download_songs() -> bool:
         # We can only download from the ground truth adapter.
         return AdapterManager._ground_truth_can_do("get_song_file_uri")
@@ -768,6 +776,32 @@ class AdapterManager:
             AdapterManager._instance.caching_adapter.delete_data(
                 CachingAdapter.CachedDataKey.PLAYLIST_DETAILS, playlist_id
             )
+
+    @staticmethod
+    def set_song_rating(song: Song, rating: int | None) -> Result[None]:
+        assert AdapterManager._instance
+        result = AdapterManager._create_ground_truth_result("set_song_rating", song.id, rating)
+        if AdapterManager._instance and AdapterManager._instance.caching_adapter:
+
+            def on_done(future: Future):
+                """
+                Update cache when things went well
+
+                The API call doesn't return the updated object
+                """
+                if future.cancelled() or future.exception(timeout=1.0):
+                    return
+                # To make mypy happy
+                assert AdapterManager._instance
+                assert AdapterManager._instance.caching_adapter
+
+                song.user_rating = rating
+                AdapterManager._instance.caching_adapter.ingest_new_data(
+                    CachingAdapter.CachedDataKey.SONG_RATING, song.id, rating
+                )
+
+            result.add_done_callback(on_done)
+        return result
 
     @staticmethod
     def _get_networked_scheme() -> str:

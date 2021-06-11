@@ -3,6 +3,7 @@ import os
 import random
 import shutil
 import sys
+from concurrent.futures import Future
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
@@ -123,6 +124,23 @@ class SublimeMusicApp(Gtk.Application):
             self.window.present()
             return
 
+        # Load the state for the server, if it exists.
+        self.app_config.load_state()
+
+        # If there is no current provider, use the first one if there are any
+        # configured, and if none are configured, then show the dialog to create a new
+        # one.
+        if self.app_config.provider is None:
+            if len(self.app_config.providers) == 0:
+                self.show_configure_servers_dialog()
+
+                # If they didn't add one with the dialog, close the window.
+                if len(self.app_config.providers) == 0:
+                    self.window.close()
+                    return
+
+        AdapterManager.reset(self.app_config, self.on_song_download_progress)
+
         # Configure Icons
         default_icon_theme = Gtk.IconTheme.get_default()
         for adapter in AdapterManager.available_adapters:
@@ -148,23 +166,6 @@ class SublimeMusicApp(Gtk.Application):
         self.window.show_all()
         self.window.present()
 
-        # Load the state for the server, if it exists.
-        self.app_config.load_state()
-
-        # If there is no current provider, use the first one if there are any
-        # configured, and if none are configured, then show the dialog to create a new
-        # one.
-        if self.app_config.provider is None:
-            if len(self.app_config.providers) == 0:
-                self.show_configure_servers_dialog()
-
-                # If they didn't add one with the dialog, close the window.
-                if len(self.app_config.providers) == 0:
-                    self.window.close()
-                    return
-
-        AdapterManager.reset(self.app_config, self.on_song_download_progress)
-
         # Connect after we know there's a server configured.
         self.window.stack.connect("notify::visible-child", self.on_stack_change)
         self.window.connect("song-clicked", self.on_song_clicked)
@@ -176,6 +177,7 @@ class SublimeMusicApp(Gtk.Application):
         self.window.player_controls.connect("song-scrub", self.on_song_scrub)
         self.window.player_controls.connect("device-update", self.on_device_update)
         self.window.player_controls.connect("volume-change", self.on_volume_change)
+        self.window.player_controls.connect("song-rated", self.on_current_song_rated)
 
         # Configure the players
         self.last_play_queue_update = timedelta(0)
@@ -870,6 +872,29 @@ class SublimeMusicApp(Gtk.Application):
             self.player_manager.seek(new_time)
 
         self.save_play_queue()
+
+    def on_current_song_rated(self, _):
+        rating = self.window.player_controls.rating_buttons_box.rating
+        current_song = self.app_config.state.current_song
+        if not current_song:
+            return
+
+        def on_done(future: Future):
+            """Update the UI after a failed or successful rating"""
+            if future.cancelled():
+                return
+            exception = future.exception(timeout=1.0)
+            if exception:
+                self.app_config.state.current_notification = UIState.UINotification(
+                    markup="<b>Unable to rate song.</b>",
+                    icon="dialog-error",
+                )
+                self.update_window()
+            elif self.window:
+                self.window.player_controls.update_rating(rating)
+
+        current_song.user_rating = rating
+        AdapterManager.set_song_rating(current_song, rating).add_done_callback(on_done)
 
     def on_device_update(self, _, device_id: str):
         if device_id == self.app_config.state.current_device:

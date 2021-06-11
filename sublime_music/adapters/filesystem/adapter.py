@@ -105,6 +105,7 @@ class FilesystemAdapter(CachingAdapter):
     can_get_cover_art_uri = True
     can_get_song_file_uri = True
     can_get_song_details = True
+    can_get_song_rating = True
     can_get_artist = True
     can_get_albums = True
     can_get_album = True
@@ -136,6 +137,10 @@ class FilesystemAdapter(CachingAdapter):
     @property
     def can_get_genres(self) -> bool:
         return self._can_get_key(KEYS.GENRES)
+
+    @property
+    def can_set_song_rating(self) -> bool:
+        return self._can_get_key(KEYS.SONG_RATING)
 
     supported_schemes = ("file",)
     supported_artist_query_types = {
@@ -758,7 +763,17 @@ class FilesystemAdapter(CachingAdapter):
         elif data_key == KEYS.SONG:
             api_song = cast(API.Song, data)
             song_data = getattrs(
-                api_song, ["id", "title", "track", "year", "duration", "parent_id", "disc_number"]
+                api_song,
+                [
+                    "id",
+                    "title",
+                    "track",
+                    "year",
+                    "duration",
+                    "parent_id",
+                    "disc_number",
+                    "user_rating",
+                ],
             )
             song_data["genre"] = (
                 self._do_ingest_new_data(KEYS.GENRE, None, g) if (g := api_song.genre) else None
@@ -824,6 +839,11 @@ class FilesystemAdapter(CachingAdapter):
                 filename = self._compute_song_filename(cache_info)
                 filename.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy(str(buffer_filename), str(filename))
+
+        elif data_key == KEYS.SONG_RATING:
+            song = models.Song.get_by_id(param)
+            song.user_rating = data
+            song.save()
 
         cache_info.save()
         return return_val if return_val is not None else cache_info

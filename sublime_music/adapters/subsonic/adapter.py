@@ -316,6 +316,7 @@ class SubsonicAdapter(Adapter):
     can_get_song_details = True
     can_get_song_file_uri = True
     can_get_song_stream_uri = True
+    can_get_song_rating = True
     can_scrobble_song = True
     can_search = True
     can_stream = True
@@ -338,6 +339,10 @@ class SubsonicAdapter(Adapter):
     @property
     def can_save_play_queue(self) -> bool:
         return self.version_at_least("1.12.0")
+
+    @property
+    def can_set_song_rating(self) -> bool:
+        return self.version_at_least("1.6.0")
 
     _schemes = None
 
@@ -756,6 +761,11 @@ class SubsonicAdapter(Adapter):
 
     def get_play_queue(self) -> Optional[API.PlayQueue]:
         return self._get_json(self._make_url("getPlayQueue")).play_queue
+
+    def set_song_rating(self, song_id: str, rating: int | None):
+        self._get_json(
+            self._make_url("setRating"), id=song_id, rating=rating if rating is not None else 0
+        )
 
     def save_play_queue(
         self,
