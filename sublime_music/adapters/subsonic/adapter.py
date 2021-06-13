@@ -444,18 +444,41 @@ class SubsonicAdapter(Adapter):
                 logging.info("Using mock data")
                 result = self._get_mock_data()
             else:
-                result = requests.get(
-                    url,
-                    params=params,
-                    verify=self.verify_cert,
-                    timeout=timeout,
-                )
+                if url.startswith("http://") or url.startswith("https://"):
+                    result = requests.get(
+                        url,
+                        params=params,
+                        verify=self.verify_cert,
+                        timeout=timeout,
+                    )
+                else:
+                    # if user creates a serverconf address w/o protocol, we'll
+                    # attempt to fix it and store it in hostname
+                    # TODO (#305) #hostname currently preprends https:// if
+                    # protocol isn't defined this might be able to be taken out
+                    try:
+                        logging.info("Hostname: %r has no protocol", self.hostname)
+                        result = requests.get(
+                            "https://" + url,
+                            params=params,
+                            verify=self.verify_cert,
+                            timeout=timeout,
+                        )
+                        self.hostname = "https://" + url.split("/")[0]
+                    except Exception:
+                        result = requests.get(
+                            "http://" + url,
+                            params=params,
+                            verify=self.verify_cert,
+                            timeout=timeout,
+                        )
+
+                        self.hostname = "http://" + url.split("/")[0]
 
             if result.status_code != 200:
                 raise ServerError(
                     result.status_code, f"{url} returned status={result.status_code}."
                 )
-
             # Any time that a server request succeeds, then we win.
             self._server_available.value = True
             self._last_ping_timestamp.value = datetime.now().timestamp()
