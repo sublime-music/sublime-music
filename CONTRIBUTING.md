@@ -54,7 +54,7 @@ had to install to develop the app. In general, the requirements are:
 #### Specific Requirements for Various Distros/OSes
 
 * **NixOS:** use the `shell.nix` which will also run the `poetry install`
-* **Arch Linux:** `pacman -S libnm-glib libnotify python-gobject`
+* **Arch Linux:** `pacman -S libnm-glib libnotify python-gobject gobject-introspection`
 * **macOS (Homebrew):** `brew install mp3 gobject-introspection pkg-config pygobject3 gtk+3 adwaita-icon-theme`
 
 ### Installing
