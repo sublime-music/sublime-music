@@ -6,6 +6,9 @@ stages:
   - verify
   - release
 
+include:
+  - template: Security/License-Scanning.gitlab-ci.yml
+
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   LC_ALL: "C.UTF-8"
@@ -27,6 +30,10 @@ lint:
     - poetry run flake8
     - poetry run mypy sublime_music tests/**/*.py
     - poetry run cicd/custom_style_check.py
+
+license_scanning:
+  variables:
+    SETUP_CMD: sh ./cicd/license-scanning-setup.sh
 
 test:
   stage: test
