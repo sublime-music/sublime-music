@@ -33,7 +33,7 @@ sublime-music = 'sublime_music.__main__:main'
 
 [tool.poetry.dependencies]
 python = "^3.8"
-bleach = "^3.3.0"
+bleach = ">=3.3.0"
 bottle = {version = "^0.12.18", optional = true}
 dataclasses-json = "^0.5.2"
 deepdiff = "^5.0.2"
