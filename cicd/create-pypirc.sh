@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /usr/bin/env sh
 
 echo "[distutils]" >> ~/.pypirc
 echo "index-servers =" >> ~/.pypirc

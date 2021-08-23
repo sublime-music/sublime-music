@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /usr/bin/env sh
 # Technique from https://georgik.rocks/how-to-start-d-bus-in-docker-container/
 
 dbus-uuidgen > /var/lib/dbus/machine-id
