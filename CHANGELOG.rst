@@ -1,6 +1,11 @@
 v0.11.13
 ========
 
+* Updated requirement for ``bleach`` dependency to ``>=3.3.0`` to allow for
+  compatibility with the ``4.0.0`` release
+* Implemented logic to automatically fall back to http protocol when https
+  failed. Thanks to @thelostpolaris for the contribution. (#302)
+
 **Deprecations**
 
 * Official Flatpak support has been dropped (#309)
