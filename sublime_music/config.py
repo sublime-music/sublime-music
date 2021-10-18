@@ -70,11 +70,11 @@ def encode_providers(
 ) -> Dict[str, Dict[str, Any]]:
     return {
         id_: {
-            **config,
-            "ground_truth_adapter_type": config["ground_truth_adapter_type"].__name__,
+            **(config.__dict__),
+            "ground_truth_adapter_type": config.ground_truth_adapter_type.__name__,
             "caching_adapter_type": (
                 cast(type, config.get("caching_adapter_type")).__name__
-                if config.get("caching_adapter_type")
+                if config.caching_adapter_type is None
                 else None
             ),
         }
