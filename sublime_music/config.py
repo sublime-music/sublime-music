@@ -1,7 +1,7 @@
 import logging
 import os
 import pickle
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, cast, Dict, Optional, Tuple, Type, Union
 
@@ -66,16 +66,28 @@ class ProviderConfiguration:
 
 
 def encode_providers(
-    providers_dict: Dict[str, Dict[str, Any]]
+    providers_dict: Dict[str, Union[ProviderConfiguration, Dict[str, Any]]]
 ) -> Dict[str, Dict[str, Any]]:
     return {
         id_: {
-            **(config.__dict__),
-            "ground_truth_adapter_type": config.ground_truth_adapter_type.__name__,
+            **(config if isinstance(config, dict) else asdict(config)),
+            "ground_truth_adapter_type": (
+                config["ground_truth_adapter_type"]
+                if isinstance(config, dict)
+                else config.ground_truth_adapter_type
+            ).__name__,
             "caching_adapter_type": (
-                cast(type, config.get("caching_adapter_type")).__name__
-                if config.caching_adapter_type is None
-                else None
+                (
+                    cast(type, config.get("caching_adapter_type")).__name__
+                    if config.get("caching_adapter_type") is not None
+                    else None
+                )
+                if isinstance(config, dict)
+                else (
+                    config.caching_adapter_type.__name__
+                    if config.caching_adapter_type is not None
+                    else None
+                )
             ),
         }
         for id_, config in providers_dict.items()
