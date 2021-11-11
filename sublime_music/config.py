@@ -3,7 +3,7 @@ import os
 import pickle
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, cast, Dict, Optional, Tuple, Type, Union
+from typing import Any, Dict, Optional, Tuple, Type, Union
 
 import dataclasses_json
 from dataclasses_json import config, DataClassJsonMixin
@@ -68,27 +68,21 @@ class ProviderConfiguration:
 def encode_providers(
     providers_dict: Dict[str, Union[ProviderConfiguration, Dict[str, Any]]]
 ) -> Dict[str, Dict[str, Any]]:
+    def get_typename(
+        config: Union[ProviderConfiguration, Dict[str, Any]],
+        key: str,
+    ) -> Optional[str]:
+        key += "_type"
+        if isinstance(config, dict):
+            return type_.__name__ if (type_ := config.get(key)) else None
+        else:
+            return type_.__name__ if (type_ := getattr(config, key)) else None
+
     return {
         id_: {
             **(config if isinstance(config, dict) else asdict(config)),
-            "ground_truth_adapter_type": (
-                config["ground_truth_adapter_type"]
-                if isinstance(config, dict)
-                else config.ground_truth_adapter_type
-            ).__name__,
-            "caching_adapter_type": (
-                (
-                    cast(type, config.get("caching_adapter_type")).__name__
-                    if config.get("caching_adapter_type") is not None
-                    else None
-                )
-                if isinstance(config, dict)
-                else (
-                    config.caching_adapter_type.__name__
-                    if config.caching_adapter_type is not None
-                    else None
-                )
-            ),
+            "ground_truth_adapter_type": get_typename(config, "ground_truth_adapter"),
+            "caching_adapter_type": get_typename(config, "caching_adapter"),
         }
         for id_, config in providers_dict.items()
     }
