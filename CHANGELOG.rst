@@ -1,3 +1,8 @@
+v0.11.15
+========
+
+* Bug fix release: fixed another issue with adding a new music source. (#325)
+
 v0.11.14
 ========
 
