@@ -170,7 +170,6 @@ class CacheMissError(Exception):
 KEYRING_APP_NAME = "app.sublimemusic.SublimeMusic"
 
 
-@dataclass
 class ConfigurationStore(dict):
     """
     This defines an abstract store for all configuration parameters for a given Adapter.

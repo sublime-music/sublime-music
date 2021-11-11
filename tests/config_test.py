@@ -68,6 +68,11 @@ def test_json_load_unload(config_filename: Path, tmp_path: Path):
     assert original_config.version == loaded_config.version
     assert original_config.providers == loaded_config.providers
     assert original_config.provider == loaded_config.provider
+    assert original_config.provider and loaded_config.provider
+    assert (
+        original_config.provider.ground_truth_adapter_config.items()
+        == loaded_config.provider.ground_truth_adapter_config.items()
+    )
 
 
 def test_config_migrate_v5_to_v6(config_filename: Path, cwd: Path):

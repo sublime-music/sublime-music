@@ -1,7 +1,7 @@
 import logging
 import os
 import pickle
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Type, Union
 
@@ -64,26 +64,33 @@ class ProviderConfiguration:
         if self.caching_adapter_config:
             self.caching_adapter_config.persist_secrets()
 
+    def asdict(self) -> Dict[str, Any]:
+        def get_typename(key: str) -> Optional[str]:
+            key += "_type"
+            if isinstance(self, dict):
+                return type_.__name__ if (type_ := self.get(key)) else None
+            else:
+                return type_.__name__ if (type_ := getattr(self, key)) else None
+
+        return {
+            "id": self.id,
+            "name": self.name,
+            "ground_truth_adapter_type": get_typename("ground_truth_adapter"),
+            "ground_truth_adapter_config": dict(self.ground_truth_adapter_config),
+            "caching_adapter_type": get_typename("caching_adapter"),
+            "caching_adapter_config": dict(self.caching_adapter_config or {}),
+        }
+
 
 def encode_providers(
     providers_dict: Dict[str, Union[ProviderConfiguration, Dict[str, Any]]]
 ) -> Dict[str, Dict[str, Any]]:
-    def get_typename(
-        config: Union[ProviderConfiguration, Dict[str, Any]],
-        key: str,
-    ) -> Optional[str]:
-        key += "_type"
-        if isinstance(config, dict):
-            return type_.__name__ if (type_ := config.get(key)) else None
-        else:
-            return type_.__name__ if (type_ := getattr(config, key)) else None
-
     return {
-        id_: {
-            **(config if isinstance(config, dict) else asdict(config)),
-            "ground_truth_adapter_type": get_typename(config, "ground_truth_adapter"),
-            "caching_adapter_type": get_typename(config, "caching_adapter"),
-        }
+        id_: (
+            config
+            if isinstance(config, ProviderConfiguration)
+            else ProviderConfiguration(**config)
+        ).asdict()
         for id_, config in providers_dict.items()
     }
 
