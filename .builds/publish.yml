@@ -26,18 +26,6 @@ tasks:
       echo "cd ${REPO_NAME}" >> ~/.buildenv
       echo "source $(poetry env info -p)/bin/activate" >> ~/.buildenv
 
-  - lint: |
-      poetry check
-      black --check .
-      flake8
-      mypy sublime_music tests/**/*.py
-      cicd/custom_style_check.py
-
-  - test: |
-      Xvfb :119 -screen 0 1024x768x16 &
-      export DISPLAY=:119
-      pytest
-
   - build: |
       poetry build
 
