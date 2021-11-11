@@ -1,3 +1,8 @@
+v0.11.16
+========
+
+* Bug fix release: fixed a regression caused by the "fix" in v0.11.15.
+
 v0.11.15
 ========
 
