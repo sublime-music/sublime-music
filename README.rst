@@ -18,7 +18,7 @@ CI
 
 Community
   .. image:: https://img.shields.io/matrix/sublime-music:matrix.org?logo=matrix
-     :target: https://matrix.to/#/!veTDkgvBExJGKIBYlU:matrix.org?via=matrix.org
+     :target: https://matrix.to/#/#sublime-music:nevarro.space?via=matrix.org
      :alt: Matrix chat
   .. image:: https://img.shields.io/pypi/l/sublime-music?color=0c0
      :target: https://gitlab.com/sublime-music/sublime-music/-/blob/master/LICENSE
