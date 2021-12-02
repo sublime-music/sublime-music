@@ -377,7 +377,7 @@ class MusicDirectoryList(Gtk.Box):
                 self.drilldown_directories_store, new_directories_store
             )
 
-            def song_sort_key(song: API.Song):
+            def song_sort_key(song: API.Song) -> Tuple[Optional[int], Optional[int]]:
                 return (
                     song.disc_number if hasattr(song, "disc_number") else 0,
                     song.track if hasattr(song, "track") else 0,
