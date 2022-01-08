@@ -226,6 +226,7 @@ class SublimeMusicApp(Gtk.Application):
                 self.app_config.state.current_song_index
                 == len(self.app_config.state.play_queue) - 1
             )
+            at_end = self.app_config.state.next_song_index is None
             no_repeat = self.app_config.state.repeat_type == RepeatType.NO_REPEAT
             if at_end and no_repeat:
                 self.app_config.state.playing = False
@@ -672,20 +673,11 @@ class SublimeMusicApp(Gtk.Application):
         if self.app_config.state.current_song is None:
             # This may happen due to DBUS, ignore.
             return
-        # Handle song repeating
-        if self.app_config.state.repeat_type == RepeatType.REPEAT_SONG:
-            song_index_to_play = self.app_config.state.current_song_index
-        # Wrap around the play queue if at the end.
-        elif (
-            self.app_config.state.current_song_index
-            == len(self.app_config.state.play_queue) - 1
-        ):
-            # This may happen due to D-Bus.
-            if self.app_config.state.repeat_type == RepeatType.NO_REPEAT:
-                return
-            song_index_to_play = 0
-        else:
-            song_index_to_play = self.app_config.state.current_song_index + 1
+
+        song_index_to_play = self.app_config.state.next_song_index
+        if song_index_to_play is None:
+            # We may end up here due to D-Bus.
+            return
 
         self.app_config.state.current_song_index = song_index_to_play
         self.app_config.state.song_progress = timedelta(0)
@@ -701,6 +693,7 @@ class SublimeMusicApp(Gtk.Application):
         # Go back to the beginning of the song if we are past 5 seconds.
         # Otherwise, go to the previous song.
         no_repeat = self.app_config.state.repeat_type == RepeatType.NO_REPEAT
+
         if self.app_config.state.repeat_type == RepeatType.REPEAT_SONG:
             song_index_to_play = self.app_config.state.current_song_index
         elif self.app_config.state.song_progress.total_seconds() < 5:
