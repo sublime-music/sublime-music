@@ -198,7 +198,7 @@ class AlbumWithSongs(Gtk.Box):
             allow_deselect = False
 
             def on_download_state_change(song_id: str):
-                self.update_album_songs(self.album.id)
+                GLib.idle_add(lambda: self.update_album_songs(self.album.id))
 
             # Use the new selection instead of the old one for calculating what
             # to do the right click on.
@@ -230,8 +230,8 @@ class AlbumWithSongs(Gtk.Box):
     def on_download_all_click(self, btn: Any):
         AdapterManager.batch_download_songs(
             [x[-1] for x in self.album_song_store],
-            before_download=lambda _: self.update(),
-            on_song_download_complete=lambda _: self.update(),
+            before_download=lambda _: GLib.idle_add(self.update),
+            on_song_download_complete=lambda _: GLib.idle_add(self.update),
         )
 
     def play_btn_clicked(self, btn: Any):

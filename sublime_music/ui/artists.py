@@ -503,13 +503,17 @@ class ArtistDetailPanel(Gtk.Box):
     def on_download_all_click(self, _):
         AdapterManager.batch_download_songs(
             self.get_artist_song_ids(),
-            before_download=lambda _: self.update_artist_view(
-                self.artist_id,
-                order_token=self.update_order_token,
+            before_download=lambda _: GLib.idle_add(
+                lambda: self.update_artist_view(
+                    self.artist_id,
+                    order_token=self.update_order_token,
+                )
             ),
-            on_song_download_complete=lambda _: self.update_artist_view(
-                self.artist_id,
-                order_token=self.update_order_token,
+            on_song_download_complete=lambda _: GLib.idle_add(
+                lambda: self.update_artist_view(
+                    self.artist_id,
+                    order_token=self.update_order_token,
+                )
             ),
         )
 
