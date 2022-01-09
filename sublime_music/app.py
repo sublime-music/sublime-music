@@ -1131,6 +1131,17 @@ class SublimeMusicApp(Gtk.Application):
             self.app_config.state.song_progress = timedelta(0)
             self.should_scrobble_song = True
 
+        # Tell the player that the next song is available for gapless playback
+        def do_notify_next_song(next_song: Song):
+            try:
+                next_uri = AdapterManager.get_song_file_uri(next_song)
+                if self.player_manager:
+                    self.player_manager.next_media_cached(next_uri, next_song)
+            except CacheMissError:
+                logging.debug(
+                    "Couldn't find the file for next song for gapless playback"
+                )
+
         # Do this the old fashioned way so that we can have access to ``reset``
         # in the callback.
         @dbus_propagate(self)
@@ -1177,6 +1188,21 @@ class SublimeMusicApp(Gtk.Application):
             )
             self.app_config.state.playing = True
             self.update_window()
+
+            # Check if the next song is available in the cache
+            if (next_song_index := self.app_config.state.next_song_index) is not None:
+                next_song_details_future = AdapterManager.get_song_details(
+                    self.app_config.state.play_queue[next_song_index]
+                )
+
+                if next_song_details_future.data_is_available:
+                    next_song_details_future.add_done_callback(
+                        lambda f: do_notify_next_song(f.result())
+                    )
+                else:
+                    next_song_details_future.add_done_callback(
+                        lambda f: GLib.idle_add(do_notify_next_song, f.result()),
+                    )
 
             # Show a song play notification.
             if self.app_config.song_play_notification:
@@ -1265,6 +1291,29 @@ class SublimeMusicApp(Gtk.Application):
                             self.app_config.state.song_progress,
                             song,
                         )
+
+                # Handle case where a next-song was previously not cached
+                # but is now available for the player to use
+                if self.app_config.state.playing:
+                    next_song_index = self.app_config.state.current_song_index + 1
+                    if (
+                        next_song_index < len(self.app_config.state.play_queue)
+                        and self.app_config.state.play_queue[next_song_index] == song_id
+                    ):
+                        next_song_details_future = AdapterManager.get_song_details(
+                            song_id
+                        )
+
+                        if next_song_details_future.data_is_available:
+                            next_song_details_future.add_done_callback(
+                                lambda f: do_notify_next_song(f.result())
+                            )
+                        else:
+                            next_song_details_future.add_done_callback(
+                                lambda f: GLib.idle_add(
+                                    do_notify_next_song, f.result()
+                                ),
+                            )
 
                 # Always update the window
                 self.update_window()

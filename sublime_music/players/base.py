@@ -94,6 +94,13 @@ class Player(abc.ABC):
         """
         return False
 
+    @property
+    def gapless_playback(self) -> bool:
+        """
+        :returns: whether the player supports and is using gapless playback
+        """
+        return False
+
     @staticmethod
     @abc.abstractmethod
     def get_configuration_options() -> Dict[str, Union[Type, Tuple[str, ...]]]:
@@ -212,4 +219,11 @@ class Player(abc.ABC):
     def seek(self, position: timedelta):
         """
         :param position: seek to the given position in the song.
+        """
+
+    def next_media_cached(self, uri: str, song: Song):
+        """
+        :param uri: the URI to prepare to play. The URI is guaranteed to be one of
+            the schemes in the :class:`supported_schemes` set for this adapter.
+        :param song: the actual song.
         """
