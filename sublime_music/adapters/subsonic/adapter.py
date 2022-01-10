@@ -168,10 +168,11 @@ class SubsonicAdapter(Adapter):
                         "Double check the server address."
                     )
                 except ServerError as e:
-                    if e.status_code in (10, 41) and config_store["salt_auth"]:
+                    if e.status_code in (10, 40, 41) and config_store["salt_auth"]:
                         # status code 10: if salt auth is not enabled, server will
                         #   return error server error with status_code 10 since it'll
                         #   interpret it as a missing (password) parameter
+                        # status code 41: returned by ampache
                         # status code 41: as per subsonic api docs, description of
                         #   status_code 41 is "Token authentication not supported for
                         #   LDAP users." so fall back to password auth
