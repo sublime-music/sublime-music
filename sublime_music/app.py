@@ -222,10 +222,6 @@ class SublimeMusicApp(Gtk.Application):
                 self.should_scrobble_song = False
 
         def on_track_end():
-            at_end = (
-                self.app_config.state.current_song_index
-                == len(self.app_config.state.play_queue) - 1
-            )
             at_end = self.app_config.state.next_song_index is None
             no_repeat = self.app_config.state.repeat_type == RepeatType.NO_REPEAT
             if at_end and no_repeat:
@@ -1195,14 +1191,9 @@ class SublimeMusicApp(Gtk.Application):
                     self.app_config.state.play_queue[next_song_index]
                 )
 
-                if next_song_details_future.data_is_available:
-                    next_song_details_future.add_done_callback(
-                        lambda f: do_notify_next_song(f.result())
-                    )
-                else:
-                    next_song_details_future.add_done_callback(
-                        lambda f: GLib.idle_add(do_notify_next_song, f.result()),
-                    )
+                next_song_details_future.add_done_callback(
+                    lambda f: GLib.idle_add(do_notify_next_song, f.result()),
+                )
 
             # Show a song play notification.
             if self.app_config.song_play_notification:
@@ -1295,25 +1286,18 @@ class SublimeMusicApp(Gtk.Application):
                 # Handle case where a next-song was previously not cached
                 # but is now available for the player to use
                 if self.app_config.state.playing:
-                    next_song_index = self.app_config.state.current_song_index + 1
+                    next_song_index = self.app_config.state.next_song_index
                     if (
-                        next_song_index < len(self.app_config.state.play_queue)
+                        next_song_index is not None
                         and self.app_config.state.play_queue[next_song_index] == song_id
                     ):
                         next_song_details_future = AdapterManager.get_song_details(
                             song_id
                         )
 
-                        if next_song_details_future.data_is_available:
-                            next_song_details_future.add_done_callback(
-                                lambda f: do_notify_next_song(f.result())
-                            )
-                        else:
-                            next_song_details_future.add_done_callback(
-                                lambda f: GLib.idle_add(
-                                    do_notify_next_song, f.result()
-                                ),
-                            )
+                        next_song_details_future.add_done_callback(
+                            lambda f: GLib.idle_add(do_notify_next_song, f.result()),
+                        )
 
                 # Always update the window
                 self.update_window()

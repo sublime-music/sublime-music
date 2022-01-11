@@ -106,10 +106,7 @@ class MPVPlayer(Player):
 
     @property
     def gapless_playback(self) -> bool:
-        return {
-            "Disabled": False,
-            "Enabled": True,
-        }.get(cast(str, self.config.get(GAPLESS_PLAYBACK_KEY, "Disabled")), False)
+        return self.config.get(GAPLESS_PLAYBACK_KEY) == "Enabled"
 
     def get_volume(self) -> float:
         return self._volume

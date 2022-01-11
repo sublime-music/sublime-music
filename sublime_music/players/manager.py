@@ -161,31 +161,34 @@ class PlayerManager:
             current_player.set_muted(muted)
 
     def play_media(self, uri: str, progress: timedelta, song: Song):
-        if current_player := self._get_current_player():
-            if (
-                current_player.gapless_playback
-                and self.next_song_uri
-                and uri == self.next_song_uri
-                and progress == timedelta(0)
-                and self._track_ending
-            ):
-                # In this case the player already knows about the next
-                # song and will automatically play it when the current
-                # song is complete.
-                self.current_song = song
-                self.next_song_uri = None
-                self._track_ending = False
-                current_player.song_loaded = True
-                return
+        current_player = self._get_current_player()
+        if not current_player:
+            return
 
-            # If we are changing the current song then the next song
-            # should also be invalidated.
-            if self.current_song != song:
-                self.current_song = song
-                self.next_song_uri = None
-
+        if (
+            current_player.gapless_playback
+            and self.next_song_uri
+            and uri == self.next_song_uri
+            and progress == timedelta(0)
+            and self._track_ending
+        ):
+            # In this case the player already knows about the next
+            # song and will automatically play it when the current
+            # song is complete.
+            self.current_song = song
+            self.next_song_uri = None
             self._track_ending = False
-            current_player.play_media(uri, progress, song)
+            current_player.song_loaded = True
+            return
+
+        # If we are changing the current song then the next song
+        # should also be invalidated.
+        if self.current_song != song:
+            self.current_song = song
+            self.next_song_uri = None
+
+        self._track_ending = False
+        current_player.play_media(uri, progress, song)
 
     def pause(self):
         if current_player := self._get_current_player():
