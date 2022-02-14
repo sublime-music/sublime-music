@@ -36,12 +36,14 @@ class PlayerManager:
         config: Dict[str, Dict[str, Union[Type, Tuple[str, ...]]]],
     ):
         self.current_song: Optional[Song] = None
+        self.next_song_uri: Optional[str] = None
         self.on_timepos_change = on_timepos_change
         self.on_track_end = on_track_end
         self.config = config
         self.players: Dict[Type, Any] = {}
         self.device_id_type_map: Dict[str, Type] = {}
         self._current_device_id: Optional[str] = None
+        self._track_ending: bool = False
 
         def player_event_wrapper(pe: PlayerEvent):
             if pe.device_id == self._current_device_id:
@@ -58,7 +60,7 @@ class PlayerManager:
         self.players = {
             player_type: player_type(
                 self.on_timepos_change,
-                self.on_track_end,
+                self._on_track_end,
                 self.on_player_event,
                 self.player_device_change_callback,
                 self.config.get(player_type.name),
@@ -90,6 +92,10 @@ class PlayerManager:
     def _get_current_player(self) -> Any:
         if current_player_type := self._get_current_player_type():
             return self.players.get(current_player_type)
+
+    def _on_track_end(self):
+        self._track_ending = True
+        self.on_track_end()
 
     @property
     def supported_schemes(self) -> Set[str]:
@@ -155,9 +161,34 @@ class PlayerManager:
             current_player.set_muted(muted)
 
     def play_media(self, uri: str, progress: timedelta, song: Song):
-        self.current_song = song
-        if current_player := self._get_current_player():
-            current_player.play_media(uri, progress, song)
+        current_player = self._get_current_player()
+        if not current_player:
+            return
+
+        if (
+            current_player.gapless_playback
+            and self.next_song_uri
+            and uri == self.next_song_uri
+            and progress == timedelta(0)
+            and self._track_ending
+        ):
+            # In this case the player already knows about the next
+            # song and will automatically play it when the current
+            # song is complete.
+            self.current_song = song
+            self.next_song_uri = None
+            self._track_ending = False
+            current_player.song_loaded = True
+            return
+
+        # If we are changing the current song then the next song
+        # should also be invalidated.
+        if self.current_song != song:
+            self.current_song = song
+            self.next_song_uri = None
+
+        self._track_ending = False
+        current_player.play_media(uri, progress, song)
 
     def pause(self):
         if current_player := self._get_current_player():
@@ -173,3 +204,10 @@ class PlayerManager:
     def seek(self, position: timedelta):
         if current_player := self._get_current_player():
             current_player.seek(position)
+
+    def next_media_cached(self, uri: str, song: Song):
+        if current_player := self._get_current_player():
+            if current_player.gapless_playback:
+                self.next_song_uri = uri
+
+            current_player.next_media_cached(uri, song)

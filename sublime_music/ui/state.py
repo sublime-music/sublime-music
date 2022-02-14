@@ -138,6 +138,28 @@ class UIState:
         return self._current_song
 
     @property
+    def next_song_index(self) -> Optional[int]:
+        # If nothing is playing there is no next song
+        if self.current_song_index < 0:
+            return None
+
+        if self.repeat_type == RepeatType.REPEAT_SONG:
+            return self.current_song_index
+
+        # If we are at the end of the play queue
+        if self.current_song_index == len(self.play_queue) - 1:
+
+            # If we are repeating the queue, jump back to the beginning
+            if self.repeat_type == RepeatType.REPEAT_QUEUE:
+                return 0
+
+            # Otherwise, there isn't a next song
+            return None
+
+        # In all other cases, it's the song after the current one
+        return self.current_song_index + 1
+
+    @property
     def volume(self) -> float:
         return self._volume.get(self.current_device, 100.0)
 

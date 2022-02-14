@@ -8,6 +8,7 @@ from .base import Player, PlayerDeviceEvent, PlayerEvent
 from ..adapters.api_objects import Song
 
 REPLAY_GAIN_KEY = "Replay Gain"
+GAPLESS_PLAYBACK_KEY = "Gapless Playback"
 
 
 class MPVPlayer(Player):
@@ -27,7 +28,10 @@ class MPVPlayer(Player):
 
     @staticmethod
     def get_configuration_options() -> Dict[str, Union[Type, Tuple[str, ...]]]:
-        return {REPLAY_GAIN_KEY: ("Disabled", "Track", "Album")}
+        return {
+            REPLAY_GAIN_KEY: ("Disabled", "Track", "Album"),
+            GAPLESS_PLAYBACK_KEY: ("Disabled", "Enabled"),
+        }
 
     def __init__(
         self,
@@ -100,6 +104,10 @@ class MPVPlayer(Player):
     def playing(self) -> bool:
         return not self.mpv.pause
 
+    @property
+    def gapless_playback(self) -> bool:
+        return self.config.get(GAPLESS_PLAYBACK_KEY) == "Enabled"
+
     def get_volume(self) -> float:
         return self._volume
 
@@ -119,6 +127,9 @@ class MPVPlayer(Player):
         with self._progress_value_lock:
             self._progress_value_count = 0
 
+        # Clears everything except the currently-playing song
+        self.mpv.command("playlist-clear")
+
         options = {
             "force-seekable": "yes",
             "start": str(progress.total_seconds()),
@@ -137,3 +148,12 @@ class MPVPlayer(Player):
 
     def seek(self, position: timedelta):
         self.mpv.seek(str(position.total_seconds()), "absolute")
+
+    def next_media_cached(self, uri: str, song: Song):
+        if not self.gapless_playback:
+            return
+
+        # Ensure the only 2 things in the playlist are the current song
+        # and the next song for gapless playback
+        self.mpv.command("playlist-clear")
+        self.mpv.command("loadfile", uri, "append")
