@@ -148,12 +148,12 @@ def diff_song_store(store_to_edit: Any, new_store: Iterable[Any]):
         idx, field = _parse_diff_location(edit_location)
         store_to_edit[int(idx)][int(field)] = diff["new_value"]
 
-    for _, value in added.items():
-        store_to_edit.append(value)
-
     for remove_location, _ in reversed(list(removed.items())):
         remove_at = int(_parse_diff_location(remove_location)[0])
         del store_to_edit[remove_at]
+
+    for _, value in added.items():
+        store_to_edit.append(value)
 
 
 def diff_model_store(store_to_edit: Any, new_store: Iterable[Any]):
