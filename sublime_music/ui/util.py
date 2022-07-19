@@ -20,6 +20,8 @@ from ..adapters import AdapterManager, CacheMissError, Result, SongCacheStatus
 from ..adapters.api_objects import Playlist, Song
 from ..config import AppConfiguration
 
+deep_diff_exclude_regexp = re.compile(r"root\[\d+\]\.props")
+
 
 def format_song_duration(duration_secs: Union[int, timedelta, None]) -> str:
     """
@@ -163,7 +165,7 @@ def diff_model_store(store_to_edit: Any, new_store: Iterable[Any]):
     """
     old_store = store_to_edit[:]
 
-    diff = DeepDiff(old_store, new_store)
+    diff = DeepDiff(old_store, new_store, exclude_regex_paths=deep_diff_exclude_regexp)
     if diff == {}:
         return
 
