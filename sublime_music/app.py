@@ -474,10 +474,11 @@ class SublimeMusicApp(Gtk.Application):
                 "Created": lambda p: p.created,
                 "Modified": lambda p: p.changed,
             }
-            playlists.sort(
-                key=sorters.get(order, lambda p: p),
-                reverse=reverse_order,
-            )
+            if order in sorters:
+                playlists.sort(
+                    key=sorters.get(order, lambda p: p),
+                    reverse=reverse_order,
+                )
 
             def make_playlist_tuple(p: Playlist) -> GLib.Variant:
                 cover_art_filename = AdapterManager.get_cover_art_uri(
