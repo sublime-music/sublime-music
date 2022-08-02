@@ -946,6 +946,11 @@ class SublimeMusicApp(Gtk.Application):
             window.search_entry.grab_focus()
             return False
 
+        if event.keyval == 113 and event.state & Gdk.ModifierType.CONTROL_MASK:
+            # Ctrl + Q
+            window.destroy()
+            return False
+
         # Allow spaces to work in the text entry boxes.
         if (
             window.search_entry.has_focus()
