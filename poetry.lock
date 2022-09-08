@@ -1048,7 +1048,7 @@ server = ["bottle"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "5ee1bcda2ed3541cb942c6078934529af47ac01d0aeb54b36b77489af1f94c5d"
+content-hash = "2a9d8372a385b5675b18d37d02cf30b4ae611c7d9773ead2d455ab962b4eace9"
 
 [metadata.files]
 alabaster = [
