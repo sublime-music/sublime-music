@@ -289,7 +289,7 @@ class SubsonicAdapter(Adapter):
                 self._set_ping_status(timeout=2 * (i + 1))
             except Exception:
                 pass
-            sleep(2 ** i)
+            sleep(2**i)
             i += 1
 
     def _set_ping_status(self, timeout: int = 2):

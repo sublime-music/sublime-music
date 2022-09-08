@@ -761,18 +761,14 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
     )
 
     artist = cache_adapter.get_artist("1")
-    assert (
-        artist.artist_image_url
-        and (
-            artist.id,
-            artist.name,
-            artist.album_count,
-            artist.artist_image_url,
-            artist.biography,
-            artist.music_brainz_id,
-        )
-        == ("1", "Bar", 1, "image", "this is a bio", "mbid")
-    )
+    assert artist.artist_image_url and (
+        artist.id,
+        artist.name,
+        artist.album_count,
+        artist.artist_image_url,
+        artist.biography,
+        artist.music_brainz_id,
+    ) == ("1", "Bar", 1, "image", "this is a bio", "mbid")
     assert artist.similar_artists == [
         SubsonicAPI.ArtistAndArtistInfo(id="A", name="B"),
         SubsonicAPI.ArtistAndArtistInfo(id="C", name="D"),
@@ -805,18 +801,14 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
     )
 
     artist = cache_adapter.get_artist("1")
-    assert (
-        artist.artist_image_url
-        and (
-            artist.id,
-            artist.name,
-            artist.album_count,
-            artist.artist_image_url,
-            artist.biography,
-            artist.music_brainz_id,
-        )
-        == ("1", "Foo", 2, "image2", "this is a bio2", "mbid2")
-    )
+    assert artist.artist_image_url and (
+        artist.id,
+        artist.name,
+        artist.album_count,
+        artist.artist_image_url,
+        artist.biography,
+        artist.music_brainz_id,
+    ) == ("1", "Foo", 2, "image2", "this is a bio2", "mbid2")
     assert artist.similar_artists == [
         SubsonicAPI.ArtistAndArtistInfo(id="A", name="B"),
         SubsonicAPI.ArtistAndArtistInfo(id="E", name="F"),
