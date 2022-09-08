@@ -13,7 +13,7 @@ pkgs.mkShell {
     gcc
     git
     glib
-    gobjectIntrospection
+    gobject-introspection
     gtk3
     libnotify
     pango

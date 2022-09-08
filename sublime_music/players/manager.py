@@ -63,7 +63,7 @@ class PlayerManager:
                 self._on_track_end,
                 self.on_player_event,
                 self.player_device_change_callback,
-                self.config.get(player_type.name),
+                self.config.get(player_type.name, {}),
             )
             for player_type in PlayerManager.available_player_types
         }

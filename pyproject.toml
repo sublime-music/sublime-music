@@ -36,11 +36,11 @@ python = "^3.8"
 bleach = ">=3.3.0"
 bottle = {version = "^0.12.18", optional = true}
 dataclasses-json = "^0.5.2"
-deepdiff = "^5.0.2"
+deepdiff = ">=5.2.0, <5.3.0"
 fuzzywuzzy = "^0.18.0"
 keyring = {version = "^23.0.0", optional = true}
 peewee = "^3.13.3"
-pychromecast = {version = "^9.1.1", optional = true}
+pychromecast = {version = "^10.2.3", optional = true}
 PyGObject = "^3.38.0"
 python-dateutil = "^2.8.1"
 python-Levenshtein = "^0.12.0"

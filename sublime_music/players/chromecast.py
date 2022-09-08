@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 from gi.repository import GLib
+from pychromecast.controllers.media import MediaStatusListener
+from pychromecast.discovery import AbstractCastListener, CastBrowser, SimpleCastListener
 
 from .base import Player, PlayerDeviceEvent, PlayerEvent
 from ..adapters import AdapterManager
@@ -34,9 +36,14 @@ SERVE_FILES_KEY = "Serve Local Files to Chromecasts on the LAN"
 LAN_PORT_KEY = "LAN Server Port Number"
 
 
-class ChromecastPlayer(Player):
-    name = "Chromecast"
-    can_start_playing_with_no_latency = False
+class ChromecastPlayer(Player, MediaStatusListener, AbstractCastListener):
+    @property
+    def name(self)->str:
+        return "Chromecast"
+
+    @property
+    def can_start_playing_with_no_latency (self)-> bool:
+        return False
 
     @property
     def enabled(self) -> bool:
@@ -76,19 +83,25 @@ class ChromecastPlayer(Player):
         if chromecast_imported:
             self._chromecasts: Dict[UUID, pychromecast.Chromecast] = {}
             self._current_chromecast: Optional[pychromecast.Chromecast] = None
-
-            self.stop_get_chromecasts = None
+            self.cast_listener = None
             self.refresh_players()
+
+    def add_cast(self, *args):
+        print('add listener', args)
+    def remove_cast(self, *args):
+        print('remove listener', args)
+    def update_cast(self, *args):
+        print('update listener', args)
 
     def chromecast_discovered_callback(self, chromecast: Any):
         chromecast = cast(pychromecast.Chromecast, chromecast)
-        self._chromecasts[chromecast.device.uuid] = chromecast
+        self._chromecasts[chromecast.cast_info.uuid] = chromecast
         self.player_device_change_callback(
             PlayerDeviceEvent(
                 PlayerDeviceEvent.Delta.ADD,
                 type(self),
-                str(chromecast.device.uuid),
-                chromecast.device.friendly_name,
+                str(chromecast.cast_info.uuid),
+                chromecast.cast_info.friendly_name,
             )
         )
 
@@ -114,9 +127,8 @@ class ChromecastPlayer(Player):
     def refresh_players(self):
         if not chromecast_imported:
             return
-
-        if self.stop_get_chromecasts is not None:
-            self.stop_get_chromecasts.cancel()
+        if self.cast_listener:
+            self.cast_listener.stop_discovery()
 
         for id_, chromecast in self._chromecasts.items():
             self.player_device_change_callback(
@@ -124,15 +136,15 @@ class ChromecastPlayer(Player):
                     PlayerDeviceEvent.Delta.REMOVE,
                     type(self),
                     str(id_),
-                    chromecast.device.friendly_name,
+                    chromecast.cast_info.friendly_name,
                 )
             )
-
         self._chromecasts = {}
 
-        self.stop_get_chromecasts = pychromecast.get_chromecasts(
-            blocking=False, callback=self.chromecast_discovered_callback
+        self.cast_listener = CastBrowser(
+            ChromecastPlayer
         )
+        self.cast_listener.start_discovery()
 
     def set_current_device_id(self, device_id: str):
         self._current_chromecast = self._chromecasts[UUID(device_id)]
@@ -145,7 +157,7 @@ class ChromecastPlayer(Player):
         self.on_player_event(
             PlayerEvent(
                 PlayerEvent.EventType.VOLUME_CHANGE,
-                str(self._current_chromecast.device.uuid),
+                str(self._current_chromecast.cast_info.uuid),
                 volume=(status.volume_level * 100 if not status.volume_muted else 0),
             )
         )
@@ -177,7 +189,7 @@ class ChromecastPlayer(Player):
         self.on_player_event(
             PlayerEvent(
                 PlayerEvent.EventType.PLAY_STATE_CHANGE,
-                str(self._current_chromecast.device.uuid),
+                str(self._current_chromecast.cast_info.uuid),
                 playing=(status.player_state in ("PLAYING", "BUFFERING")),
             )
         )
@@ -316,7 +328,7 @@ class ChromecastPlayer(Player):
         self.on_player_event(
             PlayerEvent(
                 PlayerEvent.EventType.STREAM_CACHE_PROGRESS_CHANGE,
-                str(self._current_chromecast.device.uuid),
+                str(self._current_chromecast.cast_info.uuid),
                 stream_cache_duration=0,
             )
         )
