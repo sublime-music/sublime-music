@@ -3,7 +3,7 @@ from functools import lru_cache, partial
 from random import randint
 from typing import Any, cast, Dict, List, Tuple
 
-from fuzzywuzzy import fuzz
+from thefuzz import fuzz
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from ..adapters import AdapterManager, api_objects as API
