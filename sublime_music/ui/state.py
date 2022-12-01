@@ -87,11 +87,12 @@ class UIState:
         def __init__(self):
             self.name = "Rock"
 
-    current_album_search_query: AlbumSearchQuery = AlbumSearchQuery(
-        AlbumSearchQuery.Type.RANDOM,
-        genre=_DefaultGenre(),
-        year_range=this_decade(),
-    )
+    current_album_search_query: AlbumSearchQuery = field(
+        default_factory = lambda: AlbumSearchQuery(
+            AlbumSearchQuery.Type.RANDOM,
+            genre=UIState._DefaultGenre(),
+            year_range=this_decade(),
+       ))
 
     active_playlist_id: Optional[str] = None
 
