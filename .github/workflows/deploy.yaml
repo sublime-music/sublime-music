@@ -1,0 +1,121 @@
+name: Lint and Build
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+  release:
+    types:
+      - created
+
+env:
+  PYTHON_VERSION: "3.10"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt install -y \
+            libgirepository1.0-dev \
+            libgtk-3-dev \
+            libmpv-dev
+          pip install -r all-requirements.txt
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.0
+
+      - name: black --check .
+        if: always()
+        run: black --check .
+
+      - name: flake8
+        if: always()
+        run: flake8
+
+      - name: mypy tracktime
+        if: always()
+        run: mypy sublime_music tests/**/*.py
+
+      - name: custom style check
+        if: always()
+        run: ./cicd/custom_style_check.py
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt install -y \
+            libgirepository1.0-dev \
+            libgtk-3-dev \
+            libmpv-dev \
+            xvfb
+          pip install -r all-requirements.txt
+
+      - name: Start virtual screen
+        run: |
+          Xvfb :119 -screen 0 1024x768x16 &
+          export DISPLAY=:119
+
+      - run: pytest
+
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt install -y \
+            libgirepository1.0-dev \
+            libgtk-3-dev \
+            libmpv-dev
+          pip install -r dev-requirements.txt
+
+      - run: flit build
+
+  publish:
+    name: Deploy to PyPi
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'release' && github.event.action == 'created' }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Run image
+        uses: abatilo/actions-poetry@v2.2.0
+
+      - name: Install dependencies
+        run: |
+          sudo apt install -y \
+            libgirepository1.0-dev \
+            libgtk-3-dev \
+            libmpv-dev
+          pip install -r all-requirements.txt
+
+      - run: flit build
+      # - run: flit publish
