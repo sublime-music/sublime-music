@@ -19,7 +19,7 @@ from typing import (
     Union,
 )
 
-from fuzzywuzzy import fuzz
+from thefuzz import fuzz
 
 
 class Genre(abc.ABC):
@@ -127,7 +127,7 @@ class PlayQueue(abc.ABC):
 @lru_cache(maxsize=8192)
 def similarity_ratio(query: str, string: str) -> int:
     """
-    Return the :class:`fuzzywuzzy.fuzz.partial_ratio` between the ``query`` and
+    Return the :class:`thefuzz.fuzz.partial_ratio` between the ``query`` and
     the given ``string``.
 
     This ends up being called quite a lot, so the result is cached in an LRU
