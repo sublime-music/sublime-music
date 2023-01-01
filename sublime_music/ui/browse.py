@@ -440,7 +440,7 @@ class MusicDirectoryList(Gtk.Box):
         self.loading_indicator.hide()
 
     def on_download_state_change(self, _):
-        self.update()
+        GLib.idle_add(self.update)
 
     # Create Element Helper Functions
     # ==================================================================================

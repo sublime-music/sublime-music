@@ -483,7 +483,7 @@ class PlayerControls(Gtk.ActionBar):
             def on_download_state_change(song_id: str):
                 # Refresh the entire window (no force) because the song could
                 # be in a list anywhere in the window.
-                self.emit("refresh-window", {}, False)
+                GLib.idle_add(lambda: self.emit("refresh-window", {}, False))
 
             # Use the new selection instead of the old one for calculating what
             # to do the right click on.
