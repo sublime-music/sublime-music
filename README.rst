@@ -1,27 +1,16 @@
-.. image:: https://gitlab.com/sublime-music/sublime-music/-/raw/master/logo/logo.png
+.. image:: logo/logo.png
    :alt: Sublime Music Logo
 
 Sublime Music is a native, GTK3
 `Subsonic`_/`Airsonic`_/`Revel`_/`Gonic`_/`Navidrome`_/`Ampache`_/\*sonic client for the
 Linux Desktop.
 
-CI
-  .. image:: https://gitlab.com/sublime-music/sublime-music/badges/master/pipeline.svg
-     :target: https://gitlab.com/sublime-music/sublime-music/pipelines
-     :alt: GitLab build status
-  .. image:: https://builds.sr.ht/~sumner/sublime-music/commits/build.yml.svg
-     :target: https://builds.sr.ht/~sumner/sublime-music/commits/build.yml
-     :alt: sourcehut build status
-  .. image:: https://gitlab.com/sublime-music/sublime-music/badges/master/coverage.svg
-     :target: https://sublime-music.gitlab.io/sublime-music/htmlcov
-     :alt: code coverage report
-
 Community
   .. image:: https://img.shields.io/matrix/sublime-music:matrix.org?logo=matrix
      :target: https://matrix.to/#/#sublime-music:nevarro.space?via=matrix.org
      :alt: Matrix chat
   .. image:: https://img.shields.io/pypi/l/sublime-music?color=0c0
-     :target: https://gitlab.com/sublime-music/sublime-music/-/blob/master/LICENSE
+     :target: LICENSE
      :alt: GPLv3 or later
   .. image:: http://img.shields.io/liberapay/receives/sumner.svg?logo=liberapay
      :target: https://liberapay.com/sumner/donate
@@ -41,9 +30,9 @@ Packages
 
 -------------------------------------------------------------------------------
 
-.. figure:: https://gitlab.com/sublime-music/sublime-music/-/raw/master/docs/_static/screenshots/play-queue.png
+.. figure:: docs/_static/screenshots/play-queue.png
    :align: center
-   :target: https://gitlab.com/sublime-music/sublime-music/-/raw/master/docs/_static/screenshots/play-queue.png
+   :target: docs/_static/screenshots/play-queue.png
 
    The Albums tab of Sublime Music with the Play Queue opened. `More
    Screenshots <https://sublime-music.gitlab.io/sublime-music/screenshots.html>`_
@@ -172,7 +161,7 @@ how to do that::
 See the |contributing|_ document for how to contribute to this project.
 
 .. |contributing| replace:: ``CONTRIBUTING.md``
-.. _contributing: https://gitlab.com/sublime-music/sublime-music/-/blob/master/CONTRIBUTING.md
+.. _contributing: CONTRIBUTING.md
 
 You can also join the conversation in our Matrix room:
 `#sublime-music:matrix.org <https://matrix.to/#/!veTDkgvBExJGKIBYlU:matrix.org?via=matrix.org>`_.
