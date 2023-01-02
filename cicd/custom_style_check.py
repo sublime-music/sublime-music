@@ -64,14 +64,6 @@ with open(Path("sublime_music/__init__.py")) as f:
     else:  # nobreak
         raise AssertionError("No version in sublime_music/__init__.py")
 
-with open(Path("pyproject.toml")) as f:
-    for line in f:
-        if line.startswith("version ="):
-            assert eval(line.split()[-1]) == version, "Version mismatch: pyproject.toml"
-            break
-    else:  # nobreak
-        raise AssertionError("No version in pyproject.toml")
-
 with open(Path("CHANGELOG.rst")) as f:
     assert f.readline().strip() == f"v{version}", "Version mismatch: CHANGELOG"
 

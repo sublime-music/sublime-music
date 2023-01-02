@@ -1,18 +1,18 @@
-[tool.poetry]
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
 name = "sublime_music"
-version = "0.11.16"
-description = "A native GTK *sonic client."
-license = "GPL-3.0-or-later"
-authors = ["Sumner Evans <inquiries@sumnerevans.com>"]
+authors = [
+    {name = "Sumner Evans", email = "inquiries@sumnerevans.com"}
+]
+dynamic = ["version", "description"]
 readme = "README.rst"
-homepage = "https://sublimemusic.app"
-repository = "https://gitlab.com/sublime-music/sublime-music"
-documentation = "https://sublime-music.gitlab.io/sublime-music"
+requires-python = ">=3.8,<4"
+license = {file = "LICENSE"}
 keywords = ["airsonic", "music", "GTK", "chromecast", "subsonic"]
 classifiers = [
-    #   3 - Alpha
-    #   4 - Beta
-    #   5 - Production/Stable
     "Development Status :: 4 - Beta",
     "Environment :: X11 Applications :: GTK",
     "Intended Audience :: End Users/Desktop",
@@ -20,57 +20,51 @@ classifiers = [
     "Topic :: Multimedia :: Sound/Audio :: Players",
 ]
 
-exclude = [
-    "tests",
-    "sublime_music/adapters/subsonic/api_specs"
+dependencies = [
+    "bleach",
+    "dataclasses-json",
+    "deepdiff",
+    "thefuzz",
+    "peewee",
+    "PyGObject",
+    "python-dateutil",
+    "python-Levenshtein",
+    "python-mpv",
+    "requests",
+    "semver",
 ]
 
-[tool.poetry.urls]
-"Bug Tracker" = "https://gitlab.com/sublime-music/sublime-music/-/issues"
-
-[tool.poetry.scripts]
-sublime-music = 'sublime_music.__main__:main'
-
-[tool.poetry.dependencies]
-python = "^3.8"
-bleach = ">=3.3.0"
-bottle = {version = "^0.12.18", optional = true}
-dataclasses-json = "^0.5.2"
-deepdiff = "^5.8.1"
-thefuzz = "^0.19.0"
-keyring = {version = "^23.0.0", optional = true}
-peewee = "^3.13.3"
-pychromecast = {version = "^9.1.1", optional = true}
-PyGObject = "^3.42.0"
-python-dateutil = "^2.8.1"
-python-Levenshtein = "^0.12.0"
-python-mpv = "^1.0.1"
-requests = "^2.28.1"
-semver = "^2.10.2"
-
-[tool.poetry.dev-dependencies]
-black = "^22.8.0"
-docutils = "^0.16"
-flake8 = "^3.8.3"
-flake8-annotations = "^2.4.0"
-flake8-bugbear = "^20.1.4"
-flake8-comprehensions = "^3.2.3"
-flake8-import-order = "^0.18.1"
-flake8-pep3101 = "^1.3.0"
-flake8-print = "^3.1.4"
-mypy = "^0.782"
-pytest-cov = "^2.10.1"
-requirements-parser = "^0.2.0"
-rst2html5 = "^1.10.6"
-sphinx = "^4.0.2"
-sphinx_rtd_theme = "^0.5.0"
-termcolor = "^1.1.0"
-
-[tool.poetry.extras]
+[project.optional-dependencies]
+dev = [
+    "black",
+    "docutils <0.17",
+    "flake8",
+    "flake8-annotations",
+    "flake8-bugbear",
+    "flake8-comprehensions",
+    "flake8-import-order",
+    "flake8-pep3101",
+    "flake8-print",
+    "flit",
+    "mypy",
+    "pip-tools",
+    "pre-commit",
+    "pytest-cov",
+    "requirements-parser",
+    "rst2html5",
+    "sphinx <5",
+    "sphinx_rtd_theme",
+    "termcolor",
+]
 chromecast = ["pychromecast"]
 keyring = ["keyring"]
 server = ["bottle"]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[project.urls]
+Homepage = "https://sublimemusic.app"
+"Source Code" = "https://github.com/sublime-music/sublime-music"
+Documentation = "https://sublime-music.gitlab.io/sublime-music"
+"Bug Tracker" = "https://github.com/sublime-music/sublime-music/issues"
+
+[project.scripts]
+sublime-music = 'sublime_music.__main__:main'
