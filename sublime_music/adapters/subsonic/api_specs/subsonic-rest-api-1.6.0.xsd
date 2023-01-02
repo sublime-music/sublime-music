@@ -285,7 +285,7 @@
 
     <xs:complexType name="User">
         <xs:attribute name="username" type="xs:string" use="required"/>
-        <xs:attribute name="email" type="xs:string" use="optional"/> <!-- Added in 1.6.0 --> 
+        <xs:attribute name="email" type="xs:string" use="optional"/> <!-- Added in 1.6.0 -->
         <xs:attribute name="adminRole" type="xs:boolean" use="required"/>
         <xs:attribute name="settingsRole" type="xs:boolean" use="required"/>
         <xs:attribute name="downloadRole" type="xs:boolean" use="required"/>

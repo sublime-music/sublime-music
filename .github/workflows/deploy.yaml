@@ -33,16 +33,13 @@ jobs:
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.0
 
-      - name: black --check .
-        if: always()
+      - if: always()
         run: black --check .
 
-      - name: flake8
-        if: always()
+      - if: always()
         run: flake8
 
-      - name: mypy tracktime
-        if: always()
+      - if: always()
         run: mypy sublime_music tests/**/*.py
 
       - name: custom style check

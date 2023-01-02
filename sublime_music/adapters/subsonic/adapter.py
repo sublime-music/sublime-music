@@ -11,18 +11,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
-from typing import (
-    Any,
-    cast,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Union,
-)
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple, Union, cast
 from urllib.parse import urlencode, urlparse
 
 import requests
@@ -31,16 +20,16 @@ from gi.repository import Gtk
 
 from sublime_music.util import resolve_path
 
-from .api_objects import Directory, Response
 from .. import (
     Adapter,
     AlbumSearchQuery,
-    api_objects as API,
     ConfigParamDescriptor,
     ConfigurationStore,
     ConfigureServerForm,
     UIInfo,
+    api_objects as API,
 )
+from .api_objects import Directory, Response
 
 try:
     import gi
@@ -178,9 +167,7 @@ class SubsonicAdapter(Adapter):
                         #   LDAP users." so fall back to password auth
                         try:
                             config_store["salt_auth"] = False
-                            tmp_adapter = SubsonicAdapter(
-                                config_store, Path(tmp_dir_name)
-                            )
+                            tmp_adapter = SubsonicAdapter(config_store, Path(tmp_dir_name))
                             tmp_adapter._get_json(
                                 tmp_adapter._make_url("ping"),
                                 timeout=2,
@@ -215,9 +202,7 @@ class SubsonicAdapter(Adapter):
 
     def __init__(self, config: ConfigurationStore, data_directory: Path):
         self.data_directory = data_directory
-        self.ignored_articles_cache_file = self.data_directory.joinpath(
-            "ignored_articles.pickle"
-        )
+        self.ignored_articles_cache_file = self.data_directory.joinpath("ignored_articles.pickle")
 
         self.hostname = config["server_address"]
         if (
@@ -277,14 +262,17 @@ class SubsonicAdapter(Adapter):
         if self._ping_process:
             self._ping_process.terminate()
 
-        self._ping_process = multiprocessing.Process(
-            target=self._check_ping_thread, args=(n,)
-        )
+        self._ping_process = multiprocessing.Process(target=self._check_ping_thread, args=(n,))
         self._ping_process.start()
 
     def _check_ping_thread(self, n: int):
         i = 0
-        while i < n and not self._offline_mode and not self._server_available.value:
+        while (
+            i < n
+            and not self._offline_mode
+            # typing doesn't support multiprocessing.Value very well
+            and not self._server_available.value  # type: ignore
+        ):
             try:
                 self._set_ping_status(timeout=2 * (i + 1))
             except Exception:
@@ -295,7 +283,8 @@ class SubsonicAdapter(Adapter):
     def _set_ping_status(self, timeout: int = 2):
         logging.info(f"SET PING STATUS timeout={timeout}")
         now = datetime.now().timestamp()
-        if now - self._last_ping_timestamp.value < 15:
+        # typing doesn't support multiprocessing.Value very well
+        if now - self._last_ping_timestamp.value < 15:  # type: ignore
             return
 
         # Try to ping the server.
@@ -310,7 +299,8 @@ class SubsonicAdapter(Adapter):
 
     @property
     def ping_status(self) -> bool:
-        return self._server_available.value
+        # typing doesn't support multiprocessing.Value very well
+        return self._server_available.value  # type: ignore
 
     can_create_playlist = True
     can_delete_playlist = True
@@ -332,9 +322,10 @@ class SubsonicAdapter(Adapter):
     can_update_playlist = True
 
     def version_at_least(self, version: str) -> bool:
-        if not self._version.value:
-            return False
-        return semver.VersionInfo.parse(self._version.value.decode()) >= version
+        # typing doesn't support multiprocessing.Value very well
+        if v := self._version.value:  # type: ignore
+            return semver.VersionInfo.parse(v.decode()) >= version
+        return False
 
     @property
     def can_get_genres(self) -> bool:
@@ -384,7 +375,8 @@ class SubsonicAdapter(Adapter):
             "u": self.username,
             "c": "Sublime Music",
             "f": "json",
-            "v": self._version.value.decode() or "1.8.0",
+            # typing doesn't support multiprocessing.Value very well
+            "v": self._version.value.decode() or "1.8.0",  # type: ignore
         }
 
         if self.use_salt_auth:
@@ -481,13 +473,15 @@ class SubsonicAdapter(Adapter):
                     result.status_code, f"{url} returned status={result.status_code}."
                 )
             # Any time that a server request succeeds, then we win.
-            self._server_available.value = True
-            self._last_ping_timestamp.value = datetime.now().timestamp()
+            # typing doesn't support multiprocessing.Value very well
+            self._server_available.value = True  # type: ignore
+            self._last_ping_timestamp.value = datetime.now().timestamp()  # type: ignore
 
         except Exception:
             logging.exception(f"[FAIL] get: {url} failed")
-            self._server_available.value = False
-            self._last_ping_timestamp.value = datetime.now().timestamp()
+            # typing doesn't support multiprocessing.Value very well
+            self._server_available.value = False  # type: ignore
+            self._last_ping_timestamp.value = datetime.now().timestamp()  # type: ignore
             if not is_exponential_backoff_ping:
                 self._exponential_backoff(5)
             raise
@@ -526,7 +520,8 @@ class SubsonicAdapter(Adapter):
                 subsonic_response["error"].get("message"),
             )
 
-        self._version.value = subsonic_response["version"].encode()
+        # typing doesn't support multiprocessing.Value very well
+        self._version.value = subsonic_response["version"].encode()  # type: ignore
 
         logging.debug(f"Response from {url}: {subsonic_response}")
         return Response.from_dict(subsonic_response)
@@ -574,7 +569,7 @@ class SubsonicAdapter(Adapter):
         return result
 
     def create_playlist(
-        self, name: str, songs: Sequence[API.Song] = None
+        self, name: str, songs: Sequence[API.Song] | None = None
     ) -> Optional[API.Playlist]:
         return self._get_json(
             self._make_url("createPlaylist"),
@@ -585,11 +580,11 @@ class SubsonicAdapter(Adapter):
     def update_playlist(
         self,
         playlist_id: str,
-        name: str = None,
-        comment: str = None,
-        public: bool = None,
-        song_ids: Sequence[str] = None,
-        append_song_ids: Sequence[str] = None,
+        name: str | None = None,
+        comment: str | None = None,
+        public: bool | None = None,
+        song_ids: Sequence[str] | None = None,
+        append_song_ids: Sequence[str] | None = None,
     ) -> API.Playlist:
         if any(x is not None for x in (name, comment, public, append_song_ids)):
             self._get_json(
@@ -657,9 +652,7 @@ class SubsonicAdapter(Adapter):
         assert artist, f"Error getting artist {artist_id}"
         if self.version_at_least("1.11.0"):
             try:
-                artist_info = self._get_json(
-                    self._make_url("getArtistInfo2"), id=artist_id
-                )
+                artist_info = self._get_json(self._make_url("getArtistInfo2"), id=artist_id)
                 artist.augment_with_artist_info(artist_info.artist_info)
             except Exception:
                 pass
@@ -701,14 +694,12 @@ class SubsonicAdapter(Adapter):
 
         extra_args: Dict[str, Any] = {}
         if query.type == AlbumSearchQuery.Type.YEAR_RANGE:
-            assert (year_range := query.year_range)
             extra_args = {
-                "fromYear": year_range[0],
-                "toYear": year_range[1],
+                "fromYear": query.year_range[0],
+                "toYear": query.year_range[1],
             }
         elif query.type == AlbumSearchQuery.Type.GENRE:
-            assert (genre := query.genre)
-            extra_args = {"genre": genre.name}
+            extra_args = {"genre": query.genre.name}
 
         albums: List[API.Album] = []
         page_size = 50 if query.type == AlbumSearchQuery.Type.RANDOM else 500
@@ -746,7 +737,7 @@ class SubsonicAdapter(Adapter):
 
         root_dir_items: List[Dict[str, Any]] = []
         for index in indexes.index:
-            root_dir_items.extend(map(lambda x: {**x, "isDir": True}, index.artist))
+            root_dir_items.extend({**x, "isDir": True} for x in index.artist)
         return Directory(id="root", _children=root_dir_items)
 
     def get_directory(self, directory_id: str) -> API.Directory:
@@ -754,9 +745,7 @@ class SubsonicAdapter(Adapter):
             return self._get_indexes()
 
         # TODO (#187) make sure to filter out all non-song files
-        directory = self._get_json(
-            self._make_url("getMusicDirectory"), id=directory_id
-        ).directory
+        directory = self._get_json(self._make_url("getMusicDirectory"), id=directory_id).directory
         assert directory, f"Error getting directory {directory_id}"
         return directory
 
@@ -771,8 +760,8 @@ class SubsonicAdapter(Adapter):
     def save_play_queue(
         self,
         song_ids: Sequence[str],
-        current_song_index: int = None,
-        position: timedelta = None,
+        current_song_index: int | None = None,
+        position: timedelta | None = None,
     ):
         # TODO (sonic-extensions-api/specification#1) make an extension that allows you
         # to save the play queue position by index instead of id.
@@ -780,9 +769,7 @@ class SubsonicAdapter(Adapter):
             self._make_url("savePlayQueue"),
             id=song_ids,
             timeout=2,
-            current=song_ids[current_song_index]
-            if current_song_index is not None
-            else None,
+            current=song_ids[current_song_index] if current_song_index is not None else None,
             position=math.floor(position.total_seconds() * 1000) if position else None,
         )
 

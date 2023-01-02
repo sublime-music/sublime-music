@@ -2,16 +2,12 @@ from gi.repository import Gtk
 
 
 class LoadError(Gtk.Box):
-    def __init__(
-        self, entity_name: str, action: str, has_data: bool, offline_mode: bool
-    ):
+    def __init__(self, entity_name: str, action: str, has_data: bool, offline_mode: bool):
         Gtk.Box.__init__(self, orientation=Gtk.Orientation.VERTICAL)
 
         self.pack_start(Gtk.Box(), True, True, 0)
 
-        inner_box = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL, name="load-error-box"
-        )
+        inner_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, name="load-error-box")
 
         inner_box.pack_start(Gtk.Box(), True, True, 0)
 

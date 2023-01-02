@@ -45,9 +45,7 @@ class UIState:
     @dataclass(unsafe_hash=True)
     class UINotification:
         markup: str
-        actions: Tuple[Tuple[str, Callable[[], None]], ...] = field(
-            default_factory=tuple
-        )
+        actions: Tuple[Tuple[str, Callable[[], None]], ...] = field(default_factory=tuple)
         icon: Optional[str] = None
 
     version: int = 1
@@ -88,11 +86,12 @@ class UIState:
             self.name = "Rock"
 
     current_album_search_query: AlbumSearchQuery = field(
-        default_factory = lambda: AlbumSearchQuery(
+        default_factory=lambda: AlbumSearchQuery(
             AlbumSearchQuery.Type.RANDOM,
             genre=UIState._DefaultGenre(),
             year_range=this_decade(),
-       ))
+        )
+    )
 
     active_playlist_id: Optional[str] = None
 
@@ -113,9 +112,7 @@ class UIState:
     def __init_available_players__(self):
         from sublime_music.players import PlayerManager
 
-        self.available_players = {
-            pt: set() for pt in PlayerManager.available_player_types
-        }
+        self.available_players = {pt: set() for pt in PlayerManager.available_player_types}
 
     def migrate(self):
         pass
@@ -132,9 +129,7 @@ class UIState:
         current_song_id = self.play_queue[self.current_song_index]
 
         if not self._current_song or self._current_song.id != current_song_id:
-            self._current_song = AdapterManager.get_song_details(
-                current_song_id
-            ).result()
+            self._current_song = AdapterManager.get_song_details(current_song_id).result()
 
         return self._current_song
 

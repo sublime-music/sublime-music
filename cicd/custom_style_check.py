@@ -33,13 +33,12 @@ def eprint(*strings):
 
 
 def check_file(path: Path) -> bool:
-    print(f"Checking {path.absolute()}...")  # noqa: T001
     file = path.open()
     valid = True
 
     for i, line in enumerate(file, start=1):
         if todo_re.match(line) and not accounted_for_todo.match(line):
-            eprint(f"{i}: {line}")
+            eprint(f"{path.absolute()}:{i}: {line}")
             valid = False
 
     file.close()

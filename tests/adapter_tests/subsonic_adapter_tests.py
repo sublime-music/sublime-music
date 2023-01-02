@@ -10,7 +10,7 @@ import pytest
 from dateutil.tz import tzutc
 
 from sublime_music.adapters import ConfigurationStore
-from sublime_music.adapters.subsonic import api_objects as SubsonicAPI, SubsonicAdapter
+from sublime_music.adapters.subsonic import SubsonicAdapter, api_objects as SubsonicAPI
 
 MOCK_DATA_FILES = Path(__file__).parent.joinpath("mock_data")
 
@@ -51,9 +51,7 @@ def salt_auth_adapter(tmp_path: Path):
     adapter.shutdown()
 
 
-def mock_data_files(
-    request_name: str, mode: str = "r"
-) -> Generator[Tuple[Path, Any], None, None]:
+def mock_data_files(request_name: str, mode: str = "r") -> Generator[Tuple[Path, Any], None, None]:
     """
     Yields all of the files, and each of the elements of in the file (separated by a
     line of ='s), for all files in the mock_data directory that start with
@@ -75,7 +73,7 @@ def mock_data_files(
                     aggregate.append(line)
 
                 parts.append("\n".join(aggregate))
-                print(file)  # noqa: T001
+                print(file)  # noqa: T201
                 num_files += 1
                 yield file, iter(parts)
 
@@ -84,9 +82,7 @@ def mock_data_files(
 
 
 def mock_json(**obj: Any) -> str:
-    return json.dumps(
-        {"subsonic-response": {"status": "ok", "version": "1.15.0", **obj}}
-    )
+    return json.dumps({"subsonic-response": {"status": "ok", "version": "1.15.0", **obj}})
 
 
 def camel_to_snake(name: str) -> str:
@@ -164,7 +160,8 @@ def test_ping_status(adapter: SubsonicAdapter):
 
     # Simulate valid ping
     adapter._set_mock_data(mock_json())
-    adapter._last_ping_timestamp.value = 0.0
+    # typing doesn't support multiprocessing.Value very well
+    adapter._last_ping_timestamp.value = 0.0  # type: ignore
     adapter._set_ping_status()
     assert adapter.ping_status
 
@@ -465,9 +462,7 @@ def test_get_play_queue(adapter: SubsonicAdapter):
         assert play_queue.current_index and play_queue.current_index == 1
         assert play_queue.position == timedelta(milliseconds=98914)
         assert play_queue.username == "sumner"
-        assert play_queue.changed == datetime(
-            2020, 5, 12, 5, 16, 32, 114000, tzinfo=timezone.utc
-        )
+        assert play_queue.changed == datetime(2020, 5, 12, 5, 16, 32, 114000, tzinfo=timezone.utc)
         assert play_queue.songs and len(play_queue.songs) == 5
 
         song = play_queue.songs[0]

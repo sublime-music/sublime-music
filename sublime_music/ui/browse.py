@@ -1,11 +1,10 @@
 from functools import partial
-from typing import Any, cast, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, cast
 
 import bleach
-
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from ..adapters import AdapterManager, api_objects as API, CacheMissError, Result
+from ..adapters import AdapterManager, CacheMissError, Result, api_objects as API
 from ..config import AppConfiguration
 from ..ui import util
 from ..ui.common import IconButton, LoadError, SongListColumn
@@ -108,9 +107,7 @@ class BrowsePanel(Gtk.Overlay):
 
         path_result: Result[Tuple[str, ...]] = Result(calculate_path)
         path_result.add_done_callback(
-            lambda f: GLib.idle_add(
-                partial(do_update, self.update_order_token), f.result()
-            )
+            lambda f: GLib.idle_add(partial(do_update, self.update_order_token), f.result())
         )
 
 
@@ -180,9 +177,7 @@ class ListAndDrilldown(Gtk.Paned):
                 self.box.add(drilldown)
                 self.box.show_all()
 
-            self.box.get_children()[0].update(
-                tuple(child_id_stack), app_config, force=force
-            )
+            self.box.get_children()[0].update(tuple(child_id_stack), app_config, force=force)
 
 
 class MusicDirectoryList(Gtk.Box):
@@ -262,14 +257,10 @@ class MusicDirectoryList(Gtk.Box):
         self.directory_song_list.append_column(column)
 
         self.directory_song_list.append_column(SongListColumn("TITLE", 2, bold=True))
-        self.directory_song_list.append_column(
-            SongListColumn("DURATION", 3, align=1, width=40)
-        )
+        self.directory_song_list.append_column(SongListColumn("DURATION", 3, align=1, width=40))
 
         self.directory_song_list.connect("row-activated", self.on_song_activated)
-        self.directory_song_list.connect(
-            "button-press-event", self.on_song_button_press
-        )
+        self.directory_song_list.connect("button-press-event", self.on_song_button_press)
         scrollbox.add(self.directory_song_list)
 
         self.scroll_window.add(scrollbox)
@@ -277,10 +268,10 @@ class MusicDirectoryList(Gtk.Box):
 
     def update(
         self,
-        app_config: AppConfiguration = None,
+        app_config: AppConfiguration | None = None,
         force: bool = False,
-        directory_id: str = None,
-        selected_id: str = None,
+        directory_id: str | None = None,
+        selected_id: str | None = None,
     ):
         self.directory_id = directory_id or self.directory_id
         self.selected_id = selected_id or self.selected_id
@@ -311,9 +302,9 @@ class MusicDirectoryList(Gtk.Box):
     def update_store(
         self,
         directory: API.Directory,
-        app_config: AppConfiguration = None,
+        app_config: AppConfiguration | None = None,
         force: bool = False,
-        order_token: int = None,
+        order_token: int | None = None,
         is_partial: bool = False,
     ):
         if order_token != self.update_order_token:
@@ -373,9 +364,7 @@ class MusicDirectoryList(Gtk.Box):
                 else:
                     songs.append(cast(API.Song, el))
 
-            util.diff_model_store(
-                self.drilldown_directories_store, new_directories_store
-            )
+            util.diff_model_store(self.drilldown_directories_store, new_directories_store)
 
             def song_sort_key(song: API.Song) -> Tuple[Optional[int], Optional[int]]:
                 return (
@@ -389,25 +378,21 @@ class MusicDirectoryList(Gtk.Box):
                 [
                     (
                         not self.offline_mode
-                        or status_icon
-                        in ("folder-download-symbolic", "view-pin-symbolic")
+                        or status_icon in ("folder-download-symbolic", "view-pin-symbolic")
                     ),
                     status_icon,
                     bleach.clean(song.title),
                     util.format_song_duration(song.duration),
                     song.id,
                 ]
-                for status_icon, song in zip(
-                    util.get_cached_status_icons(song_ids), songs
-                )
+                for status_icon, song in zip(util.get_cached_status_icons(song_ids), songs)
             ]
         else:
             new_songs_store = [
                 [
                     (
                         not self.offline_mode
-                        or status_icon
-                        in ("folder-download-symbolic", "view-pin-symbolic")
+                        or status_icon in ("folder-download-symbolic", "view-pin-symbolic")
                     ),
                     status_icon,
                     *song_model[2:],

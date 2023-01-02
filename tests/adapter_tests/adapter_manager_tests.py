@@ -3,14 +3,9 @@ from time import sleep
 
 import pytest
 
-from sublime_music.adapters import (
-    AdapterManager,
-    ConfigurationStore,
-    Result,
-    SearchResult,
-)
+from sublime_music.adapters import AdapterManager, ConfigurationStore, Result, SearchResult
 from sublime_music.adapters.filesystem import FilesystemAdapter
-from sublime_music.adapters.subsonic import api_objects as SubsonicAPI, SubsonicAdapter
+from sublime_music.adapters.subsonic import SubsonicAdapter, api_objects as SubsonicAPI
 from sublime_music.config import AppConfiguration, ProviderConfiguration
 
 
@@ -68,7 +63,7 @@ def test_result_future():
         sleep(0.1)
         return 42
 
-    result = Result(resolve_later)
+    result: Result[int] = Result(resolve_later)
     assert not result.data_is_available
     assert result.result() == 42
     assert result.data_is_available
@@ -87,12 +82,12 @@ def test_result_future_callback():
         assert f.result() == 42
         check_done = True
 
-    result = Result(resolve_later)
+    result: Result[int] = Result(resolve_later)
     result.add_done_callback(check_done_callback)
 
     # Should take much less than 1 seconds to complete. If the assertion fails, then the
     # check_done_callback failed.
-    t = 0
+    t = 0.0
     while not check_done:
         assert t < 1
         t += 0.1
@@ -121,7 +116,7 @@ def test_cancel():
         nonlocal cancel_called
         cancel_called = True
 
-    result = Result(resolve_later, on_cancel=on_cancel)
+    result: Result[int] = Result(resolve_later, on_cancel=on_cancel)
     result.cancel()
     assert cancel_called
     assert not result.data_is_available

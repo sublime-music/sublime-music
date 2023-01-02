@@ -8,7 +8,6 @@ from functools import lru_cache, partial
 from typing import (
     Any,
     Callable,
-    cast,
     Dict,
     Iterable,
     List,
@@ -17,6 +16,7 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
+    cast,
 )
 
 from thefuzz import fuzz
@@ -145,7 +145,7 @@ class SearchResult:
     both server and local results.
     """
 
-    def __init__(self, query: str = None):
+    def __init__(self, query: Optional[str] = None):
         self.query = query
         self.similiarity_partial = partial(
             similarity_ratio, self.query.lower() if self.query else ""
@@ -157,7 +157,7 @@ class SearchResult:
 
     def __repr__(self) -> str:
         fields = ("query", "_artists", "_albums", "_songs", "_playlists")
-        formatted_fields = map(lambda f: f"{f}={getattr(self, f)}", fields)
+        formatted_fields = (f"{f}={getattr(self, f)}" for f in fields)
         return f"<SearchResult {' '.join(formatted_fields)}>"
 
     def add_results(self, result_type: str, results: Iterable):
@@ -190,9 +190,7 @@ class SearchResult:
                 continue
 
             max_similarity = max(
-                self.similiarity_partial(t.lower())
-                for t in transformed
-                if t is not None
+                self.similiarity_partial(t.lower()) for t in transformed if t is not None
             )
             if max_similarity < 60:
                 continue
@@ -225,15 +223,11 @@ class SearchResult:
 
     @property
     def albums(self) -> List[Album]:
-        return self._to_result(
-            self._albums, lambda a: (a.name, self._try_get_artist_name(a))
-        )
+        return self._to_result(self._albums, lambda a: (a.name, self._try_get_artist_name(a)))
 
     @property
     def songs(self) -> List[Song]:
-        return self._to_result(
-            self._songs, lambda s: (s.title, self._try_get_artist_name(s))
-        )
+        return self._to_result(self._songs, lambda s: (s.title, self._try_get_artist_name(s)))
 
     @property
     def playlists(self) -> List[Playlist]:

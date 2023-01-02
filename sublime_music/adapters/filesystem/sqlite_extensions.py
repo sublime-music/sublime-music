@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
 from typing import Any, Optional, Sequence
 
-from peewee import (
+from peewee import ensure_tuple  # type: ignore
+from peewee import (  # type: ignore
     DoubleField,
-    ensure_tuple,
     ForeignKeyField,
     IntegerField,
     ManyToManyField,
@@ -50,8 +50,8 @@ class SortedManyToManyQuery(ManyToManyQuery):
         if clear_existing:
             self.clear()
 
-        accessor = self._accessor
-        src_id = getattr(self._instance, self._src_attr)
+        accessor = self._accessor  # type: ignore
+        src_id = getattr(self._instance, self._src_attr)  # type: ignore
         assert not isinstance(value, SelectQuery)
         value = ensure_tuple(value)
         if not value:
@@ -63,7 +63,7 @@ class SortedManyToManyQuery(ManyToManyQuery):
                 accessor.dest_fk.name: rel_id,
                 "position": i,
             }
-            for i, rel_id in enumerate(self._id_list(value))
+            for i, rel_id in enumerate(self._id_list(value))  # type: ignore
         ]
         accessor.through_model.insert_many(inserts).execute()
 
@@ -84,9 +84,9 @@ class SortedManyToManyFieldAccessor(ManyToManyFieldAccessor):
 
             src_id = getattr(instance, self.src_fk.rel_field.name)
             return (
-                SortedManyToManyQuery(instance, self, self.rel_model)
+                SortedManyToManyQuery(instance, self, self.rel_model)  # type: ignore
                 .join(self.through_model)
-                .join(self.model)
+                .join(self.model)  # type: ignore
                 .where(self.src_fk == src_id)
                 .order_by(self.through_model.position)
             )
@@ -111,7 +111,7 @@ class SortedManyToManyField(ManyToManyField):
             table_name = "{}_{}_through".format(*tables)
             indexes = (((lhs._meta.name, rhs._meta.name, "position"), True),)
 
-        params = {"on_delete": self._on_delete, "on_update": self._on_update}
+        params = {"on_delete": self._on_delete, "on_update": self._on_update}  # type: ignore
         attrs = {
             lhs._meta.name: ForeignKeyField(lhs, **params),
             rhs._meta.name: ForeignKeyField(rhs, **params),

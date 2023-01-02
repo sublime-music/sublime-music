@@ -52,7 +52,7 @@ six==1.16.0
     # via
     #   bleach
     #   python-dateutil
-thefuzz==0.19.0
+thefuzz @ git+https://github.com/seatgeek/thefuzz@6e68af84e086b3e5f7253d4f9b0d6c7313e34637
     # via sublime_music (pyproject.toml)
 typing-extensions==4.4.0
     # via typing-inspect

@@ -16,9 +16,7 @@ from .app import SublimeMusicApp
 
 def main():
     parser = argparse.ArgumentParser(description="Sublime Music")
-    parser.add_argument(
-        "-v", "--version", help="show version and exit", action="store_true"
-    )
+    parser.add_argument("-v", "--version", help="show version and exit", action="store_true")
     parser.add_argument("-l", "--logfile", help="the filename to send logs to")
     parser.add_argument(
         "-m",
@@ -34,12 +32,12 @@ def main():
 
     args, unknown_args = parser.parse_known_args()
     if args.version:
-        print(f"Sublime Music v{sublime_music.__version__}")  # noqa: T001
+        print(f"Sublime Music v{sublime_music.__version__}")  # noqa: T201
         return
 
     min_log_level = getattr(logging, args.loglevel.upper(), None)
     if not isinstance(min_log_level, int):
-        print(f"Invalid log level: {args.loglevel.upper()}.")  # noqa: T001
+        print(f"Invalid log level: {args.loglevel.upper()}.")  # noqa: T201
         min_log_level = logging.WARNING
 
     logging.basicConfig(

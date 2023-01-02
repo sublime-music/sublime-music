@@ -6,10 +6,10 @@ from peewee import (
     ForeignKeyField,
     IntegerField,
     Model,
-    prefetch,
     Query,
     SqliteDatabase,
     TextField,
+    prefetch,
 )
 
 from .sqlite_extensions import (
@@ -119,7 +119,12 @@ class Album(BaseModel):
         albums = Album.select()
         artists = Album.select()
         return sorted(
-            prefetch(self._songs, albums, artists),
+            prefetch(
+                # _songs is a backref from Song
+                self._songs,  # type: ignore
+                albums,
+                artists,
+            ),
             key=lambda s: (s.disc_number or 1, s.track),
         )
 
@@ -143,9 +148,9 @@ class Directory(BaseModel):
     @property
     def children(self) -> List[Union["Directory", "Song"]]:
         if not self._children:
-            self._children = list(
-                Directory.select().where(Directory.parent_id == self.id)
-            ) + list(Song.select().where(Song.parent_id == self.id))
+            self._children = list(Directory.select().where(Directory.parent_id == self.id)) + list(
+                Song.select().where(Song.parent_id == self.id)
+            )
         return self._children
 
     @children.setter

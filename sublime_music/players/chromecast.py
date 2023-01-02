@@ -6,15 +6,15 @@ import multiprocessing
 import os
 import socket
 from datetime import timedelta
-from typing import Any, Callable, cast, Dict, Optional, Set, Tuple, Type, Union
+from typing import Any, Callable, Dict, Optional, Set, Tuple, Type, Union, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
 from gi.repository import GLib
 
-from .base import Player, PlayerDeviceEvent, PlayerEvent
 from ..adapters import AdapterManager
 from ..adapters.api_objects import Song
+from .base import Player, PlayerDeviceEvent, PlayerEvent
 
 try:
     import pychromecast
@@ -193,11 +193,15 @@ class ChromecastPlayer(Player):
         self.time_increment_order_token += 1
         GLib.timeout_add(500, increment_time, self.time_increment_order_token)
 
+    def reset(self):
+        pass
+
     def shutdown(self):
         if self.server_process:
             self.server_process.terminate()
 
         try:
+            assert self._current_chromecast
             self._current_chromecast.quit_app()
         except Exception:
             pass
@@ -220,11 +224,12 @@ class ChromecastPlayer(Player):
 
         @app.route("/s/<token>")
         def stream_song(token: str) -> bytes:
-            if token != self._serving_token.value.decode():
+            # typing doesn't support multiprocessing.Value very well
+            if token != self._serving_token.value.decode():  # type: ignore
                 raise bottle.HTTPError(status=401, body="Invalid token.")
 
             song = AdapterManager.get_song_details(
-                self._serving_song_id.value.decode()
+                self._serving_song_id.value.decode()  # type: ignore
             ).result()
             filename = AdapterManager.get_song_file_uri(song)
             with open(filename[7:], "rb") as fin:
@@ -239,15 +244,12 @@ class ChromecastPlayer(Player):
 
     @property
     def playing(self) -> bool:
-        if (
-            not self._current_chromecast
-            or not self._current_chromecast.media_controller
-        ):
+        if not self._current_chromecast or not self._current_chromecast.media_controller:
             return False
         return self._current_chromecast.media_controller.status.player_is_playing
 
     def get_volume(self) -> float:
-        if self._current_chromecast:
+        if self._current_chromecast and self._current_chromecast.status:
             # The volume is in the range [0, 1]. Multiply by 100 to get to [0, 100].
             return self._current_chromecast.status.volume_level * 100
         else:
@@ -273,8 +275,9 @@ class ChromecastPlayer(Player):
         scheme = urlparse(uri).scheme
         if scheme == "file":
             token = base64.b16encode(os.urandom(8))
-            self._serving_token.value = token
-            self._serving_song_id.value = song.id.encode()
+            # typing doesn't support multiprocessing.Value very well
+            self._serving_token.value = token  # type: ignore
+            self._serving_song_id.value = song.id.encode()  # type: ignore
 
             # If this fails, then we are basically screwed, so don't care if it blows
             # up.
@@ -286,7 +289,7 @@ class ChromecastPlayer(Player):
             s.close()
 
             uri = f"http://{host_ip}:{self.config.get(LAN_PORT_KEY)}/s/{token.decode()}"
-            logging.info("Serving {song.name} at {uri}")
+            logging.info(f"Serving {song.title} at {uri}")
 
         assert AdapterManager._instance
         networked_scheme_priority = ("https", "http")
@@ -340,4 +343,7 @@ class ChromecastPlayer(Player):
             self.pause()
 
     def _wait_for_playing(self):
+        pass
+
+    def next_media_cached(self, *_):
         pass

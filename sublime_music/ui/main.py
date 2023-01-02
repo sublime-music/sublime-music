@@ -2,15 +2,9 @@ from functools import partial
 from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 import bleach
-
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
-from ..adapters import (
-    AdapterManager,
-    api_objects as API,
-    DownloadProgress,
-    Result,
-)
+from ..adapters import AdapterManager, DownloadProgress, Result, api_objects as API
 from ..config import AppConfiguration, ProviderConfiguration
 from ..players import PlayerManager
 from ..ui import albums, artists, browse, player_controls, playlists, util
@@ -69,9 +63,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         notification_container.add(self.stack)
 
-        self.notification_revealer = Gtk.Revealer(
-            valign=Gtk.Align.END, halign=Gtk.Align.CENTER
-        )
+        self.notification_revealer = Gtk.Revealer(valign=Gtk.Align.END, halign=Gtk.Align.CENTER)
 
         notification_box = Gtk.Box(can_focus=False, valign="start", spacing=10)
         notification_box.get_style_context().add_class("app-notification")
@@ -95,12 +87,8 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Player Controls
         self.player_controls = player_controls.PlayerControls()
-        self.player_controls.connect(
-            "song-clicked", lambda _, *a: self.emit("song-clicked", *a)
-        )
-        self.player_controls.connect(
-            "songs-removed", lambda _, *a: self.emit("songs-removed", *a)
-        )
+        self.player_controls.connect("song-clicked", lambda _, *a: self.emit("song-clicked", *a))
+        self.player_controls.connect("songs-removed", lambda _, *a: self.emit("songs-removed", *a))
         self.player_controls.connect(
             "refresh-window",
             lambda _, *args: self.emit("refresh-window", *args),
@@ -125,9 +113,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self.current_notification_hash = h
 
             if notification.icon:
-                self.notification_icon.set_from_icon_name(
-                    notification.icon, Gtk.IconSize.DND
-                )
+                self.notification_icon.set_from_icon_name(notification.icon, Gtk.IconSize.DND)
             else:
                 self.notification_icon.set_from_icon_name(None, Gtk.IconSize.DND)
 
@@ -155,7 +141,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self.connected_to_label.set_markup("<i>No Music Source Selected</i>")
             icon_basename = "list-add"
 
-        if AdapterManager.ground_truth_adapter_is_networked:
+        if AdapterManager.ground_truth_adapter_is_networked():
             status_label = ""
             if app_config.offline_mode:
                 status_label = "Offline"
@@ -166,9 +152,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
             icon_status = status_label.split()[0].lower()
 
-            self.server_connection_menu_button.set_icon(
-                f"{icon_basename}-{icon_status}-symbolic"
-            )
+            self.server_connection_menu_button.set_icon(f"{icon_basename}-{icon_status}-symbolic")
             self.connection_status_icon.set_from_icon_name(
                 f"server-{icon_status}-symbolic",
                 Gtk.IconSize.BUTTON,
@@ -187,9 +171,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Switch Provider options
         other_providers = tuple(
-            v
-            for k, v in app_config.providers.items()
-            if k != app_config.current_provider_id
+            v for k, v in app_config.providers.items() if k != app_config.current_provider_id
         )
         if self.current_other_providers != other_providers:
             self.current_other_providers = other_providers
@@ -233,9 +215,7 @@ class MainWindow(Gtk.ApplicationWindow):
         for player_name, options in player_manager.get_configuration_options().items():
             self.player_settings_box.add(Gtk.Separator())
             self.player_settings_box.add(
-                self._create_label(
-                    f"{player_name} Settings", name="menu-settings-separator"
-                )
+                self._create_label(f"{player_name} Settings", name="menu-settings-separator")
             )
 
             for option_name, descriptor in options.items():
@@ -243,9 +223,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 setting_box.add(option_name_label := Gtk.Label(label=option_name))
                 option_name_label.get_style_context().add_class("menu-label")
 
-                option_value = app_config.player_config.get(player_name, {}).get(
-                    option_name
-                )
+                option_value = app_config.player_config.get(player_name, {}).get(option_name)
 
                 if type(descriptor) == tuple:
                     option_store = Gtk.ListStore(str)
@@ -327,7 +305,7 @@ class MainWindow(Gtk.ApplicationWindow):
                             emit_player_settings_change,
                             player_name,
                             option_name,
-                            lambda b: int(entry.get_text()),
+                            lambda _: int(entry.get_text()),
                         ),
                     )
                     cancel_button.connect("clicked", on_cancel_button_click)
@@ -347,9 +325,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.allow_song_downloads_switch.set_active(allow_song_downloads)
         self.download_on_stream_switch.set_active(app_config.download_on_stream)
         self.prefetch_songs_entry.set_value(app_config.prefetch_amount)
-        self.max_concurrent_downloads_entry.set_value(
-            app_config.concurrent_download_limit
-        )
+        self.max_concurrent_downloads_entry.set_value(app_config.concurrent_download_limit)
         self.download_on_stream_switch.set_sensitive(allow_song_downloads)
         self.prefetch_songs_entry.set_sensitive(allow_song_downloads)
         self.max_concurrent_downloads_entry.set_sensitive(allow_song_downloads)
@@ -403,17 +379,13 @@ class MainWindow(Gtk.ApplicationWindow):
             if song_id in self._failed_downloads:
                 self._failed_downloads.remove(song_id)
 
-            self._current_download_boxes[song_id].update_progress(
-                progress.progress_fraction
-            )
+            self._current_download_boxes[song_id].update_progress(progress.progress_fraction)
 
         # Show or hide the "failed count" indicator.
         failed_download_count = len(self._failed_downloads)
         if failed_download_count > 0:
             if not self._failed_downloads_box:
-                self._failed_downloads_box = Gtk.Box(
-                    orientation=Gtk.Orientation.HORIZONTAL
-                )
+                self._failed_downloads_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
                 self._failed_downloads_label = Gtk.Label(
                     label="",
@@ -428,9 +400,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 retry_all_button.connect("clicked", self._on_retry_all_clicked)
                 self._failed_downloads_box.pack_end(retry_all_button, False, False, 0)
 
-                self.current_downloads_box.pack_start(
-                    self._failed_downloads_box, False, False, 5
-                )
+                self.current_downloads_box.pack_start(self._failed_downloads_box, False, False, 5)
             songs = util.pluralize("song", failed_download_count)
             self._failed_downloads_label.set_text(
                 f"{failed_download_count} {songs} failed to download"
@@ -449,13 +419,9 @@ class MainWindow(Gtk.ApplicationWindow):
                     halign=Gtk.Align.START,
                     name="current-downloads-list-pending-count",
                 )
-                self.current_downloads_box.pack_end(
-                    self._pending_downloads_label, False, False, 5
-                )
+                self.current_downloads_box.pack_end(self._pending_downloads_label, False, False, 5)
             songs = util.pluralize("song", pending_download_count)
-            self._pending_downloads_label.set_text(
-                f"+{pending_download_count} pending {songs}"
-            )
+            self._pending_downloads_label.set_text(f"+{pending_download_count} pending {songs}")
         else:
             if self._pending_downloads_label:
                 self.current_downloads_box.remove(self._pending_downloads_label)
@@ -464,9 +430,7 @@ class MainWindow(Gtk.ApplicationWindow):
         # Show or hide the placeholder depending on whether or not there's anything to
         # show.
         current_downloads = (
-            len(self._current_download_boxes)
-            + pending_download_count
-            + failed_download_count
+            len(self._current_download_boxes) + pending_download_count + failed_download_count
         )
         if current_downloads == 0:
             if not self._current_downloads_placeholder:
@@ -526,9 +490,7 @@ class MainWindow(Gtk.ApplicationWindow):
         # Search
         self.search_entry = Gtk.SearchEntry(placeholder_text="Search everything...")
         self.search_entry.connect("focus-in-event", self._on_search_entry_focus)
-        self.search_entry.connect(
-            "button-press-event", self._on_search_entry_button_press
-        )
+        self.search_entry.connect("button-press-event", self._on_search_entry_button_press)
         self.search_entry.connect("focus-out-event", self._on_search_entry_loose_focus)
         self.search_entry.connect("changed", self._on_search_entry_changed)
         self.search_entry.connect("stop-search", self._on_search_entry_stop_search)
@@ -575,9 +537,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.server_connection_menu_button.connect(
             "clicked", self._on_server_connection_menu_clicked
         )
-        self.server_connection_popover.set_relative_to(
-            self.server_connection_menu_button
-        )
+        self.server_connection_popover.set_relative_to(self.server_connection_menu_button)
         button_box.add(self.server_connection_menu_button)
 
         header.pack_end(button_box)
@@ -616,9 +576,9 @@ class MainWindow(Gtk.ApplicationWindow):
     def _create_model_button(
         self,
         text: str,
-        clicked_fn: Callable = None,
-        action_name: str = None,
-        action_value: GLib.Variant = None,
+        clicked_fn: Callable | None = None,
+        action_name: str | None = None,
+        action_value: GLib.Variant | None = None,
         **kwargs,
     ) -> Gtk.ModelButton:
         model_button = Gtk.ModelButton(text=text, **kwargs)
@@ -631,9 +591,7 @@ class MainWindow(Gtk.ApplicationWindow):
             model_button.set_action_target_value(action_value)
         return model_button
 
-    def _create_switch_provider_button(
-        self, provider: ProviderConfiguration
-    ) -> Gtk.Box:
+    def _create_switch_provider_button(self, provider: ProviderConfiguration) -> Gtk.Box:
         box = Gtk.Box()
         provider_name_button = self._create_model_button(
             provider.name,
@@ -715,9 +673,7 @@ class MainWindow(Gtk.ApplicationWindow):
         clear_cache_options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         # Back button
-        clear_cache_options.add(
-            Gtk.ModelButton(inverted=True, centered=True, menu_name="main")
-        )
+        clear_cache_options.add(Gtk.ModelButton(inverted=True, centered=True, menu_name="main"))
 
         # Clear Song File Cache
         menu_items = [
@@ -757,9 +713,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.connection_status_icon.set_name("online-status-icon")
         self.connected_status_box.add(self.connection_status_icon)
 
-        self.connection_status_label = Gtk.Label(
-            label="Connected", name="connection-status-label"
-        )
+        self.connection_status_label = Gtk.Label(label="Connected", name="connection-status-label")
         self.connected_status_box.add(self.connection_status_label)
 
         self.connected_status_box.pack_start(Gtk.Box(), True, True, 0)
@@ -824,33 +778,23 @@ class MainWindow(Gtk.ApplicationWindow):
         # DOWNLOAD SETTINGS
         # ==============================================================================
         vbox.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
-        vbox.add(
-            self._create_label("Download Settings", name="menu-settings-separator")
-        )
+        vbox.add(self._create_label("Download Settings", name="menu-settings-separator"))
 
         # Allow Song Downloads
         (
             allow_song_downloads,
             self.allow_song_downloads_switch,
-        ) = self._create_toggle_menu_button(
-            "Allow Song Downloads", "allow_song_downloads"
-        )
+        ) = self._create_toggle_menu_button("Allow Song Downloads", "allow_song_downloads")
         vbox.add(allow_song_downloads)
 
         # Download on Stream
-        (
-            download_on_stream,
-            self.download_on_stream_switch,
-        ) = self._create_toggle_menu_button(
+        (download_on_stream, self.download_on_stream_switch,) = self._create_toggle_menu_button(
             "When Streaming, Also Download Song", "download_on_stream"
         )
         vbox.add(download_on_stream)
 
         # Prefetch Songs
-        (
-            prefetch_songs_box,
-            self.prefetch_songs_entry,
-        ) = self._create_spin_button_menu_item(
+        (prefetch_songs_box, self.prefetch_songs_entry,) = self._create_spin_button_menu_item(
             "Number of Songs to Prefetch", 0, 10, 1, "prefetch_amount"
         )
         vbox.add(prefetch_songs_box)
@@ -937,9 +881,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         return False
 
-    def _prompt_confirm_clear_cache(
-        self, title: str, detail_text: str
-    ) -> Gtk.ResponseType:
+    def _prompt_confirm_clear_cache(self, title: str, detail_text: str) -> Gtk.ResponseType:
         confirm_dialog = Gtk.MessageDialog(
             transient_for=self.get_toplevel(),
             message_type=Gtk.MessageType.WARNING,
@@ -1183,9 +1125,7 @@ class DownloadStatusBox(Gtk.Box):
 
         self.song = AdapterManager.get_song_details(song_id).result()
 
-        image = SpinnerImage(
-            image_size=30, image_name="current-downloads-cover-art-image"
-        )
+        image = SpinnerImage(image_size=30, image_name="current-downloads-cover-art-image")
         self.add(image)
 
         artist = self.song.artist.name if self.song.artist else None
@@ -1203,12 +1143,8 @@ class DownloadStatusBox(Gtk.Box):
         self.download_progress = Gtk.ProgressBar(show_text=True)
         self.add(self.download_progress)
 
-        self.cancel_button = IconButton(
-            "process-stop-symbolic", tooltip_text="Cancel download"
-        )
-        self.cancel_button.connect(
-            "clicked", lambda *a: self.emit("cancel-clicked", self.song.id)
-        )
+        self.cancel_button = IconButton("process-stop-symbolic", tooltip_text="Cancel download")
+        self.cancel_button.connect("clicked", lambda *a: self.emit("cancel-clicked", self.song.id))
         self.add(self.cancel_button)
 
         def image_callback(f: Result):

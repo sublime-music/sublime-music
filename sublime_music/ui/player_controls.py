@@ -5,16 +5,15 @@ from functools import partial
 from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 import bleach
-
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
 
-from . import util
-from .common import IconButton, IconToggleButton, SpinnerImage
-from .state import RepeatType
 from ..adapters import AdapterManager, Result, SongCacheStatus
 from ..adapters.api_objects import Song
 from ..config import AppConfiguration
 from ..util import resolve_path
+from . import util
+from .common import IconButton, IconToggleButton, SpinnerImage
+from .state import RepeatType
 
 
 class PlayerControls(Gtk.ActionBar):
@@ -71,24 +70,16 @@ class PlayerControls(Gtk.ActionBar):
         self.update_device_list(app_config)
 
         duration = (
-            app_config.state.current_song.duration
-            if app_config.state.current_song
-            else None
+            app_config.state.current_song.duration if app_config.state.current_song else None
         )
         song_stream_cache_progress = (
-            app_config.state.song_stream_cache_progress
-            if app_config.state.current_song
-            else None
+            app_config.state.song_stream_cache_progress if app_config.state.current_song else None
         )
-        self.update_scrubber(
-            app_config.state.song_progress, duration, song_stream_cache_progress
-        )
+        self.update_scrubber(app_config.state.song_progress, duration, song_stream_cache_progress)
 
         icon = "pause" if app_config.state.playing else "start"
         self.play_button.set_icon(f"media-playback-{icon}-symbolic")
-        self.play_button.set_tooltip_text(
-            "Pause" if app_config.state.playing else "Play"
-        )
+        self.play_button.set_tooltip_text("Pause" if app_config.state.playing else "Play")
 
         has_current_song = app_config.state.current_song is not None
         has_next_song = False
@@ -156,9 +147,7 @@ class PlayerControls(Gtk.ActionBar):
         self.volume_mute_toggle.set_icon(f"audio-volume-{icon_name}-symbolic")
 
         self.editing = True
-        self.volume_slider.set_value(
-            0 if app_config.state.is_muted else app_config.state.volume
-        )
+        self.volume_slider.set_value(0 if app_config.state.is_muted else app_config.state.volume)
         self.editing = False
 
         # Update the current song information.
@@ -170,9 +159,7 @@ class PlayerControls(Gtk.ActionBar):
                 order_token=self.cover_art_update_order_token,
             )
 
-            self.song_title.set_markup(
-                bleach.clean(app_config.state.current_song.title)
-            )
+            self.song_title.set_markup(bleach.clean(app_config.state.current_song.title))
             # TODO (#71): use walrus once MYPY gets its act together
             album = app_config.state.current_song.album
             artist = app_config.state.current_song.artist
@@ -221,9 +208,7 @@ class PlayerControls(Gtk.ActionBar):
             self.popover_label.set_markup("<b>Play Queue</b>")
         else:
             song_label = util.pluralize("song", play_queue_len)
-            self.popover_label.set_markup(
-                f"<b>Play Queue:</b> {play_queue_len} {song_label}"
-            )
+            self.popover_label.set_markup(f"<b>Play Queue:</b> {play_queue_len} {song_label}")
 
         # TODO (#207) this is super freaking stupid inefficient.
         # IDEAS: batch it, don't get the queue until requested
@@ -263,9 +248,7 @@ class PlayerControls(Gtk.ActionBar):
             cover_art_result = AdapterManager.get_cover_art_uri(cover_art_id, "file")
             if not cover_art_result.data_is_available:
                 cover_art_result.add_done_callback(
-                    make_idle_index_capturing_function(
-                        idx, order_token, on_cover_art_future_done
-                    )
+                    make_idle_index_capturing_function(idx, order_token, on_cover_art_future_done)
                 )
                 return None
 
@@ -352,7 +335,7 @@ class PlayerControls(Gtk.ActionBar):
         cover_art_filename: str,
         app_config: AppConfiguration,
         force: bool = False,
-        order_token: int = None,
+        order_token: int | None = None,
         is_partial: bool = False,
     ):
         if order_token != self.cover_art_update_order_token:
@@ -426,21 +409,15 @@ class PlayerControls(Gtk.ActionBar):
             return
 
         self._current_player_id = app_config.state.current_device
-        self._current_available_players = copy.deepcopy(
-            app_config.state.available_players
-        )
+        self._current_available_players = copy.deepcopy(app_config.state.available_players)
         for c in self.device_list.get_children():
             self.device_list.remove(c)
 
-        for i, (player_type, players) in enumerate(
-            app_config.state.available_players.items()
-        ):
+        for i, (player_type, players) in enumerate(app_config.state.available_players.items()):
             if len(players) == 0:
                 continue
             if i > 0:
-                self.device_list.add(
-                    Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-                )
+                self.device_list.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
             self.device_list.add(
                 Gtk.Label(
                     label=f"{player_type.name} Devices",
@@ -450,11 +427,7 @@ class PlayerControls(Gtk.ActionBar):
             )
 
             for player_id, player_name in sorted(players, key=lambda p: p[1]):
-                icon = (
-                    "audio-volume-high-symbolic"
-                    if player_id == self.current_device
-                    else None
-                )
+                icon = "audio-volume-high-symbolic" if player_id == self.current_device else None
                 button = IconButton(icon, label=player_name)
                 button.get_style_context().add_class("menu-button")
                 button.connect(
@@ -493,9 +466,7 @@ class PlayerControls(Gtk.ActionBar):
 
             song_ids = [self.play_queue_store[p][-1] for p in paths]
 
-            remove_text = (
-                "Remove " + util.pluralize("song", len(song_ids)) + " from queue"
-            )
+            remove_text = "Remove " + util.pluralize("song", len(song_ids)) + " from queue"
 
             def on_remove_songs_click(_: Any):
                 self.emit("songs-removed", [p.get_indices()[0] for p in paths])
@@ -592,9 +563,7 @@ class PlayerControls(Gtk.ActionBar):
         self.song_scrubber.set_name("song-scrubber")
         self.song_scrubber.set_draw_value(False)
         self.song_scrubber.set_restrict_to_fill_level(False)
-        self.song_scrubber.connect(
-            "change-value", lambda s, t, v: self.emit("song-scrub", v)
-        )
+        self.song_scrubber.connect("change-value", lambda s, t, v: self.emit("song-scrub", v))
         scrubber_box.pack_start(self.song_scrubber, True, True, 0)
 
         self.song_duration_label = Gtk.Label(label="-:--")
@@ -801,9 +770,7 @@ class PlayerControls(Gtk.ActionBar):
         self.play_queue_list.append_column(column)
 
         self.play_queue_list.connect("row-activated", self.on_song_activated)
-        self.play_queue_list.connect(
-            "button-press-event", self.on_play_queue_button_press
-        )
+        self.play_queue_list.connect("button-press-event", self.on_play_queue_button_press)
 
         # Set up drag-and-drop on the song list for editing the order of the
         # playlist.
@@ -825,9 +792,7 @@ class PlayerControls(Gtk.ActionBar):
         self.play_queue_popover.add(play_queue_popover_box)
 
         # Volume mute toggle
-        self.volume_mute_toggle = IconButton(
-            "audio-volume-high-symbolic", "Toggle mute"
-        )
+        self.volume_mute_toggle = IconButton("audio-volume-high-symbolic", "Toggle mute")
         self.volume_mute_toggle.set_action_name("app.mute-toggle")
         box.pack_start(self.volume_mute_toggle, False, True, 0)
 

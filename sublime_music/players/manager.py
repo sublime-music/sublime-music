@@ -2,10 +2,10 @@ import logging
 from datetime import timedelta
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union
 
+from ..adapters.api_objects import Song
 from .base import PlayerDeviceEvent, PlayerEvent
 from .chromecast import ChromecastPlayer  # noqa: F401
 from .mpv import MPVPlayer  # noqa: F401
-from ..adapters.api_objects import Song
 
 
 class PlayerManager:
@@ -13,17 +13,14 @@ class PlayerManager:
     available_player_types: List[Type] = [MPVPlayer, ChromecastPlayer]
 
     @staticmethod
-    def get_configuration_options() -> Dict[
-        str, Dict[str, Union[Type, Tuple[str, ...]]]
-    ]:
+    def get_configuration_options() -> Dict[str, Dict[str, Union[Type, Tuple[str, ...]]]]:
         """
         :returns: Dictionary of the name of the player -> option configs (see
             :class:`sublime_music.players.base.Player.get_configuration_options` for
             details).
         """
         return {
-            p.name: p.get_configuration_options()
-            for p in PlayerManager.available_player_types
+            p.name: p.get_configuration_options() for p in PlayerManager.available_player_types
         }
 
     # Initialization and Shutdown

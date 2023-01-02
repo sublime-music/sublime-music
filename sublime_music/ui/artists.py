@@ -1,18 +1,12 @@
 from datetime import timedelta
 from functools import partial
 from random import randint
-from typing import cast, List, Sequence
+from typing import List, Sequence, cast
 
 import bleach
-
 from gi.repository import Gio, GLib, GObject, Gtk, Pango
 
-from ..adapters import (
-    AdapterManager,
-    api_objects as API,
-    CacheMissError,
-    SongCacheStatus,
-)
+from ..adapters import AdapterManager, CacheMissError, SongCacheStatus, api_objects as API
 from ..config import AppConfiguration
 from ..ui import util
 from ..ui.common import AlbumWithSongs, IconButton, LoadError, SpinnerImage
@@ -74,9 +68,7 @@ class ArtistList(Gtk.Box):
 
         list_actions = Gtk.ActionBar()
 
-        self.refresh_button = IconButton(
-            "view-refresh-symbolic", "Refresh list of artists"
-        )
+        self.refresh_button = IconButton("view-refresh-symbolic", "Refresh list of artists")
         self.refresh_button.connect("clicked", lambda *a: self.update(force=True))
         list_actions.pack_end(self.refresh_button)
 
@@ -135,7 +127,7 @@ class ArtistList(Gtk.Box):
     def update(
         self,
         artists: Sequence[API.Artist],
-        app_config: AppConfiguration = None,
+        app_config: AppConfiguration | None = None,
         is_partial: bool = False,
         **kwargs,
     ):
@@ -150,9 +142,7 @@ class ArtistList(Gtk.Box):
                 "Artist list",
                 "load artists",
                 has_data=len(artists) > 0,
-                offline_mode=(
-                    self._app_config.offline_mode if self._app_config else False
-                ),
+                offline_mode=(self._app_config.offline_mode if self._app_config else False),
             )
             self.error_container.pack_start(load_error, True, True, 0)
             self.error_container.show_all()
@@ -230,14 +220,10 @@ class ArtistDetailPanel(Gtk.Box):
         self.artist_indicator = self.make_label(name="artist-indicator")
         artist_details_box.add(self.artist_indicator)
 
-        self.artist_name = self.make_label(
-            name="artist-name", ellipsize=Pango.EllipsizeMode.END
-        )
+        self.artist_name = self.make_label(name="artist-name", ellipsize=Pango.EllipsizeMode.END)
         artist_details_box.add(self.artist_name)
 
-        self.artist_bio = self.make_label(
-            name="artist-bio", justify=Gtk.Justification.LEFT
-        )
+        self.artist_bio = self.make_label(name="artist-bio", justify=Gtk.Justification.LEFT)
         self.artist_bio.set_line_wrap(True)
         artist_details_box.add(self.artist_bio)
 
@@ -247,9 +233,7 @@ class ArtistDetailPanel(Gtk.Box):
         self.similar_artists_label = self.make_label(name="similar-artists")
         similar_artists_box.add(self.similar_artists_label)
 
-        self.similar_artists_button_box = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL
-        )
+        self.similar_artists_button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         similar_artists_box.add(self.similar_artists_button_box)
         self.similar_artists_scrolledwindow.add(similar_artists_box)
 
@@ -280,9 +264,7 @@ class ArtistDetailPanel(Gtk.Box):
 
         # Action buttons
         action_buttons_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.artist_action_buttons = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL, spacing=10
-        )
+        self.artist_action_buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
 
         self.download_all_button = IconButton(
             "folder-download-symbolic", "Download all songs by this artist"
@@ -294,16 +276,12 @@ class ArtistDetailPanel(Gtk.Box):
         self.refresh_button.connect("clicked", self.on_view_refresh_click)
         self.artist_action_buttons.add(self.refresh_button)
 
-        action_buttons_container.pack_start(
-            self.artist_action_buttons, False, False, 10
-        )
+        action_buttons_container.pack_start(self.artist_action_buttons, False, False, 10)
 
         action_buttons_container.pack_start(Gtk.Box(), True, True, 0)
 
         expand_button_container = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        self.expand_collapse_button = IconButton(
-            "pan-up-symbolic", "Expand playlist details"
-        )
+        self.expand_collapse_button = IconButton("pan-up-symbolic", "Expand playlist details")
         self.expand_collapse_button.connect("clicked", self.on_expand_collapse_click)
         expand_button_container.pack_end(self.expand_collapse_button, False, False, 0)
         action_buttons_container.add(expand_button_container)
@@ -352,7 +330,7 @@ class ArtistDetailPanel(Gtk.Box):
         artist: API.Artist,
         app_config: AppConfiguration,
         force: bool = False,
-        order_token: int = None,
+        order_token: int | None = None,
         is_partial: bool = False,
     ):
         if order_token != self.update_order_token:
@@ -478,7 +456,7 @@ class ArtistDetailPanel(Gtk.Box):
         cover_art_filename: str,
         app_config: AppConfiguration,
         force: bool = False,
-        order_token: int = None,
+        order_token: int | None = None,
         is_partial: bool = False,
     ):
         if order_token != self.update_order_token:
@@ -553,10 +531,8 @@ class ArtistDetailPanel(Gtk.Box):
             self.albums_list.spinner.hide()
             self.artist_artwork.set_loading(False)
 
-    def make_label(self, text: str = None, name: str = None, **params) -> Gtk.Label:
-        return Gtk.Label(
-            label=text, name=name, halign=Gtk.Align.START, xalign=0, **params
-        )
+    def make_label(self, text: str | None = None, name: str | None = None, **params) -> Gtk.Label:
+        return Gtk.Label(label=text, name=name, halign=Gtk.Align.START, xalign=0, **params)
 
     def format_stats(self, artist: API.Artist) -> str:
         album_count = artist.album_count or len(artist.albums or [])
@@ -572,6 +548,7 @@ class ArtistDetailPanel(Gtk.Box):
         )
 
     def get_artist_song_ids(self) -> List[str]:
+        assert self.artist_id
         try:
             artist = AdapterManager.get_artist(self.artist_id).result()
         except CacheMissError as c:
@@ -619,9 +596,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
 
         self.albums = []
 
-    def update(
-        self, artist: API.Artist, app_config: AppConfiguration, force: bool = False
-    ):
+    def update(self, artist: API.Artist, app_config: AppConfiguration, force: bool = False):
         def remove_all():
             for c in self.box.get_children():
                 self.box.remove(c)
@@ -631,9 +606,7 @@ class AlbumsListWithSongs(Gtk.Overlay):
             self.spinner.hide()
             return
 
-        new_albums = sorted(
-            artist.albums or [], key=lambda a: (a.year or float("inf"), a.name)
-        )
+        new_albums = sorted(artist.albums or [], key=lambda a: (a.year or float("inf"), a.name))
 
         if self.albums == new_albums:
             # Just go through all of the colidren and update them.

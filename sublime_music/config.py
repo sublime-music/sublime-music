@@ -3,10 +3,10 @@ import os
 import pickle
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Type, Union
+from typing import Any, Dict, Optional, Type, Union
 
 import dataclasses_json
-from dataclasses_json import config, DataClassJsonMixin
+from dataclasses_json import DataClassJsonMixin, config
 
 from .adapters import ConfigurationStore
 from .ui.state import UIState
@@ -24,9 +24,7 @@ dataclasses_json.cfg.global_config.decoders[Optional[Path]] = (  # type: ignore
 
 
 dataclasses_json.cfg.global_config.encoders[Path] = encode_path
-dataclasses_json.cfg.global_config.encoders[
-    Optional[Path]  # type: ignore
-] = encode_path
+dataclasses_json.cfg.global_config.encoders[Optional[Path]] = encode_path  # type: ignore
 
 
 @dataclass
@@ -39,9 +37,7 @@ class ProviderConfiguration:
     caching_adapter_config: Optional[ConfigurationStore] = None
 
     def migrate(self):
-        self.ground_truth_adapter_type.migrate_configuration(
-            self.ground_truth_adapter_config
-        )
+        self.ground_truth_adapter_type.migrate_configuration(self.ground_truth_adapter_config)
         if self.caching_adapter_type:
             self.caching_adapter_type.migrate_configuration(self.caching_adapter_config)
 
@@ -52,11 +48,7 @@ class ProviderConfiguration:
             self.ground_truth_adapter_type,
             self.ground_truth_adapter_config.clone(),
             self.caching_adapter_type,
-            (
-                self.caching_adapter_config.clone()
-                if self.caching_adapter_config
-                else None
-            ),
+            (self.caching_adapter_config.clone() if self.caching_adapter_config else None),
         )
 
     def persist_secrets(self):
@@ -110,16 +102,12 @@ def decode_providers(
         id_: ProviderConfiguration(
             config["id"],
             config["name"],
-            ground_truth_adapter_type=find_adapter_type(
-                config["ground_truth_adapter_type"]
-            ),
+            ground_truth_adapter_type=find_adapter_type(config["ground_truth_adapter_type"]),
             ground_truth_adapter_config=ConfigurationStore(
                 **config["ground_truth_adapter_config"]
             ),
             caching_adapter_type=(
-                find_adapter_type(cat)
-                if (cat := config.get("caching_adapter_type"))
-                else None
+                find_adapter_type(cat) if (cat := config.get("caching_adapter_type")) else None
             ),
             caching_adapter_config=(
                 ConfigurationStore(**(config.get("caching_adapter_config") or {}))
@@ -144,9 +132,7 @@ class AppConfiguration(DataClassJsonMixin):
     _loaded_provider_id: Optional[str] = field(default=None, init=False)
 
     # Players
-    player_config: Dict[str, Dict[str, Union[Type, Tuple[str, ...]]]] = field(
-        default_factory=dict
-    )
+    player_config: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
     # Global Settings
     song_play_notification: bool = True
@@ -214,6 +200,7 @@ class AppConfiguration(DataClassJsonMixin):
         if self._loaded_provider_id != provider.id:
             self.load_state()
 
+        assert self._state
         return self._state
 
     def load_state(self):
@@ -242,6 +229,7 @@ class AppConfiguration(DataClassJsonMixin):
         return self.cache_location.joinpath(provider.id, "state.pickle")
 
     def save(self):
+        assert self.filename
         # Save the config as YAML.
         self.filename.parent.mkdir(parents=True, exist_ok=True)
         json = self.to_json(indent=2, sort_keys=True)

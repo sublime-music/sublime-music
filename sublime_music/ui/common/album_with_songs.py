@@ -1,9 +1,9 @@
 from random import randint
-from typing import Any, cast, List
+from typing import Any, List, cast
 
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango
 
-from sublime_music.adapters import AdapterManager, api_objects as API, Result
+from sublime_music.adapters import AdapterManager, Result, api_objects as API
 from sublime_music.config import AppConfiguration
 from sublime_music.ui import util
 
@@ -162,9 +162,7 @@ class AlbumWithSongs(Gtk.Box):
 
         self.album_songs.connect("row-activated", self.on_song_activated)
         self.album_songs.connect("button-press-event", self.on_song_button_press)
-        self.album_songs.get_selection().connect(
-            "changed", self.on_song_selection_change
-        )
+        self.album_songs.get_selection().connect("changed", self.on_song_selection_change)
         album_details.add(self.album_songs)
 
         self.pack_end(album_details, True, True, 0)
@@ -257,7 +255,7 @@ class AlbumWithSongs(Gtk.Box):
     def deselect_all(self):
         self.album_songs.get_selection().unselect_all()
 
-    def update(self, app_config: AppConfiguration = None, force: bool = False):
+    def update(self, app_config: AppConfiguration | None = None, force: bool = False):
         if app_config:
             # Deselect everything and reset the error container if switching between
             # online and offline.
@@ -293,7 +291,7 @@ class AlbumWithSongs(Gtk.Box):
         album: API.Album,
         app_config: AppConfiguration,
         force: bool = False,
-        order_token: int = None,
+        order_token: int | None = None,
         is_partial: bool = False,
     ):
         songs = album.songs or []

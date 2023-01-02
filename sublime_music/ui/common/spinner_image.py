@@ -7,9 +7,9 @@ class SpinnerImage(Gtk.Overlay):
     def __init__(
         self,
         loading: bool = True,
-        image_name: str = None,
-        spinner_name: str = None,
-        image_size: int = None,
+        image_name: str | None = None,
+        spinner_name: str | None = None,
+        image_size: int | None = None,
         **kwargs,
     ):
         """An image with a loading overlay."""

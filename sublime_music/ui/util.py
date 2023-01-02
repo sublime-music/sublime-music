@@ -1,17 +1,7 @@
 import functools
 import re
 from datetime import timedelta
-from typing import (
-    Any,
-    Callable,
-    cast,
-    Iterable,
-    List,
-    Match,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Any, Callable, Iterable, List, Match, Optional, Tuple, Union, cast
 
 from deepdiff import DeepDiff
 from gi.repository import Gdk, GLib, Gtk
@@ -47,7 +37,7 @@ def format_song_duration(duration_secs: Union[int, timedelta, None]) -> str:
     return f"{duration_secs // 60}:{duration_secs % 60:02}"
 
 
-def pluralize(string: str, number: int, pluralized_form: str = None) -> str:
+def pluralize(string: str, number: int, pluralized_form: str | None = None) -> str:
     """
     Pluralize the given string given the count as a number.
 
@@ -183,7 +173,7 @@ def show_song_popover(
     on_remove_downloads_click: Callable[[], Any] = lambda: None,
     on_playlist_state_change: Callable[[], None] = lambda: None,
     show_remove_from_playlist_button: bool = False,
-    extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] = None,
+    extra_menu_items: List[Tuple[Gtk.ModelButton, Any]] | None = None,
 ):
     def on_download_songs_click(_: Any):
         AdapterManager.batch_download_songs(
@@ -265,23 +255,17 @@ def show_song_popover(
                 artists.add(id_)
 
         if len(albums) == 1 and list(albums)[0] is not None:
-            go_to_album_button.set_action_target_value(
-                GLib.Variant("s", list(albums)[0])
-            )
+            go_to_album_button.set_action_target_value(GLib.Variant("s", list(albums)[0]))
             go_to_album_button.set_action_name("app.go-to-album")
         if len(artists) == 1 and list(artists)[0] is not None:
-            go_to_artist_button.set_action_target_value(
-                GLib.Variant("s", list(artists)[0])
-            )
+            go_to_artist_button.set_action_target_value(GLib.Variant("s", list(artists)[0]))
             go_to_artist_button.set_action_name("app.go-to-artist")
         if len(parents) == 1 and list(parents)[0] is not None:
             browse_to_song.set_action_target_value(GLib.Variant("s", list(parents)[0]))
             browse_to_song.set_action_name("app.browse-to")
 
     def batch_get_song_details() -> List[Song]:
-        return [
-            AdapterManager.get_song_details(song_id).result() for song_id in song_ids
-        ]
+        return [AdapterManager.get_song_details(song_id).result() for song_id in song_ids]
 
     get_song_details_result: Result[List[Song]] = Result(batch_get_song_details)
     get_song_details_result.add_done_callback(
@@ -325,9 +309,7 @@ def show_song_popover(
 
     if not offline_mode:
         # Back button
-        playlists_vbox.add(
-            Gtk.ModelButton(inverted=True, centered=True, menu_name="main")
-        )
+        playlists_vbox.add(Gtk.ModelButton(inverted=True, centered=True, menu_name="main"))
 
         # Loading indicator
         loading_indicator = Gtk.Spinner(name="menu-item-spinner")
@@ -364,8 +346,8 @@ def show_song_popover(
 
 def async_callback(
     future_fn: Callable[..., Result],
-    before_download: Callable[[Any], None] = None,
-    on_failure: Callable[[Any, Exception], None] = None,
+    before_download: Callable[[Any], None] | None = None,
+    on_failure: Callable[[Any, Exception], None] | None = None,
 ) -> Callable[[Callable], Callable]:
     """
     Defines the ``async_callback`` decorator.
@@ -382,9 +364,9 @@ def async_callback(
         def wrapper(
             self: Any,
             *args,
-            app_config: AppConfiguration = None,
+            app_config: AppConfiguration | None = None,
             force: bool = False,
-            order_token: int = None,
+            order_token: int | None = None,
             **kwargs,
         ):
             def on_before_download():
@@ -434,9 +416,7 @@ def async_callback(
                 force=force,
                 **kwargs,
             )
-            result.add_done_callback(
-                functools.partial(future_callback, result.data_is_available)
-            )
+            result.add_done_callback(functools.partial(future_callback, result.data_is_available))
 
         return wrapper
 

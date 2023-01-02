@@ -50,9 +50,7 @@ class DBusManager:
             ],
             None,
         ],
-        on_set_property: Callable[
-            [Gio.DBusConnection, str, str, str, str, GLib.Variant], None
-        ],
+        on_set_property: Callable[[Gio.DBusConnection, str, str, str, str, GLib.Variant], None],
         get_config_and_player_manager: Callable[
             [], Tuple[AppConfiguration, Optional[PlayerManager]]
         ],
@@ -163,9 +161,7 @@ class DBusManager:
                 {k: DBusManager.to_variant(v) for k, v in value.items()},
             )
 
-        variant_type = {list: "as", str: "s", int: "i", float: "d", bool: "b"}.get(
-            type(value)
-        )
+        variant_type = {list: "as", str: "s", int: "i", float: "d", bool: "b"}.get(type(value))
         if not variant_type:
             return value
         return GLib.Variant(variant_type, value)
@@ -193,7 +189,7 @@ class DBusManager:
 
         return DBusManager._escape_re.sub(replace, id)
 
-    def property_dict(self) -> Dict[str, Any]:
+    def property_dict(self) -> Dict[str, dict[str, Any]]:
         config, player_manager = self.get_config_and_player_manager()
         if config is None or player_manager is None:
             return {}
@@ -216,6 +212,13 @@ class DBusManager:
         except Exception:
             pass
 
+        playback_status_map: dict[tuple[bool, bool], str] = {
+            (False, False): "Stopped",
+            (False, True): "Stopped",
+            (True, False): "Paused",
+            (True, True): "Playing",
+        }
+
         return {
             "org.mpris.MediaPlayer2": {
                 "CanQuit": True,
@@ -227,12 +230,7 @@ class DBusManager:
                 "SupportedMimeTypes": [],
             },
             "org.mpris.MediaPlayer2.Player": {
-                "PlaybackStatus": {
-                    (False, False): "Stopped",
-                    (False, True): "Stopped",
-                    (True, False): "Paused",
-                    (True, True): "Playing",
-                }[player_manager.song_loaded, state.playing],
+                "PlaybackStatus": playback_status_map[player_manager.song_loaded, state.playing],
                 "LoopStatus": state.repeat_type.as_mpris_loop_status(),
                 "Rate": 1.0,
                 "Shuffle": state.shuffle_on,
@@ -271,9 +269,7 @@ class DBusManager:
         }
 
     @functools.lru_cache(maxsize=10)
-    def get_active_playlist(
-        self, active_playlist_id: Optional[str]
-    ) -> Tuple[bool, GLib.Variant]:
+    def get_active_playlist(self, active_playlist_id: Optional[str]) -> Tuple[bool, GLib.Variant]:
         if not active_playlist_id or not AdapterManager.can_get_playlist_details():
             return (False, GLib.Variant("(oss)", ("/", "", "")))
 
@@ -305,13 +301,9 @@ class DBusManager:
             return (False, GLib.Variant("(oss)", ("/", "", "")))
 
     @functools.lru_cache(maxsize=10)
-    def get_mpris_metadata(
-        self, idx: int, play_queue: Tuple[str, ...]
-    ) -> Dict[str, Any]:
+    def get_mpris_metadata(self, idx: int, play_queue: Tuple[str, ...]) -> Dict[str, Any]:
         try:
-            song = AdapterManager.get_song_details(
-                play_queue[idx], allow_download=False
-            ).result()
+            song = AdapterManager.get_song_details(play_queue[idx], allow_download=False).result()
         except Exception:
             return {}
 
@@ -372,11 +364,14 @@ class DBusManager:
         new_property_dict = self.property_dict()
         diff = DeepDiff(self.current_state, new_property_dict)
 
-        changes = defaultdict(dict)
+        changes: dict[str, dict[str, Any]] = defaultdict(dict)
 
         for path, change in diff.get("values_changed", {}).items():
-            interface, property_name = self.diff_parse_re.match(path).groups()
-            changes[interface][property_name] = change["new_value"]
+            if m := self.diff_parse_re.match(path):
+                interface, property_name = m.groups()
+                changes[interface][property_name] = change["new_value"]
+            else:
+                logging.warning(f"Couldn't parse path {path} for diff")
 
         if diff.get("dictionary_item_added"):
             changes = new_property_dict
@@ -390,10 +385,7 @@ class DBusManager:
             # Special handling for when the position changes (a seek).
             # Technically, I'm sending this signal too often, but I don't think
             # it really matters.
-            if (
-                interface == "org.mpris.MediaPlayer2.Player"
-                and "Position" in changed_props
-            ):
+            if interface == "org.mpris.MediaPlayer2.Player" and "Position" in changed_props:
                 self.connection.emit_signal(
                     None,
                     "/org/mpris/MediaPlayer2",
@@ -416,10 +408,7 @@ class DBusManager:
             #
             # So I think that any change is invasive enough that I should use
             # this signal.
-            if (
-                interface == "org.mpris.MediaPlayer2.TrackList"
-                and "Tracks" in changed_props
-            ):
+            if interface == "org.mpris.MediaPlayer2.TrackList" and "Tracks" in changed_props:
                 track_list = changed_props["Tracks"]
                 if len(track_list) > 0:
                     current_track = new_property_dict["org.mpris.MediaPlayer2.Player"][
@@ -442,10 +431,7 @@ class DBusManager:
                     "(sa{sv}as)",
                     (
                         interface,
-                        {
-                            k: DBusManager.to_variant(v)
-                            for k, v in changed_props.items()
-                        },
+                        {k: DBusManager.to_variant(v) for k, v in changed_props.items()},
                         [],
                     ),
                 ),

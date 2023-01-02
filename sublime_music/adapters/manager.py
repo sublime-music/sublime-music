@@ -15,7 +15,6 @@ from time import sleep
 from typing import (
     Any,
     Callable,
-    cast,
     Dict,
     Generic,
     Iterable,
@@ -26,12 +25,14 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
+    cast,
 )
 
 import requests
 
 from sublime_music.config import ProviderConfiguration
 
+from ..util import resolve_path
 from .adapter_base import (
     Adapter,
     AlbumSearchQuery,
@@ -39,19 +40,9 @@ from .adapter_base import (
     CachingAdapter,
     SongCacheStatus,
 )
-from .api_objects import (
-    Album,
-    Artist,
-    Directory,
-    Genre,
-    Playlist,
-    PlayQueue,
-    SearchResult,
-    Song,
-)
+from .api_objects import Album, Artist, Directory, Genre, Playlist, PlayQueue, SearchResult, Song
 from .filesystem import FilesystemAdapter
 from .subsonic import SubsonicAdapter
-from ..util import resolve_path
 
 REQUEST_DELAY: Optional[Tuple[float, float]] = None
 if delay_str := os.environ.get("REQUEST_DELAY"):
@@ -90,8 +81,8 @@ class Result(Generic[T]):
         data_resolver: Union[T, Callable[[], T]],
         *args,
         is_download: bool = False,
-        default_value: T = None,
-        on_cancel: Callable[[], None] = None,
+        default_value: T | None = None,
+        on_cancel: Callable[[], None] | None = None,
     ):
         """
         Creates a :class:`Result` object.
@@ -103,9 +94,7 @@ class Result(Generic[T]):
         """
         if callable(data_resolver):
             if is_download:
-                self._future = AdapterManager.download_executor.submit(
-                    data_resolver, *args
-                )
+                self._future = AdapterManager.download_executor.submit(data_resolver, *args)
             else:
                 self._future = AdapterManager.executor.submit(data_resolver, *args)
             self._future.add_done_callback(self._on_future_complete)
@@ -135,7 +124,7 @@ class Result(Generic[T]):
             if self._future is not None:
                 return self._future.result()
 
-            assert 0, "AdapterManager.Result had neither _data nor _future member!"
+            raise Exception("AdapterManager.Result had neither _data nor _future member!")
         except Exception as e:
             if self._default_value:
                 return self._default_value
@@ -208,16 +197,14 @@ class AdapterManager:
     @dataclass
     class _AdapterManagerInternal:
         ground_truth_adapter: Adapter
-        on_song_download_progress: Callable[[Any, str, DownloadProgress], None]
+        on_song_download_progress: Callable[[str, DownloadProgress], None]
         caching_adapter: Optional[CachingAdapter] = None
         concurrent_download_limit: int = 5
 
         def __post_init__(self):
             self._download_dir = tempfile.TemporaryDirectory()
             self.download_path = Path(self._download_dir.name)
-            self.download_limiter_semaphore = threading.Semaphore(
-                self.concurrent_download_limit
-            )
+            self.download_limiter_semaphore = threading.Semaphore(self.concurrent_download_limit)
 
         def song_download_progress(self, file_id: str, progress: DownloadProgress):
             self.on_song_download_progress(file_id, progress)
@@ -271,7 +258,7 @@ class AdapterManager:
     @staticmethod
     def reset(
         config: Any,
-        on_song_download_progress: Callable[[Any, str, DownloadProgress], None],
+        on_song_download_progress: Callable[[str, DownloadProgress], None],
     ):
         from sublime_music.config import AppConfiguration
 
@@ -352,7 +339,7 @@ class AdapterManager:
     def _create_ground_truth_result(
         function_name: str,
         *params: Any,
-        before_download: Callable[[], None] = None,
+        before_download: Callable[[], None] | None = None,
         partial_data: Any = None,
         **kwargs,
     ) -> Result:
@@ -382,8 +369,8 @@ class AdapterManager:
     def _create_download_result(
         uri: str,
         id: str,
-        before_download: Callable[[], None] = None,
-        expected_size: int = None,
+        before_download: Callable[[], None] | None = None,
+        expected_size: int | None = None,
         **result_args,
     ) -> Result[str]:
         """
@@ -435,9 +422,7 @@ class AdapterManager:
                 try:
                     if REQUEST_DELAY is not None:
                         delay = random.uniform(*REQUEST_DELAY)
-                        logging.info(
-                            f"REQUEST_DELAY enabled. Pausing for {delay} seconds"
-                        )
+                        logging.info(f"REQUEST_DELAY enabled. Pausing for {delay} seconds")
                         sleep(delay)
 
                     if NETWORK_ALWAYS_ERROR:
@@ -516,9 +501,7 @@ class AdapterManager:
             nonlocal download_cancelled
             download_cancelled = True
 
-        return Result(
-            download_fn, is_download=True, on_cancel=on_download_cancel, **result_args
-        )
+        return Result(download_fn, is_download=True, on_cancel=on_download_cancel, **result_args)
 
     @staticmethod
     def _create_caching_done_callback(
@@ -534,18 +517,14 @@ class AdapterManager:
         def future_finished(f: Result):
             assert AdapterManager._instance
             assert AdapterManager._instance.caching_adapter
-            AdapterManager._instance.caching_adapter.ingest_new_data(
-                cache_key, param, f.result()
-            )
+            AdapterManager._instance.caching_adapter.ingest_new_data(cache_key, param, f.result())
 
         return future_finished
 
     @staticmethod
     def get_supported_artist_query_types() -> Set[AlbumSearchQuery.Type]:
         assert AdapterManager._instance
-        return (
-            AdapterManager._instance.ground_truth_adapter.supported_artist_query_types
-        )
+        return AdapterManager._instance.ground_truth_adapter.supported_artist_query_types
 
     R = TypeVar("R")
 
@@ -553,13 +532,13 @@ class AdapterManager:
     def _get_from_cache_or_ground_truth(
         function_name: str,
         param: Optional[Union[str, AlbumSearchQuery]],
-        cache_key: CachingAdapter.CachedDataKey = None,
-        before_download: Callable[[], None] = None,
+        cache_key: CachingAdapter.CachedDataKey | None = None,
+        before_download: Callable[[], None] | None = None,
         use_ground_truth_adapter: bool = False,
         allow_download: bool = True,
-        on_result_finished: Callable[[Result], None] = None,
+        on_result_finished: Callable[[Result], None] | None = None,
         **kwargs: Any,
-    ) -> Result[R]:
+    ) -> Result:
         """
         Get data from one of the adapters.
 
@@ -592,18 +571,11 @@ class AdapterManager:
                 logging.exception(f"Error on {function_name} retrieving from cache.")
 
         param_str = param.strhash() if isinstance(param, AlbumSearchQuery) else param
-        if (
-            cache_key
-            and AdapterManager._instance.caching_adapter
-            and use_ground_truth_adapter
-        ):
-            AdapterManager._instance.caching_adapter.invalidate_data(
-                cache_key, param_str
-            )
+        if cache_key and AdapterManager._instance.caching_adapter and use_ground_truth_adapter:
+            AdapterManager._instance.caching_adapter.invalidate_data(cache_key, param_str)
 
         if (
-            not allow_download
-            and AdapterManager._instance.ground_truth_adapter.is_networked
+            not allow_download and AdapterManager._instance.ground_truth_adapter.is_networked
         ) or not AdapterManager._ground_truth_can_do(function_name):
             logging.info(f"END: NO DOWNLOAD: {function_name}")
 
@@ -612,7 +584,7 @@ class AdapterManager:
 
             return Result(cache_miss_result)
 
-        result: Result[AdapterManager.R] = AdapterManager._create_ground_truth_result(
+        result = AdapterManager._create_ground_truth_result(
             function_name,
             *((param,) if param is not None else ()),
             before_download=before_download,
@@ -735,7 +707,7 @@ class AdapterManager:
 
     @staticmethod
     def create_playlist(
-        name: str, songs: Sequence[Song] = None
+        name: str, songs: Sequence[Song] | None = None
     ) -> Result[Optional[Playlist]]:
         def on_result_finished(f: Result[Optional[Playlist]]):
             assert AdapterManager._instance
@@ -762,11 +734,11 @@ class AdapterManager:
     @staticmethod
     def update_playlist(
         playlist_id: str,
-        name: str = None,
-        comment: str = None,
+        name: str | None = None,
+        comment: str | None = None,
         public: bool = False,
-        song_ids: Sequence[str] = None,
-        append_song_ids: Sequence[str] = None,
+        song_ids: Sequence[str] | None = None,
+        append_song_ids: Sequence[str] | None = None,
         before_download: Callable[[], None] = lambda: None,
     ) -> Result[Playlist]:
         return AdapterManager._get_from_cache_or_ground_truth(
@@ -787,9 +759,7 @@ class AdapterManager:
         assert AdapterManager._instance
         ground_truth_adapter = AdapterManager._instance.ground_truth_adapter
         if AdapterManager._offline_mode and ground_truth_adapter.is_networked:
-            raise AssertionError(
-                "You should never call delete_playlist in offline mode"
-            )
+            raise AssertionError("You should never call delete_playlist in offline mode")
 
         # TODO (#190): make non-blocking?
         ground_truth_adapter.delete_playlist(playlist_id)
@@ -813,21 +783,16 @@ class AdapterManager:
         cover_art_id: Optional[str],
         scheme: str,
         size: int = 300,
-        before_download: Callable[[], None] = None,
+        before_download: Callable[[], None] | None = None,
         force: bool = False,
         allow_download: bool = True,
     ) -> Result[str]:
         existing_filename = str(resolve_path("adapters/images/default-album-art.png"))
-        if (
-            not AdapterManager._ground_truth_can_do("get_cover_art_uri")
-            or not cover_art_id
-        ):
+        if not AdapterManager._ground_truth_can_do("get_cover_art_uri") or not cover_art_id:
             return Result(existing_filename if scheme == "file" else "")
 
         assert AdapterManager._instance
-        supported_schemes = (
-            AdapterManager._instance.ground_truth_adapter.supported_schemes
-        )
+        supported_schemes = AdapterManager._instance.ground_truth_adapter.supported_schemes
 
         # If the scheme is supported natively, then return it.
         if scheme in supported_schemes:
@@ -837,9 +802,7 @@ class AdapterManager:
             return Result(uri)
 
         # If the scheme is "file", then we may need to try to download.
-        if scheme == "file" and (
-            "http" in supported_schemes or "https" in supported_schemes
-        ):
+        if scheme == "file" and ("http" in supported_schemes or "https" in supported_schemes):
             if AdapterManager._can_use_cache(force, "get_cover_art_uri"):
                 assert AdapterManager._instance.caching_adapter
                 try:
@@ -853,9 +816,7 @@ class AdapterManager:
                         existing_filename = cast(str, e.partial_data)
                     logging.info("Cache Miss on get_cover_art_uri.")
                 except Exception:
-                    logging.exception(
-                        "Error on get_cover_art_uri retrieving from cache."
-                    )
+                    logging.exception("Error on get_cover_art_uri retrieving from cache.")
 
             # If we are forcing, invalidate the existing cached data.
             if AdapterManager._instance.caching_adapter and force:
@@ -925,13 +886,11 @@ class AdapterManager:
         assert AdapterManager._instance
         if not AdapterManager._ground_truth_can_do("get_song_stream_uri"):
             raise Exception(f"Can't stream song '{song.title}'.")
-        return AdapterManager._instance.ground_truth_adapter.get_song_stream_uri(
-            song.id
-        )
+        return AdapterManager._instance.ground_truth_adapter.get_song_stream_uri(song.id)
 
     @staticmethod
     def batch_download_songs(
-        song_ids: Sequence[str],
+        song_ids: Iterable[str],
         before_download: Callable[[str], None],
         on_song_download_complete: Callable[[str], None],
         one_at_a_time: bool = False,
@@ -942,9 +901,7 @@ class AdapterManager:
             AdapterManager._offline_mode
             and AdapterManager._instance.ground_truth_adapter.is_networked
         ):
-            raise AssertionError(
-                "You should never call batch_download_songs in offline mode"
-            )
+            raise AssertionError("You should never call batch_download_songs in offline mode")
 
         # This only really makes sense if we have a caching_adapter.
         if not AdapterManager._instance.caching_adapter:
@@ -975,9 +932,7 @@ class AdapterManager:
             # Download the actual song file.
             try:
                 # If the song file is already cached, just indicate done immediately.
-                AdapterManager._instance.caching_adapter.get_song_file_uri(
-                    song_id, "file"
-                )
+                AdapterManager._instance.caching_adapter.get_song_file_uri(song_id, "file")
                 AdapterManager._instance.download_limiter_semaphore.release()
                 AdapterManager._instance.song_download_progress(
                     song_id,
@@ -986,15 +941,12 @@ class AdapterManager:
                 return Result("", is_download=True)
             except CacheMissError:
                 # The song is not already cached.
-                if before_download:
-                    before_download(song_id)
+                before_download(song_id)
 
                 song = AdapterManager.get_song_details(song_id).result()
 
                 # Download the song.
-                song_tmp_filename_result: Result[
-                    str
-                ] = AdapterManager._create_download_result(
+                song_tmp_filename_result: Result[str] = AdapterManager._create_download_result(
                     AdapterManager._instance.ground_truth_adapter.get_song_file_uri(
                         song_id, AdapterManager._get_networked_scheme()
                     ),
@@ -1026,12 +978,9 @@ class AdapterManager:
 
         def do_batch_download_songs():
             sleep(delay)
-            if (
-                AdapterManager.is_shutting_down
-                or AdapterManager._offline_mode
-                or cancelled
-            ):
+            if AdapterManager.is_shutting_down or AdapterManager._offline_mode or cancelled:
                 return
+            assert AdapterManager._instance
 
             # Alert the UI that the downloads are queued.
             for song_id in song_ids:
@@ -1055,6 +1004,7 @@ class AdapterManager:
         def on_cancel():
             nonlocal cancelled
             cancelled = True
+            assert AdapterManager._instance
 
             # Cancel the individual song downloads
             AdapterManager.cancel_download_songs(song_ids)
@@ -1069,7 +1019,7 @@ class AdapterManager:
         return Result(do_batch_download_songs, is_download=True, on_cancel=on_cancel)
 
     @staticmethod
-    def cancel_download_songs(song_ids: Sequence[str]):
+    def cancel_download_songs(song_ids: Iterable[str]):
         assert AdapterManager._instance
         AdapterManager._cancelled_song_ids = AdapterManager._cancelled_song_ids.union(
             set(song_ids)
@@ -1097,9 +1047,7 @@ class AdapterManager:
         raise NotImplementedError()
 
     @staticmethod
-    def batch_delete_cached_songs(
-        song_ids: Sequence[str], on_song_delete: Callable[[str], None]
-    ):
+    def batch_delete_cached_songs(song_ids: Sequence[str], on_song_delete: Callable[[str], None]):
         assert AdapterManager._instance
 
         # This only really makes sense if we have a caching_adapter.
@@ -1196,9 +1144,7 @@ class AdapterManager:
         key: Callable[[_S], str],
         use_ground_truth_adapter: bool = False,
     ) -> List[_S]:
-        ignored_articles = AdapterManager._get_ignored_articles(
-            use_ground_truth_adapter
-        )
+        ignored_articles = AdapterManager._get_ignored_articles(use_ground_truth_adapter)
         strip_fn = partial(
             AdapterManager._strip_ignored_articles,
             use_ground_truth_adapter,
@@ -1299,8 +1245,8 @@ class AdapterManager:
     @staticmethod
     def save_play_queue(
         song_ids: Sequence[str],
-        current_song_index: int = None,
-        position: timedelta = None,
+        current_song_index: int | None = None,
+        position: timedelta | None = None,
     ):
         assert AdapterManager._instance
         AdapterManager._create_ground_truth_result(
@@ -1344,12 +1290,8 @@ class AdapterManager:
             if AdapterManager._can_use_cache(False, "search"):
                 assert AdapterManager._instance.caching_adapter
                 try:
-                    logging.info(
-                        f"Returning caching adapter search results for '{query}'."
-                    )
-                    search_result.update(
-                        AdapterManager._instance.caching_adapter.search(query)
-                    )
+                    logging.info(f"Returning caching adapter search results for '{query}'.")
+                    search_result.update(AdapterManager._instance.caching_adapter.search(query))
                     search_callback(search_result)
                 except Exception:
                     logging.exception("Error on caching adapter search")
@@ -1359,25 +1301,19 @@ class AdapterManager:
 
             # Wait longer to see if the user types anything else so we don't peg the
             # server with tons of requests.
-            sleep(
-                1 if AdapterManager._instance.ground_truth_adapter.is_networked else 0.3
-            )
+            sleep(1 if AdapterManager._instance.ground_truth_adapter.is_networked else 0.3)
             if cancelled:
                 logging.info(f"Cancelled query {query} before server results")
                 return True
 
             try:
-                ground_truth_search_results = (
-                    AdapterManager._instance.ground_truth_adapter.search(  # noqa: E501
-                        query
-                    )
-                )
+                ground_truth_search_results = AdapterManager._instance.ground_truth_adapter.search(
+                    query
+                )  # noqa: E501
                 search_result.update(ground_truth_search_results)
                 search_callback(search_result)
             except Exception:
-                logging.exception(
-                    "Failed getting search results from server for query '{query}'"
-                )
+                logging.exception("Failed getting search results from server for query '{query}'")
 
             if AdapterManager._instance.caching_adapter:
                 AdapterManager._instance.caching_adapter.ingest_new_data(
@@ -1404,9 +1340,7 @@ class AdapterManager:
         if not AdapterManager._instance.caching_adapter:
             return list(itertools.repeat(SongCacheStatus.NOT_CACHED, len(song_ids)))
 
-        cached_statuses = AdapterManager._instance.caching_adapter.get_cached_statuses(
-            song_ids
-        )
+        cached_statuses = AdapterManager._instance.caching_adapter.get_cached_statuses(song_ids)
         return [
             SongCacheStatus.DOWNLOADING
             if (

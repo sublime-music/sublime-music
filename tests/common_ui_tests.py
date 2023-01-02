@@ -52,9 +52,7 @@ def test_spinner_image():
     image.set_from_file("")
     assert image.image.get_pixbuf() is None
 
-    image.set_from_file(
-        str(Path(__file__).parent.joinpath("mock_data", "album-art.png"))
-    )
+    image.set_from_file(str(Path(__file__).parent.joinpath("mock_data", "album-art.png")))
     assert (pixbuf := image.image.get_pixbuf()) is not None
     assert pixbuf.get_width() == pixbuf.get_height() == initial_size
 

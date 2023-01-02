@@ -7,12 +7,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 
 import dataclasses_json
-from dataclasses_json import (
-    config,
-    dataclass_json,
-    DataClassJsonMixin,
-    LetterCase,
-)
+from dataclasses_json import DataClassJsonMixin, LetterCase, config, dataclass_json
 from dateutil import parser
 
 from .. import api_objects as SublimeAPI
@@ -60,9 +55,7 @@ class Album(SublimeAPI.Album):
     year: Optional[int] = None
     duration: Optional[timedelta] = None
     created: Optional[datetime] = None
-    songs: List["Song"] = field(
-        default_factory=list, metadata=config(field_name="song")
-    )
+    songs: List["Song"] = field(default_factory=list, metadata=config(field_name="song"))
     play_count: Optional[int] = None
     starred: Optional[datetime] = None
 
@@ -79,7 +72,7 @@ class Album(SublimeAPI.Album):
         # Initialize the cross-references
         self.artist = (
             None
-            if not self.artist_id and not self._artist
+            if not self.artist_id or not self._artist
             else ArtistAndArtistInfo(id=self.artist_id, name=self._artist)
         )
         self.genre = None if not self._genre else Genre(self._genre)
@@ -90,9 +83,7 @@ class Album(SublimeAPI.Album):
 class ArtistAndArtistInfo(SublimeAPI.Artist):
     name: str
     id: Optional[str]
-    albums: List[Album] = field(
-        default_factory=list, metadata=config(field_name="album")
-    )
+    albums: List[Album] = field(default_factory=list, metadata=config(field_name="album"))
     album_count: Optional[int] = None
     cover_art: Optional[str] = None
     artist_image_url: Optional[str] = None
@@ -115,9 +106,7 @@ class ArtistAndArtistInfo(SublimeAPI.Artist):
             self.similar_artists = artist_info.similar_artists
             self.biography = artist_info.biography
             self.last_fm_url = artist_info.last_fm_url
-            self.artist_image_url = (
-                artist_info.artist_image_url or self.artist_image_url
-            )
+            self.artist_image_url = artist_info.artist_image_url or self.artist_image_url
             self.music_brainz_id = artist_info.music_brainz_id
 
 
@@ -148,7 +137,7 @@ class ArtistInfo:
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class Directory(SublimeAPI.Directory):
+class Directory(SublimeAPI.Directory, DataClassJsonMixin):
     id: str
     name: Optional[str] = None
     title: Optional[str] = None
@@ -166,8 +155,7 @@ class Directory(SublimeAPI.Directory):
 
         self.name = self.name or self.title
         self.children = [
-            Directory.from_dict(c) if c.get("isDir") else Song.from_dict(c)
-            for c in self._children
+            Directory.from_dict(c) if c.get("isDir") else Song.from_dict(c) for c in self._children
         ]
 
 
@@ -207,13 +195,9 @@ class Song(SublimeAPI.Song, DataClassJsonMixin):
             self.id = str(self.id)
         self.parent_id = (self.parent_id or "root") if self.id != "root" else None
         self.artist = (
-            None
-            if not self._artist
-            else ArtistAndArtistInfo(id=self.artist_id, name=self._artist)
+            None if not self._artist else ArtistAndArtistInfo(id=self.artist_id, name=self._artist)
         )
-        self.album = (
-            None if not self._album else Album(id=self.album_id, name=self._album)
-        )
+        self.album = None if not self._album else Album(id=self.album_id, name=self._album)
         self.genre = None if not self._genre else Genre(self._genre)
 
 
@@ -242,9 +226,7 @@ class Playlist(SublimeAPI.Playlist):
 
         if self.duration is None:
             self.duration = timedelta(
-                seconds=sum(
-                    s.duration.total_seconds() if s.duration else 0 for s in self.songs
-                )
+                seconds=sum(s.duration.total_seconds() if s.duration else 0 for s in self.songs)
             )
 
 
@@ -333,9 +315,7 @@ class Response(DataClassJsonMixin):
         default=None, metadata=config(field_name="artistInfo2")
     )
 
-    albums: Optional[AlbumList2] = field(
-        default=None, metadata=config(field_name="albumList2")
-    )
+    albums: Optional[AlbumList2] = field(default=None, metadata=config(field_name="albumList2"))
     album: Optional[Album] = None
 
     directory: Optional[Directory] = None
@@ -347,9 +327,7 @@ class Response(DataClassJsonMixin):
     playlist: Optional[Playlist] = None
     playlists: Optional[Playlists] = None
 
-    play_queue: Optional[PlayQueue] = field(
-        default=None, metadata=config(field_name="playQueue")
-    )
+    play_queue: Optional[PlayQueue] = field(default=None, metadata=config(field_name="playQueue"))
 
     song: Optional[Song] = None
 

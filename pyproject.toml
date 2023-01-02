@@ -9,7 +9,7 @@ authors = [
 ]
 dynamic = ["version", "description"]
 readme = "README.rst"
-requires-python = ">=3.8,<4"
+requires-python = ">=3.10,<4"
 license = {file = "LICENSE"}
 keywords = ["airsonic", "music", "GTK", "chromecast", "subsonic"]
 classifiers = [
@@ -24,7 +24,7 @@ dependencies = [
     "bleach",
     "dataclasses-json",
     "deepdiff",
-    "thefuzz",
+    "thefuzz @ git+https://github.com/seatgeek/thefuzz@6e68af84e086b3e5f7253d4f9b0d6c7313e34637",
     "peewee",
     "PyGObject",
     "python-dateutil",
@@ -37,24 +37,36 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "black",
-    "docutils <0.17",
     "flake8",
     "flake8-annotations",
     "flake8-bugbear",
     "flake8-comprehensions",
-    "flake8-import-order",
     "flake8-pep3101",
     "flake8-print",
     "flit",
+    "isort",
     "mypy",
     "pip-tools",
     "pre-commit",
-    "pytest-cov",
     "requirements-parser",
+    "termcolor",
+    "types-bleach",
+    "types-peewee",
+    "types-python-dateutil",
+    "types-pyyaml",
+    "types-requests",
+    "types-tabulate",
+    "types-termcolor",
+]
+doc = [
+    "docutils <0.17",
     "rst2html5",
     "sphinx <5",
     "sphinx_rtd_theme",
-    "termcolor",
+]
+test = [
+    "pytest",
+    "pytest-cov",
 ]
 chromecast = ["pychromecast"]
 keyring = ["keyring"]
@@ -68,3 +80,13 @@ Documentation = "https://sublime-music.gitlab.io/sublime-music"
 
 [project.scripts]
 sublime-music = 'sublime_music.__main__:main'
+
+[tool.isort]
+profile = "black"
+combine_as_imports = true
+known_first_party = "sublime_music"
+line_length = 99
+
+[tool.black]
+line-length = 99
+target-version = ["py38"]

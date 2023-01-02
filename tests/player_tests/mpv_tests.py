@@ -1,31 +1,31 @@
 from datetime import timedelta
 from pathlib import Path
 
+from sublime_music.adapters.api_objects import Song
+from sublime_music.players.mpv import MPVPlayer
+
 # from time import sleep
 
-from sublime_music.players.mpv import MPVPlayer
 
 MPVPlayer._is_mock = True
 
 
 def test_init():
-    empty_fn = lambda *a, **k: None
+    empty_fn = lambda *_, **__: None
     MPVPlayer(empty_fn, empty_fn, empty_fn, empty_fn, {"Replay Gain": "Disabled"})
 
 
 def is_close(expected: float, value: float, delta: float = 0.5) -> bool:
-    print(f"EXPECTED: {expected}, VALUE: {value}")  # noqa: T001
+    print(f"EXPECTED: {expected}, VALUE: {value}")  # noqa: T201
     return abs(value - expected) < delta
 
 
 def test_play():
-    empty_fn = lambda *a, **k: None
-    mpv_player = MPVPlayer(
-        empty_fn, empty_fn, empty_fn, empty_fn, {"Replay Gain": "Disabled"}
-    )
+    empty_fn = lambda *_, **__: None
+    mpv_player = MPVPlayer(empty_fn, empty_fn, empty_fn, empty_fn, {"Replay Gain": "Disabled"})
 
     song_path = Path(__file__).parent.joinpath("mock_data/test-song.mp3")
-    mpv_player.play_media(str(song_path), timedelta(seconds=10), None)
+    mpv_player.play_media(str(song_path), timedelta(seconds=10), Song())
 
     # Test Mute and volume
     # ==================================================================================

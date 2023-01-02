@@ -1,11 +1,11 @@
 import threading
 from datetime import timedelta
-from typing import Callable, cast, Dict, Optional, Tuple, Type, Union
+from typing import Callable, Dict, Optional, Tuple, Type, Union, cast
 
 import mpv
 
-from .base import Player, PlayerDeviceEvent, PlayerEvent
 from ..adapters.api_objects import Song
+from .base import Player, PlayerDeviceEvent, PlayerEvent
 
 REPLAY_GAIN_KEY = "Replay Gain"
 GAPLESS_PLAYBACK_KEY = "Gapless Playback"

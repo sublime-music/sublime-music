@@ -6,17 +6,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
-from typing import (
-    Any,
-    cast,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-)
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple, cast
 
 import gi
 
@@ -30,17 +20,8 @@ try:
 except Exception:
     keyring_imported = False
 
-from .api_objects import (
-    Album,
-    Artist,
-    Directory,
-    Genre,
-    Playlist,
-    PlayQueue,
-    SearchResult,
-    Song,
-)
 from ..util import this_decade
+from .api_objects import Album, Artist, Directory, Genre, Playlist, PlayQueue, SearchResult, Song
 
 
 class SongCacheStatus(Enum):
@@ -187,9 +168,7 @@ class ConfigurationStore(dict):
 
     def clone(self) -> "ConfigurationStore":
         configuration_store = ConfigurationStore(**copy.deepcopy(self))
-        configuration_store._changed_secrets_store = copy.deepcopy(
-            self._changed_secrets_store
-        )
+        configuration_store._changed_secrets_store = copy.deepcopy(self._changed_secrets_store)
         return configuration_store
 
     def persist_secrets(self):
@@ -230,7 +209,7 @@ class ConfigurationStore(dict):
             "plaintext": lambda: storage_key,
         }[storage_type]()
 
-    def set_secret(self, key: str, value: str = None):
+    def set_secret(self, key: str, value: str | None = None):
         """
         Set the secret value of the given key in the store. This should be used for
         things such as passwords or API tokens. When :class:`persist_secrets` is called,
@@ -349,8 +328,7 @@ class Adapter(abc.ABC):
         return True
 
     @property
-    @staticmethod
-    def can_be_ground_truth() -> bool:
+    def can_be_ground_truth(self) -> bool:
         """
         Whether or not this adapter can be used as a ground truth adapter.
         """
@@ -369,6 +347,7 @@ class Adapter(abc.ABC):
         """
         return True
 
+    @abc.abstractmethod
     def on_offline_mode_change(self, offline_mode: bool):
         """
         This function should be used to handle any operations that need to be performed
@@ -591,7 +570,7 @@ class Adapter(abc.ABC):
         raise self._check_can_error("get_playlist_details")
 
     def create_playlist(
-        self, name: str, songs: Sequence[Song] = None
+        self, name: str, songs: Sequence[Song] | None = None
     ) -> Optional[Playlist]:
         """
         Creates a playlist of the given name with the given songs.
@@ -607,10 +586,10 @@ class Adapter(abc.ABC):
     def update_playlist(
         self,
         playlist_id: str,
-        name: str = None,
-        comment: str = None,
-        public: bool = None,
-        song_ids: Sequence[str] = None,
+        name: str | None = None,
+        comment: str | None = None,
+        public: bool | None = None,
+        song_ids: Sequence[str] | None = None,
     ) -> Playlist:
         """
         Updates a given playlist. If a parameter is ``None``, then it will be ignored
@@ -780,8 +759,8 @@ class Adapter(abc.ABC):
     def save_play_queue(
         self,
         song_ids: Sequence[str],
-        current_song_index: int = None,
-        position: timedelta = None,
+        current_song_index: int | None = None,
+        position: timedelta | None = None,
     ):
         """
         Save the current play queue to the cloud.
@@ -916,9 +895,7 @@ class CachingAdapter(Adapter):
     # Cache-Specific Methods
     # ==================================================================================
     @abc.abstractmethod
-    def get_cached_statuses(
-        self, song_ids: Sequence[str]
-    ) -> Dict[str, SongCacheStatus]:
+    def get_cached_statuses(self, song_ids: Sequence[str]) -> Dict[str, SongCacheStatus]:
         """
         Returns the cache statuses for the given list of songs. See the
         :class:`SongCacheStatus` documentation for more details about what each status

@@ -2,17 +2,11 @@ import datetime
 import itertools
 import logging
 import math
-from typing import Any, Callable, cast, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Iterable, List, Optional, Tuple, cast
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from ..adapters import (
-    AdapterManager,
-    AlbumSearchQuery,
-    api_objects as API,
-    CacheMissError,
-    Result,
-)
+from ..adapters import AdapterManager, AlbumSearchQuery, CacheMissError, Result, api_objects as API
 from ..config import AppConfiguration
 from ..ui import util
 from ..ui.common import AlbumWithSongs, IconButton, LoadError, SpinnerImage
@@ -96,9 +90,7 @@ class AlbumsPanel(Gtk.Box):
         )
         actionbar.pack_start(self.alphabetical_type_combo)
 
-        self.genre_combo, self.genre_combo_store = self.make_combobox(
-            (), self.on_genre_change
-        )
+        self.genre_combo, self.genre_combo_store = self.make_combobox((), self.on_genre_change)
         actionbar.pack_start(self.genre_combo)
 
         next_decade = (datetime.datetime.now().year // 10) * 10 + 10
@@ -138,9 +130,7 @@ class AlbumsPanel(Gtk.Box):
         page_widget.add(Gtk.Label(label="of"))
         self.page_count_label = Gtk.Label(label="-")
         page_widget.add(self.page_count_label)
-        self.next_page = IconButton(
-            "go-next-symbolic", "Go to the next page", sensitive=False
-        )
+        self.next_page = IconButton("go-next-symbolic", "Go to the next page", sensitive=False)
         self.next_page.connect("clicked", self.on_next_page_clicked)
         page_widget.add(self.next_page)
         actionbar.set_center_widget(page_widget)
@@ -179,7 +169,7 @@ class AlbumsPanel(Gtk.Box):
     def make_combobox(
         self,
         items: Iterable[Tuple[str, str, bool]],
-        on_change: Callable[["AlbumsPanel", Gtk.ComboBox], None],
+        on_change: Callable[[Gtk.ComboBox], None],
     ) -> Tuple[Gtk.ComboBox, Gtk.ListStore]:
         store = Gtk.ListStore(str, str, bool)
         for item in items:
@@ -198,7 +188,7 @@ class AlbumsPanel(Gtk.Box):
 
     def populate_genre_combo(
         self,
-        app_config: AppConfiguration = None,
+        app_config: AppConfiguration | None = None,
         force: bool = False,
     ):
         if not AdapterManager.can_get_genres():
@@ -207,7 +197,7 @@ class AlbumsPanel(Gtk.Box):
 
         def get_genres_done(f: Result):
             try:
-                genre_names = map(lambda g: g.name, f.result() or [])
+                genre_names = (g.name for g in f.result() or [])
                 new_store = [(name, name, True) for name in sorted(genre_names)]
 
                 util.diff_song_store(self.genre_combo_store, new_store)
@@ -231,7 +221,7 @@ class AlbumsPanel(Gtk.Box):
         except Exception:
             self.updating_query = False
 
-    def update(self, app_config: AppConfiguration = None, force: bool = False):
+    def update(self, app_config: AppConfiguration | None = None, force: bool = False):
         self.updating_query = True
 
         supported_type_strings = {
@@ -294,27 +284,23 @@ class AlbumsPanel(Gtk.Box):
         )
 
         # (En|Dis)able the sort button
-        self.sort_toggle.set_sensitive(
-            self.current_query.type != AlbumSearchQuery.Type.RANDOM
-        )
+        self.sort_toggle.set_sensitive(self.current_query.type != AlbumSearchQuery.Type.RANDOM)
 
         if app_config:
             self.album_sort_direction = app_config.state.album_sort_direction
             self.sort_toggle.set_icon(f"view-sort-{self.album_sort_direction}-symbolic")
             self.sort_toggle.set_tooltip_text(
-                "Change sort order to "
-                + self._get_opposite_sort_dir(self.album_sort_direction)
+                "Change sort order to " + self._get_opposite_sort_dir(self.album_sort_direction)
             )
 
-            self.show_count_dropdown.set_active_id(
-                str(app_config.state.album_page_size)
-            )
+            self.show_count_dropdown.set_active_id(str(app_config.state.album_page_size))
 
         # Has to be last because it resets self.updating_query
         self.populate_genre_combo(app_config, force=force)
 
         # At this point, the current query should be totally updated.
-        self.grid_order_token = self.grid.update_params(app_config)
+        if app_config:
+            self.grid_order_token = self.grid.update_params(app_config)
         self.grid.update(self.grid_order_token, app_config, force=force)
 
     def _get_opposite_sort_dir(self, sort_dir: str) -> str:
@@ -330,9 +316,7 @@ class AlbumsPanel(Gtk.Box):
         self.emit(
             "refresh-window",
             {
-                "album_sort_direction": self._get_opposite_sort_dir(
-                    self.album_sort_direction
-                ),
+                "album_sort_direction": self._get_opposite_sort_dir(self.album_sort_direction),
                 "album_page": 0,
                 "selected_album_id": None,
             },
@@ -588,9 +572,7 @@ class AlbumsGrid(Gtk.Overlay):
         grid_detail_grid_box.add(self.grid_top)
 
         self.detail_box_revealer = Gtk.Revealer(valign=Gtk.Align.END)
-        self.detail_box = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL, name="artist-detail-box"
-        )
+        self.detail_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, name="artist-detail-box")
         self.detail_box.pack_start(Gtk.Box(), True, True, 0)
 
         self.detail_box_inner = Gtk.Box()
@@ -604,9 +586,7 @@ class AlbumsGrid(Gtk.Overlay):
         self.grid_bottom.connect("child-activated", self.on_child_activated)
 
         self.list_store_bottom = Gio.ListStore()
-        self.grid_bottom.bind_model(
-            self.list_store_bottom, self._create_cover_art_widget
-        )
+        self.grid_bottom.bind_model(self.list_store_bottom, self._create_cover_art_widget)
 
         grid_detail_grid_box.add(self.grid_bottom)
 
@@ -622,7 +602,7 @@ class AlbumsGrid(Gtk.Overlay):
         self.add_overlay(self.spinner)
 
     def update(
-        self, order_token: int, app_config: AppConfiguration = None, force: bool = False
+        self, order_token: int, app_config: AppConfiguration | None = None, force: bool = False
     ):
         if order_token < self.latest_applied_order_ratchet:
             return
@@ -719,8 +699,7 @@ class AlbumsGrid(Gtk.Overlay):
             for c in self.error_container.get_children():
                 self.error_container.remove(c)
             if is_partial and (
-                len(albums) == 0
-                or self.current_query.type != AlbumSearchQuery.Type.RANDOM
+                len(albums) == 0 or self.current_query.type != AlbumSearchQuery.Type.RANDOM
             ):
                 load_error = LoadError(
                     "Album list",
@@ -758,9 +737,7 @@ class AlbumsGrid(Gtk.Overlay):
                 albums_result.add_done_callback(reload_store)
             else:
                 self.spinner.show()
-                albums_result.add_done_callback(
-                    lambda f: GLib.idle_add(reload_store, f)
-                )
+                albums_result.add_done_callback(lambda f: GLib.idle_add(reload_store, f))
         else:
             selected_index = None
             for i, album in enumerate(self.current_models):
@@ -845,9 +822,7 @@ class AlbumsGrid(Gtk.Overlay):
             artwork.set_from_file(filename.result())
             artwork.set_loading(False)
 
-        cover_art_filename_future = AdapterManager.get_cover_art_uri(
-            item.album.cover_art, "file"
-        )
+        cover_art_filename_future = AdapterManager.get_cover_art_uri(item.album.cover_art, "file")
         if cover_art_filename_future.data_is_available:
             on_artwork_downloaded(cover_art_filename_future)
         else:
@@ -862,17 +837,15 @@ class AlbumsGrid(Gtk.Overlay):
     def reflow_grids(
         self,
         force_reload_from_master: bool = False,
-        selected_index: int = None,
-        models: List[_AlbumModel] = None,
+        selected_index: int | None = None,
+        models: List[_AlbumModel] | None = None,
     ):
         # Calculate the page that the currently_selected_index is in. If it's a
         # different page, then update the window.
         if selected_index is not None:
             page_of_selected_index = selected_index // self.page_size
             if page_of_selected_index != self.page:
-                self.emit(
-                    "refresh-window", {"album_page": page_of_selected_index}, False
-                )
+                self.emit("refresh-window", {"album_page": page_of_selected_index}, False)
                 return
         page_offset = self.page_size * self.page
 
@@ -925,9 +898,7 @@ class AlbumsGrid(Gtk.Overlay):
             if diff > 0:
                 if entries_before_fold - top_store_len > 0:
                     # Move entries from the bottom store.
-                    self.list_store_top.splice(
-                        top_store_len, 0, self.list_store_bottom[:diff]
-                    )
+                    self.list_store_top.splice(top_store_len, 0, self.list_store_bottom[:diff])
                     self.list_store_bottom.splice(0, min(diff, bottom_store_len), [])
                 else:
                     # Move entries to the bottom store.

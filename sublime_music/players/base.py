@@ -150,6 +150,7 @@ class Player(abc.ABC):
         Switch to the given device ID.
         """
 
+    @abc.abstractmethod
     def reset(self):
         """
         Reset the player.
@@ -216,11 +217,13 @@ class Player(abc.ABC):
         Play the current media.
         """
 
+    @abc.abstractmethod
     def seek(self, position: timedelta):
         """
         :param position: seek to the given position in the song.
         """
 
+    @abc.abstractmethod
     def next_media_cached(self, uri: str, song: Song):
         """
         :param uri: the URI to prepare to play. The URI is guaranteed to be one of

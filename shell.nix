@@ -22,7 +22,7 @@ pkgs.mkShell {
   propagatedBuildInputs = with pkgs; [
     cairo
     mpv
-    python38
+    python310
     rnix-lsp
   ];
 

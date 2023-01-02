@@ -26,7 +26,7 @@ class ConfigureProviderDialog(Gtk.Dialog):
     _current_index = -1
     stage = DialogStage.SELECT_ADAPTER
 
-    def set_title(self, editing: bool, provider_config: ProviderConfiguration = None):
+    def set_title(self, editing: bool, provider_config: ProviderConfiguration | None = None):
         if editing:
             assert provider_config is not None
             title = f"Edit {provider_config.name}"
@@ -116,10 +116,7 @@ class ConfigureProviderDialog(Gtk.Dialog):
         if self.editing:
             assert self.provider_config
             for i, adapter_type in enumerate(self.adapter_type_store):
-                if (
-                    adapter_type.adapter_type
-                    == self.provider_config.ground_truth_adapter_type
-                ):
+                if adapter_type.adapter_type == self.provider_config.ground_truth_adapter_type:
                     row = self.adapter_options_list.get_row_at_index(i)
                     self.adapter_options_list.select_row(row)
                     break
@@ -203,9 +200,7 @@ class ConfigureProviderDialog(Gtk.Dialog):
     _adapter_config_is_valid = False
 
     def _update_add_button_sensitive(self):
-        self.next_add_button.set_sensitive(
-            self._name_is_valid and self._adapter_config_is_valid
-        )
+        self.next_add_button.set_sensitive(self._name_is_valid and self._adapter_config_is_valid)
 
     def _on_name_change(self, entry: Gtk.Entry):
         if entry.get_text():

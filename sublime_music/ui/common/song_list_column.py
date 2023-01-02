@@ -8,7 +8,7 @@ class SongListColumn(Gtk.TreeViewColumn):
         text_idx: int,
         bold: bool = False,
         align: float = 0,
-        width: int = None,
+        width: int | None = None,
     ):
         """Represents a column in a song list."""
         renderer = Gtk.CellRendererText(

@@ -10,7 +10,7 @@ class IconButton(Gtk.Button):
         tooltip_text: str = "",
         relief: bool = False,
         icon_size: Gtk.IconSize = Gtk.IconSize.BUTTON,
-        label: str = None,
+        label: str | None = None,
         **kwargs,
     ):
         Gtk.Button.__init__(self, **kwargs)
@@ -41,7 +41,7 @@ class IconToggleButton(Gtk.ToggleButton):
         tooltip_text: str = "",
         relief: bool = False,
         icon_size: Gtk.IconSize = Gtk.IconSize.BUTTON,
-        label: str = None,
+        label: str | None = None,
         **kwargs,
     ):
         Gtk.ToggleButton.__init__(self, **kwargs)
@@ -77,7 +77,7 @@ class IconMenuButton(Gtk.MenuButton):
         tooltip_text: str = "",
         relief: bool = True,
         icon_size: Gtk.IconSize = Gtk.IconSize.BUTTON,
-        label: str = None,
+        label: str | None = None,
         popover: Any = None,
         **kwargs,
     ):

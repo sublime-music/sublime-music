@@ -6,10 +6,9 @@ from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from time import sleep
-from typing import Any, Callable, cast, Dict, Iterable, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Type, Union, cast
 
 import bleach
-
 from gi.repository import GLib, GObject, Gtk, Pango
 
 from . import ConfigurationStore
@@ -220,9 +219,7 @@ class ConfigureServerForm(Gtk.Box):
                 orientation=Gtk.Orientation.HORIZONTAL, spacing=10
             )
 
-            advanced_label = Gtk.Label(
-                label="<b>Advanced Settings</b>", use_markup=True
-            )
+            advanced_label = Gtk.Label(label="<b>Advanced Settings</b>", use_markup=True)
             advanced_expander_button_box.add(advanced_label)
             advanced_expander_button_box.add(advanced_expander_icon)
 
@@ -252,7 +249,7 @@ class ConfigureServerForm(Gtk.Box):
     verifying_in_progress = False
 
     def _set_verification_status(
-        self, verifying: bool, is_valid: bool = False, error_text: str = None
+        self, verifying: bool, is_valid: bool = False, error_text: str | None = None
     ):
         if verifying:
             if not self.verifying_in_progress:
@@ -262,9 +259,7 @@ class ConfigureServerForm(Gtk.Box):
                     Gtk.Spinner(active=True, name="verify-config-spinner")
                 )
                 self.config_verification_box.add(
-                    Gtk.Label(
-                        label="<b>Verifying configuration...</b>", use_markup=True
-                    )
+                    Gtk.Label(label="<b>Verifying configuration...</b>", use_markup=True)
                 )
             self.verifying_in_progress = True
         else:
@@ -285,9 +280,7 @@ class ConfigureServerForm(Gtk.Box):
                 self.config_verification_box.add(label)
 
             if is_valid:
-                set_icon_and_label(
-                    "config-ok-symbolic", "<b>Configuration is valid</b>"
-                )
+                set_icon_and_label("config-ok-symbolic", "<b>Configuration is valid</b>")
             elif escaped := bleach.clean(error_text or ""):
                 set_icon_and_label("config-error-symbolic", escaped)
 
@@ -363,6 +356,4 @@ class ConfigureServerForm(Gtk.Box):
                 return self.verify_configuration()
 
             errors_result: Result[Dict[str, Optional[str]]] = Result(verify_with_delay)
-            errors_result.add_done_callback(
-                lambda f: GLib.idle_add(on_verify_result, f.result())
-            )
+            errors_result.add_done_callback(lambda f: GLib.idle_add(on_verify_result, f.result()))
