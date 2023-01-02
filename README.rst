@@ -5,6 +5,14 @@ Sublime Music is a native, GTK3
 `Subsonic`_/`Airsonic`_/`Revel`_/`Gonic`_/`Navidrome`_/`Ampache`_/\*sonic client for the
 Linux Desktop.
 
+CI
+  .. image:: https://github.com/sublime-music/sublime-music/actions/workflows/deploy.yaml/badge.svg?branch=master
+     :target: https://github.com/sublime-music/sublime-music/actions/workflows/deploy.yaml
+     :alt: Lint and Build
+  .. image:: https://github.com/sublime-music/sublime-music/actions/workflows/pages.yaml/badge.svg?branch=master
+     :target: https://github.com/sublime-music/sublime-music/actions/workflows/pages.yaml
+     :alt: GitHub Pages
+
 Community
   .. image:: https://img.shields.io/matrix/sublime-music:matrix.org?logo=matrix
      :target: https://matrix.to/#/#sublime-music:nevarro.space?via=matrix.org
