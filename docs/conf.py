@@ -23,7 +23,7 @@ from pathlib import Path
 project = "Sublime Music"
 copyright = f"{datetime.datetime.today().year}, Sumner Evans"
 author = "Sumner Evans"
-gitlab_url = "https://gitlab.com/sublime-music/sublime-music/"
+github_url = "https://github.com/sublime-music/sublime-music/"
 
 # Get the version from the package.
 module_name = "sublime_music"
@@ -86,12 +86,12 @@ html_theme_options = {
     "logo_only": True,
 }
 
-# Edit on GitLab integration
+# Edit on GitHub integration
 html_context = {
-    "display_gitlab": True,
-    "gitlab_user": "sublime-music",
-    "gitlab_repo": "sublime-music",
-    "gitlab_version": "master",
+    "display_github": True,
+    "github_user": "sublime-music",
+    "github_repo": "sublime-music",
+    "github_version": "master",
     "conf_py_path": "/docs/",
 }
 
