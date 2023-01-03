@@ -78,7 +78,15 @@ jobs:
   publish:
     name: Deploy to PyPi
     runs-on: ubuntu-latest
+    needs:
+      - lint
+      - test
+      - build
     if: ${{ github.event_name == 'release' && github.event.action == 'created' }}
+
+    env:
+      FLIT_USERNAME: "__token__"
+      FLIT_PASSWORD: ${{ secrets.PYPI_DEPLOY_TOKEN }}
 
     steps:
       - uses: actions/checkout@v3
@@ -98,4 +106,5 @@ jobs:
           pip install -r all-requirements.txt
 
       - run: flit build
-      # - run: flit publish
+
+      - run: flit publish
