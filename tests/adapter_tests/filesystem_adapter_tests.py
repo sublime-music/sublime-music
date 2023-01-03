@@ -15,6 +15,7 @@ from sublime_music.adapters import (
     api_objects as SublimeAPI,
 )
 from sublime_music.adapters.filesystem import FilesystemAdapter
+from sublime_music.adapters.filesystem.models import Directory
 from sublime_music.adapters.subsonic import api_objects as SubsonicAPI
 
 MOCK_DATA_FILES = Path(__file__).parent.joinpath("mock_data")
@@ -765,7 +766,7 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
         "1",
         SubsonicAPI.ArtistAndArtistInfo(
             id="1",
-            name="Foo",
+            name="Baz",
             album_count=2,
             artist_image_url="image2",
             similar_artists=[
@@ -776,7 +777,7 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
             music_brainz_id="mbid2",
             albums=[
                 SubsonicAPI.Album(id="1", name="Foo", artist_id="1"),
-                SubsonicAPI.Album(id="2", name="Bar", artist_id="1"),
+                SubsonicAPI.Album(id="2", name="OHEA", artist_id="1"),
             ],
         ),
     )
@@ -789,16 +790,22 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
         artist.artist_image_url,
         artist.biography,
         artist.music_brainz_id,
-    ) == ("1", "Foo", 2, "image2", "this is a bio2", "mbid2")
+    ) == ("1", "Baz", 2, "image2", "this is a bio2", "mbid2")
     assert artist.similar_artists == [
         SubsonicAPI.ArtistAndArtistInfo(id="A", name="B"),
         SubsonicAPI.ArtistAndArtistInfo(id="E", name="F"),
     ]
-    assert artist.albums and len(artist.albums) == 2
-    assert cast(SelectQuery, artist.albums).dicts() == [
+    assert artist.albums is not None
+    expected = [
         SubsonicAPI.Album(id="1", name="Foo"),
-        SubsonicAPI.Album(id="2", name="Bar"),
+        SubsonicAPI.Album(id="2", name="OHEA"),
     ]
+    count = 0
+    for album, exp in zip(artist.albums, expected):
+        assert album.id == exp.id
+        assert album.name == exp.name
+        count += 1
+    assert count == 2
 
 
 def test_caching_get_album(cache_adapter: FilesystemAdapter):
@@ -967,8 +974,8 @@ def test_get_music_directory(cache_adapter: FilesystemAdapter):
 
     dir_child, *song_children = directory.children
     verify_songs(song_children, MOCK_SUBSONIC_SONGS[:2])
-    assert isinstance(dir_child, SublimeAPI.Directory)
-    dir_child = cast(SublimeAPI.Directory, dir_child)
+    assert isinstance(dir_child, Directory)
+    dir_child = cast(Directory, dir_child)
     assert dir_child.id == "542"
     assert dir_child.parent_id
     assert dir_child.name == "Crash My Party"
