@@ -47,7 +47,7 @@ deepdiff==6.2.2
     # via sublime_music (pyproject.toml)
 distlib==0.3.6
     # via virtualenv
-docutils==0.16
+docutils==0.19
     # via
     #   flit
     #   rst2html5

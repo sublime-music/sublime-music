@@ -59,7 +59,7 @@ dev = [
     "types-termcolor",
 ]
 doc = [
-    "docutils <0.17",
+    "docutils <0.20",
     "rst2html5",
     "sphinx <5",
     "sphinx_rtd_theme",
