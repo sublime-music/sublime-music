@@ -4,5 +4,18 @@
   "python.linting.flake8Enabled": true,
   "python.linting.enabled": true,
   "python.linting.mypyEnabled": true,
-  "python.formatting.provider": "black"
+  "python.formatting.provider": "black",
+  "yaml.schemas": {
+    "https://json.schemastore.org/github-workflow.json": [
+      ".github/workflows/deploy.yaml",
+      ".github/workflows/pages.yaml"
+    ],
+    "https://json.schemastore.org/dependabot-2.0.json": [
+      ".github/dependabot.yml"
+    ],
+    "https://json.schemastore.org/github-funding.json": [".github/FUNDING.yml"],
+    "https://json.schemastore.org/pre-commit-config.json": [
+      ".pre-commit-config.yaml"
+    ]
+  }
 }
