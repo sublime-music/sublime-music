@@ -29,7 +29,7 @@ click==8.1.3
     # via
     #   black
     #   pip-tools
-coverage[toml]==7.0.1
+coverage[toml]==7.0.2
     # via pytest-cov
 dataclasses-json==0.5.7
     # via sublime_music (pyproject.toml)
