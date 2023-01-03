@@ -8,7 +8,7 @@ bleach==5.0.1
     # via sublime_music (pyproject.toml)
 certifi==2022.12.7
     # via requests
-charset-normalizer==2.1.1
+charset-normalizer==3.0.1
     # via requests
 dataclasses-json==0.5.7
     # via sublime_music (pyproject.toml)
