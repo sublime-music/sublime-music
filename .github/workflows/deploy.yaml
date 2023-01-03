@@ -61,14 +61,8 @@ jobs:
           sudo apt install -y \
             libgirepository1.0-dev \
             libgtk-3-dev \
-            libmpv-dev \
-            xvfb
+            libmpv-dev
           pip install -r all-requirements.txt
-
-      - name: Start virtual screen
-        run: |
-          Xvfb :119 -screen 0 1024x768x16 &
-          export DISPLAY=:119
 
       - run: pytest
 

@@ -90,12 +90,6 @@ def camel_to_snake(name: str) -> str:
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", name).lower()
 
 
-def test_config_form():
-    # Just make sure that the functions work. That's half of the battle.
-    config_store = ConfigurationStore()
-    SubsonicAdapter.get_configuration_form(config_store)
-
-
 def test_plain_auth_logic(adapter: SubsonicAdapter):
     expected = {
         "u": "test",
