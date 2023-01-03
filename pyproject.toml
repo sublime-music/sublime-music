@@ -61,7 +61,7 @@ dev = [
 doc = [
     "docutils <0.17",
     "rst2html5",
-    "sphinx <5",
+    "sphinx <7",
     "sphinx_rtd_theme",
 ]
 test = [

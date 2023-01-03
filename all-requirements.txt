@@ -212,7 +212,7 @@ six==1.16.0
     #   python-dateutil
 snowballstemmer==2.2.0
     # via sphinx
-sphinx==4.5.0
+sphinx==6.0.0
     # via
     #   sphinx-rtd-theme
     #   sublime_music (pyproject.toml)
