@@ -49,7 +49,7 @@ Packages
    :target: docs/_static/screenshots/play-queue.png
 
    The Albums tab of Sublime Music with the Play Queue opened. `More
-   Screenshots <https://sublime-music.gitlab.io/sublime-music/screenshots.html>`_
+   Screenshots <https://docs.sublimemusic.app/screenshots.html>`_
 
 Features
 --------
@@ -170,7 +170,7 @@ how to do that::
 |userdoc|_
 
 .. |userdoc| replace:: **Click HERE for extended user documentation.**
-.. _userdoc: https://sublime-music.gitlab.io/sublime-music/
+.. _userdoc: https://docs.sublimemusic.app
 
 See the |contributing|_ document for how to contribute to this project.
 
