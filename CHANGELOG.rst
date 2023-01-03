@@ -1,3 +1,38 @@
+v0.12.0
+=======
+
+**Python Version Requirements:** This release requires Python 3.10 or later.
+
+**Packaging Changes:** I have switched away from Poetry to Flit+pip-tools. This
+means that there is now a ``requirements.txt`` file that can be used to install
+Sublime Music. The dependencies are listed in the ``pyproject.toml`` file, but
+running it does not require the exact versions specified in that file, so it
+should be easier for distribution package managers to package the project.
+
+* Sort songs by track number in the Browse tab. Contributed by @jordannewport.
+* The ``salt_auth`` method is automatically disabled when using Ampache.
+  Contribtued by @BenjaminSchaaf.
+* Added basic Gapless Playback support for mpv. Contributed by @t11230.
+* Added Ctrl-Q keyboard shortcut to quit application. Contributed by
+  @buckmelanoma.
+
+**Bug Fixes**
+
+* Fixed a bug with updating the playlist song list. Contributed by @TheBlueMatt.
+* Fixed a bug where using unsupported playlist sort methods via DBUS would cause
+  an exception. Contributed by @cquike.
+* Fixed deepdiff comparison of GObjects. Contributed by @cquike. (#340)
+* Fixed deepdiff failure with dataclasses under Python 3.11. Contributed by
+  @baldurmen. (#346)
+
+**Internal Changes**
+
+* The ``fuzzywuzzy`` project is now called ``thefuzz``. Contributed by
+  @edwardbetts.
+* Migrated to GitHub and updated the CI to use GitHub Actions.
+* Added a pre-commit configuration file for enforcing proper formatting at
+  commit-time.
+
 v0.11.16
 ========
 
