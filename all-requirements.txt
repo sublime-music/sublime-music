@@ -218,7 +218,7 @@ sphinx==4.5.0
     #   sublime_music (pyproject.toml)
 sphinx-rtd-theme==1.1.1
     # via sublime_music (pyproject.toml)
-sphinxcontrib-applehelp==1.0.2
+sphinxcontrib-applehelp==1.0.3
     # via sphinx
 sphinxcontrib-devhelp==1.0.2
     # via sphinx
