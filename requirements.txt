@@ -12,7 +12,7 @@ charset-normalizer==2.1.1
     # via requests
 dataclasses-json==0.5.7
     # via sublime_music (pyproject.toml)
-deepdiff==6.2.2
+deepdiff==6.2.3
     # via sublime_music (pyproject.toml)
 idna==3.4
     # via requests

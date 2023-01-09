@@ -43,7 +43,7 @@ cryptography==39.0.0
     # via secretstorage
 dataclasses-json==0.5.7
     # via sublime_music (pyproject.toml)
-deepdiff==6.2.2
+deepdiff==6.2.3
     # via sublime_music (pyproject.toml)
 distlib==0.3.6
     # via virtualenv
