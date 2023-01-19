@@ -28,7 +28,7 @@ dependencies = [
     "peewee",
     "PyGObject",
     "python-dateutil",
-    "python-Levenshtein",
+    "Levenshtein",
     "python-mpv",
     "requests",
     "semver",
