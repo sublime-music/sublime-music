@@ -44,7 +44,7 @@ python-mpv==1.0.1
     # via sublime_music (pyproject.toml)
 rapidfuzz==2.13.7
     # via levenshtein
-requests==2.28.1
+requests==2.28.2
     # via sublime_music (pyproject.toml)
 semver==2.13.0
     # via sublime_music (pyproject.toml)
