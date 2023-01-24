@@ -120,7 +120,7 @@ def test_cancel():
     result.cancel()
     assert cancel_called
     assert not result.data_is_available
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match=""):
         result.result()
 
 

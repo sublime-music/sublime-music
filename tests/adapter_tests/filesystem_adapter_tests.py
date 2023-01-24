@@ -239,7 +239,7 @@ def test_caching_get_playlist_details(cache_adapter: FilesystemAdapter):
 
 
 def test_no_caching_get_playlist_details(adapter: FilesystemAdapter):
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="<Model: Playlist> with id=1 does not exist"):
         adapter.get_playlist_details("1")
 
     # TODO (#188): Create a playlist (that should be allowed only if this is acting as
