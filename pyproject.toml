@@ -18,6 +18,7 @@ classifiers = [
     "Intended Audience :: End Users/Desktop",
     "Operating System :: POSIX",
     "Topic :: Multimedia :: Sound/Audio :: Players",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
 ]
 
 dependencies = [
