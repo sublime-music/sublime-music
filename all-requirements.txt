@@ -68,7 +68,7 @@ flake8==6.0.0
     #   sublime_music (pyproject.toml)
 flake8-annotations==2.9.1
     # via sublime_music (pyproject.toml)
-flake8-bugbear==22.12.6
+flake8-bugbear==23.1.20
     # via sublime_music (pyproject.toml)
 flake8-comprehensions==3.10.1
     # via sublime_music (pyproject.toml)
