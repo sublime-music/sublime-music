@@ -21,7 +21,7 @@ bleach==5.0.1
     # via sublime_music (pyproject.toml)
 bottle==0.12.23
     # via sublime_music (pyproject.toml)
-build==0.9.0
+build==0.10.0
     # via pip-tools
 casttube==0.2.1
     # via pychromecast
