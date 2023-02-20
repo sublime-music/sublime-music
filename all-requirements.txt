@@ -254,7 +254,7 @@ types-pyyaml==6.0.12.2
     # via sublime_music (pyproject.toml)
 types-requests==2.28.11.7
     # via sublime_music (pyproject.toml)
-types-setuptools==65.6.0.2
+types-setuptools==67.3.0.1
     # via requirements-parser
 types-tabulate==0.9.0.0
     # via sublime_music (pyproject.toml)
