@@ -17,6 +17,7 @@ pkgs.mkShell {
     libnotify
     pango
     pkgconfig
+    pre-commit
   ];
 
   propagatedBuildInputs = with pkgs; [
