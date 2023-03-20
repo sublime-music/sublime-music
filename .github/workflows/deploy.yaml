@@ -95,7 +95,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Run image
-        uses: abatilo/actions-poetry@v2.2.0
+        uses: abatilo/actions-poetry@v2.3.0
 
       - name: Install dependencies
         run: |
