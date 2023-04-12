@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from gi.repository import GdkPixbuf, Gtk
@@ -34,10 +35,13 @@ class SpinnerImage(Gtk.Overlay):
             filename = None
         self.filename = filename
         if self.image_size is not None and filename:
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                filename, self.image_size, self.image_size, True
-            )
-            self.image.set_from_pixbuf(pixbuf)
+            try:
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                    filename, self.image_size, self.image_size, True
+                )
+                self.image.set_from_pixbuf(pixbuf)
+            except Exception as e:
+                logging.warn(f"could not load {filename}. Probably not an image. {e}")
         else:
             self.image.set_from_file(filename)
 
