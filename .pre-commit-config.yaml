@@ -9,13 +9,12 @@ repos:
       - id: check-added-large-files
 
   # black
-  - repo: local
+  - repo: https://github.com/psf/black
+    rev: 23.3.0
     hooks:
       - id: black
-        name: black
+        language_version: python3
         files: ^(sublime_music|tests)/.*\.py$
-        entry: black --check
-        language: system
 
   # isort
   - repo: https://github.com/PyCQA/isort
@@ -39,7 +38,7 @@ repos:
 
   # mypy
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.1.1
+    rev: v1.2.0
     hooks:
       - id: mypy
         files: ^(sublime_music|tests)/.*\.py$
