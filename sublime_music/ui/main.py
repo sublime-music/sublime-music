@@ -788,13 +788,19 @@ class MainWindow(Gtk.ApplicationWindow):
         vbox.add(allow_song_downloads)
 
         # Download on Stream
-        (download_on_stream, self.download_on_stream_switch,) = self._create_toggle_menu_button(
+        (
+            download_on_stream,
+            self.download_on_stream_switch,
+        ) = self._create_toggle_menu_button(
             "When Streaming, Also Download Song", "download_on_stream"
         )
         vbox.add(download_on_stream)
 
         # Prefetch Songs
-        (prefetch_songs_box, self.prefetch_songs_entry,) = self._create_spin_button_menu_item(
+        (
+            prefetch_songs_box,
+            self.prefetch_songs_entry,
+        ) = self._create_spin_button_menu_item(
             "Number of Songs to Prefetch", 0, 10, 1, "prefetch_amount"
         )
         vbox.add(prefetch_songs_box)

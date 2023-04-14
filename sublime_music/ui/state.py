@@ -144,7 +144,6 @@ class UIState:
 
         # If we are at the end of the play queue
         if self.current_song_index == len(self.play_queue) - 1:
-
             # If we are repeating the queue, jump back to the beginning
             if self.repeat_type == RepeatType.REPEAT_QUEUE:
                 return 0
