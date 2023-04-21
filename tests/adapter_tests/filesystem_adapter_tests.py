@@ -776,8 +776,8 @@ def test_caching_get_artist(cache_adapter: FilesystemAdapter):
             biography="this is a bio2",
             music_brainz_id="mbid2",
             albums=[
-                SubsonicAPI.Album(id="1", name="Foo", artist_id="1"),
-                SubsonicAPI.Album(id="2", name="OHEA", artist_id="1"),
+                SubsonicAPI.Album(id="1", name="Foo", _artist="Baz", artist_id="1"),
+                SubsonicAPI.Album(id="2", name="OHEA", _artist="Baz", artist_id="1"),
             ],
         ),
     )
@@ -870,8 +870,8 @@ def test_caching_invalidate_artist(cache_adapter: FilesystemAdapter):
             biography="this is a bio",
             music_brainz_id="mbid",
             albums=[
-                SubsonicAPI.Album(id="1", name="Foo", artist_id="1"),
-                SubsonicAPI.Album(id="2", name="Bar", artist_id="1"),
+                SubsonicAPI.Album(id="1", name="Foo", _artist="Bar", artist_id="1"),
+                SubsonicAPI.Album(id="2", name="Bar", _artist="Bar", artist_id="1"),
             ],
         ),
     )
