@@ -17,7 +17,7 @@ black==22.12.0
     # via sublime_music (pyproject.toml)
 bleach==5.0.1
     # via sublime_music (pyproject.toml)
-build==0.9.0
+build==0.10.0
     # via pip-tools
 certifi==2022.12.7
     # via requests
@@ -72,7 +72,7 @@ flit-core==3.8.0
     # via flit
 genshi==0.7.7
     # via rst2html5
-identify==2.5.11
+identify==2.5.22
     # via pre-commit
 idna==3.4
     # via requests
@@ -113,7 +113,7 @@ packaging==23.0
     #   marshmallow
     #   pytest
     #   sphinx
-pathspec==0.10.3
+pathspec==0.11.1
     # via black
 peewee==3.15.4
     # via sublime_music (pyproject.toml)
@@ -220,7 +220,7 @@ types-pyyaml==6.0.12.2
     # via sublime_music (pyproject.toml)
 types-requests==2.28.11.7
     # via sublime_music (pyproject.toml)
-types-setuptools==65.6.0.2
+types-setuptools==67.6.0.7
     # via requirements-parser
 types-tabulate==0.9.0.0
     # via sublime_music (pyproject.toml)
