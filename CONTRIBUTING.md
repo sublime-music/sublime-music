@@ -45,7 +45,7 @@ to develop the app. In general, the requirements are:
 
 #### Specific Requirements for Various Distros/OSes
 
-* **NixOS:** use the `shell.nix` (optionally with direnv)
+* **NixOS:** use the `flake.nix` (optionally with direnv)
 * **Arch Linux:** `pacman -S libnm-glib libnotify python-gobject gobject-introspection`
 * **macOS (Homebrew):** `brew install mp3 gobject-introspection pkg-config pygobject3 gtk+3 adwaita-icon-theme`
 
