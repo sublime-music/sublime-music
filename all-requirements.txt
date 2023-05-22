@@ -4,7 +4,7 @@
 #
 #    pip-compile --all-extras --output-file=all-requirements.txt pyproject.toml
 #
-alabaster==0.7.12
+alabaster==0.7.13
     # via sphinx
 async-timeout==4.0.2
     # via zeroconf
