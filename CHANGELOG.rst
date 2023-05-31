@@ -15,6 +15,7 @@ should be easier for distribution package managers to package the project.
 * Added basic Gapless Playback support for mpv. Contributed by @t11230.
 * Added Ctrl-Q keyboard shortcut to quit application. Contributed by
   @buckmelanoma.
+* Added the ability to rate songs. Contributed by @LoveIsGrief and @cquike.
 
 **Bug Fixes**
 
@@ -32,6 +33,9 @@ should be easier for distribution package managers to package the project.
 * Migrated to GitHub and updated the CI to use GitHub Actions.
 * Added a pre-commit configuration file for enforcing proper formatting at
   commit-time.
+* Converted the Nix shell to a flake.
+* Moved documentation to docs.sublimemusic.app.
+* Allowed line lengths of 100 characters.
 
 v0.11.16
 ========
