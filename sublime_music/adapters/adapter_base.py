@@ -204,10 +204,12 @@ class ConfigurationStore(dict):
             return None
 
         storage_type, storage_key = value
-        return {
-            "keyring": lambda: keyring.get_password(KEYRING_APP_NAME, storage_key),
-            "plaintext": lambda: storage_key,
-        }[storage_type]()
+        if storage_type == "keyring":
+            return keyring.get_password(KEYRING_APP_NAME, storage_key)
+        elif storage_type == "plaintext":
+            return storage_key
+        else:
+            return None
 
     def set_secret(self, key: str, value: str | None = None):
         """
