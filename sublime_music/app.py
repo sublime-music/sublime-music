@@ -136,7 +136,8 @@ class SublimeMusicApp(Gtk.Application):
 
                 # If they didn't add one with the dialog, close the window.
                 if len(self.app_config.providers) == 0:
-                    self.window.close()
+                    if self.window:
+                        self.window.close()
                     return
 
         AdapterManager.reset(self.app_config, self.on_song_download_progress)
@@ -874,6 +875,8 @@ class SublimeMusicApp(Gtk.Application):
         self.save_play_queue()
 
     def on_current_song_rated(self, _):
+        if not self.window:
+            return
         rating = self.window.player_controls.rating_buttons_box.rating
         current_song = self.app_config.state.current_song
         if not current_song:
