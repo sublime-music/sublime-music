@@ -3,6 +3,9 @@ v0.12.0
 
 **Python Version Requirements:** This release requires Python 3.10 or later.
 
+**Dependency Changes:** ``bottle`` and ``pychromecast`` are now required
+dependencies.
+
 **Packaging Changes:** I have switched away from Poetry to Flit+pip-tools. This
 means that there is now a ``requirements.txt`` file that can be used to install
 Sublime Music. The dependencies are listed in the ``pyproject.toml`` file, but

@@ -10,25 +10,13 @@ from typing import Any, Callable, Dict, Optional, Set, Tuple, Type, Union, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
+import bottle
+import pychromecast
 from gi.repository import GLib
 
 from ..adapters import AdapterManager
 from ..adapters.api_objects import Song
 from .base import Player, PlayerDeviceEvent, PlayerEvent
-
-try:
-    import pychromecast
-
-    chromecast_imported = True
-except Exception:
-    chromecast_imported = False
-
-try:
-    import bottle
-
-    bottle_imported = True
-except Exception:
-    bottle_imported = False
 
 SERVE_FILES_KEY = "Serve Local Files to Chromecasts on the LAN"
 LAN_PORT_KEY = "LAN Server Port Number"
@@ -40,18 +28,16 @@ class ChromecastPlayer(Player):
 
     @property
     def enabled(self) -> bool:
-        return chromecast_imported
+        return True
 
     @staticmethod
     def get_configuration_options() -> Dict[str, Union[Type, Tuple[str, ...]]]:
-        if not bottle_imported:
-            return {}
         return {SERVE_FILES_KEY: bool, LAN_PORT_KEY: int}
 
     @property
     def supported_schemes(self) -> Set[str]:
         schemes = {"http", "https"}
-        if bottle_imported and self.config.get(SERVE_FILES_KEY):
+        if self.config.get(SERVE_FILES_KEY):
             schemes.add("file")
         return schemes
 
@@ -73,12 +59,11 @@ class ChromecastPlayer(Player):
 
         self.change_settings(config)
 
-        if chromecast_imported:
-            self._chromecasts: Dict[UUID, pychromecast.Chromecast] = {}
-            self._current_chromecast: Optional[pychromecast.Chromecast] = None
+        self._chromecasts: Dict[UUID, pychromecast.Chromecast] = {}
+        self._current_chromecast: Optional[pychromecast.Chromecast] = None
 
-            self.stop_get_chromecasts = None
-            self.refresh_players()
+        self.chromecast_browser = None
+        self.refresh_players()
 
     def chromecast_discovered_callback(self, chromecast: Any):
         chromecast = cast(pychromecast.Chromecast, chromecast)
@@ -93,11 +78,8 @@ class ChromecastPlayer(Player):
         )
 
     def change_settings(self, config: Dict[str, Union[str, int, bool]]):
-        if not chromecast_imported:
-            return
-
         self.config = config
-        if bottle_imported and self.config.get(SERVE_FILES_KEY):
+        if self.config.get(SERVE_FILES_KEY):
             # Try and terminate the existing process if it exists.
             if self.server_process is not None:
                 try:
@@ -112,12 +94,6 @@ class ChromecastPlayer(Player):
             self.server_process.start()
 
     def refresh_players(self):
-        if not chromecast_imported:
-            return
-
-        if self.stop_get_chromecasts is not None:
-            self.stop_get_chromecasts.cancel()
-
         for id_, chromecast in self._chromecasts.items():
             self.player_device_change_callback(
                 PlayerDeviceEvent(
@@ -127,10 +103,9 @@ class ChromecastPlayer(Player):
                     chromecast.cast_info.friendly_name,
                 )
             )
-
         self._chromecasts = {}
 
-        self.stop_get_chromecasts = pychromecast.get_chromecasts(
+        self.chromecast_browser = pychromecast.get_chromecasts(
             blocking=False, callback=self.chromecast_discovered_callback
         )
 
