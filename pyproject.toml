@@ -53,7 +53,7 @@ dev = [
     "pychromecast",
     "requirements-parser",
     "termcolor",
-    "thefuzz @ git+https://github.com/seatgeek/thefuzz@6e68af84e086b3e5f7253d4f9b0d6c7313e34637",
+    "thefuzz",
     "types-bleach",
     "types-peewee",
     "types-python-dateutil",
