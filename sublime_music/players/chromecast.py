@@ -82,13 +82,13 @@ class ChromecastPlayer(Player):
 
     def chromecast_discovered_callback(self, chromecast: Any):
         chromecast = cast(pychromecast.Chromecast, chromecast)
-        self._chromecasts[chromecast.device.uuid] = chromecast
+        self._chromecasts[chromecast.cast_info.uuid] = chromecast
         self.player_device_change_callback(
             PlayerDeviceEvent(
                 PlayerDeviceEvent.Delta.ADD,
                 type(self),
-                str(chromecast.device.uuid),
-                chromecast.device.friendly_name,
+                str(chromecast.cast_info.uuid),
+                chromecast.cast_info.friendly_name,
             )
         )
 
@@ -124,7 +124,7 @@ class ChromecastPlayer(Player):
                     PlayerDeviceEvent.Delta.REMOVE,
                     type(self),
                     str(id_),
-                    chromecast.device.friendly_name,
+                    chromecast.cast_info.friendly_name,
                 )
             )
 
@@ -145,7 +145,7 @@ class ChromecastPlayer(Player):
         self.on_player_event(
             PlayerEvent(
                 PlayerEvent.EventType.VOLUME_CHANGE,
-                str(self._current_chromecast.device.uuid),
+                str(self._current_chromecast.cast_info.uuid),
                 volume=(status.volume_level * 100 if not status.volume_muted else 0),
             )
         )
@@ -177,7 +177,7 @@ class ChromecastPlayer(Player):
         self.on_player_event(
             PlayerEvent(
                 PlayerEvent.EventType.PLAY_STATE_CHANGE,
-                str(self._current_chromecast.device.uuid),
+                str(self._current_chromecast.cast_info.uuid),
                 playing=(status.player_state in ("PLAYING", "BUFFERING")),
             )
         )
@@ -319,7 +319,7 @@ class ChromecastPlayer(Player):
         self.on_player_event(
             PlayerEvent(
                 PlayerEvent.EventType.STREAM_CACHE_PROGRESS_CHANGE,
-                str(self._current_chromecast.device.uuid),
+                str(self._current_chromecast.cast_info.uuid),
                 stream_cache_duration=0,
             )
         )
