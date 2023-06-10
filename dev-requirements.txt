@@ -212,7 +212,7 @@ sphinxcontrib-serializinghtml==1.1.5
     # via sphinx
 termcolor==2.2.0
     # via sublime_music (pyproject.toml)
-thefuzz @ git+https://github.com/seatgeek/thefuzz@6e68af84e086b3e5f7253d4f9b0d6c7313e34637
+thefuzz==0.19.0
     # via sublime_music (pyproject.toml)
 tomli==2.0.1
     # via

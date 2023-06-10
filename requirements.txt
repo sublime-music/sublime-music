@@ -4,8 +4,14 @@
 #
 #    pip-compile --output-file=requirements.txt pyproject.toml
 #
+async-timeout==4.0.2
+    # via zeroconf
 bleach==5.0.1
     # via sublime_music (pyproject.toml)
+bottle==0.12.25
+    # via sublime_music (pyproject.toml)
+casttube==0.2.1
+    # via pychromecast
 certifi==2022.12.7
     # via requests
 charset-normalizer==2.1.1
@@ -16,6 +22,8 @@ deepdiff==6.2.3
     # via sublime_music (pyproject.toml)
 idna==3.4
     # via requests
+ifaddr==0.2.0
+    # via zeroconf
 levenshtein==0.20.9
     # via sublime_music (pyproject.toml)
 marshmallow==3.19.0
@@ -34,8 +42,12 @@ packaging==23.0
     # via marshmallow
 peewee==3.15.4
     # via sublime_music (pyproject.toml)
+protobuf==4.23.2
+    # via pychromecast
 pycairo==1.23.0
     # via pygobject
+pychromecast==13.0.7
+    # via sublime_music (pyproject.toml)
 pygobject==3.42.2
     # via sublime_music (pyproject.toml)
 python-dateutil==2.8.2
@@ -45,7 +57,9 @@ python-mpv==1.0.1
 rapidfuzz==2.13.7
     # via levenshtein
 requests==2.28.2
-    # via sublime_music (pyproject.toml)
+    # via
+    #   casttube
+    #   sublime_music (pyproject.toml)
 semver==2.13.0
     # via sublime_music (pyproject.toml)
 six==1.16.0
@@ -62,3 +76,5 @@ urllib3==1.26.13
     # via requests
 webencodings==0.5.1
     # via bleach
+zeroconf==0.64.1
+    # via pychromecast

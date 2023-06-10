@@ -23,22 +23,23 @@ classifiers = [
 
 dependencies = [
     "bleach",
+    "bottle",
     "dataclasses-json",
     "deepdiff",
-    "thefuzz",
+    "Levenshtein",
     "peewee",
+    "pychromecast",
     "PyGObject",
     "python-dateutil",
-    "Levenshtein",
     "python-mpv",
     "requests",
     "semver",
+    "thefuzz",
 ]
 
 [project.optional-dependencies]
 dev = [
     "black",
-    "bottle",
     "flake8",
     "flake8-annotations",
     "flake8-bugbear",
@@ -50,10 +51,8 @@ dev = [
     "mypy",
     "pip-tools",
     "pre-commit",
-    "pychromecast",
     "requirements-parser",
     "termcolor",
-    "thefuzz",
     "types-bleach",
     "types-peewee",
     "types-python-dateutil",
