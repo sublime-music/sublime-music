@@ -6,6 +6,8 @@
 #
 alabaster==0.7.13
     # via sphinx
+async-timeout==4.0.2
+    # via zeroconf
 attrs==22.2.0
     # via
     #   flake8-annotations
@@ -17,8 +19,12 @@ black==22.12.0
     # via sublime_music (pyproject.toml)
 bleach==5.0.1
     # via sublime_music (pyproject.toml)
+bottle==0.12.25
+    # via sublime_music (pyproject.toml)
 build==0.10.0
     # via pip-tools
+casttube==0.2.1
+    # via pychromecast
 certifi==2022.12.7
     # via requests
 cfgv==3.3.1
@@ -76,6 +82,8 @@ identify==2.5.24
     # via pre-commit
 idna==3.4
     # via requests
+ifaddr==0.2.0
+    # via zeroconf
 imagesize==1.4.1
     # via sphinx
 iniconfig==1.1.1
@@ -85,7 +93,7 @@ isort==5.11.4
 jinja2==3.1.2
     # via sphinx
 levenshtein==0.20.9
-    # via python-levenshtein
+    # via sublime_music (pyproject.toml)
 markupsafe==2.1.1
     # via jinja2
 marshmallow==3.19.0
@@ -107,6 +115,8 @@ nodeenv==1.7.0
     # via pre-commit
 ordered-set==4.1.0
     # via deepdiff
+orjson==3.9.1
+    # via deepdiff
 packaging==23.0
     # via
     #   build
@@ -117,8 +127,6 @@ pathspec==0.11.1
     # via black
 peewee==3.15.4
     # via sublime_music (pyproject.toml)
-pep517==0.13.0
-    # via build
 pip-tools==6.12.1
     # via sublime_music (pyproject.toml)
 platformdirs==2.6.2
@@ -129,8 +137,12 @@ pluggy==1.0.0
     # via pytest
 pre-commit==2.21.0
     # via sublime_music (pyproject.toml)
+protobuf==4.23.2
+    # via pychromecast
 pycairo==1.23.0
     # via pygobject
+pychromecast==13.0.7
+    # via sublime_music (pyproject.toml)
 pycodestyle==2.10.0
     # via
     #   flake8
@@ -143,6 +155,8 @@ pygments==2.14.0
     #   sphinx
 pygobject==3.42.2
     # via sublime_music (pyproject.toml)
+pyproject-hooks==1.0.0
+    # via build
 pytest==7.2.0
     # via
     #   pytest-cov
@@ -150,8 +164,6 @@ pytest==7.2.0
 pytest-cov==4.0.0
     # via sublime_music (pyproject.toml)
 python-dateutil==2.8.2
-    # via sublime_music (pyproject.toml)
-python-levenshtein==0.20.9
     # via sublime_music (pyproject.toml)
 python-mpv==1.0.1
     # via sublime_music (pyproject.toml)
@@ -163,6 +175,7 @@ rapidfuzz==2.13.7
     # via levenshtein
 requests==2.28.2
     # via
+    #   casttube
     #   flit
     #   sphinx
     #   sublime_music (pyproject.toml)
@@ -242,6 +255,8 @@ webencodings==0.5.1
     # via bleach
 wheel==0.38.4
     # via pip-tools
+zeroconf==0.64.1
+    # via pychromecast
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip
