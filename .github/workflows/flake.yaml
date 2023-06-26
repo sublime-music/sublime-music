@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      - uses: nixbuild/nix-quick-install-action@v22
+      - uses: nixbuild/nix-quick-install-action@v24
         with:
           nix_conf: experimental-features = nix-command flakes
       - name: Update flake.lock
