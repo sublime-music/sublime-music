@@ -31,7 +31,7 @@ dependencies = [
     "pychromecast",
     "PyGObject",
     "python-dateutil",
-    "python-mpv",
+    "mpv",
     "requests",
     "semver",
     "thefuzz",

@@ -32,6 +32,8 @@ marshmallow==3.19.0
     #   marshmallow-enum
 marshmallow-enum==1.5.1
     # via dataclasses-json
+mpv==1.0.4
+    # via sublime_music (pyproject.toml)
 mypy-extensions==0.4.3
     # via typing-inspect
 ordered-set==4.1.0
@@ -51,8 +53,6 @@ pychromecast==13.0.7
 pygobject==3.42.2
     # via sublime_music (pyproject.toml)
 python-dateutil==2.8.2
-    # via sublime_music (pyproject.toml)
-python-mpv==1.0.1
     # via sublime_music (pyproject.toml)
 rapidfuzz==2.13.7
     # via levenshtein
