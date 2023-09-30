@@ -34,6 +34,17 @@ except Exception:
     logging.warning("Unable to import Notify from GLib. Notifications will be disabled.")
     glib_notify_exists = False
 
+try:
+    import gi
+
+    gi.require_version("Keybinder", "3.0")
+    from gi.repository import Keybinder  # mypy: ignore
+
+    multimedia_hot_keys = True
+except Exception:
+    logging.warning("Unable to import Keybinder from GLib. Multimedia Hot Keys will not be enabled.")
+    multimedia_hot_keys = False
+
 from .adapters import (
     AdapterManager,
     AlbumSearchQuery,
@@ -179,6 +190,13 @@ class SublimeMusicApp(Gtk.Application):
         self.window.player_controls.connect("device-update", self.on_device_update)
         self.window.player_controls.connect("volume-change", self.on_volume_change)
         self.window.player_controls.connect("song-rated", self.on_current_song_rated)
+
+        # Global (Multimedia) Hot Keys
+        if multimedia_hot_keys:
+            Keybinder.init()
+            Keybinder.bind("XF86AudioPlay", self.on_play_pause)
+            Keybinder.bind("XF86AudioPrev", self.on_prev_track)
+            Keybinder.bind("XF86AudioNext", self.on_next_track)
 
         # Configure the players
         self.last_play_queue_update = timedelta(0)
@@ -972,6 +990,11 @@ class SublimeMusicApp(Gtk.Application):
         self.exiting = True
         if glib_notify_exists:
             Notify.uninit()
+
+        if multimedia_hot_keys:
+            Keybinder.unbind("XF86AudioPlay")
+            Keybinder.unbind("XF86AudioPrev")
+            Keybinder.unbind("XF86AudioNext")
 
         if tap_imported and self.tap:
             self.tap.stop()
