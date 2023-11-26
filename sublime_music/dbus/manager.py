@@ -60,7 +60,7 @@ class DBusManager:
         self.on_set_property = on_set_property
         self.connection = connection
 
-        def dbus_name_acquired(connection: Gio.DBusConnection, name: str):
+        def dbus_bus_acquired(connection: Gio.DBusConnection, name: str):
             specs = [
                 "org.mpris.MediaPlayer2.xml",
                 "org.mpris.MediaPlayer2.Player.xml",
@@ -72,23 +72,24 @@ class DBusManager:
                 with open(spec_path) as f:
                     node_info = Gio.DBusNodeInfo.new_for_xml(f.read())
 
-                connection.register_object(
-                    "/org/mpris/MediaPlayer2",
-                    node_info.interfaces[0],
-                    self.on_method_call,
-                    self.on_get_property,
-                    self.on_set_property,
-                )
+                    connection.register_object(
+                        "/org/mpris/MediaPlayer2",
+                        node_info.interfaces[0],
+                        self.on_method_call,
+                        self.on_get_property,
+                        self.on_set_property,
+                    )
 
         # TODO (#127): I have no idea what to do here.
         def dbus_name_lost(*args):
             pass
 
-        self.bus_number = Gio.bus_own_name_on_connection(
-            connection,
+        self.bus_number = Gio.bus_own_name(
+            Gio.BusType.SESSION,
             "org.mpris.MediaPlayer2.sublimemusic",
             Gio.BusNameOwnerFlags.NONE,
-            dbus_name_acquired,
+            dbus_bus_acquired,
+            None,
             dbus_name_lost,
         )
 
