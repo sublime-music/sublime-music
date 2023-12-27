@@ -10,7 +10,13 @@ from ..adapters import AdapterManager, CacheMissError, Result, SongCacheStatus
 from ..adapters.api_objects import Playlist, Song
 from ..config import AppConfiguration
 
-deep_diff_exclude_regexp = re.compile(r"root\[\d+\]\.props")
+deep_diff_exclude_regexp = [
+    re.compile(path)
+    for path in [
+        r"root\[\d+\]\.props",
+        r"root\[\d+\]\.g_type_instance",
+    ]
+]
 
 
 def format_song_duration(duration_secs: Union[int, timedelta, None]) -> str:
