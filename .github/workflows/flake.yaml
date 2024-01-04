@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v4
       - uses: nixbuild/nix-quick-install-action@v25
       - name: Update flake.lock
-        uses: DeterminateSystems/update-flake-lock@v19
+        uses: DeterminateSystems/update-flake-lock@v20
         with:
           token: ${{ secrets.FLAKE_LOCK_UPDATE_TOKEN }}
           pr-assignees: sumnerevans
