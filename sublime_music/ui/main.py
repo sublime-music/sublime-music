@@ -548,10 +548,10 @@ class MainWindow(Gtk.ApplicationWindow):
         self, text: str, *args, halign: Gtk.Align = Gtk.Align.START, **kwargs
     ) -> Gtk.Label:
         label = Gtk.Label(
+            *args,
             use_markup=True,
             halign=halign,
             ellipsize=Pango.EllipsizeMode.END,
-            *args,
             **kwargs,
         )
         label.set_markup(text)
