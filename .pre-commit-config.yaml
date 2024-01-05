@@ -1,0 +1,34 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude_types: [markdown]
+      - id: end-of-file-fixer
+        exclude: ^(frontend/wailsjs/)
+      - id: check-yaml
+      - id: check-added-large-files
+        exclude: ^(frontend/src/fonts/)
+
+  - repo: https://github.com/tekwizely/pre-commit-golang
+    rev: v1.0.0-rc.1
+    hooks:
+      - id: go-imports
+        args:
+          - "-local"
+          - "github.com/sumnerevans/matrix-wails"
+          - "-w"
+      - id: go-vet-repo-mod
+        args:
+          - "-tags"
+          - "goolm"
+      - id: go-staticcheck-repo-mod
+        args:
+          - "-tags"
+          - "goolm"
+
+  - repo: https://github.com/beeper/pre-commit-go
+    rev: v0.3.0
+    hooks:
+      - id: zerolog-ban-msgf
+      - id: zerolog-use-stringer

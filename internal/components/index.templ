@@ -1,0 +1,22 @@
+package components
+
+templ Index() {
+	<!DOCTYPE html>
+	<html lang="en" class="h-100" data-bs-theme="dark">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+			<title>Sublime Music</title>
+			<script src="/static/js/htmx.min.js"></script>
+			<script src="/static/js/bootstrap.bundle.min.js"></script>
+			<script src="/static/js/morphdom-umd.min.js"></script>
+			<script src="/static/js/morphdom-swap.js"></script>
+			<link rel="stylesheet" type="text/css" href="/static/css/bootstrap.min.css"/>
+			<link rel="stylesheet" type="text/css" href="/static/css/fork-awesome.min.css"/>
+		</head>
+		<body class="h-100" hx-ext="morphdom-swap">
+			<div id="app" hx-get="/initial" hx-trigger="load" class="h-100"></div>
+			<i class="fa fa-linkedin"></i>
+		</body>
+	</html>
+}

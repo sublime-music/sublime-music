@@ -1,0 +1,4 @@
+build/bin
+frontend/dist
+*_templ.go
+coverage.out
