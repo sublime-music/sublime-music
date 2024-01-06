@@ -60,7 +60,7 @@ class DBusManager:
         self.on_set_property = on_set_property
         self.connection = connection
 
-        def dbus_name_acquired(connection: Gio.DBusConnection, name: str):
+        def dbus_bus_acquired(connection: Gio.DBusConnection, name: str):
             specs = [
                 "org.mpris.MediaPlayer2.xml",
                 "org.mpris.MediaPlayer2.Player.xml",
@@ -84,11 +84,12 @@ class DBusManager:
         def dbus_name_lost(*args):
             pass
 
-        self.bus_number = Gio.bus_own_name_on_connection(
-            connection,
+        self.bus_number = Gio.bus_own_name(
+            Gio.BusType.SESSION,
             "org.mpris.MediaPlayer2.sublimemusic",
             Gio.BusNameOwnerFlags.NONE,
-            dbus_name_acquired,
+            dbus_bus_acquired,
+            None,
             dbus_name_lost,
         )
 
