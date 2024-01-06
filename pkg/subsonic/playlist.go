@@ -4,27 +4,7 @@ import (
 	"context"
 	"net/url"
 	"strconv"
-	"time"
 )
-
-type Playlist struct {
-	ID          SubsonicID       `json:"id"`
-	Name        string           `json:"name"`
-	SongCount   int              `json:"songCount"`
-	Duration    SubsonicDuration `json:"duration"`
-	Created     time.Time        `json:"created"`
-	Changed     time.Time        `json:"changed"`
-	Comment     string           `json:"comment,omitempty"`
-	Owner       string           `json:"owner,omitempty"`
-	Public      bool             `json:"public,omitempty"`
-	CoverArt    string           `json:"coverArt,omitempty"`
-	AllowedUser []string         `json:"allowedUser,omitempty"`
-	Songs       []Song           `json:"entry,omitempty"`
-}
-
-type Playlists struct {
-	Playlist []Playlist `json:"playlist,omitempty"`
-}
 
 func (c *Client) GetPlaylists(ctx context.Context) ([]Playlist, error) {
 	resp, err := c.getJSON(ctx, "/rest/getPlaylists.view", nil)

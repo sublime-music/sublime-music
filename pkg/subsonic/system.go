@@ -2,31 +2,36 @@ package subsonic
 
 import (
 	"context"
-	"time"
 )
 
-type License struct {
-	Valid          bool      `json:"valid"`
-	Email          string    `json:"email"`
-	LicenseExpires time.Time `json:"licenseExpires"`
-	TrialExpires   time.Time `json:"trialExpires"`
-}
-
-type OpenSubsonicExtension struct {
-	Name     string `json:"name"`
-	Versions []int  `json:"versions"`
-}
-
+// Ping tests connectivity with the server.
+//
+// Docs: [Subsonic], [OpenSubsonic]
+//
+// [Subsonic]: http://www.subsonic.org/pages/api.jsp#ping
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/ping/
 func (c *Client) Ping(ctx context.Context) (*SubsonicResponse, error) {
 	resp, err := c.getJSON(ctx, "/rest/ping.view", nil)
 	return resp.SubsonicResponse, err
 }
 
+// GetLicense gets details about the software license.
+//
+// Docs: [Subsonic], [OpenSubsonic]
+//
+// [Subsonic]: http://www.subsonic.org/pages/api.jsp#getLicense
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/getlicense/
 func (c *Client) GetLicense(ctx context.Context) (*License, error) {
 	resp, err := c.getJSON(ctx, "/rest/getLicense.view", nil)
 	return resp.SubsonicResponse.License, err
 }
 
+// GetOpenSubsonicExtensions gets a list of the OpenSubsonic extensions
+// supported by this server.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/getopensubsonicextensions/
 func (c *Client) GetOpenSubsonicExtensions(ctx context.Context) ([]OpenSubsonicExtension, error) {
 	if !c.openSubsonic {
 		return nil, ErrServerDoesNotSupportOpenSubsonic

@@ -5,8 +5,11 @@ import (
 	"fmt"
 )
 
+// SubsonicID is an ID from a Subsonic server. It is always stored as a string,
+// but can be specified as either a string or a number in the JSON.
 type SubsonicID string
 
+// UnmarshalJSON implements the [json.Unmarshaler] interface for [SubsonicID].
 func (id *SubsonicID) UnmarshalJSON(b []byte) error {
 	var rawID any
 	if err := json.Unmarshal(b, &rawID); err != nil {
@@ -24,6 +27,7 @@ func (id *SubsonicID) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// String gets the underlying string of the [SubsonicID].
 func (id SubsonicID) String() string {
 	return string(id)
 }

@@ -26,6 +26,9 @@ type SubsonicResponse struct {
 	Genres       *Genres       `json:"genres"`
 	Artists      *Artists      `json:"artists"`
 	Artist       *Artist       `json:"artist"`
+	Album        *AlbumID3     `json:"album"`
+	Song         *Song         `json:"song"`
+	Videos       *Videos       `json:"videos"`
 
 	Playlists *Playlists `json:"playlists,omitempty"`
 	Playlist  *Playlist  `json:"playlist,omitempty"`
