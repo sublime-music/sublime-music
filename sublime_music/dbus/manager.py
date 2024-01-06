@@ -72,13 +72,13 @@ class DBusManager:
                 with open(spec_path) as f:
                     node_info = Gio.DBusNodeInfo.new_for_xml(f.read())
 
-                    connection.register_object(
-                        "/org/mpris/MediaPlayer2",
-                        node_info.interfaces[0],
-                        self.on_method_call,
-                        self.on_get_property,
-                        self.on_set_property,
-                    )
+                connection.register_object(
+                    "/org/mpris/MediaPlayer2",
+                    node_info.interfaces[0],
+                    self.on_method_call,
+                    self.on_get_property,
+                    self.on_set_property,
+                )
 
         # TODO (#127): I have no idea what to do here.
         def dbus_name_lost(*args):
