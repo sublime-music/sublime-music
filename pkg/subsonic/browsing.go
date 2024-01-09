@@ -156,7 +156,7 @@ func (c *Client) GetSong(ctx context.Context, id SubsonicID) (*Song, error) {
 //
 // [Subsonic]: http://www.subsonic.org/pages/api.jsp#getVideos
 // [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/getvideos/
-func (c *Client) GetVideos(ctx context.Context) ([]Video, error) {
+func (c *Client) GetVideos(ctx context.Context) ([]VideoInfo, error) {
 	resp, err := c.getJSON(ctx, "/rest/getVideos.view", nil)
 	if err != nil {
 		return nil, err

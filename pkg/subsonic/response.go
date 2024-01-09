@@ -7,6 +7,11 @@ const (
 	SubsonicResponseStatusFailed SubsonicResponseStatus = "failed"
 )
 
+// SubsonicResponse is the top-level response object from the Subsonic API.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/subsonic-response/
 type SubsonicResponse struct {
 	Status        string         `json:"status"`
 	Version       string         `json:"version"`

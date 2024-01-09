@@ -624,8 +624,86 @@ type SearchResult3 struct {
 	Song   []Child     `json:"song,omitempty"`
 }
 
+// Share is a shared media.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/share/
+type Share struct {
+	ID          SubsonicID `json:"id"`
+	URL         string     `json:"url"`
+	Description string     `json:"description"`
+	Username    string     `json:"username"`
+	Created     time.Time  `json:"created"`
+	Expires     time.Time  `json:"expires"`
+	LastVisited time.Time  `json:"lastVisited"`
+	VisitCount  int        `json:"visitCount"`
+	Entry       []Child    `json:"entry,omitempty"`
+}
+
+// Shares is a list of shared media.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/shares/
+type Shares struct {
+	Share []Share `json:"share,omitempty"`
+}
+
+// SimilarSongs is a list of similar songs.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/similarsongs/
+type SimilarSongs struct {
+	Song []Child `json:"song,omitempty"`
+}
+
+// SimilarSongs is a list of similar songs, organized by ID3 tags.
+//
+// This is the same as [SimilarSongs], but with the songs organized by ID3.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/similarsongs2/
+type SimilarSongs2 struct {
+	Song []Child `json:"song,omitempty"`
+}
+
+// Song represents a song.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/song/
 type Song struct {
 	ID SubsonicID `json:"id"`
+	// TODO
+}
+
+// SongsByGenre is a list of songs by genre.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/songsbygenre/
+type SongsByGenre struct {
+	// TODO
+}
+
+// Starred is a list of songs by genre.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/starred/
+type Starred struct {
+	// TODO
+}
+
+// Starred2 is a list of songs by genre.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/starred2/
+type Starred2 struct {
 	// TODO
 }
 
@@ -643,11 +721,48 @@ type StructuredLyrics struct {
 	Offset        int64  `json:"offset"`
 }
 
-type Video struct {
+// TopSongs is a list of top songs.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/topsongs/
+type TopSongs struct {
+	Song []Child `json:"song,omitempty"`
+}
+
+// User is a Subsonic user.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/user/
+type User struct {
+	// TODO
+}
+
+// Users is a list of Subsonic users.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/users/
+type Users struct {
+	// TODO
+}
+
+// VideoInfo is the information about a video.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/videoinfo/
+type VideoInfo struct {
 	ID SubsonicID `json:"id"`
 	// TODO
 }
 
+// Videos is a list of videos.
+//
+// Docs: [OpenSubsonic]
+//
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/responses/videos/
 type Videos struct {
-	Video []Video `json:"video,omitempty"`
+	Video []VideoInfo `json:"video,omitempty"`
 }
