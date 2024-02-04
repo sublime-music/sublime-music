@@ -86,7 +86,7 @@ func (c *Client) GetGenres(ctx context.Context) ([]Genre, error) {
 //
 // [Subsonic]: http://www.subsonic.org/pages/api.jsp#getArtists
 // [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/getartists/
-func (c *Client) GetArtists(ctx context.Context, musicFolderID *SubsonicID) (*Artists, error) {
+func (c *Client) GetArtists(ctx context.Context, musicFolderID *SubsonicID) (*ArtistsID3, error) {
 	params := url.Values{}
 	if musicFolderID != nil {
 		params.Set("musicFolderId", string(*musicFolderID))
@@ -138,7 +138,7 @@ func (c *Client) GetAlbum(ctx context.Context, id SubsonicID) (*AlbumID3, error)
 //
 // [Subsonic]: http://www.subsonic.org/pages/api.jsp#getSong
 // [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/getsong/
-func (c *Client) GetSong(ctx context.Context, id SubsonicID) (*Song, error) {
+func (c *Client) GetSong(ctx context.Context, id SubsonicID) (*Child, error) {
 	resp, err := c.getJSON(ctx, "/rest/getSong.view", url.Values{
 		"id": {id.String()},
 	})
@@ -156,7 +156,7 @@ func (c *Client) GetSong(ctx context.Context, id SubsonicID) (*Song, error) {
 //
 // [Subsonic]: http://www.subsonic.org/pages/api.jsp#getVideos
 // [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/getvideos/
-func (c *Client) GetVideos(ctx context.Context) ([]VideoInfo, error) {
+func (c *Client) GetVideos(ctx context.Context) ([]Child, error) {
 	resp, err := c.getJSON(ctx, "/rest/getVideos.view", nil)
 	if err != nil {
 		return nil, err
