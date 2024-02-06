@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"time"
 )
 
 func MarshalValues(in any) (url.Values, error) {
@@ -31,27 +32,37 @@ func MarshalValues(in any) (url.Values, error) {
 			return nil, errors.New("invalid 'url' tag")
 		}
 
-		v, err := json.Marshal(reflect.ValueOf(in).Field(i).Interface())
+		val := reflect.ValueOf(in).Field(i).Interface()
+		switch vt := val.(type) {
+		case time.Time:
+			val = vt.Format(time.RFC3339)
+		case *time.Time:
+			if vt != nil {
+				val = vt.Format(time.RFC3339)
+			}
+		}
+
+		jsonVal, err := json.Marshal(val)
 		if err != nil {
 			return nil, err
 		}
 
 		// It was a string, remove the quotes.
-		if v[0] == '"' && v[len(v)-1] == '"' {
-			v = v[1 : len(v)-1]
+		if jsonVal[0] == '"' && jsonVal[len(jsonVal)-1] == '"' {
+			jsonVal = jsonVal[1 : len(jsonVal)-1]
 		}
 
 		if omitEmpty {
-			if bytes.Equal(v, []byte("null")) {
+			if bytes.Equal(jsonVal, []byte("null")) {
 				continue
 			}
 
-			if len(v) == 0 {
+			if len(jsonVal) == 0 {
 				continue
 			}
 		}
 
-		out[name] = []string{string(v)}
+		out[name] = []string{string(jsonVal)}
 	}
 	return out, nil
 }
