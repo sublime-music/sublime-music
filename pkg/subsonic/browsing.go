@@ -2,7 +2,6 @@ package subsonic
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"time"
 )
@@ -23,19 +22,22 @@ func (c *Client) GetMusicFolders(ctx context.Context) ([]MusicFolder, error) {
 	return resp.SubsonicResponse.MusicFolders.MusicFolder, nil
 }
 
+// ReqGetIndexes is a request to [GetIndexes].
+type ReqGetIndexes struct {
+	MusicFolderID   *SubsonicID `url:"musicFolderId,omitempty"`
+	IfModifiedSince *time.Time  `url:"ifModifiedSince,omitempty"`
+}
+
 // GetIndexes returns an indexed structure of all artists.
 //
 // Docs: [Subsonic], [OpenSubsonic]
 //
 // [Subsonic]: http://www.subsonic.org/pages/api.jsp#getIndexes
 // [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/getindexes/
-func (c *Client) GetIndexes(ctx context.Context, musicFolderID *SubsonicID, ifModifiedSince *time.Time) (*Indexes, error) {
-	params := url.Values{}
-	if musicFolderID != nil {
-		params.Set("musicFolderId", string(*musicFolderID))
-	}
-	if ifModifiedSince != nil {
-		params.Set("ifModifiedSince", ifModifiedSince.Format(time.RFC3339))
+func (c *Client) GetIndexes(ctx context.Context, req ReqGetIndexes) (*Indexes, error) {
+	params, err := MarshalValues(req)
+	if err != nil {
+		return nil, err
 	}
 	resp, err := c.getJSON(ctx, "/rest/getIndexes.view", params)
 	if err != nil {
@@ -62,7 +64,7 @@ func (c *Client) GetMusicDirectory(ctx context.Context, id SubsonicID) (*Directo
 	return resp.SubsonicResponse.Directory, nil
 }
 
-// GetGenres returns all genres
+// GetGenres returns all genres.
 //
 // Docs: [Subsonic], [OpenSubsonic]
 //
@@ -181,6 +183,14 @@ func (c *Client) GetVideoInfo(ctx context.Context, id SubsonicID) (*VideoInfo, e
 	return resp.SubsonicResponse.VideoInfo, nil
 }
 
+// ReqGetArtistInfo is the arguments to [Client.GetArtistInfo] or
+// [Client.GetArtistInfo2].
+type ReqGetArtistInfo struct {
+	ID                SubsonicID `url:"id"`
+	Count             *int       `url:"count,omitempty"`
+	IncludeNotPresent *bool      `url:"includeNotPresent,omitempty"`
+}
+
 // GetArtistInfo returns artist info with biography, image URLs and similar
 // artists, using data from last.fm.
 //
@@ -188,18 +198,12 @@ func (c *Client) GetVideoInfo(ctx context.Context, id SubsonicID) (*VideoInfo, e
 //
 // [Subsonic]: http://www.subsonic.org/pages/api.jsp#getArtistInfo
 // [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/getartistinfo/
-func (c *Client) GetArtistInfo(ctx context.Context, id SubsonicID, count *int, includeNotPresent *bool) (*ArtistInfo, error) {
-	values := url.Values{
-		"id": {id.String()},
+func (c *Client) GetArtistInfo(ctx context.Context, req ReqGetArtistInfo) (*ArtistInfo, error) {
+	params, err := MarshalValues(req)
+	if err != nil {
+		return nil, err
 	}
-	if count != nil {
-		values.Set("count", fmt.Sprintf("%d", count))
-	}
-	if includeNotPresent != nil {
-		values.Set("includeNotPresent", boolString(*includeNotPresent))
-	}
-
-	resp, err := c.getJSON(ctx, "/rest/getArtistInfo.view", values)
+	resp, err := c.getJSON(ctx, "/rest/getArtistInfo.view", params)
 	if err != nil {
 		return nil, err
 	}
@@ -213,18 +217,12 @@ func (c *Client) GetArtistInfo(ctx context.Context, id SubsonicID, count *int, i
 //
 // [Subsonic]: http://www.subsonic.org/pages/api.jsp#getArtistInfo
 // [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/getartistinfo/
-func (c *Client) GetArtistInfo2(ctx context.Context, id SubsonicID, count *int, includeNotPresent *bool) (*ArtistInfo, error) {
-	values := url.Values{
-		"id": {id.String()},
+func (c *Client) GetArtistInfo2(ctx context.Context, req ReqGetArtistInfo) (*ArtistInfo, error) {
+	params, err := MarshalValues(req)
+	if err != nil {
+		return nil, err
 	}
-	if count != nil {
-		values.Set("count", fmt.Sprintf("%d", count))
-	}
-	if includeNotPresent != nil {
-		values.Set("includeNotPresent", boolString(*includeNotPresent))
-	}
-
-	resp, err := c.getJSON(ctx, "/rest/getArtistInfo2.view", values)
+	resp, err := c.getJSON(ctx, "/rest/getArtistInfo2.view", params)
 	if err != nil {
 		return nil, err
 	}
@@ -248,8 +246,8 @@ func (c *Client) GetAlbumInfo(ctx context.Context, id SubsonicID) (*AlbumInfo, e
 }
 
 // GetAlbumInfo2 returns album notes, image URLs etc, using data from last.fm.
-// This is the same as [GetAlbumInfo] except it organizes music according to
-// ID3 tags.
+// This is the same as [Client.GetAlbumInfo] except it organizes music
+// according to ID3 tags.
 //
 // Docs: [Subsonic], [OpenSubsonic]
 //
@@ -265,6 +263,13 @@ func (c *Client) GetAlbumInfo2(ctx context.Context, id SubsonicID) (*AlbumInfo, 
 	return resp.SubsonicResponse.AlbumInfo, nil
 }
 
+// ReqGetSimilarSongs is the arguments to [Client.GetSimilarSongs] or
+// [Client.GetSimilarSongs2].
+type ReqGetSimilarSongs struct {
+	ID    SubsonicID `url:"id"`
+	Count *int       `url:"count,omitempty"`
+}
+
 // GetSimilarSongs returns a random collection of songs from the given artist
 // and similar artists, using data from last.fm. Typically used for artist
 // radio features.
@@ -273,15 +278,12 @@ func (c *Client) GetAlbumInfo2(ctx context.Context, id SubsonicID) (*AlbumInfo, 
 //
 // [Subsonic]: http://www.subsonic.org/pages/api.jsp#getSimilarSongs
 // [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/getsimilarsongs/
-func (c *Client) GetSimilarSongs(ctx context.Context, id SubsonicID, count *int) ([]Child, error) {
-	values := url.Values{
-		"id": {id.String()},
+func (c *Client) GetSimilarSongs(ctx context.Context, req ReqGetSimilarSongs) ([]Child, error) {
+	params, err := MarshalValues(req)
+	if err != nil {
+		return nil, err
 	}
-	if count != nil {
-		values.Set("count", fmt.Sprintf("%d", count))
-	}
-
-	resp, err := c.getJSON(ctx, "/rest/getSimilarSongs.view", values)
+	resp, err := c.getJSON(ctx, "/rest/getSimilarSongs.view", params)
 	if err != nil {
 		return nil, err
 	}
@@ -297,19 +299,22 @@ func (c *Client) GetSimilarSongs(ctx context.Context, id SubsonicID, count *int)
 //
 // [Subsonic]: http://www.subsonic.org/pages/api.jsp#getSimilarSongs2
 // [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/getsimilarsongs2/
-func (c *Client) GetSimilarSongs2(ctx context.Context, id SubsonicID, count *int) ([]Child, error) {
-	values := url.Values{
-		"id": {id.String()},
+func (c *Client) GetSimilarSongs2(ctx context.Context, req ReqGetSimilarSongs) ([]Child, error) {
+	params, err := MarshalValues(req)
+	if err != nil {
+		return nil, err
 	}
-	if count != nil {
-		values.Set("count", fmt.Sprintf("%d", count))
-	}
-
-	resp, err := c.getJSON(ctx, "/rest/getSimilarSongs2.view", values)
+	resp, err := c.getJSON(ctx, "/rest/getSimilarSongs2.view", params)
 	if err != nil {
 		return nil, err
 	}
 	return resp.SubsonicResponse.SimilarSongs2.Song, nil
+}
+
+// ReqGetTopSongs is the arguments to [Client.GetTopSongs].
+type ReqGetTopSongs struct {
+	Artist string `url:"artist"`
+	Count  *int   `url:"count,omitempty"`
 }
 
 // GetTopSongs returns top songs for the given artist using data from last.fm.
@@ -318,15 +323,12 @@ func (c *Client) GetSimilarSongs2(ctx context.Context, id SubsonicID, count *int
 //
 // [Subsonic]: http://www.subsonic.org/pages/api.jsp#getTopSongs
 // [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/gettopsongs/
-func (c *Client) GetTopSongs(ctx context.Context, artist string, count *int) ([]Child, error) {
-	values := url.Values{
-		"artist": {artist},
+func (c *Client) GetTopSongs(ctx context.Context, req ReqGetTopSongs) ([]Child, error) {
+	params, err := MarshalValues(req)
+	if err != nil {
+		return nil, err
 	}
-	if count != nil {
-		values.Set("count", fmt.Sprintf("%d", count))
-	}
-
-	resp, err := c.getJSON(ctx, "/rest/getTopSongs.view", values)
+	resp, err := c.getJSON(ctx, "/rest/getTopSongs.view", params)
 	if err != nil {
 		return nil, err
 	}
