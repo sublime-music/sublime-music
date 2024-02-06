@@ -3,7 +3,6 @@ package subsonic
 import (
 	"context"
 	"net/url"
-	"strconv"
 )
 
 // GetPlaylists returns all playlists a user is allowed to play.
@@ -48,30 +47,50 @@ type ReqCreatePlaylist struct {
 }
 
 // CreatePlaylist creates a new playlist or updates an existing one.
-func (c *Client) CreatePlaylist(ctx context.Context, name string, songIDs []SubsonicID) (*Playlist, error) {
-	resp, err := c.getJSON(ctx, "/rest/createPlaylist.view", url.Values{
-		"name":   {name},
-		"songId": idsToStrings(songIDs),
-	})
+//
+// If [ReqCreatePlaylist.PlaylistID] is set, the playlist with that ID is
+// updated. If it is not set, a new playlist is created.
+//
+// Note that on old servers (before 1.14.0), the playlist may not be returned
+// from the server and might be nil even if there was no error.
+//
+// Docs: [Subsonic], [OpenSubsonic]
+//
+// [Subsonic]: http://www.subsonic.org/pages/api.jsp#createPlaylist
+// [OpenSubsonic]: https://opensubsonic.netlify.app/docs/endpoints/createplaylist/
+func (c *Client) CreatePlaylist(ctx context.Context, req ReqCreatePlaylist) (*Playlist, error) {
+	params, err := MarshalValues(req)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.getJSON(ctx, "/rest/createPlaylist.view", params)
 	if err != nil {
 		return nil, err
 	}
 	return resp.SubsonicResponse.Playlist, err
 }
 
-func (c *Client) UpdatePlaylist(ctx context.Context, playlistID SubsonicID, name, comment string, public bool, appendSongIDs []SubsonicID) error {
-	_, err := c.getJSON(ctx, "/rest/updatePlaylist.view", url.Values{
-		"playlistId":  {playlistID.String()},
-		"name":        {name},
-		"comment":     {comment},
-		"public":      {strconv.FormatBool(public)},
-		"songIdToAdd": idsToStrings(appendSongIDs),
-	})
+// ReqUpdatePlaylist is the arguments to [Client.UpdatePlaylist].
+type ReqUpdatePlaylist struct {
+	PlaylistID        SubsonicID   `url:"playlistId"`                  // The playlist ID.
+	Name              *string      `url:"name,omitempty"`              // The human-readable name of the playlist.
+	Comment           *string      `url:"comment,omitempty"`           // The playlist comment.
+	Public            *bool        `url:"public,omitempty"`            // Whether the playlist is visible to all users.
+	SongIDToAdd       []SubsonicID `url:"songIdToAdd,omitempty"`       // Song IDs to add to the playlist.
+	SongIndexToRemove []int        `url:"songIndexToRemove,omitempty"` // Song indexes to remove from the playlist.
+}
+
+func (c *Client) UpdatePlaylist(ctx context.Context, req ReqUpdatePlaylist) error {
+	params, err := MarshalValues(req)
+	if err != nil {
+		return err
+	}
+	_, err = c.getJSON(ctx, "/rest/updatePlaylist.view", params)
 	return err
 }
 
 func (c *Client) DeletePlaylist(ctx context.Context, playlistID SubsonicID) error {
-	_, err := c.getJSON(ctx, "/rest/updatePlaylist.view", url.Values{
+	_, err := c.getJSON(ctx, "/rest/deletePlaylist.view", url.Values{
 		"id": {playlistID.String()},
 	})
 	return err

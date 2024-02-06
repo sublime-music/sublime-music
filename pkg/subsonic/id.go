@@ -31,10 +31,3 @@ func (id *SubsonicID) UnmarshalJSON(b []byte) error {
 func (id SubsonicID) String() string {
 	return string(id)
 }
-
-func idsToStrings(ids []SubsonicID) (strs []string) {
-	for i, id := range ids {
-		strs[i] = id.String()
-	}
-	return
-}
