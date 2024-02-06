@@ -26,6 +26,8 @@ type Foo struct {
 	E *int       `url:"e,omitempty"`
 	F time.Time  `url:"f,omitempty"`
 	G *time.Time `url:"g,omitempty"`
+	H []string   `url:"h,omitempty"`
+	I []Complex  `url:"i,omitempty"`
 }
 
 func TestMarshalValues(t *testing.T) {
@@ -34,6 +36,8 @@ func TestMarshalValues(t *testing.T) {
 		B: 4,
 		C: "bar",
 		F: time.UnixMilli(1707175937000),
+		H: []string{"a", "b", "c"},
+		I: []Complex{"foo", "bar"},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, url.Values{
@@ -41,6 +45,8 @@ func TestMarshalValues(t *testing.T) {
 		"B": []string{"4"},
 		"c": []string{"aaaaa bar bbbbb"},
 		"f": []string{"2024-02-05T16:32:17-07:00"},
+		"h": []string{"a", "b", "c"},
+		"i": []string{"aaaaa foo bbbbb", "aaaaa bar bbbbb"},
 	}, values)
 }
 
