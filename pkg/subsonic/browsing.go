@@ -24,8 +24,13 @@ func (c *Client) GetMusicFolders(ctx context.Context) ([]MusicFolder, error) {
 
 // ReqGetIndexes is a request to [GetIndexes].
 type ReqGetIndexes struct {
-	MusicFolderID   *SubsonicID `url:"musicFolderId,omitempty"`
-	IfModifiedSince *time.Time  `url:"ifModifiedSince,omitempty"`
+	// MusicFolderID (if specified) restricts the server to return albums in
+	// the music folder with the given ID.
+	MusicFolderID *SubsonicID `url:"musicFolderId,omitempty"`
+	// IfModifiedSince (if specified) tells the server to only return a result
+	// if the artist collection has changed since the given time (in
+	// milliseconds since 1 Jan 1970).
+	IfModifiedSince *time.Time `url:"ifModifiedSince,omitempty"`
 }
 
 // GetIndexes returns an indexed structure of all artists.
@@ -186,9 +191,13 @@ func (c *Client) GetVideoInfo(ctx context.Context, id SubsonicID) (*VideoInfo, e
 // ReqGetArtistInfo is the arguments to [Client.GetArtistInfo] or
 // [Client.GetArtistInfo2].
 type ReqGetArtistInfo struct {
-	ID                SubsonicID `url:"id"`
-	Count             *int       `url:"count,omitempty"`
-	IncludeNotPresent *bool      `url:"includeNotPresent,omitempty"`
+	// ID is the ID of the artist to get info for.
+	ID SubsonicID `url:"id"`
+	// Conut is the number of similar artists to return. Default 20.
+	Count *int `url:"count,omitempty"`
+	// IncludeNotPresent indicates whether to return artists that are not
+	// present in the media library. Default false.
+	IncludeNotPresent *bool `url:"includeNotPresent,omitempty"`
 }
 
 // GetArtistInfo returns artist info with biography, image URLs and similar
@@ -266,8 +275,10 @@ func (c *Client) GetAlbumInfo2(ctx context.Context, id SubsonicID) (*AlbumInfo, 
 // ReqGetSimilarSongs is the arguments to [Client.GetSimilarSongs] or
 // [Client.GetSimilarSongs2].
 type ReqGetSimilarSongs struct {
-	ID    SubsonicID `url:"id"`
-	Count *int       `url:"count,omitempty"`
+	// ID is the artist, album or song ID to get similar songs for.
+	ID SubsonicID `url:"id"`
+	// Count is the max number of songs to return. Default 50.
+	Count *int `url:"count,omitempty"`
 }
 
 // GetSimilarSongs returns a random collection of songs from the given artist
@@ -313,8 +324,10 @@ func (c *Client) GetSimilarSongs2(ctx context.Context, req ReqGetSimilarSongs) (
 
 // ReqGetTopSongs is the arguments to [Client.GetTopSongs].
 type ReqGetTopSongs struct {
+	// Artist is the artist name.
 	Artist string `url:"artist"`
-	Count  *int   `url:"count,omitempty"`
+	// Count is the max number of songs to return. Default 50.
+	Count *int `url:"count,omitempty"`
 }
 
 // GetTopSongs returns top songs for the given artist using data from last.fm.
