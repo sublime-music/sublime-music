@@ -52,6 +52,9 @@ func MarshalValues(in any) (url.Values, error) {
 		fieldVal := reflect.ValueOf(in).Field(i)
 
 		if field.Type.Kind() == reflect.Slice {
+			if omitEmpty && fieldVal.Len() == 0 {
+				continue
+			}
 			var vals []string
 			for i := 0; i < fieldVal.Len(); i++ {
 				val := fieldVal.Index(i).Interface()
@@ -67,10 +70,24 @@ func MarshalValues(in any) (url.Values, error) {
 		val := fieldVal.Interface()
 		switch vt := fieldVal.Interface().(type) {
 		case time.Time:
+			if omitEmpty && vt.UnixNano() == 0 {
+				continue
+			}
 			val = vt.Format(time.RFC3339)
 		case *time.Time:
 			if vt != nil {
+				if omitEmpty && vt.IsZero() {
+					continue
+				}
 				val = vt.Format(time.RFC3339)
+			}
+		case int, int16, int32, int64, float32, float64:
+			if omitEmpty && vt == 0 {
+				continue
+			}
+		case bool:
+			if omitEmpty && !vt {
+				continue
 			}
 		}
 

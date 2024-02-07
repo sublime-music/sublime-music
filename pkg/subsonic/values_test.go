@@ -28,6 +28,7 @@ type Foo struct {
 	G *time.Time `url:"g,omitempty"`
 	H []string   `url:"h,omitempty"`
 	I []Complex  `url:"i,omitempty"`
+	J bool       `url:"j,omitempty"`
 }
 
 func TestMarshalValues(t *testing.T) {
@@ -51,10 +52,10 @@ func TestMarshalValues(t *testing.T) {
 }
 
 func FuzzMarshalValues(f *testing.F) {
-	f.Add("test", 4, "bar", "", -1, int64(0), int64(0))
-	f.Add("test", 20, "baz", "present", 1, int64(0), int64(0))
+	f.Add("test", 4, "bar", "", -1, int64(0), int64(0), true)
+	f.Add("test", 20, "baz", "present", 1, int64(0), int64(0), false)
 
-	f.Fuzz(func(t *testing.T, a string, b int, c string, d string, e int, f, g int64) {
+	f.Fuzz(func(t *testing.T, a string, b int, c string, d string, e int, f, g int64, j bool) {
 		var eVal *int
 		if e >= 0 {
 			eVal = &e
@@ -72,6 +73,7 @@ func FuzzMarshalValues(f *testing.F) {
 			E: eVal,
 			F: time.UnixMilli(f),
 			G: gVal,
+			J: j,
 		})
 		require.NoError(t, err)
 
@@ -80,15 +82,30 @@ func FuzzMarshalValues(f *testing.F) {
 		assert.Contains(t, values, "c")
 		if d != "" {
 			assert.Contains(t, values, "d")
+		} else {
+			assert.NotContains(t, values, "d")
 		}
 		if e >= 0 {
 			assert.Contains(t, values, "e")
+		} else {
+			assert.NotContains(t, values, "e")
 		}
-		if f == 0 {
+		if f != 0 {
 			assert.Contains(t, values, "f")
+		} else {
+			assert.NotContains(t, values, "f")
 		}
 		if g > 0 {
 			assert.Contains(t, values, "g")
+		} else {
+			assert.NotContains(t, values, "g")
+		}
+		assert.NotContains(t, values, "h")
+		assert.NotContains(t, values, "i")
+		if j {
+			assert.Contains(t, values, "j")
+		} else {
+			assert.NotContains(t, values, "j")
 		}
 	})
 }
