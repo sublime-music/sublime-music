@@ -3,13 +3,24 @@ package subsonic
 import "context"
 
 type ReqSearch struct {
+	// Query is the search query.
 	Query         string      `url:"query"`
+	// ArtistCount is the maximum number of artists to return. Default 20.
 	ArtistCount   *int        `url:"artistCount,omitempty"`
+	// ArtistOffset is the search result offset for artists. Used for paging.
+	// Default 0.
 	ArtistOffset  *int        `url:"artistOffset,omitempty"`
+	// AlbumCount is the maximum number of albums to return. Default 20.
 	AlbumCount    *int        `url:"albumCount,omitempty"`
+	// AlbumOffset is the search result offset for albums. Used for paging.
+	// Default 0.
 	AlbumOffset   *int        `url:"albumOffset,omitempty"`
+	// SongCount is the maximum number of songs to return. Default 20.
 	SongCount     *int        `url:"songCount,omitempty"`
+	// SongOffset is the search result offset for songs. Used for paging.
 	SongOffset    *int        `url:"songOffset,omitempty"`
+	// MusicFolderID restricts the server to return albums in the music folder
+	// with the given ID. Added in 1.12.0.
 	MusicFolderID *SubsonicID `url:"musicFolderId,omitempty"`
 }
 
