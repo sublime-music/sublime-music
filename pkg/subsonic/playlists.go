@@ -41,9 +41,12 @@ func (c *Client) GetPlaylist(ctx context.Context, playlistID SubsonicID) (*Playl
 
 // ReqCreatePlaylist is the arguments to [Client.CreatePlaylist].
 type ReqCreatePlaylist struct {
-	PlaylistID SubsonicID   `url:"playlistId,omitempty"`
-	Name       *string      `url:"name,omitempty"` // Required if creating
-	SongIDs    []SubsonicID `url:"songId,omitempty"`
+	// PlaylistID is the playlist ID to edit or empty if nothing to edit.
+	PlaylistID SubsonicID `url:"playlistId,omitempty"`
+	// Name is the name of the playlist. Required if creating.
+	Name string `url:"name,omitempty"`
+	// SongIDs are the IDs of the songs in the playlist.
+	SongIDs []SubsonicID `url:"songId,omitempty"`
 }
 
 // CreatePlaylist creates a new playlist or updates an existing one.
@@ -72,12 +75,19 @@ func (c *Client) CreatePlaylist(ctx context.Context, req ReqCreatePlaylist) (*Pl
 
 // ReqUpdatePlaylist is the arguments to [Client.UpdatePlaylist].
 type ReqUpdatePlaylist struct {
-	PlaylistID        SubsonicID   `url:"playlistId"`                  // The playlist ID.
-	Name              *string      `url:"name,omitempty"`              // The human-readable name of the playlist.
-	Comment           *string      `url:"comment,omitempty"`           // The playlist comment.
-	Public            *bool        `url:"public,omitempty"`            // Whether the playlist is visible to all users.
-	SongIDToAdd       []SubsonicID `url:"songIdToAdd,omitempty"`       // Song IDs to add to the playlist.
-	SongIndexToRemove []int        `url:"songIndexToRemove,omitempty"` // Song indexes to remove from the playlist.
+	// PlaylistID is the playlist ID.
+	PlaylistID SubsonicID `url:"playlistId"`
+	// Name is the human-readable name of the playlist.
+	Name *string `url:"name,omitempty"`
+	// Comment is the playlist comment.
+	Comment *string `url:"comment,omitempty"`
+	// Public is whether the playlist is visible to all users.
+	Public *bool `url:"public,omitempty"`
+	// SongIDsToAdd are the song IDs to add to the playlist.
+	SongIDToAdd []SubsonicID `url:"songIdToAdd,omitempty"`
+	// SongIndexToRemove are the indexes of the songs to remove from the
+	// playlist.
+	SongIndexToRemove []int `url:"songIndexToRemove,omitempty"`
 }
 
 func (c *Client) UpdatePlaylist(ctx context.Context, req ReqUpdatePlaylist) error {
