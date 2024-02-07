@@ -23,13 +23,23 @@ const (
 // ReqGetAlbumList is the arguments to [Client.GetAlbumList] or
 // [Client.GetAlbumList2].
 type ReqGetAlbumList struct {
-	Type          AlbumListType `url:"type"`                    // The list type.
-	Size          *int          `url:"size,omitempty"`          // The number of albums to return. Max 500.
-	Offset        *int          `url:"offset,omitempty"`        // The list offset. Useful if you for example want to page through the list of newest albums.
-	FromYear      *int          `url:"fromYear,omitempty"`      // The first year in the range. If fromYear > toYear a reverse chronological list is returned.
-	ToYear        *int          `url:"toYear,omitempty"`        // The last year in the range.
-	Genre         *string       `url:"genre,omitempty"`         // The name of the genre, e.g., "Rock".
-	MusicFolderID *SubsonicID   `url:"musicFolderId,omitempty"` // Only return albums in the music folder with the given ID. Added in 1.11.0.
+	// Type is the list type.
+	Type AlbumListType `url:"type"`
+	// Size is the number of albums to return. Max 500.
+	Size *int `url:"size,omitempty"`
+	// Offset is the list offset. Useful if you for example want to page
+	// through the list of newest albums.
+	Offset *int `url:"offset,omitempty"`
+	// FromYear is the first year in the range. If fromYear > toYear a reverse
+	// chronological list is returned.
+	FromYear *int `url:"fromYear,omitempty"`
+	// ToYear is the last year in the range.
+	ToYear *int `url:"toYear,omitempty"`
+	// Genre is the name of the genre, e.g., "Rock".
+	Genre *string `url:"genre,omitempty"`
+	// MusicFolderID restricts the server to return albums in the music folder
+	// with the given ID. Added in 1.11.0.
+	MusicFolderID *SubsonicID `url:"musicFolderId,omitempty"`
 }
 
 // GetAlbumList returns a list of random, newest, highest rated etc. albums.
@@ -75,11 +85,19 @@ func (c *Client) GetAlbumList2(ctx context.Context, req ReqGetAlbumList) (*Album
 
 // ReqGetRandomSongs is the arguments to [Client.GetRandomSongs].
 type ReqGetRandomSongs struct {
-	Size          *int        `url:"size,omitempty"`          // The number of songs to return. Max 500.
-	Genre         *string     `url:"genre,omitempty"`         // Only return songs belonging to this genre.
-	FromYear      *int        `url:"fromYear,omitempty"`      // Only return songs published after or in this year.
-	ToYear        *int        `url:"toYear,omitempty"`        // Only return songs published before or in this year.
-	MusicFolderID *SubsonicID `url:"musicFolderId,omitempty"` // Only return songs in the music folder with the given ID.
+	// Size is the number of songs to return. Max 500.
+	Size *int `url:"size,omitempty"`
+	// Genre restricts the server to only return songs belonging to this genre.
+	Genre *string `url:"genre,omitempty"`
+	// FromYear restricts the server to only return songs published after or in
+	// this year.
+	FromYear *int `url:"fromYear,omitempty"`
+	// ToYear restricts the server to only return songs published before or in
+	// this year.
+	ToYear *int `url:"toYear,omitempty"`
+	// MusicFolderID restricts the server to return albums in the music folder
+	// with the given ID.
+	MusicFolderID *SubsonicID `url:"musicFolderId,omitempty"`
 }
 
 // GetRandomSongs returns random songs matching the given criteria.
@@ -102,10 +120,16 @@ func (c *Client) GetRandomSongs(ctx context.Context, req ReqGetRandomSongs) (*So
 
 // ReqGetSongsByGenre is the arguments to [Client.GetSongsByGenre].
 type ReqGetSongsByGenre struct {
-	Genre         string      `url:"genre"`                   // The genre to return songs for.
-	Count         *int        `url:"count,omitempty"`         // The maximum number of songs to return. Max 500.
-	Offset        *int        `url:"offset,omitempty"`        // The list offset. Useful if you want to page through the songs in a genre.
-	MusicFolderID *SubsonicID `url:"musicFolderId,omitempty"` // Only return songs in the music folder with the given ID. Added in 1.12.0.
+	// Genre is the genre to return songs for.
+	Genre string `url:"genre"`
+	// Count is the maximum number of songs to return. Max 500.
+	Count *int `url:"count,omitempty"`
+	// Offset is the list offset. Useful if you want to page through the songs
+	// in a genre.
+	Offset *int `url:"offset,omitempty"`
+	// MusicFolderID restricts the server to return albums in the music folder
+	// with the given ID. Added in 1.12.0.
+	MusicFolderID *SubsonicID `url:"musicFolderId,omitempty"`
 }
 
 // GetSongsByGenre returns songs in a given genre.
