@@ -250,7 +250,7 @@ types-peewee==3.15.0.5
     # via sublime_music (pyproject.toml)
 types-python-dateutil==2.8.19.5
     # via sublime_music (pyproject.toml)
-types-pyyaml==6.0.12.2
+types-pyyaml==6.0.12.20240311
     # via sublime_music (pyproject.toml)
 types-requests==2.28.11.7
     # via sublime_music (pyproject.toml)
