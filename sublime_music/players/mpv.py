@@ -135,7 +135,7 @@ class MPVPlayer(Player):
             "start": str(progress.total_seconds()),
         }
         self.mpv.command(
-            "loadfile", uri, "replace", ",".join(f"{k}={v}" for k, v in options.items())
+            "loadfile", uri, "replace", -1, ",".join(f"{k}={v}" for k, v in options.items())
         )
         self.mpv.pause = False
         self.song_loaded = True
