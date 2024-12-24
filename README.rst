@@ -1,3 +1,8 @@
+Sublime Music has reached End-of-Maintenance
+--------------------------------------------
+
+See the announcement here: http://sumnerevans.com/posts/projects/sublime-music-eom/
+
 .. image:: logo/logo.png
    :alt: Sublime Music Logo
 
