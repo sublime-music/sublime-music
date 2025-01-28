@@ -92,7 +92,7 @@ imagesize==1.4.1
     # via sphinx
 importlib-metadata==6.0.0
     # via keyring
-iniconfig==1.1.1
+iniconfig==2.0.0
     # via pytest
 isort==5.11.4
     # via sublime_music (pyproject.toml)
